@@ -1,0 +1,89 @@
+import { describe, expect, it } from 'vitest'
+import type { HarnessEvent } from '@shared/events'
+import { AgentService, type QueryFactory } from '../src/main/agent/AgentService'
+import type { EventBus } from '../src/main/events/bus'
+import { loadFixture } from './replay'
+
+function setup(factory: QueryFactory) {
+  const events: HarnessEvent[] = []
+  const bus = { emit: (e: HarnessEvent | HarnessEvent[]) => events.push(...(Array.isArray(e) ? e : [e])) } as unknown as EventBus
+  const svc = new AgentService({ bus, getEnv: () => ({}), queryFactory: factory })
+  return { svc, events }
+}
+
+const tick = () => new Promise((r) => setTimeout(r, 10))
+
+describe('AgentService', () => {
+  it('runs a turn: user message → SDK messages → idle', async () => {
+    const fixture = loadFixture('tasks-and-subagent.json')
+    const factory = (({ prompt }: { prompt: AsyncIterable<unknown> }) => {
+      async function* run() {
+        for await (const _msg of prompt) for (const m of fixture) yield m
+      }
+      return Object.assign(run(), { interrupt: async () => {}, setPermissionMode: async () => {}, setModel: async () => {} })
+    }) as unknown as QueryFactory
+
+    const { svc, events } = setup(factory)
+    const { id } = svc.start({ cwd: '/tmp' })
+    svc.send(id, 'do the thing')
+    await tick()
+
+    const statuses = events.filter((e) => e.type === 'status').map((e) => (e.type === 'status' ? e.status : ''))
+    expect(statuses).toEqual(['idle', 'running', 'idle'])
+    expect(events.find((e) => e.type === 'user.message')).toMatchObject({ text: 'do the thing' })
+    expect(events.some((e) => e.type === 'turn.end')).toBe(true)
+    svc.close(id)
+  })
+
+  it('round-trips a permission request through the UI', async () => {
+    let decision: unknown
+    const factory = (({ prompt, options }: { prompt: AsyncIterable<unknown>; options: { canUseTool: Function } }) => {
+      async function* run() {
+        for await (const _msg of prompt) {
+          decision = await options.canUseTool('Bash', { command: 'ls' }, {
+            signal: new AbortController().signal,
+            toolUseID: 't1',
+            requestId: 'r1',
+            suggestions: [{ type: 'addRules', rules: [{ toolName: 'Bash' }], behavior: 'allow', destination: 'session' }],
+          })
+        }
+      }
+      return Object.assign(run(), { interrupt: async () => {} })
+    }) as unknown as QueryFactory
+
+    const { svc, events } = setup(factory)
+    const { id } = svc.start({ cwd: '/tmp' })
+    svc.send(id, 'list files')
+    await tick()
+
+    expect(events.find((e) => e.type === 'permission.request')).toMatchObject({ requestId: 'r1', toolName: 'Bash', canAlwaysAllow: true })
+    expect(events.filter((e) => e.type === 'status').at(-1)).toMatchObject({ status: 'waiting' })
+
+    svc.respondPermission(id, 'r1', { behavior: 'allow', always: true })
+    await tick()
+    expect(decision).toMatchObject({ behavior: 'allow', updatedInput: { command: 'ls' }, updatedPermissions: [{ type: 'addRules' }] })
+    expect(events.find((e) => e.type === 'permission.resolved')).toMatchObject({ behavior: 'allow' })
+    svc.close(id)
+  })
+
+  it('denies pending permissions when interrupted', async () => {
+    let decision: unknown
+    const factory = (({ prompt, options }: { prompt: AsyncIterable<unknown>; options: { canUseTool: Function } }) => {
+      async function* run() {
+        for await (const _msg of prompt) {
+          decision = await options.canUseTool('Write', {}, { signal: new AbortController().signal, toolUseID: 't', requestId: 'r' })
+        }
+      }
+      return Object.assign(run(), { interrupt: async () => {} })
+    }) as unknown as QueryFactory
+
+    const { svc } = setup(factory)
+    const { id } = svc.start({ cwd: '/tmp' })
+    svc.send(id, 'write')
+    await tick()
+    await svc.interrupt(id)
+    await tick()
+    expect(decision).toMatchObject({ behavior: 'deny' })
+    svc.close(id)
+  })
+})

@@ -1,0 +1,98 @@
+@import 'tailwindcss';
+@plugin '@tailwindcss/typography';
+
+@custom-variant dark (@media (prefers-color-scheme: dark));
+
+@theme {
+  --font-sans: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Inter', system-ui, sans-serif;
+  --font-mono: 'SF Mono', ui-monospace, Menlo, monospace;
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-line: var(--line);
+  --color-fg: var(--fg);
+  --color-muted: var(--muted);
+  --color-accent: var(--accent);
+}
+
+:root {
+  --surface: #ffffff;
+  --surface-2: #f6f6f7;
+  --sidebar: #ececee;
+  --line: rgb(0 0 0 / 0.08);
+  --fg: #1d1d1f;
+  --muted: #6e6e73;
+  --accent: #d97757;
+  color-scheme: light dark;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --surface: #1c1c1e;
+    --surface-2: #232325;
+    --sidebar: #161618;
+    --line: rgb(255 255 255 / 0.08);
+    --fg: #f5f5f7;
+    --muted: #98989d;
+  }
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+  overflow: hidden;
+  background: var(--sidebar);
+  color: var(--fg);
+  font-family: var(--font-sans);
+  font-size: 13px;
+  -webkit-font-smoothing: antialiased;
+  user-select: none;
+}
+
+/* On macOS the window has native vibrancy; let it show through the sidebar. */
+.platform-darwin,
+.platform-darwin body,
+.platform-darwin #root {
+  background: transparent;
+}
+
+.drag {
+  -webkit-app-region: drag;
+}
+.no-drag {
+  -webkit-app-region: no-drag;
+}
+
+.selectable {
+  user-select: text;
+}
+
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-thumb {
+  background: rgb(128 128 128 / 0.25);
+  border-radius: 10px;
+  border: 3px solid transparent;
+  background-clip: content-box;
+}
+
+@keyframes harness-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.35; }
+}
+.animate-soft-pulse {
+  animation: harness-pulse 1.4s ease-in-out infinite;
+}
+
+@keyframes harness-caret {
+  50% { opacity: 0; }
+}
+.caret::after {
+  content: '▍';
+  margin-left: 1px;
+  color: var(--accent);
+  animation: harness-caret 1s step-end infinite;
+}
