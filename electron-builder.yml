@@ -1,20 +1,46 @@
 appId: dev.harness.app
 productName: Harness
+copyright: Copyright © 2026 Harness
 directories:
-  buildResources: resources
+  buildResources: build
   output: dist
 files:
   - out/**
   - package.json
+  # Icons the main process loads at runtime (tray, window).
+  - resources/**
+  # Only the glibc/macOS Claude Code binary is ever used.
+  - '!node_modules/@anthropic-ai/claude-agent-sdk-*-musl/**'
 asarUnpack:
   # The Claude Code binary ships inside platform packages and must run from disk.
   - node_modules/@anthropic-ai/claude-agent-sdk*/**
   # node-pty's native addon and macOS spawn-helper must be real files.
   - node_modules/node-pty/**
+# node-pty ships N-API prebuilds for macOS; no recompiling (and no Xcode) needed.
+npmRebuild: false
 mac:
   category: public.app-category.developer-tools
+  icon: build/icon.png
+  # Apple silicon by default. For Intel, build on an Intel Mac (or `npm install --cpu=x64` first)
+  # so the matching Claude Code binary package is installed. See docs/RELEASING.md.
   target:
     - target: dmg
-      arch: [arm64, x64]
+      arch: [arm64]
+    - target: zip
+      arch: [arm64]
   hardenedRuntime: true
+  gatekeeperAssess: false
   darkModeSupport: true
+  entitlements: build/entitlements.mac.plist
+  entitlementsInherit: build/entitlements.mac.plist
+  # Signing uses your Developer ID from the keychain (or CSC_LINK/CSC_KEY_PASSWORD).
+  # Notarization runs automatically when APPLE_ID, APPLE_APP_SPECIFIC_PASSWORD and APPLE_TEAM_ID
+  # (or APPLE_API_KEY/APPLE_API_KEY_ID/APPLE_API_ISSUER) are set. See docs/RELEASING.md.
+dmg:
+  title: Harness ${version}
+  writeUpdateInfo: false
+linux:
+  # Only used to smoke-test packaging on CI/Linux; the product targets macOS.
+  target: dir
+  icon: build/icon.png
+  category: Development

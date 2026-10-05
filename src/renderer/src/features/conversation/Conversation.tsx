@@ -1,4 +1,5 @@
-import { History, SquareTerminal } from 'lucide-react'
+import { History, Play, SquareTerminal } from 'lucide-react'
+import { ReplayBar } from '../replay/ReplayBar'
 import { lazy, Suspense } from 'react'
 import { MissionView } from '../mission/MissionView'
 import { PreviewView } from '../preview/PreviewView'
@@ -18,6 +19,8 @@ export function Conversation({ session }: { session: SessionState }) {
   const view = useApp((s) => s.view)
   const detailAgent = useApp((s) => s.detailAgent)
   const diffPath = useApp((s) => s.diffPath)
+  const replaying = useApp((s) => s.replay?.sessionId === session.id)
+  const startReplay = useApp((s) => s.startReplay)
   return (
     <div className="relative flex min-h-0 flex-1 flex-col">
       {view === 'board' ? (
@@ -29,6 +32,10 @@ export function Conversation({ session }: { session: SessionState }) {
       ) : (
         <MessageList session={session} />
       )}
+      {replaying ? (
+        <ReplayBar sessionId={session.id} />
+      ) : (
+        <>
       {session.permissions.length > 0 && (
         <div className="mx-auto w-full max-w-3xl space-y-2 px-6 pb-3">
           {session.permissions.map((p, i) => (
@@ -46,11 +53,16 @@ export function Conversation({ session }: { session: SessionState }) {
           <div className="mx-auto mb-2 flex w-full max-w-3xl items-center gap-2 px-6 text-[12px] text-muted">
             <History className="size-3.5" />
             Saved session. Send a message or pick an action to resume where it left off.
+            <button onClick={() => startReplay(session.id)} className="ml-auto flex items-center gap-1 rounded-md px-2 py-0.5 text-[var(--accent)] hover:bg-[var(--accent)]/10">
+              <Play className="size-3 fill-current" /> Replay
+            </button>
           </div>
         )
       )}
       {!(session.observed && session.live) && <ActionBar session={session} />}
       <PromptBox session={session} />
+        </>
+      )}
       {detailAgent && <AgentDetail session={session} />}
       {diffPath && (
         <Suspense fallback={<div className="absolute inset-0 z-30 bg-surface" />}>

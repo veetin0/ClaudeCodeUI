@@ -5,6 +5,15 @@ import type { AppSettings, PermissionDecision, SessionSummary } from '@shared/ip
 import type { Composition, PreviewState, ProjectInfo } from '@shared/preview'
 import { ipcErrorMessage } from '@/lib/time'
 import { applyEvent, createSession, finalizeLoaded, type SessionState } from './reducer'
+import { appendEvents, dropLog, getLog, seedLog } from './eventLog'
+
+export interface ReplayState {
+  sessionId: string
+  /** Wall-clock time (ms) the replay is showing. */
+  t: number
+  playing: boolean
+  speed: number
+}
 
 export interface TerminalTab {
   id: string
@@ -44,6 +53,10 @@ interface AppState {
   projects: Record<string, ProjectInfo>
   previewTargets: Record<string, PreviewTarget | undefined>
   compositions: Record<string, { list?: Composition[]; loading: boolean; error?: string }>
+  paletteOpen: boolean
+  /** Id of the quick action (or 'cmd:<name>') whose form is open above the prompt. */
+  actionForm: string | null
+  replay: ReplayState | null
   terminals: TerminalTab[]
   activeTerminal: string | null
   terminalOpen: boolean
@@ -76,6 +89,10 @@ interface AppState {
   detectProject(cwd: string): Promise<void>
   setPreviewTarget(cwd: string, target: PreviewTarget | undefined): void
   loadCompositions(cwd: string): Promise<void>
+  setPaletteOpen(open: boolean): void
+  setActionForm(id: string | null): void
+  startReplay(sessionId?: string): void
+  setReplay(patch: Partial<ReplayState> | null): void
   openTerminal(command?: string): Promise<void>
   closeTerminal(id: string): void
   selectTerminal(id: string): void
@@ -113,6 +130,9 @@ export const useApp = create<AppState>((set, get) => ({
   projects: {},
   previewTargets: {},
   compositions: {},
+  paletteOpen: false,
+  actionForm: null,
+  replay: null,
   terminals: [],
   activeTerminal: null,
   terminalOpen: false,
@@ -144,6 +164,7 @@ export const useApp = create<AppState>((set, get) => ({
     if (get().sessions[id]) return get().select(id)
     const loaded = await api().loadSession(id)
     if (!loaded) return
+    seedLog(id, loaded.events)
     const session = produce(createSession(loaded.summary, get().settings?.defaultPermissionMode, false), (draft) => {
       for (const e of loaded.events) applyEvent(draft, e)
       finalizeLoaded(draft)
@@ -159,6 +180,7 @@ export const useApp = create<AppState>((set, get) => ({
 
   async deleteSaved(id) {
     await api().deleteSession(id)
+    dropLog(id)
     set((st) => {
       const { [id]: _removed, ...sessions } = st.sessions
       const order = st.order.filter((x) => x !== id)
@@ -168,6 +190,7 @@ export const useApp = create<AppState>((set, get) => ({
   },
 
   applyEvents(events) {
+    appendEvents(events)
     set((state) =>
       produce(state, (draft) => {
         for (const e of events) {
@@ -213,7 +236,7 @@ export const useApp = create<AppState>((set, get) => ({
   },
 
   select(id) {
-    set({ activeId: id, detailAgent: null, diffPath: null })
+    set({ activeId: id, detailAgent: null, diffPath: null, replay: null })
     const cwd = get().sessions[id]?.cwd
     if (cwd) void get().detectProject(cwd)
   },
@@ -304,6 +327,17 @@ export const useApp = create<AppState>((set, get) => ({
     set((st) => (st.activeId ? { drafts: { ...st.drafts, [st.activeId]: text } } : {})),
   toggleFocusMode: () => set((st) => ({ focusMode: !st.focusMode })),
   setSettingsOpen: (settingsOpen) => set({ settingsOpen }),
+  setPaletteOpen: (paletteOpen) => set({ paletteOpen }),
+  setActionForm: (actionForm) => set({ actionForm }),
+
+  startReplay(sessionId) {
+    const id = sessionId ?? get().activeId
+    if (!id) return
+    const log = getLog(id)
+    if (log.length === 0) return
+    set({ replay: { sessionId: id, t: log[0].ts, playing: true, speed: 4 }, activeId: id, detailAgent: null, diffPath: null })
+  },
+  setReplay: (patch) => set((st) => ({ replay: patch === null || !st.replay ? null : { ...st.replay, ...patch } })),
 
   async openTerminal(command) {
     const { activeId, sessions } = get()

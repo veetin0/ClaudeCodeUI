@@ -16,6 +16,9 @@ import { TranscriptObserver } from './observe/TranscriptObserver'
 import { PtyService } from './pty/PtyService'
 import { PreviewService } from './preview/PreviewService'
 import { EXEC_TOOLS } from '@shared/events'
+import { installMenu } from './system/menu'
+import { Presence, projectName } from './system/presence'
+import appIcon from '../../resources/icon.png?asset'
 import { SettingsStore } from './system/settings'
 
 loadLoginShellPath()
@@ -34,7 +37,7 @@ let hookBridge: HookBridge
 let settings: SettingsStore
 let store: SessionStore
 let agents: AgentService
-let waitingCount = 0
+let presence: Presence
 
 function createWindow() {
   const win = new BrowserWindow({
@@ -43,6 +46,7 @@ function createWindow() {
     minWidth: 960,
     minHeight: 600,
     title: 'Harness',
+    icon: appIcon,
     titleBarStyle: 'hiddenInset',
     trafficLightPosition: { x: 16, y: 16 },
     vibrancy: 'sidebar',
@@ -67,21 +71,6 @@ function createWindow() {
 
   if (process.env.ELECTRON_RENDERER_URL) void win.loadURL(process.env.ELECTRON_RENDERER_URL)
   else void win.loadFile(join(import.meta.dirname, '../renderer/index.html'))
-}
-
-/** Dock badge counts sessions waiting on a permission decision. */
-function trackWaiting() {
-  const waiting = new Set<string>()
-  bus.subscribe((e) => {
-    if (e.type !== 'status') return
-    if (e.status === 'waiting') waiting.add(e.sessionId)
-    else waiting.delete(e.sessionId)
-    if (waiting.size !== waitingCount) {
-      waitingCount = waiting.size
-      app.dock?.setBadge(waitingCount ? String(waitingCount) : '')
-      if (waitingCount && !BrowserWindow.getFocusedWindow()) app.dock?.bounce('informational')
-    }
-  })
 }
 
 /** Saved sessions get a tracker too, so their diffs can be reviewed and reverted without resuming. */
@@ -125,6 +114,7 @@ function registerIpc() {
     await updateClaudeSettings(claudeSettingsPath, withoutHarnessHooks)
     return observeStatus()
   })
+  ipcMain.on(IPC.activeSession, (_e, id: string | null) => presence.setActiveSession(id))
   ipcMain.handle(IPC.previewDetect, (_e, cwd: string) => preview.detect(cwd))
   ipcMain.handle(IPC.previewState, () => preview.state())
   ipcMain.handle(IPC.startStudio, (_e, cwd: string) => preview.startStudio(cwd))
@@ -194,7 +184,14 @@ function registerIpc() {
   ipcMain.handle(IPC.updateSettings, (_e, patch) => settings.update(patch))
 }
 
-app.whenReady().then(async () => {
+app.whenReady().then(start).catch((err: unknown) => {
+  // Fail loudly rather than run with no window.
+  console.error(err)
+  dialog.showErrorBox('Harness could not start', err instanceof Error ? (err.stack ?? err.message) : String(err))
+  app.exit(1)
+})
+
+async function start() {
   handleFileScheme()
   await telemetry.start()
   settings = new SettingsStore()
@@ -225,18 +222,29 @@ app.whenReady().then(async () => {
   hookBridge = new HookBridge((input) => observer.onHook(input))
   await hookBridge.start()
   if (settings.get().observeTerminalSessions) await observer.start()
+  presence = new Presence({
+    bus,
+    describe: (id) => {
+      const s = store.get(id)
+      return s ? { title: s.title, project: projectName(s.cwd) } : null
+    },
+    notificationsEnabled: () => settings.get().notifications,
+  })
+  presence.createTray()
+  installMenu()
+  if (process.platform === 'darwin' && !app.isPackaged) app.dock?.setIcon(appIcon)
   registerIpc()
-  trackWaiting()
   createWindow()
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow()
   })
-})
+}
 
 app.on('before-quit', () => {
   agents?.closeAll()
   ptys.killAll()
+  presence?.destroy()
   preview.stopAll()
   observer?.stop()
   hookBridge?.stop()

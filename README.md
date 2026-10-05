@@ -65,6 +65,16 @@ Remotion downloads its own headless Chrome the first time you render. Set `HARNE
 
 ![Remotion Studio with a finished render](docs/screenshots/remotion.png)
 
+## Everyday polish
+
+- **Native menu** with every command and its shortcut. It also makes ⌘C/⌘V/⌘Z work everywhere.
+- **⌘K command palette:** commands, views, open sessions, History, projects, and the "Ask Claude" actions.
+- **Notifications:** when Claude needs approval, or finishes a turn longer than 15 s, while Harness is in the background or you're looking at another session. Clicking a notification jumps to the session. You can turn them off in Settings.
+- **Menu-bar item:** shows how many sessions are working (and `!` when one needs you), and lists them. The dock badge counts sessions waiting for approval.
+- **Replay** (⇧⌘R, or Replay in a saved session's banner): a scrubber over the session's saved events, with play at 1×, 4×, 16× or 64×. Ticks mark prompts, finished turns and subagent launches. Every view (chat, Board, Mission graph and timeline, files, meters) shows the session as it was at the playhead.
+
+![Replaying a session at 40%](docs/screenshots/replay.png)
+
 ## Action buttons instead of /commands
 
 The buttons above the prompt cover common jobs: parallel agents, train a model, analyze data, fix tests, build a feature, debug, explain, Remotion video and commit. Each opens a form prefilled with example parameters and a preview of the exact prompt. **Commands ▾** lists the session's slash commands and skills, with descriptions and example arguments. Run sends the prompt right away; Edit in prompt drops it into the box so you can change it first.
@@ -81,7 +91,7 @@ Opening a saved session replays its event log through the same reducer as live v
 
 ## Status
 
-Phases 1–6 of [the plan](docs/PLAN.md) are done. Phases 1–2:
+All seven phases of [the plan](docs/PLAN.md) are done. Phases 1–2:
 
 - **Engine:** Claude Agent SDK with streaming input, so you can queue follow-ups while Claude works. Stop with Esc. Switch model and permission mode mid-session.
 - **Live conversation:** streamed markdown, collapsible thinking, and compact tool chips coloured by kind (read, write, search, exec…). Click a chip to see its input, output and diff.
@@ -105,7 +115,8 @@ Requirements: macOS, Node 20+. Sessions use your existing Claude Code login. You
 ```bash
 npm test             # normalizer/reducer tests replay real recorded SDK sessions
 npm run typecheck
-npm run build:mac    # .dmg in dist/ (unsigned unless you configure a Developer ID)
+npm run build:mac    # signed + notarized .dmg when credentials are set; see docs/RELEASING.md
+npm run build:dir    # unpacked app for a quick packaging smoke test
 ```
 
 ## How it works

@@ -83,6 +83,14 @@ export function SettingsDialog() {
           </select>
         </Field>
 
+        <label className="mb-4 flex items-start gap-2.5">
+          <input type="checkbox" className="mt-0.5" checked={settings.notifications} onChange={(e) => void updateSettings({ notifications: e.target.checked })} />
+          <span>
+            <span className="font-medium">Notifications</span>
+            <span className="mt-0.5 block text-[11px] text-muted">Tell me when Claude needs approval or finishes a longer task while Harness is in the background.</span>
+          </span>
+        </label>
+
         <ObserveSection />
 
         <p className="mt-4 text-[11px] leading-relaxed text-muted">

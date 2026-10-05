@@ -1,6 +1,6 @@
 # Plan: "Harness" — a Mac app to run and visualize Claude Code in real time
 
-> **Progress:** Phases 1–6 done: skeleton, engine, persistence and resume, visualizations, terminal plus observe mode, and Remotion Studio plus dev-server preview with rendering. Next: phase 7, polish and ship (timeline replay, command palette, notifications, menu-bar item, signed .dmg).
+> **Progress:** All seven phases are done. Phase 7 added the native menu, the ⌘K palette, notifications, the menu-bar item, session replay, the app icon, hardened-runtime entitlements and the signing/notarization config (see `docs/RELEASING.md`). The packaging was checked with a working packaged build.
 
 ## Context
 You want one Mac app where you run Claude Code and *watch* it work: what the agent is thinking, which tools it calls, which subagents it spawns, which files it touches, what it costs. Remotion projects should get a live video preview, but otherwise be treated like any other project. The UI should look simple at first glance and reveal depth on demand.

@@ -65,6 +65,8 @@ export interface AppSettings {
   defaultModel: string
   defaultPermissionMode: PermissionMode
   recentProjects: string[]
+  /** macOS notifications when Claude needs approval or finishes while Harness is in the background. */
+  notifications: boolean
 }
 
 /** The API the preload script exposes on `window.harness`. */
@@ -117,6 +119,10 @@ export interface HarnessApi {
   revealFile(path: string): Promise<void>
   openExternal(url: string): Promise<void>
   onPreviewState(cb: (state: PreviewState) => void): () => void
+  /** Menu items, notifications and the menu-bar item send commands here. */
+  onCommand(cb: (cmd: import('./commands').CommandMessage) => void): () => void
+  /** Tells main which session is in front, so notifications skip it while the window is focused. */
+  setActiveSession(sessionId: string | null): void
   /** Events arrive batched (~30fps) to keep the renderer smooth during heavy streaming. */
   onEvents(cb: (events: HarnessEvent[]) => void): () => void
 }
@@ -162,5 +168,7 @@ export const IPC = {
   cancelRender: 'preview:cancel-render',
   revealFile: 'shell:reveal',
   openExternal: 'shell:open-external',
+  command: 'app:command',
+  activeSession: 'app:active-session',
   events: 'events',
 } as const

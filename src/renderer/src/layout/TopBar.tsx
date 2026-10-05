@@ -2,11 +2,12 @@ import { LayoutGrid, MessageSquare, MonitorPlay, Network, PanelLeft, SquareTermi
 import { ContextGauge } from '@/features/meters/ContextGauge'
 import { useElapsed } from '@/features/meters/useElapsed'
 import { basename, cn, formatCost, formatDuration, formatTokens } from '@/lib/format'
-import { useActiveSession, useApp } from '@/stores/app'
+import { useApp } from '@/stores/app'
+import { useDisplaySession } from '@/stores/replay'
 import { StatusDot, STATUS_LABEL } from './StatusDot'
 
 export function TopBar() {
-  const session = useActiveSession()
+  const session = useDisplaySession()
   const { focusMode, toggleFocusMode, view, setView, terminalOpen, toggleTerminalPanel } = useApp()
   const project = useApp((st) => (session ? st.projects[session.cwd] : undefined))
   const serverUp = useApp((st) => !!session && st.preview.servers.some((x) => x.cwd === session.cwd && x.status === 'ready'))

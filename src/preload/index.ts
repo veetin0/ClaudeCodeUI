@@ -56,6 +56,12 @@ const api: HarnessApi = {
     ipcRenderer.on(IPC.previewStateUpdate, l)
     return () => ipcRenderer.removeListener(IPC.previewStateUpdate, l)
   },
+  onCommand: (cb) => {
+    const l = (_: unknown, cmd: import('../shared/commands').CommandMessage) => cb(cmd)
+    ipcRenderer.on(IPC.command, l)
+    return () => ipcRenderer.removeListener(IPC.command, l)
+  },
+  setActiveSession: (id) => ipcRenderer.send(IPC.activeSession, id),
   onEvents: (cb) => {
     const listener = (_: unknown, events: HarnessEvent[]) => cb(events)
     ipcRenderer.on(IPC.events, listener)

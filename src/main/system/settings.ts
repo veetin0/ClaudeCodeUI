@@ -13,6 +13,7 @@ const DEFAULTS: StoredSettings = {
   defaultPermissionMode: 'default',
   recentProjects: [],
   observeTerminalSessions: true,
+  notifications: true,
 }
 
 export class SettingsStore {

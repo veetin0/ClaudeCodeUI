@@ -10,7 +10,10 @@ import type { SessionState } from '@/stores/reducer'
  * parameters and a live preview of the exact prompt that will be sent.
  */
 export function ActionBar({ session }: { session: SessionState }) {
-  const [active, setActive] = useState<QuickAction | null>(null)
+  const formId = useApp((s) => s.actionForm)
+  const setForm = useApp((s) => s.setActionForm)
+  const active: QuickAction | null = formId ? (QUICK_ACTIONS.find((a) => a.id === formId) ?? (formId.startsWith('cmd:') ? commandAction(formId.slice(4)) : null)) : null
+  const setActive = (a: QuickAction | null) => setForm(a?.id ?? null)
   const [commandsOpen, setCommandsOpen] = useState(false)
   const commands = visibleCommands(session.slashCommands)
 

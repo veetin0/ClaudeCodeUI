@@ -6,41 +6,35 @@ import { Conversation } from './features/conversation/Conversation'
 import { Welcome } from './features/conversation/Welcome'
 import { SettingsDialog } from './layout/SettingsDialog'
 import { TerminalPanel } from './features/terminal/TerminalPanel'
-import { useActiveSession, useApp } from './stores/app'
+import { useApp } from './stores/app'
+import { useDisplaySession } from './stores/replay'
+import { runCommand } from './lib/commands'
+import { CommandPalette } from './layout/CommandPalette'
 
 export function App() {
-  const session = useActiveSession()
+  const session = useDisplaySession()
   const focusMode = useApp((s) => s.focusMode)
 
   useEffect(() => {
     void useApp.getState().init()
+    const offCommand = window.harness.onCommand(runCommand)
+    // Shortcuts live in the native menu (so they show there); Escape is the one in-page key.
     const onKey = (e: KeyboardEvent) => {
       const app = useApp.getState()
-      if (e.metaKey && e.key === '\\') {
-        e.preventDefault()
-        app.toggleFocusMode()
-      } else if (e.metaKey && e.key.toLowerCase() === 'o') {
-        e.preventDefault()
-        void app.openProject()
-      } else if (e.metaKey && ['1', '2', '3', '4'].includes(e.key)) {
-        e.preventDefault()
-        app.setView((['chat', 'board', 'mission', 'preview'] as const)[Number(e.key) - 1])
-      } else if (e.metaKey && e.shiftKey && e.key.toLowerCase() === 'm') {
-        e.preventDefault()
-        app.setView('mission')
-      } else if (e.metaKey && e.key.toLowerCase() === 'j') {
-        e.preventDefault()
-        app.toggleTerminalPanel()
-      } else if (e.metaKey && e.key === ',') {
-        e.preventDefault()
-        app.setSettingsOpen(true)
-      } else if (e.key === 'Escape' && !app.detailAgent && !app.diffPath && app.activeId && app.sessions[app.activeId]?.status === 'running') {
-        void app.interrupt()
-      }
+      if (e.key !== 'Escape' || app.detailAgent || app.diffPath || app.paletteOpen) return
+      if (app.replay) app.setReplay(null)
+      else if (app.activeId && app.sessions[app.activeId]?.status === 'running') void app.interrupt()
     }
     window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
+    return () => {
+      offCommand()
+      window.removeEventListener('keydown', onKey)
+    }
   }, [])
+
+  // Notifications about the session you're looking at are pointless.
+  const activeId = useApp((s) => s.activeId)
+  useEffect(() => window.harness.setActiveSession(activeId), [activeId])
 
   return (
     <div className="flex h-full">
@@ -54,6 +48,7 @@ export function App() {
         <TerminalPanel />
       </main>
       <SettingsDialog />
+      <CommandPalette />
     </div>
   )
 }

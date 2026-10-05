@@ -37,7 +37,8 @@ export function Timeline({ session }: { session: SessionState }) {
   const anyRunning = agents.some(isActive) || allTools.some((t) => t.status === 'running')
   const first = Math.min(...allTools.map((t) => t.startedAt), ...agents.map((a) => a.startedAt ?? Infinity))
   const live = useElapsed(anyRunning && Number.isFinite(first) ? first : undefined, 500)
-  const now = anyRunning ? first + live : Math.max(...allTools.map((t) => t.endedAt ?? t.startedAt), first + 1000)
+  const replayT = useApp((s) => (s.replay?.sessionId === session.id ? s.replay.t : undefined))
+  const now = replayT ?? (anyRunning ? first + live : Math.max(...allTools.map((t) => t.endedAt ?? t.startedAt), first + 1000))
 
   const t1 = now
   const t0 = follow ? Math.max(first, t1 - WINDOW_MS) : first
