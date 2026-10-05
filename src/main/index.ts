@@ -5,11 +5,15 @@ import type { PermissionMode } from '@shared/events'
 import { AgentService } from './agent/AgentService'
 import { EventBus } from './events/bus'
 import { agentEnv, loadLoginShellPath, resolveClaudeExecutable } from './system/environment'
+import { handleFileScheme, registerFileScheme } from './system/fileProtocol'
+import { TelemetryServer } from './system/telemetry'
 import { SettingsStore } from './system/settings'
 
 loadLoginShellPath()
+registerFileScheme()
 
 const bus = new EventBus()
+const telemetry = new TelemetryServer()
 let settings: SettingsStore
 let agents: AgentService
 let waitingCount = 0
@@ -84,10 +88,13 @@ function registerIpc() {
   ipcMain.handle(IPC.updateSettings, (_e, patch) => settings.update(patch))
 }
 
-app.whenReady().then(() => {
+app.whenReady().then(async () => {
+  handleFileScheme()
+  await telemetry.start()
   settings = new SettingsStore()
   agents = new AgentService({
     bus,
+    telemetry,
     claudeExecutablePath: resolveClaudeExecutable(),
     getEnv: () => {
       const key = settings.getApiKey()
@@ -103,7 +110,10 @@ app.whenReady().then(() => {
   })
 })
 
-app.on('before-quit', () => agents?.closeAll())
+app.on('before-quit', () => {
+  agents?.closeAll()
+  telemetry.stop()
+})
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') app.quit()
 })

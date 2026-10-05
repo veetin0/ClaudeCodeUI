@@ -1,5 +1,6 @@
 import type { AgentId, EventOf, HarnessEvent, PermissionMode, SessionStatus, TodoItem } from '@shared/events'
-import { SUBAGENT_TOOLS } from '@shared/events'
+import { HARNESS_TOOL_PREFIX, SUBAGENT_TOOLS } from '@shared/events'
+import type { ShowUpdate, VisualSource } from '@shared/visuals'
 import type { SessionSummary } from '@shared/ipc'
 
 export interface ToolCall {
@@ -41,6 +42,37 @@ export type Item =
   | { kind: 'compact'; id: string; preTokens: number; postTokens?: number; trigger: 'manual' | 'auto' }
   | { kind: 'error'; id: string; message: string }
 
+export interface ProgressState {
+  label: string
+  current: number
+  total: number
+  unit?: string
+  source: VisualSource
+  startedAt: number
+  updatedAt: number
+}
+
+export interface MetricSeries {
+  points: { step: number; value: number }[]
+  /** Reported via harness tools or $HARNESS_URL; parsed-from-output points are then ignored as duplicates. */
+  structured: boolean
+}
+
+export interface AgentVisuals {
+  status?: string
+  progress: Record<string, ProgressState>
+  metrics: Record<string, MetricSeries>
+  shows: (ShowUpdate & { ts: number })[]
+}
+
+/** Key into `visuals`: 'main' for the main agent, else the subagent's id. */
+export const agentKey = (agentId: AgentId) => agentId ?? 'main'
+
+const MAX_METRIC_POINTS = 1000
+
+/** Harness tools that only feed the agent cards; kept out of the chat transcript. */
+const QUIET_HARNESS_TOOLS = new Set(['progress', 'metric', 'status'].map((t) => HARNESS_TOOL_PREFIX + t))
+
 export type PermissionRequest = Omit<EventOf<'permission.request'>, 'type' | 'sessionId'>
 
 export interface SessionState {
@@ -59,6 +91,7 @@ export interface SessionState {
   tools: Record<string, ToolCall>
   subagents: Record<string, Subagent>
   todos: TodoItem[]
+  visuals: Record<string, AgentVisuals>
   permissions: PermissionRequest[]
   contextTokens: number
   contextWindow: number
@@ -81,6 +114,7 @@ export function createSession(s: SessionSummary, permissionMode: PermissionMode 
     tools: {},
     subagents: {},
     todos: [],
+    visuals: {},
     permissions: [],
     contextTokens: 0,
     contextWindow: DEFAULT_CONTEXT_WINDOW,
@@ -148,7 +182,9 @@ export function applyEvent(s: SessionState, e: HarnessEvent): void {
         status: 'running',
         startedAt: e.ts,
       }
-      if (e.agentId === null) {
+      if (QUIET_HARNESS_TOOLS.has(e.name)) {
+        // Visible on the agent's card instead.
+      } else if (e.agentId === null) {
         s.items.push({ kind: 'tool', id: e.toolUseId })
         // A tool call means the text that preceded it is complete.
         s.streamingText = ''
@@ -224,6 +260,10 @@ export function applyEvent(s: SessionState, e: HarnessEvent): void {
       s.todos = e.todos
       break
 
+    case 'visual':
+      applyVisual(s, e)
+      break
+
     case 'permission.request': {
       const { type: _t, sessionId: _s, ...req } = e
       s.permissions.push(req)
@@ -269,6 +309,54 @@ export function applyEvent(s: SessionState, e: HarnessEvent): void {
 
     case 'error':
       s.items.push({ kind: 'error', id: `error-${e.ts}-${s.items.length}`, message: e.message })
+      break
+  }
+}
+
+function visualsFor(s: SessionState, agentId: AgentId): AgentVisuals {
+  return (s.visuals[agentKey(agentId)] ??= { progress: {}, metrics: {}, shows: [] })
+}
+
+function pushMetric(v: AgentVisuals, name: string, value: number, step: number | undefined, structured: boolean) {
+  const series = (v.metrics[name] ??= { points: [], structured })
+  if (structured && !series.structured) {
+    // Structured reports supersede numbers scraped from output.
+    series.points = []
+    series.structured = true
+  } else if (!structured && series.structured) {
+    return
+  }
+  series.points.push({ step: step ?? series.points.length, value })
+  if (series.points.length > MAX_METRIC_POINTS) series.points.splice(0, series.points.length - MAX_METRIC_POINTS)
+}
+
+function applyVisual(s: SessionState, e: EventOf<'visual'>) {
+  const v = visualsFor(s, e.agentId)
+  const u = e.update
+  const structured = e.source !== 'parsed'
+  switch (u.kind) {
+    case 'status':
+      v.status = u.text
+      break
+    case 'progress': {
+      const prev = v.progress[u.label]
+      v.progress[u.label] = {
+        label: u.label,
+        current: u.current,
+        total: u.total,
+        unit: u.unit,
+        source: e.source,
+        startedAt: prev && prev.current <= u.current ? prev.startedAt : e.ts,
+        updatedAt: e.ts,
+      }
+      for (const [name, value] of Object.entries(u.metrics ?? {})) pushMetric(v, name, value, u.current, structured)
+      break
+    }
+    case 'metric':
+      pushMetric(v, u.name, u.value, u.step, structured)
+      break
+    case 'show':
+      if (!v.shows.some((x) => x.id === u.id)) v.shows.push({ ...u, ts: e.ts })
       break
   }
 }

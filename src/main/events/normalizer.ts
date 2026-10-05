@@ -1,5 +1,7 @@
 import type { SDKMessage } from '@anthropic-ai/claude-agent-sdk'
-import type { AgentId, HarnessEvent, PermissionMode, TodoItem } from '@shared/events'
+import { EXEC_TOOLS, HARNESS_TOOL_PREFIX, type AgentId, type HarnessEvent, type PermissionMode, type TodoItem } from '@shared/events'
+import { parseOutput } from '@shared/parseOutput'
+import { toVisual } from '@shared/visuals'
 
 const MAX_OUTPUT_CHARS = 20_000
 const TASK_TOOLS = new Set(['TaskCreate', 'TaskUpdate', 'TaskList'])
@@ -18,10 +20,13 @@ export class EventNormalizer {
   /** Task list built from TaskCreate/TaskUpdate/TaskList results, in creation order. */
   private tasks = new Map<string, TodoItem>()
   private taskToolInputs = new Map<string, { name: string; input: Record<string, unknown> }>()
+  /** Exec tools awaiting results, so their output can be scanned and attributed to the right agent. */
+  private execTools = new Map<string, AgentId>()
 
   constructor(
     private readonly sessionId: string,
     private readonly now: () => number = Date.now,
+    private readonly cwd = '/',
   ) {}
 
   normalize(msg: SDKMessage): HarnessEvent[] {
@@ -83,6 +88,11 @@ export class EventNormalizer {
           out.push({ type: 'todo.update', todos: input.todos as TodoItem[] })
         } else if (TASK_TOOLS.has(name)) {
           this.taskToolInputs.set(String(block.id), { name, input })
+        } else if (EXEC_TOOLS.has(name)) {
+          this.execTools.set(String(block.id), agentId)
+        } else if (name.startsWith(HARNESS_TOOL_PREFIX)) {
+          const update = toVisual(name.slice(HARNESS_TOOL_PREFIX.length), input, String(block.id), this.cwd)
+          if (update) out.push({ type: 'visual', agentId, toolUseId: String(block.id), source: 'tool', update })
         }
       }
     })
@@ -123,6 +133,14 @@ export class EventNormalizer {
         output: truncate(stringifyToolContent(block.content)),
         ...(background ? { background } : {}),
       })
+      if (this.execTools.has(toolUseId)) {
+        const agentId = this.execTools.get(toolUseId) ?? null
+        this.execTools.delete(toolUseId)
+        const parsed = parseOutput(stringifyToolContent(block.content))
+        for (const update of [...parsed.progress, ...parsed.metrics]) {
+          out.push({ type: 'visual', agentId, toolUseId, source: 'parsed', update })
+        }
+      }
       const taskTool = this.taskToolInputs.get(toolUseId)
       if (taskTool) {
         this.taskToolInputs.delete(toolUseId)

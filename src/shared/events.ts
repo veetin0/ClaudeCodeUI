@@ -1,3 +1,5 @@
+import type { VisualSource, VisualUpdate } from './visuals'
+
 /**
  * HarnessEvent: the single stream every panel renders from.
  * The main process turns SDK messages into these; the renderer reduces them into state.
@@ -66,6 +68,8 @@ export type HarnessEvent =
       durationMs?: number
     }>
   | E<'todo.update', { todos: TodoItem[] }>
+  /** Progress bars, metric points, images/charts/tables and status lines for one agent. */
+  | E<'visual', { agentId: AgentId; toolUseId?: string; source: VisualSource; update: VisualUpdate }>
   | E<'permission.request', {
       requestId: string
       toolUseId: string
@@ -97,3 +101,9 @@ export type EventOf<T extends HarnessEventType> = Extract<HarnessEvent, { type: 
 
 /** Tools that spawn a subagent. */
 export const SUBAGENT_TOOLS = new Set(['Task', 'Agent'])
+
+/** Tools whose output we scan for progress counters and metrics. */
+export const EXEC_TOOLS = new Set(['Bash', 'BashOutput', 'Monitor'])
+
+/** Prefix of the in-process visualization tools (see main/agent/harnessTools.ts). */
+export const HARNESS_TOOL_PREFIX = 'mcp__harness__'

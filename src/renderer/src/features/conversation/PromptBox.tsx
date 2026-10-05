@@ -1,5 +1,5 @@
 import { ArrowUp, Square } from 'lucide-react'
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef } from 'react'
 import type { PermissionMode } from '@shared/events'
 import { cn } from '@/lib/format'
 import { useApp } from '@/stores/app'
@@ -21,15 +21,13 @@ export const MODELS = [
 ]
 
 export function PromptBox({ session }: { session: SessionState }) {
-  const [text, setText] = useState('')
+  const text = useApp((s) => s.drafts[session.id] ?? '')
+  const setText = useApp((s) => s.setDraft)
   const ref = useRef<HTMLTextAreaElement>(null)
   const { send, interrupt, setPermissionMode, setModel } = useApp()
   const busy = session.status === 'running' || session.status === 'waiting' || session.status === 'compacting'
   const closed = session.status === 'closed'
-  const slashMatches =
-    text.startsWith('/') && !text.includes(' ') ? session.slashCommands.filter((c) => c.startsWith(text.slice(1))).slice(0, 8) : []
-
-  useEffect(() => ref.current?.focus(), [session.id])
+  useEffect(() => ref.current?.focus(), [session.id, text === ''])
 
   // Grow with content up to a cap.
   useEffect(() => {
@@ -49,15 +47,6 @@ export function PromptBox({ session }: { session: SessionState }) {
 
   return (
     <div className="mx-auto w-full max-w-3xl px-6 pb-5">
-      {slashMatches.length > 0 && (
-        <div className="mb-1.5 flex flex-wrap gap-1">
-          {slashMatches.map((c) => (
-            <button key={c} onClick={() => setText(`/${c} `)} className="rounded-md bg-surface-2 px-2 py-0.5 font-mono text-[11.5px] text-muted hover:text-fg">
-              /{c}
-            </button>
-          ))}
-        </div>
-      )}
       <div className="rounded-2xl border border-line bg-surface shadow-[0_1px_8px_rgb(0_0_0/0.06)] focus-within:border-[var(--accent)]/50">
         <textarea
           ref={ref}
@@ -71,7 +60,7 @@ export function PromptBox({ session }: { session: SessionState }) {
             }
           }}
           rows={1}
-          placeholder={closed ? 'This session has ended' : busy ? 'Queue a follow-up…' : 'Ask Claude to do something…  (/ for commands)'}
+          placeholder={closed ? 'This session has ended' : busy ? 'Queue a follow-up…' : 'Ask Claude to do something…'}
           className="selectable block w-full resize-none bg-transparent px-4 pt-3 pb-1 leading-relaxed outline-none placeholder:text-muted"
         />
         <div className="flex items-center gap-2 px-2.5 pb-2">

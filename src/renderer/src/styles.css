@@ -22,6 +22,16 @@
   --fg: #1d1d1f;
   --muted: #6e6e73;
   --accent: #d97757;
+  /* Validated categorical order (dataviz reference palette); assign in this order, never cycle. */
+  --series-1: #2a78d6;
+  --series-2: #eb6834;
+  --series-3: #1baf7a;
+  --series-4: #eda100;
+  --series-5: #e87ba4;
+  --series-6: #008300;
+  --series-7: #4a3aa7;
+  --series-8: #e34948;
+  --grid: rgb(0 0 0 / 0.06);
   color-scheme: light dark;
 }
 
@@ -33,6 +43,15 @@
     --line: rgb(255 255 255 / 0.08);
     --fg: #f5f5f7;
     --muted: #98989d;
+    --series-1: #3987e5;
+    --series-2: #d95926;
+    --series-3: #199e70;
+    --series-4: #c98500;
+    --series-5: #d55181;
+    --series-6: #008300;
+    --series-7: #9085e9;
+    --series-8: #e66767;
+    --grid: rgb(255 255 255 / 0.07);
   }
 }
 

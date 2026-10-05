@@ -5,6 +5,7 @@ import type { AppSettings, PermissionDecision } from '@shared/ipc'
 import { applyEvent, createSession, type SessionState } from './reducer'
 
 export type InspectorTab = 'agents' | 'tasks' | 'activity'
+export type MainView = 'chat' | 'board'
 
 interface AppState {
   sessions: Record<string, SessionState>
@@ -12,6 +13,11 @@ interface AppState {
   activeId: string | null
   settings: AppSettings | null
   inspectorTab: InspectorTab
+  view: MainView
+  /** agentKey of the agent whose detail panel is open. */
+  detailAgent: string | null
+  /** Unsent prompt text per session. */
+  drafts: Record<string, string>
   focusMode: boolean
   settingsOpen: boolean
   startError: string | null
@@ -28,6 +34,10 @@ interface AppState {
   setModel(model: string): Promise<void>
   respondPermission(requestId: string, decision: PermissionDecision): Promise<void>
   setInspectorTab(tab: InspectorTab): void
+  setView(view: MainView): void
+  openAgent(key: string): void
+  closeAgent(): void
+  setDraft(text: string): void
   toggleFocusMode(): void
   setSettingsOpen(open: boolean): void
   saveApiKey(key: string | null): Promise<void>
@@ -42,6 +52,9 @@ export const useApp = create<AppState>((set, get) => ({
   activeId: null,
   settings: null,
   inspectorTab: 'agents',
+  view: 'chat',
+  detailAgent: null,
+  drafts: {},
   focusMode: false,
   settingsOpen: false,
   startError: null,
@@ -85,7 +98,7 @@ export const useApp = create<AppState>((set, get) => ({
   },
 
   select(id) {
-    set({ activeId: id })
+    set({ activeId: id, detailAgent: null })
   },
 
   async closeSession(id) {
@@ -127,6 +140,11 @@ export const useApp = create<AppState>((set, get) => ({
   },
 
   setInspectorTab: (inspectorTab) => set({ inspectorTab }),
+  setView: (view) => set({ view }),
+  openAgent: (detailAgent) => set({ detailAgent }),
+  closeAgent: () => set({ detailAgent: null }),
+  setDraft: (text) =>
+    set((st) => (st.activeId ? { drafts: { ...st.drafts, [st.activeId]: text } } : {})),
   toggleFocusMode: () => set((st) => ({ focusMode: !st.focusMode })),
   setSettingsOpen: (settingsOpen) => set({ settingsOpen }),
 

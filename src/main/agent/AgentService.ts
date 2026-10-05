@@ -1,10 +1,13 @@
 import { randomUUID } from 'node:crypto'
 import { basename } from 'node:path'
 import { query, type CanUseTool, type Query, type SDKUserMessage } from '@anthropic-ai/claude-agent-sdk'
-import type { HarnessEvent, PermissionMode, SessionStatus } from '@shared/events'
+import { EXEC_TOOLS, type AgentId, type HarnessEvent, type PermissionMode, type SessionStatus } from '@shared/events'
+import { toVisual } from '@shared/visuals'
 import type { PermissionDecision, SessionSummary, StartSessionOptions } from '@shared/ipc'
 import type { EventBus } from '../events/bus'
 import { EventNormalizer } from '../events/normalizer'
+import type { TelemetryServer } from '../system/telemetry'
+import { createHarnessServer, HARNESS_TOOL_GUIDE } from './harnessTools'
 import { MessageQueue } from './MessageQueue'
 import { PermissionBroker } from './permissions'
 
@@ -17,6 +20,7 @@ export interface AgentServiceDeps {
   getEnv: () => Record<string, string | undefined>
   claudeExecutablePath?: string
   queryFactory?: QueryFactory
+  telemetry?: TelemetryServer
 }
 
 class AgentSession {
@@ -28,6 +32,10 @@ class AgentSession {
   private q: Query | null = null
   private status: SessionStatus = 'starting'
   private stderrTail: string[] = []
+  private readonly telemetryToken = randomUUID()
+  private telemetryCount = 0
+  /** Commands currently running, newest last: live telemetry is credited to the newest one. */
+  private runningExec: { toolUseId: string; agentId: AgentId }[] = []
 
   constructor(
     private readonly deps: AgentServiceDeps,
@@ -35,7 +43,7 @@ class AgentSession {
   ) {
     const id = randomUUID()
     this.summary = { id, cwd: opts.cwd, title: basename(opts.cwd), createdAt: Date.now() }
-    this.normalizer = new EventNormalizer(id)
+    this.normalizer = new EventNormalizer(id, Date.now, opts.cwd)
     this.permissions = new PermissionBroker((e) => this.emit(e), id)
     this.start(opts)
   }
@@ -47,6 +55,8 @@ class AgentSession {
   private emit(e: HarnessEvent | HarnessEvent[]) {
     const list = Array.isArray(e) ? e : [e]
     for (const ev of list) {
+      if (ev.type === 'tool.start' && EXEC_TOOLS.has(ev.name)) this.runningExec.push({ toolUseId: ev.toolUseId, agentId: ev.agentId })
+      if (ev.type === 'tool.end') this.runningExec = this.runningExec.filter((r) => r.toolUseId !== ev.toolUseId)
       if (ev.type === 'permission.request') this.setStatus('waiting')
       if (ev.type === 'permission.resolved' && this.status === 'waiting') this.setStatus('running')
     }
@@ -62,6 +72,7 @@ class AgentSession {
   private start(opts: StartSessionOptions) {
     const canUseTool: CanUseTool = (toolName, input, o) => this.permissions.request(toolName, input, o)
     const factory = this.deps.queryFactory ?? query
+    const harnessUrl = this.deps.telemetry?.register(this.telemetryToken, (p) => this.onTelemetry(p))
 
     this.q = factory({
       prompt: this.input,
@@ -69,7 +80,9 @@ class AgentSession {
         cwd: opts.cwd,
         model: opts.model || undefined,
         permissionMode: opts.permissionMode ?? 'default',
-        systemPrompt: { type: 'preset', preset: 'claude_code' },
+        systemPrompt: { type: 'preset', preset: 'claude_code', append: HARNESS_TOOL_GUIDE },
+        mcpServers: { harness: createHarnessServer() },
+        allowedTools: ['mcp__harness'],
         // Same CLAUDE.md, settings, MCP servers and skills as the terminal CLI.
         settingSources: ['user', 'project', 'local'],
         includePartialMessages: true,
@@ -78,7 +91,7 @@ class AgentSession {
         agentProgressSummaries: true,
         canUseTool,
         abortController: this.abort,
-        env: this.deps.getEnv(),
+        env: harnessUrl ? { ...this.deps.getEnv(), HARNESS_URL: harnessUrl } : this.deps.getEnv(),
         pathToClaudeCodeExecutable: this.deps.claudeExecutablePath,
         stderr: (data) => {
           this.stderrTail.push(data)
@@ -113,6 +126,23 @@ class AgentSession {
     }
   }
 
+  /** A script posted to $HARNESS_URL. Credit it to the command most likely running that script. */
+  private onTelemetry(payload: Record<string, unknown>) {
+    const kind = String(payload.kind ?? payload.type ?? '')
+    const update = toVisual(kind, payload, `telemetry-${++this.telemetryCount}`, this.summary.cwd)
+    if (!update) return
+    const owner = this.runningExec.at(-1)
+    this.emit({
+      type: 'visual',
+      sessionId: this.id,
+      ts: Date.now(),
+      agentId: owner?.agentId ?? null,
+      toolUseId: owner?.toolUseId,
+      source: 'telemetry',
+      update,
+    })
+  }
+
   send(text: string) {
     if (this.status === 'closed') throw new Error('Session is closed')
     const id = randomUUID()
@@ -144,6 +174,7 @@ class AgentSession {
   }
 
   close() {
+    this.deps.telemetry?.unregister(this.telemetryToken)
     this.input.close()
     this.abort.abort()
   }

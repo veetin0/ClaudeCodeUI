@@ -21,10 +21,13 @@ export function App() {
       } else if (e.metaKey && e.key.toLowerCase() === 'o') {
         e.preventDefault()
         void app.openProject()
+      } else if (e.metaKey && (e.key === '1' || e.key === '2')) {
+        e.preventDefault()
+        app.setView(e.key === '1' ? 'chat' : 'board')
       } else if (e.metaKey && e.key === ',') {
         e.preventDefault()
         app.setSettingsOpen(true)
-      } else if (e.key === 'Escape' && app.activeId && app.sessions[app.activeId]?.status === 'running') {
+      } else if (e.key === 'Escape' && !app.detailAgent && app.activeId && app.sessions[app.activeId]?.status === 'running') {
         void app.interrupt()
       }
     }

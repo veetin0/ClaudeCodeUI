@@ -1,4 +1,4 @@
-import { PanelLeft } from 'lucide-react'
+import { LayoutGrid, MessageSquare, PanelLeft } from 'lucide-react'
 import { ContextGauge } from '@/features/meters/ContextGauge'
 import { useElapsed } from '@/features/meters/useElapsed'
 import { cn, formatCost, formatDuration, formatTokens } from '@/lib/format'
@@ -7,7 +7,8 @@ import { StatusDot, STATUS_LABEL } from './StatusDot'
 
 export function TopBar() {
   const session = useActiveSession()
-  const { focusMode, toggleFocusMode } = useApp()
+  const { focusMode, toggleFocusMode, view, setView } = useApp()
+  const activeSubagents = session ? Object.values(session.subagents).filter((s) => s.status === 'running').length : 0
   const elapsed = useElapsed(session?.status === 'running' || session?.status === 'waiting' ? session.turnStartedAt : undefined)
 
   return (
@@ -29,6 +30,15 @@ export function TopBar() {
             {STATUS_LABEL[session.status]}
             {elapsed > 0 && <span className="tabular-nums">· {formatDuration(elapsed)}</span>}
           </div>
+          <div className="no-drag ml-2 flex rounded-lg bg-black/[0.05] p-0.5 dark:bg-white/[0.07]">
+            <ViewButton active={view === 'chat'} onClick={() => setView('chat')} title="Conversation (⌘1)">
+              <MessageSquare className="size-3.5" /> Chat
+            </ViewButton>
+            <ViewButton active={view === 'board'} onClick={() => setView('board')} title="Agent board (⌘2)">
+              <LayoutGrid className="size-3.5" /> Board
+              {activeSubagents > 0 && <span className="rounded-full bg-emerald-500 px-1.5 text-[10px] leading-4 text-white">{activeSubagents}</span>}
+            </ViewButton>
+          </div>
           <div className="ml-auto flex items-center gap-4 text-muted">
             {session.model && <span className="hidden truncate lg:inline">{session.model}</span>}
             <ContextGauge used={session.contextTokens} total={session.contextWindow} />
@@ -44,5 +54,20 @@ export function TopBar() {
         <div className="font-semibold">Harness</div>
       )}
     </header>
+  )
+}
+
+function ViewButton({ active, onClick, title, children }: { active: boolean; onClick: () => void; title: string; children: React.ReactNode }) {
+  return (
+    <button
+      onClick={onClick}
+      title={title}
+      className={cn(
+        'flex items-center gap-1.5 rounded-md px-2.5 py-1 text-[12px]',
+        active ? 'bg-surface font-medium text-fg shadow-sm' : 'text-muted hover:text-fg',
+      )}
+    >
+      {children}
+    </button>
   )
 }
