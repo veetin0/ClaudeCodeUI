@@ -1,6 +1,7 @@
 import { History, SquareTerminal } from 'lucide-react'
 import { lazy, Suspense } from 'react'
 import { MissionView } from '../mission/MissionView'
+import { PreviewView } from '../preview/PreviewView'
 import { AgentDetail } from '../agents/AgentDetail'
 import { Board } from '../agents/Board'
 import { useApp } from '@/stores/app'
@@ -19,7 +20,15 @@ export function Conversation({ session }: { session: SessionState }) {
   const diffPath = useApp((s) => s.diffPath)
   return (
     <div className="relative flex min-h-0 flex-1 flex-col">
-      {view === 'board' ? <Board session={session} /> : view === 'mission' ? <MissionView session={session} /> : <MessageList session={session} />}
+      {view === 'board' ? (
+        <Board session={session} />
+      ) : view === 'mission' ? (
+        <MissionView session={session} />
+      ) : view === 'preview' ? (
+        <PreviewView session={session} />
+      ) : (
+        <MessageList session={session} />
+      )}
       {session.permissions.length > 0 && (
         <div className="mx-auto w-full max-w-3xl space-y-2 px-6 pb-3">
           {session.permissions.map((p, i) => (

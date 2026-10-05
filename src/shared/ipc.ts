@@ -1,4 +1,5 @@
 import type { HarnessEvent, PermissionMode } from './events'
+import type { Composition, PreviewServer, PreviewState, ProjectInfo, RenderJob } from './preview'
 
 export interface StartSessionOptions {
   cwd: string
@@ -104,6 +105,18 @@ export interface HarnessApi {
   ptyKill(id: string): void
   onPtyData(cb: (id: string, data: string) => void): () => void
   onPtyExit(cb: (id: string, code: number) => void): () => void
+  previewDetect(cwd: string): Promise<ProjectInfo>
+  previewState(): Promise<PreviewState>
+  startStudio(cwd: string): Promise<PreviewServer>
+  startScript(cwd: string, script: string): Promise<PreviewServer>
+  stopServer(id: string): Promise<void>
+  listCompositions(cwd: string): Promise<Composition[]>
+  render(cwd: string, composition: string): Promise<RenderJob>
+  cancelRender(id: string): Promise<void>
+  /** Shows a file in Finder. */
+  revealFile(path: string): Promise<void>
+  openExternal(url: string): Promise<void>
+  onPreviewState(cb: (state: PreviewState) => void): () => void
   /** Events arrive batched (~30fps) to keep the renderer smooth during heavy streaming. */
   onEvents(cb: (events: HarnessEvent[]) => void): () => void
 }
@@ -138,5 +151,16 @@ export const IPC = {
   ptyKill: 'pty:kill',
   ptyData: 'pty:data',
   ptyExit: 'pty:exit',
+  previewDetect: 'preview:detect',
+  previewState: 'preview:state-get',
+  previewStateUpdate: 'preview:state',
+  startStudio: 'preview:studio',
+  startScript: 'preview:script',
+  stopServer: 'preview:stop',
+  listCompositions: 'preview:compositions',
+  render: 'preview:render',
+  cancelRender: 'preview:cancel-render',
+  revealFile: 'shell:reveal',
+  openExternal: 'shell:open-external',
   events: 'events',
 } as const

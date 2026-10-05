@@ -22,9 +22,9 @@ export function App() {
       } else if (e.metaKey && e.key.toLowerCase() === 'o') {
         e.preventDefault()
         void app.openProject()
-      } else if (e.metaKey && ['1', '2', '3'].includes(e.key)) {
+      } else if (e.metaKey && ['1', '2', '3', '4'].includes(e.key)) {
         e.preventDefault()
-        app.setView((['chat', 'board', 'mission'] as const)[Number(e.key) - 1])
+        app.setView((['chat', 'board', 'mission', 'preview'] as const)[Number(e.key) - 1])
       } else if (e.metaKey && e.shiftKey && e.key.toLowerCase() === 'm') {
         e.preventDefault()
         app.setView('mission')

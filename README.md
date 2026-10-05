@@ -54,6 +54,17 @@ For instant "needs approval", "done" and "ended" status, **Settings → Install 
 
 ![Watching a terminal session](docs/screenshots/observed.png)
 
+## Preview: Remotion Studio and dev servers
+
+**Preview** (⌘4) embeds what you're building next to the agents building it.
+
+- **Remotion projects** are detected from `package.json`. **Start Studio** runs the project's own Remotion CLI on a free port, with no browser window, and embeds Studio. Studio hot-reloads, so when Claude edits a composition you see the frame change right away. The side panel lists compositions (size, fps, length). **Render** shows live progress through bundling, rendering frames with time left, and encoding, plus Cancel. Finished videos play in the panel, with **Show in Finder**.
+- **Dev servers:** `package.json` scripts that start a server (`dev`, `start`, `storybook`, vite/next/astro…) get one-click buttons. Any `localhost` URL that shows up in an agent's command output or in a terminal is offered automatically, and you can type one. Each preview has reload, open in browser, server output and stop.
+
+Remotion downloads its own headless Chrome the first time you render. Set `HARNESS_REMOTION_BROWSER` to use an existing one instead.
+
+![Remotion Studio with a finished render](docs/screenshots/remotion.png)
+
 ## Action buttons instead of /commands
 
 The buttons above the prompt cover common jobs: parallel agents, train a model, analyze data, fix tests, build a feature, debug, explain, Remotion video and commit. Each opens a form prefilled with example parameters and a preview of the exact prompt. **Commands ▾** lists the session's slash commands and skills, with descriptions and example arguments. Run sends the prompt right away; Edit in prompt drops it into the box so you can change it first.
@@ -70,7 +81,7 @@ Opening a saved session replays its event log through the same reducer as live v
 
 ## Status
 
-Phases 1–5 of [the plan](docs/PLAN.md) are done. Phases 1–2:
+Phases 1–6 of [the plan](docs/PLAN.md) are done. Phases 1–2:
 
 - **Engine:** Claude Agent SDK with streaming input, so you can queue follow-ups while Claude works. Stop with Esc. Switch model and permission mode mid-session.
 - **Live conversation:** streamed markdown, collapsible thinking, and compact tool chips coloured by kind (read, write, search, exec…). Click a chip to see its input, output and diff.
@@ -117,6 +128,9 @@ Everything the UI shows is derived from one typed event stream (`src/shared/even
 | `src/main/observe/TranscriptObserver.ts` | Observe mode: transcript tailing → HarnessEvents |
 | `src/main/observe/hooks.ts` | Status hook bridge and safe settings.json install/remove |
 | `src/main/pty/PtyService.ts` | node-pty terminals streamed to xterm.js |
+| `src/main/preview/PreviewService.ts` | Remotion Studio, dev servers, renders, URL detection |
+| `src/shared/preview.ts` | Preview types and CLI output parsers |
+| `src/renderer/src/features/preview/` | Preview view and Remotion render panel |
 | `src/renderer/src/features/mission/` | Agent graph (React Flow) and swim-lane timeline |
 | `src/renderer/src/features/files/` | Heat tree, changes list, Monaco diff view |
 | `src/main/events/normalizer.ts` | SDK messages → `HarnessEvent`s (tools, subagents, tasks, usage, visuals) |

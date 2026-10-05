@@ -14,6 +14,8 @@ import { TelemetryServer } from './system/telemetry'
 import { HookBridge, hooksInstalled, updateClaudeSettings, withHarnessHooks, withoutHarnessHooks } from './observe/hooks'
 import { TranscriptObserver } from './observe/TranscriptObserver'
 import { PtyService } from './pty/PtyService'
+import { PreviewService } from './preview/PreviewService'
+import { EXEC_TOOLS } from '@shared/events'
 import { SettingsStore } from './system/settings'
 
 loadLoginShellPath()
@@ -21,7 +23,10 @@ registerFileScheme()
 
 const bus = new EventBus()
 const telemetry = new TelemetryServer()
-const ptys = new PtyService()
+const preview = new PreviewService((state) => {
+  for (const w of BrowserWindow.getAllWindows()) w.webContents.send(IPC.previewStateUpdate, state)
+})
+const ptys = new PtyService((cwd, data) => preview.noteOutput(data, 'terminal', cwd))
 const claudeDir = process.env.CLAUDE_CONFIG_DIR || join(homedir(), '.claude')
 const claudeSettingsPath = join(claudeDir, 'settings.json')
 let observer: TranscriptObserver
@@ -120,6 +125,19 @@ function registerIpc() {
     await updateClaudeSettings(claudeSettingsPath, withoutHarnessHooks)
     return observeStatus()
   })
+  ipcMain.handle(IPC.previewDetect, (_e, cwd: string) => preview.detect(cwd))
+  ipcMain.handle(IPC.previewState, () => preview.state())
+  ipcMain.handle(IPC.startStudio, (_e, cwd: string) => preview.startStudio(cwd))
+  ipcMain.handle(IPC.startScript, (_e, cwd: string, script: string) => preview.startScript(cwd, script))
+  ipcMain.handle(IPC.stopServer, (_e, id: string) => preview.stop(id))
+  ipcMain.handle(IPC.listCompositions, (_e, cwd: string) => preview.compositions(cwd))
+  ipcMain.handle(IPC.render, (_e, cwd: string, composition: string) => preview.render(cwd, composition))
+  ipcMain.handle(IPC.cancelRender, (_e, id: string) => preview.cancelRender(id))
+  ipcMain.handle(IPC.revealFile, (_e, path: string) => shell.showItemInFolder(path))
+  ipcMain.handle(IPC.openExternal, (_e, url: string) => {
+    // Only local dev servers and web pages; never file:// or custom schemes.
+    if (/^https?:\/\//.test(url)) return shell.openExternal(url)
+  })
   ipcMain.handle(IPC.ptyCreate, (e, opts: PtyOptions) => ptys.create(e.sender, opts))
   ipcMain.on(IPC.ptyWrite, (_e, id: string, data: string) => ptys.write(id, data))
   ipcMain.on(IPC.ptyResize, (_e, id: string, cols: number, rows: number) => ptys.resize(id, cols, rows))
@@ -182,6 +200,12 @@ app.whenReady().then(async () => {
   settings = new SettingsStore()
   store = new SessionStore(join(app.getPath('userData'), 'harness.db'))
   bus.subscribe((e) => store.record(e))
+  // Dev servers an agent starts announce their URL in command output; offer them in Preview.
+  const execCalls = new Set<string>()
+  bus.subscribe((e) => {
+    if (e.type === 'tool.start' && EXEC_TOOLS.has(e.name)) execCalls.add(e.toolUseId)
+    else if (e.type === 'tool.end' && execCalls.delete(e.toolUseId)) preview.noteOutput(e.output, 'command', store.get(e.sessionId)?.cwd)
+  })
   agents = new AgentService({
     bus,
     telemetry,
@@ -213,6 +237,7 @@ app.whenReady().then(async () => {
 app.on('before-quit', () => {
   agents?.closeAll()
   ptys.killAll()
+  preview.stopAll()
   observer?.stop()
   hookBridge?.stop()
   store?.close()

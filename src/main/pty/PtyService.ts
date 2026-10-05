@@ -10,6 +10,9 @@ const FLUSH_MS = 16
 
 /** Real terminals (node-pty) streamed to xterm.js in the renderer. */
 export class PtyService {
+  /** Sees every chunk of terminal output (used to spot dev-server URLs). */
+  constructor(private readonly onOutput?: (cwd: string, data: string) => void) {}
+
   private ptys = new Map<string, { pty: IPty; owner: WebContents; buffer: string; timer: NodeJS.Timeout | null }>()
 
   create(owner: WebContents, opts: PtyOptions): string {
@@ -28,7 +31,9 @@ export class PtyService {
     this.ptys.set(id, entry)
 
     // Coalesce output into ~60fps frames; a busy build can emit thousands of tiny chunks.
+    const cwd = opts.cwd && existsSync(opts.cwd) ? opts.cwd : homedir()
     pty.onData((data) => {
+      this.onOutput?.(cwd, data)
       entry.buffer += data
       entry.timer ??= setTimeout(() => {
         entry.timer = null

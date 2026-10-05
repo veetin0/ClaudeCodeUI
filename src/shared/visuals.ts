@@ -47,8 +47,10 @@ export type VisualUpdate = ProgressUpdate | MetricUpdate | ShowUpdate | StatusUp
 export type VisualSource = 'tool' | 'telemetry' | 'parsed'
 
 export const IMAGE_EXTENSIONS = ['.png', '.jpg', '.jpeg', '.gif', '.webp', '.svg']
+/** What the local file protocol will serve: images agents show and videos Remotion renders. */
+export const MEDIA_EXTENSIONS = [...IMAGE_EXTENSIONS, '.mp4', '.webm', '.mov', '.m4v']
 
-/** URL scheme the main process serves local image files on (see main/system/fileProtocol.ts). */
+/** URL scheme the main process serves local media files on (see main/system/fileProtocol.ts). */
 export const FILE_SCHEME = 'harness-file'
 
 export function fileUrl(path: string): string {

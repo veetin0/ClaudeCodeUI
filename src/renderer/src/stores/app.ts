@@ -2,6 +2,7 @@ import { create } from 'zustand'
 import { produce } from 'immer'
 import type { HarnessEvent, PermissionMode } from '@shared/events'
 import type { AppSettings, PermissionDecision, SessionSummary } from '@shared/ipc'
+import type { Composition, PreviewState, ProjectInfo } from '@shared/preview'
 import { ipcErrorMessage } from '@/lib/time'
 import { applyEvent, createSession, finalizeLoaded, type SessionState } from './reducer'
 
@@ -13,7 +14,10 @@ export interface TerminalTab {
 }
 
 export type InspectorTab = 'agents' | 'tasks' | 'files' | 'activity'
-export type MainView = 'chat' | 'board' | 'mission'
+export type MainView = 'chat' | 'board' | 'mission' | 'preview'
+
+/** What the Preview view is showing for a project. */
+export type PreviewTarget = { kind: 'server'; id: string } | { kind: 'url'; url: string }
 
 interface AppState {
   /** Sessions open in the sidebar (live, or saved ones opened from history). */
@@ -35,6 +39,11 @@ interface AppState {
   drafts: Record<string, string>
   focusMode: boolean
   settingsOpen: boolean
+  preview: PreviewState
+  /** package.json facts per project folder (Remotion? dev scripts?). */
+  projects: Record<string, ProjectInfo>
+  previewTargets: Record<string, PreviewTarget | undefined>
+  compositions: Record<string, { list?: Composition[]; loading: boolean; error?: string }>
   terminals: TerminalTab[]
   activeTerminal: string | null
   terminalOpen: boolean
@@ -64,6 +73,9 @@ interface AppState {
   setDraft(text: string): void
   toggleFocusMode(): void
   setSettingsOpen(open: boolean): void
+  detectProject(cwd: string): Promise<void>
+  setPreviewTarget(cwd: string, target: PreviewTarget | undefined): void
+  loadCompositions(cwd: string): Promise<void>
   openTerminal(command?: string): Promise<void>
   closeTerminal(id: string): void
   selectTerminal(id: string): void
@@ -97,6 +109,10 @@ export const useApp = create<AppState>((set, get) => ({
   drafts: {},
   focusMode: false,
   settingsOpen: false,
+  preview: { servers: [], renders: [], detected: [] },
+  projects: {},
+  previewTargets: {},
+  compositions: {},
   terminals: [],
   activeTerminal: null,
   terminalOpen: false,
@@ -106,6 +122,14 @@ export const useApp = create<AppState>((set, get) => ({
   async init() {
     set({ settings: await api().getSettings() })
     api().onEvents((events) => get().applyEvents(events))
+    set({ preview: await api().previewState() })
+    api().onPreviewState((preview) => {
+      set({ preview })
+      // Point a project's preview at its server as soon as that server is up.
+      for (const srv of preview.servers) {
+        if (srv.status === 'ready' && !get().previewTargets[srv.cwd]) get().setPreviewTarget(srv.cwd, { kind: 'server', id: srv.id })
+      }
+    })
     api().onPtyExit((id, code) =>
       set((st) => ({ terminals: st.terminals.map((t) => (t.id === id ? { ...t, exitCode: code } : t)) })),
     )
@@ -130,6 +154,7 @@ export const useApp = create<AppState>((set, get) => ({
       activeId: id,
       detailAgent: null,
     }))
+    void get().detectProject(loaded.summary.cwd)
   },
 
   async deleteSaved(id) {
@@ -175,6 +200,7 @@ export const useApp = create<AppState>((set, get) => ({
         startError: null,
       }))
       set({ settings: await api().getSettings() })
+      void get().detectProject(cwd)
       await get().refreshHistory()
     } catch (err) {
       set({ startError: ipcErrorMessage(err) })
@@ -188,6 +214,28 @@ export const useApp = create<AppState>((set, get) => ({
 
   select(id) {
     set({ activeId: id, detailAgent: null, diffPath: null })
+    const cwd = get().sessions[id]?.cwd
+    if (cwd) void get().detectProject(cwd)
+  },
+
+  async detectProject(cwd) {
+    if (get().projects[cwd]) return
+    const info = await api().previewDetect(cwd)
+    set((st) => ({ projects: { ...st.projects, [cwd]: info } }))
+  },
+
+  setPreviewTarget(cwd, target) {
+    set((st) => ({ previewTargets: { ...st.previewTargets, [cwd]: target } }))
+  },
+
+  async loadCompositions(cwd) {
+    set((st) => ({ compositions: { ...st.compositions, [cwd]: { ...st.compositions[cwd], loading: true, error: undefined } } }))
+    try {
+      const list = await api().listCompositions(cwd)
+      set((st) => ({ compositions: { ...st.compositions, [cwd]: { list, loading: false } } }))
+    } catch (err) {
+      set((st) => ({ compositions: { ...st.compositions, [cwd]: { ...st.compositions[cwd], loading: false, error: ipcErrorMessage(err) } } }))
+    }
   },
 
   async closeSession(id) {

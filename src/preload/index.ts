@@ -41,6 +41,21 @@ const api: HarnessApi = {
     ipcRenderer.on(IPC.ptyExit, l)
     return () => ipcRenderer.removeListener(IPC.ptyExit, l)
   },
+  previewDetect: (cwd) => ipcRenderer.invoke(IPC.previewDetect, cwd),
+  previewState: () => ipcRenderer.invoke(IPC.previewState),
+  startStudio: (cwd) => ipcRenderer.invoke(IPC.startStudio, cwd),
+  startScript: (cwd, script) => ipcRenderer.invoke(IPC.startScript, cwd, script),
+  stopServer: (id) => ipcRenderer.invoke(IPC.stopServer, id),
+  listCompositions: (cwd) => ipcRenderer.invoke(IPC.listCompositions, cwd),
+  render: (cwd, composition) => ipcRenderer.invoke(IPC.render, cwd, composition),
+  cancelRender: (id) => ipcRenderer.invoke(IPC.cancelRender, id),
+  revealFile: (path) => ipcRenderer.invoke(IPC.revealFile, path),
+  openExternal: (url) => ipcRenderer.invoke(IPC.openExternal, url),
+  onPreviewState: (cb) => {
+    const l = (_: unknown, state: import('../shared/preview').PreviewState) => cb(state)
+    ipcRenderer.on(IPC.previewStateUpdate, l)
+    return () => ipcRenderer.removeListener(IPC.previewStateUpdate, l)
+  },
   onEvents: (cb) => {
     const listener = (_: unknown, events: HarnessEvent[]) => cb(events)
     ipcRenderer.on(IPC.events, listener)

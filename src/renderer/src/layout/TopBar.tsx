@@ -1,4 +1,4 @@
-import { LayoutGrid, MessageSquare, Network, PanelLeft, SquareTerminal } from 'lucide-react'
+import { LayoutGrid, MessageSquare, MonitorPlay, Network, PanelLeft, SquareTerminal } from 'lucide-react'
 import { ContextGauge } from '@/features/meters/ContextGauge'
 import { useElapsed } from '@/features/meters/useElapsed'
 import { basename, cn, formatCost, formatDuration, formatTokens } from '@/lib/format'
@@ -8,6 +8,8 @@ import { StatusDot, STATUS_LABEL } from './StatusDot'
 export function TopBar() {
   const session = useActiveSession()
   const { focusMode, toggleFocusMode, view, setView, terminalOpen, toggleTerminalPanel } = useApp()
+  const project = useApp((st) => (session ? st.projects[session.cwd] : undefined))
+  const serverUp = useApp((st) => !!session && st.preview.servers.some((x) => x.cwd === session.cwd && x.status === 'ready'))
   const activeSubagents = session ? Object.values(session.subagents).filter((s) => s.status === 'running').length : 0
   const elapsed = useElapsed(session?.status === 'running' || session?.status === 'waiting' ? session.turnStartedAt : undefined)
 
@@ -43,6 +45,10 @@ export function TopBar() {
             </ViewButton>
             <ViewButton active={view === 'mission'} onClick={() => setView('mission')} title="Mission control: agent graph + timeline (⌘3)">
               <Network className="size-3.5" /> Mission
+            </ViewButton>
+            <ViewButton active={view === 'preview'} onClick={() => setView('preview')} title="Preview: Remotion Studio, dev servers (⌘4)">
+              <MonitorPlay className="size-3.5" /> Preview
+              {(serverUp || project?.remotion) && <span className={cn('size-1.5 rounded-full', serverUp ? 'bg-emerald-500' : 'bg-[var(--accent)]')} />}
             </ViewButton>
           </div>
           <div className="ml-auto flex items-center gap-4 text-muted">
