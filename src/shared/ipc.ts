@@ -24,6 +24,16 @@ export interface LoadedSession {
   events: HarnessEvent[]
 }
 
+export interface FileDiff {
+  path: string
+  /** null: the file didn't exist before the session (or no baseline is known). */
+  original: string | null
+  /** null: the file has been deleted. */
+  current: string | null
+  /** False when we only know the file changed but have no "before" to compare with. */
+  hasBaseline: boolean
+}
+
 export type PermissionDecision =
   | { behavior: 'allow'; always?: boolean; updatedInput?: Record<string, unknown> }
   | { behavior: 'deny'; message?: string }
@@ -48,6 +58,13 @@ export interface HarnessApi {
   /** Restarts a saved session's agent, continuing its Claude conversation. */
   resumeSession(sessionId: string, opts?: { permissionMode?: PermissionMode; model?: string }): Promise<SessionSummary>
   deleteSession(sessionId: string): Promise<void>
+  /** Project files (relative paths), from git when available. */
+  listFiles(cwd: string): Promise<string[]>
+  getFileDiff(sessionId: string, path: string): Promise<FileDiff>
+  /** Restores the file to its pre-session content. */
+  revertFile(sessionId: string, path: string): Promise<void>
+  /** Marks the change as reviewed; it leaves the changes list until edited again. */
+  acceptFile(sessionId: string, path: string): Promise<void>
   setPermissionMode(sessionId: string, mode: PermissionMode): Promise<void>
   setModel(sessionId: string, model: string): Promise<void>
   respondPermission(sessionId: string, requestId: string, decision: PermissionDecision): Promise<void>
@@ -68,6 +85,10 @@ export const IPC = {
   loadSession: 'history:load',
   resumeSession: 'history:resume',
   deleteSession: 'history:delete',
+  listFiles: 'files:list',
+  getFileDiff: 'files:diff',
+  revertFile: 'files:revert',
+  acceptFile: 'files:accept',
   setPermissionMode: 'session:permission-mode',
   setModel: 'session:model',
   respondPermission: 'permission:respond',

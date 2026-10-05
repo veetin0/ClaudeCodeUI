@@ -1,4 +1,4 @@
-import { LayoutGrid, MessageSquare, PanelLeft } from 'lucide-react'
+import { LayoutGrid, MessageSquare, Network, PanelLeft } from 'lucide-react'
 import { ContextGauge } from '@/features/meters/ContextGauge'
 import { useElapsed } from '@/features/meters/useElapsed'
 import { basename, cn, formatCost, formatDuration, formatTokens } from '@/lib/format'
@@ -40,6 +40,9 @@ export function TopBar() {
             <ViewButton active={view === 'board'} onClick={() => setView('board')} title="Agent board (⌘2)">
               <LayoutGrid className="size-3.5" /> Board
               {activeSubagents > 0 && <span className="rounded-full bg-emerald-500 px-1.5 text-[10px] leading-4 text-white">{activeSubagents}</span>}
+            </ViewButton>
+            <ViewButton active={view === 'mission'} onClick={() => setView('mission')} title="Mission control: agent graph + timeline (⌘3)">
+              <Network className="size-3.5" /> Mission
             </ViewButton>
           </div>
           <div className="ml-auto flex items-center gap-4 text-muted">

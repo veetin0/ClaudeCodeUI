@@ -25,6 +25,23 @@ Agents feed these visuals three ways:
 
 ![Results shown inline](docs/screenshots/results.png)
 
+## Mission control, files and diffs
+
+**Mission** (⌘3) puts two views together. On top is a live **agent graph**: the main agent and every subagent it spawns, nested by who spawned whom. Edges animate while an agent works, and each node shows its current activity, progress and recent tool calls. Below is a **timeline** with one lane per agent and a bar per tool call (colour = kind, length = duration). Parallel calls stack, and a shaded band shows each subagent's lifetime. Hover a bar for details, click it to open that call in its agent's detail view, and switch between All and Last 2 min.
+
+![Mission control](docs/screenshots/mission.png)
+
+The **Files** tab in the inspector has two parts:
+
+- **Changes:** every file that differs from how it was before the session, with +/− counts.
+- **Project tree:** a heat map where files glow blue when read, orange when written, and green when a command changed them, fading over about a minute. Folders containing touched files open automatically. Dots record what ever happened to each file.
+
+Click a changed file for a **Monaco diff** (side by side or inline, unchanged regions folded). Step through files with the arrows, **Revert** to restore the original, or **Accept** to mark it reviewed.
+
+How the "before" is known: the SDK's `PreToolUse` hook snapshots each file just before an agent edits it. Files changed by commands fall back to git's `HEAD` version. Snapshots are saved with the session, so diffs and reverts still work after a restart or from History.
+
+![Diff view](docs/screenshots/diff.png)
+
 ## Action buttons instead of /commands
 
 The buttons above the prompt cover common jobs: parallel agents, train a model, analyze data, fix tests, build a feature, debug, explain, Remotion video and commit. Each opens a form prefilled with example parameters and a preview of the exact prompt. **Commands ▾** lists the session's slash commands and skills, with descriptions and example arguments. Run sends the prompt right away; Edit in prompt drops it into the box so you can change it first.
@@ -41,7 +58,7 @@ Opening a saved session replays its event log through the same reducer as live v
 
 ## Status
 
-Phases 1–3 of [the plan](docs/PLAN.md) are done, plus the live agent board. Phases 1–2:
+Phases 1–4 of [the plan](docs/PLAN.md) are done. Phases 1–2:
 
 - **Engine:** Claude Agent SDK with streaming input, so you can queue follow-ups while Claude works. Stop with Esc. Switch model and permission mode mid-session.
 - **Live conversation:** streamed markdown, collapsible thinking, and compact tool chips coloured by kind (read, write, search, exec…). Click a chip to see its input, output and diff.
@@ -82,7 +99,11 @@ Everything the UI shows is derived from one typed event stream (`src/shared/even
 | --- | --- |
 | `src/main/agent/AgentService.ts` | One SDK `query()` per session, fed by a push queue; status tracking; interrupt |
 | `src/main/agent/permissions.ts` | `canUseTool` ↔ UI round-trip |
-| `src/main/store/SessionStore.ts` | SQLite sessions + event log; history, load, resume metadata |
+| `src/main/store/SessionStore.ts` | SQLite sessions + event log + file snapshots |
+| `src/main/project/ChangeTracker.ts` | Pre-edit snapshots, git fallback, diff stats, revert/accept |
+| `src/main/project/projectFiles.ts` | Project file listing and recursive watcher |
+| `src/renderer/src/features/mission/` | Agent graph (React Flow) and swim-lane timeline |
+| `src/renderer/src/features/files/` | Heat tree, changes list, Monaco diff view |
 | `src/main/events/normalizer.ts` | SDK messages → `HarnessEvent`s (tools, subagents, tasks, usage, visuals) |
 | `src/main/agent/harnessTools.ts` | The `harness` MCP tools agents use to report progress and show results |
 | `src/main/system/telemetry.ts` | Localhost endpoint behind `$HARNESS_URL` for live script telemetry |

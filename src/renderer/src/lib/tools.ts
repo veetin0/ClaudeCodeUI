@@ -68,17 +68,37 @@ export function toolIcon(name: string): LucideIcon {
   return ICONS[toolKind(name)]
 }
 
-/** Tailwind classes per kind; kept as literal strings so Tailwind picks them up. */
-export const KIND_STYLES: Record<ToolKind, string> = {
-  read: 'text-sky-600 dark:text-sky-400 bg-sky-500/10 border-sky-500/20',
-  write: 'text-orange-600 dark:text-orange-400 bg-orange-500/10 border-orange-500/20',
-  search: 'text-violet-600 dark:text-violet-400 bg-violet-500/10 border-violet-500/20',
-  exec: 'text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 border-emerald-500/20',
-  web: 'text-cyan-600 dark:text-cyan-400 bg-cyan-500/10 border-cyan-500/20',
-  agent: 'text-pink-600 dark:text-pink-400 bg-pink-500/10 border-pink-500/20',
-  plan: 'text-amber-600 dark:text-amber-400 bg-amber-500/10 border-amber-500/20',
-  mcp: 'text-indigo-600 dark:text-indigo-400 bg-indigo-500/10 border-indigo-500/20',
-  other: 'text-zinc-600 dark:text-zinc-400 bg-zinc-500/10 border-zinc-500/20',
+/**
+ * Kind colours come from the validated categorical palette (styles.css --series-*), in fixed
+ * order, so chips, activity ticks and timeline bars all agree. Rare kinds share neutral grey.
+ */
+export const KIND_COLOR: Record<ToolKind, string> = {
+  read: 'var(--series-1)',
+  write: 'var(--series-2)',
+  exec: 'var(--series-3)',
+  plan: 'var(--series-4)',
+  agent: 'var(--series-5)',
+  search: 'var(--series-6)',
+  web: 'var(--series-7)',
+  mcp: 'var(--muted)',
+  other: 'var(--muted)',
+}
+
+export const KIND_LABEL: Record<ToolKind, string> = {
+  read: 'Read',
+  write: 'Write',
+  exec: 'Run',
+  plan: 'Plan',
+  agent: 'Subagent',
+  search: 'Search',
+  web: 'Web',
+  mcp: 'Other',
+  other: 'Other',
+}
+
+/** Sets --kind for a tool so `.kind-tint` / `.kind-icon` (styles.css) can use it. */
+export function kindVars(name: string): React.CSSProperties {
+  return { ['--kind' as string]: KIND_COLOR[toolKind(name)] }
 }
 
 function short(s: string, n = 48): string {

@@ -1,6 +1,6 @@
 # Plan: "Harness" — a Mac app to run and visualize Claude Code in real time
 
-> **Progress:** Phases 1–3 done (skeleton, engine, persistence and resume), plus the live agent board and action buttons from phase 4/7. Storage uses Node's built-in `node:sqlite` instead of better-sqlite3 (no native rebuild). Next: phase 4, the rest of the visualizations (React Flow graph, timeline, file heat tree, Monaco diffs).
+> **Progress:** Phases 1–4 done: skeleton, engine, persistence and resume, and visualizations (agent board, React Flow graph, timeline, file heat tree, Monaco diffs with revert). Storage uses Node's built-in `node:sqlite`. Next: phase 5, the terminal and observe mode.
 
 ## Context
 You want one Mac app where you run Claude Code and *watch* it work: what the agent is thinking, which tools it calls, which subagents it spawns, which files it touches, what it costs. Remotion projects should get a live video preview, but otherwise be treated like any other project. The UI should look simple at first glance and reveal depth on demand.

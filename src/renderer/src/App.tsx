@@ -21,13 +21,16 @@ export function App() {
       } else if (e.metaKey && e.key.toLowerCase() === 'o') {
         e.preventDefault()
         void app.openProject()
-      } else if (e.metaKey && (e.key === '1' || e.key === '2')) {
+      } else if (e.metaKey && ['1', '2', '3'].includes(e.key)) {
         e.preventDefault()
-        app.setView(e.key === '1' ? 'chat' : 'board')
+        app.setView((['chat', 'board', 'mission'] as const)[Number(e.key) - 1])
+      } else if (e.metaKey && e.shiftKey && e.key.toLowerCase() === 'm') {
+        e.preventDefault()
+        app.setView('mission')
       } else if (e.metaKey && e.key === ',') {
         e.preventDefault()
         app.setSettingsOpen(true)
-      } else if (e.key === 'Escape' && !app.detailAgent && app.activeId && app.sessions[app.activeId]?.status === 'running') {
+      } else if (e.key === 'Escape' && !app.detailAgent && !app.diffPath && app.activeId && app.sessions[app.activeId]?.status === 'running') {
         void app.interrupt()
       }
     }

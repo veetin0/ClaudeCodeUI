@@ -28,6 +28,14 @@ export interface TodoItem {
   activeForm?: string
 }
 
+export interface FileChange {
+  /** Absolute path. */
+  path: string
+  status: 'added' | 'modified' | 'deleted'
+  additions: number
+  deletions: number
+}
+
 type E<T extends string, P> = { type: T; sessionId: string; ts: number } & P
 
 export type HarnessEvent =
@@ -70,6 +78,10 @@ export type HarnessEvent =
       durationMs?: number
     }>
   | E<'todo.update', { todos: TodoItem[] }>
+  /** A file in the project changed on disk (by an agent, a command it ran, or you). */
+  | E<'file.change', { path: string; change: 'created' | 'modified' | 'deleted' }>
+  /** Files that differ from how they were when the session first touched them. */
+  | E<'changes.updated', { files: FileChange[] }>
   /** Progress bars, metric points, images/charts/tables and status lines for one agent. */
   | E<'visual', { agentId: AgentId; toolUseId?: string; source: VisualSource; update: VisualUpdate }>
   | E<'permission.request', {

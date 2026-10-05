@@ -1,10 +1,14 @@
 import { randomUUID } from 'node:crypto'
+import { statSync, type FSWatcher } from 'node:fs'
+import { join } from 'node:path'
 import { query, type CanUseTool, type Query, type SDKUserMessage } from '@anthropic-ai/claude-agent-sdk'
 import { EXEC_TOOLS, type AgentId, type HarnessEvent, type PermissionMode, type SessionStatus, type TodoItem } from '@shared/events'
 import { toVisual } from '@shared/visuals'
 import type { PermissionDecision, SessionSummary, StartSessionOptions } from '@shared/ipc'
 import type { EventBus } from '../events/bus'
 import { EventNormalizer } from '../events/normalizer'
+import { ChangeTracker, type SnapshotStore } from '../project/ChangeTracker'
+import { listFiles, watchProject } from '../project/projectFiles'
 import type { TelemetryServer } from '../system/telemetry'
 import { createHarnessServer, HARNESS_TOOL_GUIDE } from './harnessTools'
 import { MessageQueue } from './MessageQueue'
@@ -20,7 +24,14 @@ export interface AgentServiceDeps {
   claudeExecutablePath?: string
   queryFactory?: QueryFactory
   telemetry?: TelemetryServer
+  /** Enables change tracking (snapshots, diffs, revert) and the project watcher. */
+  snapshots?: SnapshotStore
 }
+
+/** Tools that write files; the PreToolUse hook snapshots their target first. */
+const EDIT_TOOLS = new Set(['Edit', 'MultiEdit', 'Write', 'NotebookEdit'])
+const editTarget = (input: Record<string, unknown>) =>
+  typeof input.file_path === 'string' ? input.file_path : typeof input.notebook_path === 'string' ? input.notebook_path : null
 
 /** What's needed to continue a saved session in a new agent process. */
 export interface ResumeInfo {
@@ -44,6 +55,9 @@ class AgentSession {
   private runningExec: { toolUseId: string; agentId: AgentId }[] = []
   /** Set once closed; a replacement session may reuse this id, so nothing more may be emitted. */
   private disposed = false
+  readonly tracker: ChangeTracker | null = null
+  private watcher: FSWatcher | null = null
+  private knownFiles = new Set<string>()
 
   constructor(
     private readonly deps: AgentServiceDeps,
@@ -57,6 +71,10 @@ class AgentSession {
     const id = this.summary.id
     this.normalizer = new EventNormalizer(id, Date.now, this.summary.cwd)
     this.permissions = new PermissionBroker((e) => this.emit(e), id)
+    if (deps.snapshots) {
+      this.tracker = new ChangeTracker(id, this.summary.cwd, deps.snapshots, (e) => this.emit(e))
+      this.startWatching()
+    }
     if (resume) {
       this.normalizer.seedTasks(resume.todos)
       this.deps.bus.emit({ type: 'session.resumed', claudeSessionId: resume.claudeSessionId, sessionId: id, ts: now })
@@ -77,7 +95,10 @@ class AgentSession {
     const list = Array.isArray(e) ? e : [e]
     for (const ev of list) {
       if (ev.type === 'tool.start' && EXEC_TOOLS.has(ev.name)) this.runningExec.push({ toolUseId: ev.toolUseId, agentId: ev.agentId })
-      if (ev.type === 'tool.end') this.runningExec = this.runningExec.filter((r) => r.toolUseId !== ev.toolUseId)
+      if (ev.type === 'tool.end') {
+        this.runningExec = this.runningExec.filter((r) => r.toolUseId !== ev.toolUseId)
+        this.tracker?.touched()
+      }
       if (ev.type === 'permission.request') this.setStatus('waiting')
       if (ev.type === 'permission.resolved' && this.status === 'waiting') this.setStatus('running')
     }
@@ -112,6 +133,22 @@ class AgentSession {
         forwardSubagentText: true,
         agentProgressSummaries: true,
         canUseTool,
+        hooks: this.tracker
+          ? {
+              PreToolUse: [
+                {
+                  matcher: [...EDIT_TOOLS].join('|'),
+                  hooks: [
+                    async (input) => {
+                      const target = 'tool_input' in input ? editTarget((input.tool_input ?? {}) as Record<string, unknown>) : null
+                      if (target) await this.tracker?.beforeEdit(target)
+                      return {}
+                    },
+                  ],
+                },
+              ],
+            }
+          : undefined,
         abortController: this.abort,
         env: harnessUrl ? { ...this.deps.getEnv(), HARNESS_URL: harnessUrl } : this.deps.getEnv(),
         pathToClaudeCodeExecutable: this.deps.claudeExecutablePath,
@@ -146,6 +183,28 @@ class AgentSession {
       this.permissions.cancelAll()
       this.setStatus('closed')
     }
+  }
+
+  private startWatching() {
+    const cwd = this.summary.cwd
+    void listFiles(cwd).then((files) => files.forEach((f) => this.knownFiles.add(join(cwd, f))))
+    this.watcher = watchProject(cwd, (rel) => {
+      const path = join(cwd, rel)
+      let exists = false
+      try {
+        // Folders appear as their files do; only report files.
+        if (statSync(path).isDirectory()) return
+        exists = true
+      } catch {
+        // gone: a deletion (or a temp file that came and went)
+      }
+      if (!exists && !this.knownFiles.has(path)) return
+      const change = !exists ? 'deleted' : this.knownFiles.has(path) ? 'modified' : 'created'
+      if (exists) this.knownFiles.add(path)
+      else this.knownFiles.delete(path)
+      this.emit({ type: 'file.change', path, change, sessionId: this.id, ts: Date.now() })
+      void this.tracker?.onDiskChange(path, change)
+    })
   }
 
   /** A script posted to $HARNESS_URL. Credit it to the command most likely running that script. */
@@ -201,6 +260,8 @@ class AgentSession {
     this.permissions.cancelAll()
     this.setStatus('closed')
     this.disposed = true
+    this.watcher?.close()
+    this.tracker?.dispose()
     this.input.close()
     this.abort.abort()
   }
@@ -216,6 +277,10 @@ export class AgentService {
     const s = new AgentSession(this.deps, opts, resume)
     this.sessions.set(s.id, s)
     return s.summary
+  }
+
+  tracker(id: string): ChangeTracker | null {
+    return this.sessions.get(id)?.tracker ?? null
   }
 
   /** True while the session's agent process is up (false after it exits or crashes). */

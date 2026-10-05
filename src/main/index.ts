@@ -5,6 +5,8 @@ import type { PermissionMode, TodoItem } from '@shared/events'
 import { AgentService } from './agent/AgentService'
 import { EventBus } from './events/bus'
 import { SessionStore } from './store/SessionStore'
+import { ChangeTracker } from './project/ChangeTracker'
+import { listFiles } from './project/projectFiles'
 import { agentEnv, loadLoginShellPath, resolveClaudeExecutable } from './system/environment'
 import { handleFileScheme, registerFileScheme } from './system/fileProtocol'
 import { TelemetryServer } from './system/telemetry'
@@ -68,6 +70,21 @@ function trackWaiting() {
   })
 }
 
+/** Saved sessions get a tracker too, so their diffs can be reviewed and reverted without resuming. */
+const detachedTrackers = new Map<string, ChangeTracker>()
+function trackerFor(id: string): ChangeTracker {
+  const live = agents.tracker(id)
+  if (live) return live
+  let t = detachedTrackers.get(id)
+  if (!t) {
+    const summary = store.get(id)
+    if (!summary) throw new Error('Session not found')
+    t = new ChangeTracker(id, summary.cwd, store, (e) => bus.emit(e))
+    detachedTrackers.set(id, t)
+  }
+  return t
+}
+
 function registerIpc() {
   ipcMain.handle(IPC.startSession, (_e, opts: StartSessionOptions) => {
     settings.addRecentProject(opts.cwd)
@@ -76,6 +93,10 @@ function registerIpc() {
     return summary
   })
   ipcMain.handle(IPC.listHistory, () => store.list())
+  ipcMain.handle(IPC.listFiles, (_e, cwd: string) => listFiles(cwd))
+  ipcMain.handle(IPC.getFileDiff, (_e, id: string, path: string) => trackerFor(id).diff(path))
+  ipcMain.handle(IPC.revertFile, (_e, id: string, path: string) => trackerFor(id).revert(path))
+  ipcMain.handle(IPC.acceptFile, (_e, id: string, path: string) => trackerFor(id).accept(path))
   ipcMain.handle(IPC.loadSession, (_e, id: string) => store.load(id))
   ipcMain.handle(IPC.deleteSession, (_e, id: string) => {
     agents.close(id)
@@ -86,6 +107,8 @@ function registerIpc() {
     if (!loaded) throw new Error('Session not found')
     const { summary, events } = loaded
     if (agents.isLive(id)) return summary
+    detachedTrackers.get(id)?.dispose()
+    detachedTrackers.delete(id)
     if (!summary.claudeSessionId) throw new Error('This session never reached Claude, so there is no conversation to resume.')
     const lastTodos = events.findLast((e) => e.type === 'todo.update')
     const todos: TodoItem[] = lastTodos?.type === 'todo.update' ? lastTodos.todos : []
@@ -123,6 +146,7 @@ app.whenReady().then(async () => {
   agents = new AgentService({
     bus,
     telemetry,
+    snapshots: store,
     claudeExecutablePath: resolveClaudeExecutable(),
     getEnv: () => {
       const key = settings.getApiKey()

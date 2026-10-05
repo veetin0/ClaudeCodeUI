@@ -1,6 +1,6 @@
 import { Check, Loader2, X } from 'lucide-react'
 import { cn, formatDuration } from '@/lib/format'
-import { KIND_STYLES, toolDisplayName, toolIcon, toolKind, toolSummary } from '@/lib/tools'
+import { kindVars, toolDisplayName, toolIcon, toolSummary } from '@/lib/tools'
 import type { ToolCall } from '@/stores/reducer'
 import { useElapsed } from '../meters/useElapsed'
 
@@ -14,14 +14,15 @@ export function ToolChip({ tool, selected, onClick }: { tool: ToolCall; selected
     <button
       onClick={onClick}
       title={summary}
+      style={kindVars(tool.name)}
       className={cn(
         'inline-flex max-w-full items-center gap-1.5 rounded-md border px-2 py-1 text-[12px] transition-colors',
-        KIND_STYLES[toolKind(tool.name)],
+        'kind-tint',
         selected && 'ring-2 ring-[var(--accent)]/40',
         tool.status === 'running' && 'animate-soft-pulse',
       )}
     >
-      <Icon className="size-3.5 shrink-0" />
+      <Icon className="kind-icon size-3.5 shrink-0" />
       <span className="font-medium">{toolDisplayName(tool.name)}</span>
       {summary && <span className="truncate text-fg/70">{summary}</span>}
       {tool.status === 'running' ? (

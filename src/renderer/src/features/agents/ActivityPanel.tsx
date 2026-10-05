@@ -1,5 +1,5 @@
 import { formatDuration } from '@/lib/format'
-import { KIND_STYLES, toolDisplayName, toolIcon, toolKind, toolSummary } from '@/lib/tools'
+import { kindVars, toolDisplayName, toolIcon, toolSummary } from '@/lib/tools'
 import type { SessionState } from '@/stores/reducer'
 import { cn } from '@/lib/format'
 
@@ -15,8 +15,8 @@ export function ActivityPanel({ session }: { session: SessionState }) {
         const sub = t.agentId ? session.subagents[t.agentId] : undefined
         return (
           <li key={t.id} className="flex items-center gap-2 rounded-md px-1.5 py-1 hover:bg-black/[0.03] dark:hover:bg-white/5">
-            <span className={cn('flex size-6 shrink-0 items-center justify-center rounded-md border', KIND_STYLES[toolKind(t.name)])}>
-              <Icon className="size-3.5" />
+            <span style={kindVars(t.name)} className="kind-tint flex size-6 shrink-0 items-center justify-center rounded-md border">
+              <Icon className="kind-icon size-3.5" />
             </span>
             <div className="min-w-0 flex-1">
               <div className="truncate text-[12px]">

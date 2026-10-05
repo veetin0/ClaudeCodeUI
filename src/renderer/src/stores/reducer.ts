@@ -1,4 +1,4 @@
-import type { AgentId, EventOf, HarnessEvent, PermissionMode, SessionStatus, TodoItem } from '@shared/events'
+import type { AgentId, EventOf, FileChange, HarnessEvent, PermissionMode, SessionStatus, TodoItem } from '@shared/events'
 import { HARNESS_TOOL_PREFIX, SUBAGENT_TOOLS } from '@shared/events'
 import type { ShowUpdate, VisualSource } from '@shared/visuals'
 import type { SessionSummary } from '@shared/ipc'
@@ -73,6 +73,21 @@ const MAX_METRIC_POINTS = 1000
 /** Harness tools that only feed the agent cards; kept out of the chat transcript. */
 const QUIET_HARNESS_TOOLS = new Set(['progress', 'metric', 'status'].map((t) => HARNESS_TOOL_PREFIX + t))
 
+/** What happened to one file during the session; drives the heat tree. */
+export interface FileActivity {
+  reads: number
+  writes: number
+  /** Changes on disk not made by an edit tool (scripts, formatters, you). */
+  diskChanges: number
+  lastTs: number
+  lastKind: 'read' | 'write' | 'disk'
+  /** agentKeys that touched it. */
+  agents: string[]
+}
+
+const READ_TOOLS = new Set(['Read', 'NotebookRead'])
+const WRITE_TOOLS = new Set(['Edit', 'MultiEdit', 'Write', 'NotebookEdit'])
+
 export type PermissionRequest = Omit<EventOf<'permission.request'>, 'type' | 'sessionId'>
 
 export interface SessionState {
@@ -94,6 +109,8 @@ export interface SessionState {
   subagents: Record<string, Subagent>
   todos: TodoItem[]
   visuals: Record<string, AgentVisuals>
+  files: Record<string, FileActivity>
+  changes: FileChange[]
   permissions: PermissionRequest[]
   contextTokens: number
   contextWindow: number
@@ -124,6 +141,8 @@ export function createSession(s: SessionSummary, permissionMode: PermissionMode 
     subagents: {},
     todos: [],
     visuals: {},
+    files: {},
+    changes: [],
     permissions: [],
     contextTokens: 0,
     contextWindow: DEFAULT_CONTEXT_WINDOW,
@@ -208,6 +227,17 @@ export function applyEvent(s: SessionState, e: HarnessEvent): void {
       } else {
         s.subagents[e.agentId]?.toolIds.push(e.toolUseId)
       }
+      const path = typeof e.input.file_path === 'string' ? e.input.file_path : typeof e.input.notebook_path === 'string' ? e.input.notebook_path : null
+      if (path && (READ_TOOLS.has(e.name) || WRITE_TOOLS.has(e.name))) {
+        const write = WRITE_TOOLS.has(e.name)
+        const f = (s.files[path] ??= { reads: 0, writes: 0, diskChanges: 0, lastTs: e.ts, lastKind: 'read', agents: [] })
+        if (write) f.writes++
+        else f.reads++
+        f.lastTs = e.ts
+        f.lastKind = write ? 'write' : 'read'
+        const key = agentKey(e.agentId)
+        if (!f.agents.includes(key)) f.agents.push(key)
+      }
       if (SUBAGENT_TOOLS.has(e.name)) {
         s.subagents[e.toolUseId] ??= {
           id: e.toolUseId,
@@ -279,6 +309,28 @@ export function applyEvent(s: SessionState, e: HarnessEvent): void {
 
     case 'visual':
       applyVisual(s, e)
+      break
+
+    case 'file.change': {
+      // A file that came and went without an agent touching it (atomic-write temp files) isn't news.
+      const existing = s.files[e.path]
+      if (e.change === 'deleted' && existing && existing.reads === 0 && existing.writes === 0 && !s.changes.some((c) => c.path === e.path)) {
+        delete s.files[e.path]
+        break
+      }
+      const f = (s.files[e.path] ??= { reads: 0, writes: 0, diskChanges: 0, lastTs: e.ts, lastKind: 'disk', agents: [] })
+      // An edit tool's own write echoes back from the watcher; don't count it twice.
+      const echo = f.lastKind === 'write' && e.ts - f.lastTs < 3000
+      if (!echo) {
+        f.diskChanges++
+        f.lastKind = 'disk'
+        f.lastTs = e.ts
+      }
+      break
+    }
+
+    case 'changes.updated':
+      s.changes = e.files
       break
 
     case 'permission.request': {

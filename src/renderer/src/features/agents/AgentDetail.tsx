@@ -16,7 +16,7 @@ import { NowWidget } from './NowWidget'
 
 /** Everything one agent did: live now-panel, progress, charts, results, files and full timeline. */
 export function AgentDetail({ session }: { session: SessionState }) {
-  const { detailAgent, closeAgent } = useApp()
+  const { detailAgent, detailTool, closeAgent } = useApp()
   const agent = agentViews(session).find((a) => a.key === detailAgent)
   const [selectedTool, setSelectedTool] = useState<string | null>(null)
   const live = useElapsed(agent && isActive(agent) ? agent.startedAt : undefined, 1000)
@@ -26,7 +26,7 @@ export function AgentDetail({ session }: { session: SessionState }) {
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
   }, [closeAgent])
-  useEffect(() => setSelectedTool(null), [detailAgent])
+  useEffect(() => setSelectedTool(detailTool), [detailAgent, detailTool])
 
   if (!agent) return null
   const activity = currentActivity(agent)

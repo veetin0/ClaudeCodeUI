@@ -53,6 +53,12 @@ export class SessionStore {
         PRIMARY KEY (session_id, seq)
       );
       CREATE INDEX IF NOT EXISTS sessions_updated ON sessions(updated_at DESC);
+      CREATE TABLE IF NOT EXISTS snapshots (
+        session_id TEXT NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
+        path TEXT NOT NULL,
+        original TEXT,
+        PRIMARY KEY (session_id, path)
+      );
     `)
   }
 
@@ -125,6 +131,23 @@ export class SessionStore {
     this.flush()
     this.closed = true
     this.db.close()
+  }
+
+  // Snapshots: each file's content from before the session first changed it (null = didn't exist).
+
+  getSnapshots(sessionId: string): Map<string, string | null> {
+    const rows = this.db.prepare('SELECT path, original FROM snapshots WHERE session_id = ?').all(sessionId) as { path: string; original: string | null }[]
+    return new Map(rows.map((r) => [r.path, r.original]))
+  }
+
+  saveSnapshot(sessionId: string, path: string, original: string | null) {
+    if (this.closed || !this.exists(sessionId)) return
+    this.db.prepare('INSERT OR IGNORE INTO snapshots (session_id, path, original) VALUES (?, ?, ?)').run(sessionId, path, original)
+  }
+
+  deleteSnapshot(sessionId: string, path: string) {
+    if (this.closed) return
+    this.db.prepare('DELETE FROM snapshots WHERE session_id = ? AND path = ?').run(sessionId, path)
   }
 
   private exists(id: string): boolean {

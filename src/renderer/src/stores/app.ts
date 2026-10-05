@@ -5,8 +5,8 @@ import type { AppSettings, PermissionDecision, SessionSummary } from '@shared/ip
 import { ipcErrorMessage } from '@/lib/time'
 import { applyEvent, createSession, finalizeLoaded, type SessionState } from './reducer'
 
-export type InspectorTab = 'agents' | 'tasks' | 'activity'
-export type MainView = 'chat' | 'board'
+export type InspectorTab = 'agents' | 'tasks' | 'files' | 'activity'
+export type MainView = 'chat' | 'board' | 'mission'
 
 interface AppState {
   /** Sessions open in the sidebar (live, or saved ones opened from history). */
@@ -20,6 +20,10 @@ interface AppState {
   view: MainView
   /** agentKey of the agent whose detail panel is open. */
   detailAgent: string | null
+  /** Tool call to preselect in the agent detail view. */
+  detailTool: string | null
+  /** Absolute path of the file open in the diff view. */
+  diffPath: string | null
   /** Unsent prompt text per session. */
   drafts: Record<string, string>
   focusMode: boolean
@@ -42,8 +46,10 @@ interface AppState {
   respondPermission(requestId: string, decision: PermissionDecision): Promise<void>
   setInspectorTab(tab: InspectorTab): void
   setView(view: MainView): void
-  openAgent(key: string): void
+  openAgent(key: string, toolId?: string): void
   closeAgent(): void
+  openDiff(path: string): void
+  closeDiff(): void
   setDraft(text: string): void
   toggleFocusMode(): void
   setSettingsOpen(open: boolean): void
@@ -70,6 +76,8 @@ export const useApp = create<AppState>((set, get) => ({
   inspectorTab: 'agents',
   view: 'chat',
   detailAgent: null,
+  detailTool: null,
+  diffPath: null,
   drafts: {},
   focusMode: false,
   settingsOpen: false,
@@ -148,7 +156,7 @@ export const useApp = create<AppState>((set, get) => ({
   },
 
   select(id) {
-    set({ activeId: id, detailAgent: null })
+    set({ activeId: id, detailAgent: null, diffPath: null })
   },
 
   async closeSession(id) {
@@ -208,8 +216,10 @@ export const useApp = create<AppState>((set, get) => ({
 
   setInspectorTab: (inspectorTab) => set({ inspectorTab }),
   setView: (view) => set({ view }),
-  openAgent: (detailAgent) => set({ detailAgent }),
-  closeAgent: () => set({ detailAgent: null }),
+  openAgent: (detailAgent, toolId) => set({ detailAgent, detailTool: toolId ?? null }),
+  closeAgent: () => set({ detailAgent: null, detailTool: null }),
+  openDiff: (diffPath) => set({ diffPath, detailAgent: null }),
+  closeDiff: () => set({ diffPath: null }),
   setDraft: (text) =>
     set((st) => (st.activeId ? { drafts: { ...st.drafts, [st.activeId]: text } } : {})),
   toggleFocusMode: () => set((st) => ({ focusMode: !st.focusMode })),
