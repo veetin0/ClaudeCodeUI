@@ -29,6 +29,11 @@ export class EventNormalizer {
     private readonly cwd = '/',
   ) {}
 
+  /** Continues a resumed session's TaskCreate list so later TaskUpdates apply to it. */
+  seedTasks(todos: TodoItem[]) {
+    for (const t of todos) if (t.id) this.tasks.set(t.id, t)
+  }
+
   normalize(msg: SDKMessage): HarnessEvent[] {
     const out: Draft[] = []
     const m = msg as Record<string, unknown> & { type: string; subtype?: string }

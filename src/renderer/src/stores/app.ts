@@ -1,14 +1,18 @@
 import { create } from 'zustand'
 import { produce } from 'immer'
 import type { HarnessEvent, PermissionMode } from '@shared/events'
-import type { AppSettings, PermissionDecision } from '@shared/ipc'
-import { applyEvent, createSession, type SessionState } from './reducer'
+import type { AppSettings, PermissionDecision, SessionSummary } from '@shared/ipc'
+import { ipcErrorMessage } from '@/lib/time'
+import { applyEvent, createSession, finalizeLoaded, type SessionState } from './reducer'
 
 export type InspectorTab = 'agents' | 'tasks' | 'activity'
 export type MainView = 'chat' | 'board'
 
 interface AppState {
+  /** Sessions open in the sidebar (live, or saved ones opened from history). */
   sessions: Record<string, SessionState>
+  /** All saved sessions, most recent first. */
+  history: SessionSummary[]
   order: string[]
   activeId: string | null
   settings: AppSettings | null
@@ -25,6 +29,9 @@ interface AppState {
   init(): Promise<void>
   applyEvents(events: HarnessEvent[]): void
   startSession(cwd: string): Promise<void>
+  refreshHistory(): Promise<void>
+  openSaved(id: string): Promise<void>
+  deleteSaved(id: string): Promise<void>
   openProject(): Promise<void>
   select(id: string): void
   closeSession(id: string): Promise<void>
@@ -46,8 +53,17 @@ interface AppState {
 
 const api = () => window.harness
 
+let historyTimer: ReturnType<typeof setTimeout> | null = null
+function scheduleHistoryRefresh() {
+  historyTimer ??= setTimeout(() => {
+    historyTimer = null
+    void useApp.getState().refreshHistory()
+  }, 600)
+}
+
 export const useApp = create<AppState>((set, get) => ({
   sessions: {},
+  history: [],
   order: [],
   activeId: null,
   settings: null,
@@ -62,6 +78,37 @@ export const useApp = create<AppState>((set, get) => ({
   async init() {
     set({ settings: await api().getSettings() })
     api().onEvents((events) => get().applyEvents(events))
+    await get().refreshHistory()
+  },
+
+  async refreshHistory() {
+    set({ history: await api().listHistory() })
+  },
+
+  async openSaved(id) {
+    if (get().sessions[id]) return get().select(id)
+    const loaded = await api().loadSession(id)
+    if (!loaded) return
+    const session = produce(createSession(loaded.summary, get().settings?.defaultPermissionMode, false), (draft) => {
+      for (const e of loaded.events) applyEvent(draft, e)
+      finalizeLoaded(draft)
+    })
+    set((st) => ({
+      sessions: { ...st.sessions, [id]: session },
+      order: [id, ...st.order.filter((x) => x !== id)],
+      activeId: id,
+      detailAgent: null,
+    }))
+  },
+
+  async deleteSaved(id) {
+    await api().deleteSession(id)
+    set((st) => {
+      const { [id]: _removed, ...sessions } = st.sessions
+      const order = st.order.filter((x) => x !== id)
+      return { sessions, order, activeId: st.activeId === id ? (order[0] ?? null) : st.activeId }
+    })
+    await get().refreshHistory()
   },
 
   applyEvents(events) {
@@ -73,6 +120,8 @@ export const useApp = create<AppState>((set, get) => ({
         }
       }),
     )
+    // Titles, costs and recency in the history list change on these.
+    if (events.some((e) => e.type === 'user.message' || e.type === 'turn.end' || e.type === 'session.init')) scheduleHistoryRefresh()
   },
 
   async startSession(cwd) {
@@ -81,14 +130,15 @@ export const useApp = create<AppState>((set, get) => ({
     try {
       const summary = await api().startSession({ cwd, permissionMode, model: settings?.defaultModel || undefined })
       set((st) => ({
-        sessions: { ...st.sessions, [summary.id]: createSession(summary, permissionMode) },
+        sessions: { ...st.sessions, [summary.id]: createSession(summary, permissionMode, true) },
         order: [summary.id, ...st.order],
         activeId: summary.id,
         startError: null,
       }))
       set({ settings: await api().getSettings() })
+      await get().refreshHistory()
     } catch (err) {
-      set({ startError: err instanceof Error ? err.message : String(err) })
+      set({ startError: ipcErrorMessage(err) })
     }
   },
 
@@ -102,17 +152,34 @@ export const useApp = create<AppState>((set, get) => ({
   },
 
   async closeSession(id) {
-    await api().closeSession(id)
+    // Closing stops the agent; the session stays in history and can be resumed.
+    if (get().sessions[id]?.live) await api().closeSession(id)
     set((st) => {
       const { [id]: _removed, ...sessions } = st.sessions
       const order = st.order.filter((x) => x !== id)
       return { sessions, order, activeId: st.activeId === id ? (order[0] ?? null) : st.activeId }
     })
+    await get().refreshHistory()
   },
 
   async send(text) {
     const id = get().activeId
-    if (id) await api().sendMessage(id, text)
+    if (!id) return
+    const s = get().sessions[id]
+    if (s && !s.live) {
+      // Sending to a saved session resumes its Claude conversation first.
+      try {
+        await api().resumeSession(id, { permissionMode: s.permissionMode, model: s.model })
+      } catch (err) {
+        set((st) =>
+          produce(st, (d) => {
+            d.sessions[id].items.push({ kind: 'error', id: `resume-${Date.now()}`, message: ipcErrorMessage(err) })
+          }),
+        )
+        return
+      }
+    }
+    await api().sendMessage(id, text)
   },
 
   async interrupt() {

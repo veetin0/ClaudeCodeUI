@@ -1,7 +1,6 @@
 import { randomUUID } from 'node:crypto'
-import { basename } from 'node:path'
 import { query, type CanUseTool, type Query, type SDKUserMessage } from '@anthropic-ai/claude-agent-sdk'
-import { EXEC_TOOLS, type AgentId, type HarnessEvent, type PermissionMode, type SessionStatus } from '@shared/events'
+import { EXEC_TOOLS, type AgentId, type HarnessEvent, type PermissionMode, type SessionStatus, type TodoItem } from '@shared/events'
 import { toVisual } from '@shared/visuals'
 import type { PermissionDecision, SessionSummary, StartSessionOptions } from '@shared/ipc'
 import type { EventBus } from '../events/bus'
@@ -23,6 +22,13 @@ export interface AgentServiceDeps {
   telemetry?: TelemetryServer
 }
 
+/** What's needed to continue a saved session in a new agent process. */
+export interface ResumeInfo {
+  summary: SessionSummary
+  claudeSessionId: string
+  todos: TodoItem[]
+}
+
 class AgentSession {
   readonly summary: SessionSummary
   private readonly input = new MessageQueue<SDKUserMessage>()
@@ -36,23 +42,38 @@ class AgentSession {
   private telemetryCount = 0
   /** Commands currently running, newest last: live telemetry is credited to the newest one. */
   private runningExec: { toolUseId: string; agentId: AgentId }[] = []
+  /** Set once closed; a replacement session may reuse this id, so nothing more may be emitted. */
+  private disposed = false
 
   constructor(
     private readonly deps: AgentServiceDeps,
     opts: StartSessionOptions,
+    resume?: ResumeInfo,
   ) {
-    const id = randomUUID()
-    this.summary = { id, cwd: opts.cwd, title: basename(opts.cwd), createdAt: Date.now() }
-    this.normalizer = new EventNormalizer(id, Date.now, opts.cwd)
+    const now = Date.now()
+    this.summary = resume
+      ? { ...resume.summary, updatedAt: now }
+      : { id: randomUUID(), cwd: opts.cwd, title: '', createdAt: now, updatedAt: now, costUsd: 0 }
+    const id = this.summary.id
+    this.normalizer = new EventNormalizer(id, Date.now, this.summary.cwd)
     this.permissions = new PermissionBroker((e) => this.emit(e), id)
-    this.start(opts)
+    if (resume) {
+      this.normalizer.seedTasks(resume.todos)
+      this.deps.bus.emit({ type: 'session.resumed', claudeSessionId: resume.claudeSessionId, sessionId: id, ts: now })
+    }
+    this.start({ ...opts, cwd: this.summary.cwd }, resume?.claudeSessionId)
   }
 
   get id() {
     return this.summary.id
   }
 
+  get isRunning() {
+    return this.status !== 'closed'
+  }
+
   private emit(e: HarnessEvent | HarnessEvent[]) {
+    if (this.disposed) return
     const list = Array.isArray(e) ? e : [e]
     for (const ev of list) {
       if (ev.type === 'tool.start' && EXEC_TOOLS.has(ev.name)) this.runningExec.push({ toolUseId: ev.toolUseId, agentId: ev.agentId })
@@ -64,12 +85,12 @@ class AgentSession {
   }
 
   private setStatus(status: SessionStatus) {
-    if (this.status === status) return
+    if (this.disposed || this.status === status) return
     this.status = status
     this.deps.bus.emit({ type: 'status', status, sessionId: this.id, ts: Date.now() })
   }
 
-  private start(opts: StartSessionOptions) {
+  private start(opts: StartSessionOptions, resumeClaudeSessionId?: string) {
     const canUseTool: CanUseTool = (toolName, input, o) => this.permissions.request(toolName, input, o)
     const factory = this.deps.queryFactory ?? query
     const harnessUrl = this.deps.telemetry?.register(this.telemetryToken, (p) => this.onTelemetry(p))
@@ -78,6 +99,7 @@ class AgentSession {
       prompt: this.input,
       options: {
         cwd: opts.cwd,
+        resume: resumeClaudeSessionId,
         model: opts.model || undefined,
         permissionMode: opts.permissionMode ?? 'default',
         systemPrompt: { type: 'preset', preset: 'claude_code', append: HARNESS_TOOL_GUIDE },
@@ -174,7 +196,11 @@ class AgentSession {
   }
 
   close() {
+    if (this.disposed) return
     this.deps.telemetry?.unregister(this.telemetryToken)
+    this.permissions.cancelAll()
+    this.setStatus('closed')
+    this.disposed = true
     this.input.close()
     this.abort.abort()
   }
@@ -185,10 +211,16 @@ export class AgentService {
 
   constructor(private readonly deps: AgentServiceDeps) {}
 
-  start(opts: StartSessionOptions): SessionSummary {
-    const s = new AgentSession(this.deps, opts)
+  start(opts: StartSessionOptions, resume?: ResumeInfo): SessionSummary {
+    if (resume) this.close(resume.summary.id)
+    const s = new AgentSession(this.deps, opts, resume)
     this.sessions.set(s.id, s)
     return s.summary
+  }
+
+  /** True while the session's agent process is up (false after it exits or crashes). */
+  isLive(id: string): boolean {
+    return this.sessions.get(id)?.isRunning ?? false
   }
 
   private get(id: string): AgentSession {

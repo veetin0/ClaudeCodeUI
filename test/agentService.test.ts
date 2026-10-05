@@ -87,3 +87,38 @@ describe('AgentService', () => {
     svc.close(id)
   })
 })
+
+describe('AgentService resume', () => {
+  it('passes the Claude session id, keeps the Harness id and announces the resume', async () => {
+    let options: Record<string, unknown> = {}
+    const factory = (({ options: o }: { options: Record<string, unknown> }) => {
+      options = o
+      async function* run() {}
+      return Object.assign(run(), { interrupt: async () => {} })
+    }) as unknown as QueryFactory
+    const { svc, events } = setup(factory)
+    const summary = { id: 'saved-1', cwd: '/proj', title: 'Old', createdAt: 1, updatedAt: 1, costUsd: 0.4 }
+    const out = svc.start({ cwd: '/ignored' }, { summary, claudeSessionId: 'claude-abc', todos: [] })
+    expect(out.id).toBe('saved-1')
+    expect(options).toMatchObject({ resume: 'claude-abc', cwd: '/proj' })
+    expect(events[0]).toMatchObject({ type: 'session.resumed', sessionId: 'saved-1', claudeSessionId: 'claude-abc' })
+    svc.close('saved-1')
+  })
+
+  it('emits nothing from a session after it is closed', async () => {
+    const factory = (() => {
+      async function* run() {
+        await new Promise((r) => setTimeout(r, 20))
+      }
+      return Object.assign(run(), { interrupt: async () => {} })
+    }) as unknown as QueryFactory
+    const { svc, events } = setup(factory)
+    const { id } = svc.start({ cwd: '/p' })
+    svc.close(id)
+    const count = events.length
+    expect(events.at(-1)).toMatchObject({ type: 'status', status: 'closed' })
+    await new Promise((r) => setTimeout(r, 40))
+    expect(events.length).toBe(count)
+    expect(svc.isLive(id)).toBe(false)
+  })
+})

@@ -80,6 +80,8 @@ export interface SessionState {
   cwd: string
   title: string
   createdAt: number
+  /** False for a saved session opened from history whose agent isn't running. */
+  live: boolean
   status: SessionStatus
   model?: string
   permissionMode: PermissionMode
@@ -96,15 +98,22 @@ export interface SessionState {
   contextTokens: number
   contextWindow: number
   totalCostUsd: number
+  /** Session cost accrued before the current agent process (total_cost_usd restarts on resume). */
+  costOffset: number
   outputTokens: number
   turnStartedAt?: number
 }
 
 const DEFAULT_CONTEXT_WINDOW = 200_000
 
-export function createSession(s: SessionSummary, permissionMode: PermissionMode = 'default'): SessionState {
+export function createSession(s: SessionSummary, permissionMode: PermissionMode = 'default', live = true): SessionState {
   return {
-    ...s,
+    id: s.id,
+    cwd: s.cwd,
+    title: s.title,
+    createdAt: s.createdAt,
+    model: s.model,
+    live,
     status: 'starting',
     permissionMode,
     slashCommands: [],
@@ -119,6 +128,7 @@ export function createSession(s: SessionSummary, permissionMode: PermissionMode 
     contextTokens: 0,
     contextWindow: DEFAULT_CONTEXT_WINDOW,
     totalCostUsd: 0,
+    costOffset: 0,
     outputTokens: 0,
   }
 }
@@ -133,9 +143,15 @@ export function applyEvent(s: SessionState, e: HarnessEvent): void {
       s.claudeCodeVersion = e.claudeCodeVersion
       break
 
+    case 'session.resumed':
+      s.live = true
+      s.costOffset = s.totalCostUsd
+      break
+
     case 'status':
       s.status = e.status
       if (e.status === 'running' && s.turnStartedAt === undefined) s.turnStartedAt = e.ts
+      if (e.status === 'closed') s.live = false
       if (e.status === 'idle' || e.status === 'closed') {
         s.turnStartedAt = undefined
         s.streamingText = ''
@@ -144,6 +160,7 @@ export function applyEvent(s: SessionState, e: HarnessEvent): void {
       break
 
     case 'user.message':
+      if (!s.title) s.title = e.text.replace(/\s+/g, ' ').trim().slice(0, 80)
       s.items.push({ kind: 'user', id: e.id, text: e.text, ts: e.ts })
       break
 
@@ -285,8 +302,9 @@ export function applyEvent(s: SessionState, e: HarnessEvent): void {
 
     case 'turn.end': {
       // total_cost_usd is cumulative for the CLI process, i.e. the whole session.
-      const turnCost = Math.max(0, e.costUsd - s.totalCostUsd)
-      s.totalCostUsd = Math.max(s.totalCostUsd, e.costUsd)
+      const cumulative = s.costOffset + e.costUsd
+      const turnCost = Math.max(0, cumulative - s.totalCostUsd)
+      s.totalCostUsd = Math.max(s.totalCostUsd, cumulative)
       if (e.contextWindow) s.contextWindow = e.contextWindow
       s.outputTokens += e.outputTokens
       s.items.push({
@@ -359,4 +377,19 @@ function applyVisual(s: SessionState, e: EventOf<'visual'>) {
       if (!v.shows.some((x) => x.id === u.id)) v.shows.push({ ...u, ts: e.ts })
       break
   }
+}
+
+/**
+ * After replaying a saved log: whatever was in flight when it was saved is over now.
+ * Leaves the transcript, tools, visuals and costs as they were.
+ */
+export function finalizeLoaded(s: SessionState): void {
+  s.live = false
+  s.status = 'closed'
+  s.permissions = []
+  s.streamingText = ''
+  s.streamingThinking = ''
+  s.turnStartedAt = undefined
+  for (const t of Object.values(s.tools)) if (t.status === 'running') t.status = 'error'
+  for (const sub of Object.values(s.subagents)) if (sub.status === 'running') sub.status = 'stopped'
 }

@@ -17,7 +17,7 @@ export function normalizeAll(messages: SDKMessage[], sessionId = 's1'): HarnessE
 }
 
 export function reduceAll(events: HarnessEvent[], sessionId = 's1'): SessionState {
-  const initial = createSession({ id: sessionId, cwd: '/p', title: 'p', createdAt: 0 })
+  const initial = createSession({ id: sessionId, cwd: '/p', title: '', createdAt: 0, updatedAt: 0, costUsd: 0 })
   return produce(initial, (draft) => {
     for (const e of events) applyEvent(draft, e)
   })

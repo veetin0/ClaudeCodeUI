@@ -1,7 +1,7 @@
 import { LayoutGrid, MessageSquare, PanelLeft } from 'lucide-react'
 import { ContextGauge } from '@/features/meters/ContextGauge'
 import { useElapsed } from '@/features/meters/useElapsed'
-import { cn, formatCost, formatDuration, formatTokens } from '@/lib/format'
+import { basename, cn, formatCost, formatDuration, formatTokens } from '@/lib/format'
 import { useActiveSession, useApp } from '@/stores/app'
 import { StatusDot, STATUS_LABEL } from './StatusDot'
 
@@ -21,13 +21,16 @@ export function TopBar() {
       {session ? (
         <>
           <div className="min-w-0">
-            <div className="truncate text-[13px] font-semibold" title={session.cwd}>
-              {session.title}
+            <div className="max-w-[360px] truncate text-[13px] font-semibold" title={session.title || undefined}>
+              {session.title || 'New session'}
+            </div>
+            <div className="truncate text-[11px] text-muted" title={session.cwd}>
+              {basename(session.cwd)}
             </div>
           </div>
           <div className="flex items-center gap-1.5 text-muted">
             <StatusDot status={session.status} />
-            {STATUS_LABEL[session.status]}
+            {session.live ? STATUS_LABEL[session.status] : 'Saved'}
             {elapsed > 0 && <span className="tabular-nums">· {formatDuration(elapsed)}</span>}
           </div>
           <div className="no-drag ml-2 flex rounded-lg bg-black/[0.05] p-0.5 dark:bg-white/[0.07]">

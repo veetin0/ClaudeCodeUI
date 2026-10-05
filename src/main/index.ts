@@ -1,9 +1,10 @@
 import { app, BrowserWindow, dialog, ipcMain, shell } from 'electron'
 import { join } from 'node:path'
 import { IPC, type PermissionDecision, type StartSessionOptions } from '@shared/ipc'
-import type { PermissionMode } from '@shared/events'
+import type { PermissionMode, TodoItem } from '@shared/events'
 import { AgentService } from './agent/AgentService'
 import { EventBus } from './events/bus'
+import { SessionStore } from './store/SessionStore'
 import { agentEnv, loadLoginShellPath, resolveClaudeExecutable } from './system/environment'
 import { handleFileScheme, registerFileScheme } from './system/fileProtocol'
 import { TelemetryServer } from './system/telemetry'
@@ -15,6 +16,7 @@ registerFileScheme()
 const bus = new EventBus()
 const telemetry = new TelemetryServer()
 let settings: SettingsStore
+let store: SessionStore
 let agents: AgentService
 let waitingCount = 0
 
@@ -69,7 +71,31 @@ function trackWaiting() {
 function registerIpc() {
   ipcMain.handle(IPC.startSession, (_e, opts: StartSessionOptions) => {
     settings.addRecentProject(opts.cwd)
-    return agents.start(opts)
+    const summary = agents.start(opts)
+    store.open(summary)
+    return summary
+  })
+  ipcMain.handle(IPC.listHistory, () => store.list())
+  ipcMain.handle(IPC.loadSession, (_e, id: string) => store.load(id))
+  ipcMain.handle(IPC.deleteSession, (_e, id: string) => {
+    agents.close(id)
+    store.delete(id)
+  })
+  ipcMain.handle(IPC.resumeSession, (_e, id: string, opts?: { permissionMode?: PermissionMode; model?: string }) => {
+    const loaded = store.load(id)
+    if (!loaded) throw new Error('Session not found')
+    const { summary, events } = loaded
+    if (agents.isLive(id)) return summary
+    if (!summary.claudeSessionId) throw new Error('This session never reached Claude, so there is no conversation to resume.')
+    const lastTodos = events.findLast((e) => e.type === 'todo.update')
+    const todos: TodoItem[] = lastTodos?.type === 'todo.update' ? lastTodos.todos : []
+    const resumed = agents.start(
+      { cwd: summary.cwd, permissionMode: opts?.permissionMode ?? settings.get().defaultPermissionMode, model: opts?.model ?? summary.model },
+      { summary, claudeSessionId: summary.claudeSessionId, todos },
+    )
+    store.open(resumed)
+    settings.addRecentProject(summary.cwd)
+    return resumed
   })
   ipcMain.handle(IPC.sendMessage, (_e, id: string, text: string) => agents.send(id, text))
   ipcMain.handle(IPC.interrupt, (_e, id: string) => agents.interrupt(id))
@@ -92,6 +118,8 @@ app.whenReady().then(async () => {
   handleFileScheme()
   await telemetry.start()
   settings = new SettingsStore()
+  store = new SessionStore(join(app.getPath('userData'), 'harness.db'))
+  bus.subscribe((e) => store.record(e))
   agents = new AgentService({
     bus,
     telemetry,
@@ -112,6 +140,7 @@ app.whenReady().then(async () => {
 
 app.on('before-quit', () => {
   agents?.closeAll()
+  store?.close()
   telemetry.stop()
 })
 app.on('window-all-closed', () => {

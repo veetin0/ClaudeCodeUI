@@ -40,6 +40,8 @@ export type HarnessEvent =
       slashCommands: string[]
       claudeCodeVersion: string
     }>
+  /** A saved session was reopened and its Claude conversation resumed in a fresh process. */
+  | E<'session.resumed', { claudeSessionId: string }>
   | E<'status', { status: SessionStatus }>
   | E<'user.message', { id: string; text: string }>
   | E<'text.delta', { agentId: AgentId; text: string }>
@@ -97,6 +99,9 @@ export type HarnessEvent =
   | E<'error', { message: string }>
 
 export type HarnessEventType = HarnessEvent['type']
+
+/** High-frequency streaming events that are not saved; their final forms (assistant.text etc.) are. */
+export const EPHEMERAL_EVENTS = new Set<HarnessEventType>(['text.delta', 'thinking.delta', 'tool.progress'])
 export type EventOf<T extends HarnessEventType> = Extract<HarnessEvent, { type: T }>
 
 /** Tools that spawn a subagent. */

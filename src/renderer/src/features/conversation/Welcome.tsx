@@ -1,10 +1,12 @@
-import { FolderOpen, KeyRound } from 'lucide-react'
-import { basename } from '@/lib/format'
+import { FolderOpen, History, KeyRound } from 'lucide-react'
+import { basename, formatCost } from '@/lib/format'
+import { relativeTime } from '@/lib/time'
 import { useApp } from '@/stores/app'
 
 export function Welcome() {
-  const { settings, openProject, startSession, startError, setSettingsOpen } = useApp()
+  const { settings, history, openProject, openSaved, startSession, startError, setSettingsOpen } = useApp()
   const recents = settings?.recentProjects ?? []
+  const lastSessions = history.filter((h) => h.title).slice(0, 4)
 
   return (
     <div className="flex flex-1 items-center justify-center p-8">
@@ -20,9 +22,32 @@ export function Welcome() {
           Open project… <kbd className="opacity-70">⌘O</kbd>
         </button>
         {startError && <div className="selectable mt-4 text-[12px] text-red-500">{startError}</div>}
-        {recents.length > 0 && (
+        {lastSessions.length > 0 && (
           <div className="mt-8 text-left">
-            <div className="mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-muted">Recent</div>
+            <div className="mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-muted">Continue where you left off</div>
+            <div className="overflow-hidden rounded-xl border border-line">
+              {lastSessions.map((h) => (
+                <button
+                  key={h.id}
+                  onClick={() => void openSaved(h.id)}
+                  className="flex w-full items-center gap-3 border-b border-line px-3 py-2 text-left last:border-b-0 hover:bg-surface-2"
+                >
+                  <History className="size-4 shrink-0 text-muted" />
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate font-medium">{h.title}</span>
+                    <span className="block truncate text-[11px] text-muted">
+                      {basename(h.cwd)} · {relativeTime(h.updatedAt)}
+                      {h.costUsd > 0 && ` · ${formatCost(h.costUsd)}`}
+                    </span>
+                  </span>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+        {recents.length > 0 && (
+          <div className="mt-6 text-left">
+            <div className="mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-muted">New session in</div>
             <div className="overflow-hidden rounded-xl border border-line">
               {recents.slice(0, 5).map((dir) => (
                 <button

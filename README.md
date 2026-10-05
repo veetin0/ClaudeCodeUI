@@ -31,9 +31,17 @@ The buttons above the prompt cover common jobs: parallel agents, train a model, 
 
 ![Action form](docs/screenshots/actions.png)
 
+## History and resume
+
+Every session is saved as it runs, in SQLite under `~/Library/Application Support/Harness/harness.db`. The app uses Node's built-in `node:sqlite`, so there's no native module to rebuild. The sidebar's **History** is grouped by day and searchable. Each entry is titled from its first prompt and shows the project, last activity and cost.
+
+Opening a saved session replays its event log through the same reducer as live view, so you see the transcript, tool calls, subagents, charts and task list exactly as they were. **Sending a message, or using an action, resumes it.** The agent restarts with the SDK's `resume`, so Claude has the whole earlier conversation. The task list carries over, and cost keeps adding up. Closing a session (×) stops its agent; it stays in History. The trash icon deletes it.
+
+![A session resumed after quitting and relaunching the app](docs/screenshots/resumed.png)
+
 ## Status
 
-Phases 1–2 of [the plan](docs/PLAN.md) are done:
+Phases 1–3 of [the plan](docs/PLAN.md) are done, plus the live agent board. Phases 1–2:
 
 - **Engine:** Claude Agent SDK with streaming input, so you can queue follow-ups while Claude works. Stop with Esc. Switch model and permission mode mid-session.
 - **Live conversation:** streamed markdown, collapsible thinking, and compact tool chips coloured by kind (read, write, search, exec…). Click a chip to see its input, output and diff.
@@ -74,6 +82,7 @@ Everything the UI shows is derived from one typed event stream (`src/shared/even
 | --- | --- |
 | `src/main/agent/AgentService.ts` | One SDK `query()` per session, fed by a push queue; status tracking; interrupt |
 | `src/main/agent/permissions.ts` | `canUseTool` ↔ UI round-trip |
+| `src/main/store/SessionStore.ts` | SQLite sessions + event log; history, load, resume metadata |
 | `src/main/events/normalizer.ts` | SDK messages → `HarnessEvent`s (tools, subagents, tasks, usage, visuals) |
 | `src/main/agent/harnessTools.ts` | The `harness` MCP tools agents use to report progress and show results |
 | `src/main/system/telemetry.ts` | Localhost endpoint behind `$HARNESS_URL` for live script telemetry |

@@ -13,19 +13,17 @@ export function ActionBar({ session }: { session: SessionState }) {
   const [active, setActive] = useState<QuickAction | null>(null)
   const [commandsOpen, setCommandsOpen] = useState(false)
   const commands = visibleCommands(session.slashCommands)
-  const closed = session.status === 'closed'
 
   return (
     <div className="mx-auto w-full max-w-3xl px-6">
       {active && <ActionForm key={active.id} action={active} onClose={() => setActive(null)} />}
       <div className="relative flex items-center gap-1.5 overflow-x-auto pb-2 pr-6 [mask-image:linear-gradient(to_right,black_calc(100%-32px),transparent)] [scrollbar-width:none]">
         {QUICK_ACTIONS.map((a) => (
-          <ActionButton key={a.id} action={a} selected={active?.id === a.id} disabled={closed} onClick={() => setActive(active?.id === a.id ? null : a)} />
+          <ActionButton key={a.id} action={a} selected={active?.id === a.id} onClick={() => setActive(active?.id === a.id ? null : a)} />
         ))}
         {commands.length > 0 && (
           <button
-            disabled={closed}
-            onClick={() => setCommandsOpen(!commandsOpen)}
+              onClick={() => setCommandsOpen(!commandsOpen)}
             className="flex shrink-0 items-center gap-1.5 rounded-full border border-line px-2.5 py-1 text-[11.5px] text-muted hover:bg-surface-2 hover:text-fg disabled:opacity-40"
           >
             <Terminal className="size-3.5" /> Commands <ChevronDown className="size-3" />
@@ -46,7 +44,7 @@ export function ActionBar({ session }: { session: SessionState }) {
   )
 }
 
-function ActionButton({ action, selected, disabled, onClick }: { action: QuickAction; selected: boolean; disabled: boolean; onClick: () => void }) {
+function ActionButton({ action, selected, disabled, onClick }: { action: QuickAction; selected: boolean; disabled?: boolean; onClick: () => void }) {
   const Icon = action.icon
   return (
     <button

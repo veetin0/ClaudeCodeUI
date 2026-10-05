@@ -26,7 +26,8 @@ export function PromptBox({ session }: { session: SessionState }) {
   const ref = useRef<HTMLTextAreaElement>(null)
   const { send, interrupt, setPermissionMode, setModel } = useApp()
   const busy = session.status === 'running' || session.status === 'waiting' || session.status === 'compacting'
-  const closed = session.status === 'closed'
+  // A saved (not live) session accepts input: sending resumes it.
+  const saved = !session.live
   useEffect(() => ref.current?.focus(), [session.id, text === ''])
 
   // Grow with content up to a cap.
@@ -39,7 +40,7 @@ export function PromptBox({ session }: { session: SessionState }) {
 
   const submit = () => {
     const t = text.trim()
-    if (!t || closed) return
+    if (!t) return
     // Messages sent while the agent is working are queued by the SDK and picked up next.
     void send(t)
     setText('')
@@ -51,7 +52,6 @@ export function PromptBox({ session }: { session: SessionState }) {
         <textarea
           ref={ref}
           value={text}
-          disabled={closed}
           onChange={(e) => setText(e.target.value)}
           onKeyDown={(e) => {
             if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) {
@@ -60,7 +60,7 @@ export function PromptBox({ session }: { session: SessionState }) {
             }
           }}
           rows={1}
-          placeholder={closed ? 'This session has ended' : busy ? 'Queue a follow-up…' : 'Ask Claude to do something…'}
+          placeholder={saved ? 'Send a message to resume this session…' : busy ? 'Queue a follow-up…' : 'Ask Claude to do something…'}
           className="selectable block w-full resize-none bg-transparent px-4 pt-3 pb-1 leading-relaxed outline-none placeholder:text-muted"
         />
         <div className="flex items-center gap-2 px-2.5 pb-2">
@@ -78,7 +78,7 @@ export function PromptBox({ session }: { session: SessionState }) {
             )}
             <button
               onClick={submit}
-              disabled={!text.trim() || closed}
+              disabled={!text.trim()}
               title="Send (⏎)"
               className={cn(
                 'flex size-7 items-center justify-center rounded-full text-white transition-opacity',

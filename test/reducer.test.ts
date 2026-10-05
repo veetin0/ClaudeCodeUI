@@ -56,3 +56,36 @@ describe('reducer: permissions and status', () => {
     expect(s.outputTokens).toBe(20)
   })
 })
+
+describe('reducer: saved sessions', () => {
+  const base = { sessionId: 's1' } as const
+  it('replays a saved log into a resumable, finished state', async () => {
+    const { produce } = await import('immer')
+    const { createSession, applyEvent, finalizeLoaded } = await import('../src/renderer/src/stores/reducer')
+    const events = normalizeAll(loadFixture('background-subagent.json'))
+    const s = produce(createSession({ id: 's1', cwd: '/p', title: '', createdAt: 0, updatedAt: 0, costUsd: 0 }, 'default', false), (d) => {
+      for (const e of events) applyEvent(d, e)
+      finalizeLoaded(d)
+    })
+    expect(s.live).toBe(false)
+    expect(s.status).toBe('closed')
+    expect(Object.values(s.subagents).every((x) => x.status !== 'running')).toBe(true)
+    expect(s.items.length).toBeGreaterThan(3)
+  })
+
+  it('titles from the first prompt and carries cost across a resume', () => {
+    const turn = (costUsd: number, ts: number): HarnessEvent => ({ ...base, ts, type: 'turn.end', isError: false, result: '', costUsd, durationMs: 1, numTurns: 1, outputTokens: 0 })
+    const s = reduceAll([
+      { ...base, ts: 1, type: 'user.message', id: 'u1', text: 'Build the thing\nplease' },
+      turn(0.3, 2),
+      { ...base, ts: 3, type: 'status', status: 'closed' },
+      { ...base, ts: 4, type: 'session.resumed', claudeSessionId: 'c' },
+      turn(0.05, 5),
+    ])
+    expect(s.title).toBe('Build the thing please')
+    expect(s.live).toBe(true)
+    expect(s.totalCostUsd).toBeCloseTo(0.35)
+    const turns = s.items.filter((i) => i.kind === 'turn')
+    expect(turns.at(-1)).toMatchObject({ costUsd: expect.closeTo(0.05, 5) })
+  })
+})
