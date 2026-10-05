@@ -1,6 +1,7 @@
 import { app, BrowserWindow, dialog, ipcMain, shell } from 'electron'
+import { homedir } from 'node:os'
 import { join } from 'node:path'
-import { IPC, type PermissionDecision, type StartSessionOptions } from '@shared/ipc'
+import { IPC, type ObserveStatus, type PermissionDecision, type PtyOptions, type StartSessionOptions } from '@shared/ipc'
 import type { PermissionMode, TodoItem } from '@shared/events'
 import { AgentService } from './agent/AgentService'
 import { EventBus } from './events/bus'
@@ -10,6 +11,9 @@ import { listFiles } from './project/projectFiles'
 import { agentEnv, loadLoginShellPath, resolveClaudeExecutable } from './system/environment'
 import { handleFileScheme, registerFileScheme } from './system/fileProtocol'
 import { TelemetryServer } from './system/telemetry'
+import { HookBridge, hooksInstalled, updateClaudeSettings, withHarnessHooks, withoutHarnessHooks } from './observe/hooks'
+import { TranscriptObserver } from './observe/TranscriptObserver'
+import { PtyService } from './pty/PtyService'
 import { SettingsStore } from './system/settings'
 
 loadLoginShellPath()
@@ -17,6 +21,11 @@ registerFileScheme()
 
 const bus = new EventBus()
 const telemetry = new TelemetryServer()
+const ptys = new PtyService()
+const claudeDir = process.env.CLAUDE_CONFIG_DIR || join(homedir(), '.claude')
+const claudeSettingsPath = join(claudeDir, 'settings.json')
+let observer: TranscriptObserver
+let hookBridge: HookBridge
 let settings: SettingsStore
 let store: SessionStore
 let agents: AgentService
@@ -85,7 +94,37 @@ function trackerFor(id: string): ChangeTracker {
   return t
 }
 
+async function observeStatus(): Promise<ObserveStatus> {
+  return {
+    enabled: settings.get().observeTerminalSessions,
+    hooksInstalled: await hooksInstalled(claudeSettingsPath),
+    hookPort: hookBridge.port,
+    settingsPath: claudeSettingsPath,
+    watching: observer.count,
+  }
+}
+
 function registerIpc() {
+  ipcMain.handle(IPC.observeStatus, () => observeStatus())
+  ipcMain.handle(IPC.observeEnable, async (_e, enabled: boolean) => {
+    settings.update({ observeTerminalSessions: enabled })
+    if (enabled) await observer.start()
+    else observer.stop()
+    return observeStatus()
+  })
+  ipcMain.handle(IPC.observeInstallHooks, async () => {
+    await updateClaudeSettings(claudeSettingsPath, (s) => withHarnessHooks(s))
+    return observeStatus()
+  })
+  ipcMain.handle(IPC.observeRemoveHooks, async () => {
+    await updateClaudeSettings(claudeSettingsPath, withoutHarnessHooks)
+    return observeStatus()
+  })
+  ipcMain.handle(IPC.ptyCreate, (e, opts: PtyOptions) => ptys.create(e.sender, opts))
+  ipcMain.on(IPC.ptyWrite, (_e, id: string, data: string) => ptys.write(id, data))
+  ipcMain.on(IPC.ptyResize, (_e, id: string, cols: number, rows: number) => ptys.resize(id, cols, rows))
+  ipcMain.on(IPC.ptyKill, (_e, id: string) => ptys.kill(id))
+
   ipcMain.handle(IPC.startSession, (_e, opts: StartSessionOptions) => {
     settings.addRecentProject(opts.cwd)
     const summary = agents.start(opts)
@@ -153,6 +192,15 @@ app.whenReady().then(async () => {
       return agentEnv(key ? { ANTHROPIC_API_KEY: key } : {})
     },
   })
+  observer = new TranscriptObserver({
+    emit: (e) => bus.emit(e),
+    open: (summary) => store.open(summary),
+    isOwned: (sid) => agents.ownsClaudeSession(sid),
+    projectsDir: join(claudeDir, 'projects'),
+  })
+  hookBridge = new HookBridge((input) => observer.onHook(input))
+  await hookBridge.start()
+  if (settings.get().observeTerminalSessions) await observer.start()
   registerIpc()
   trackWaiting()
   createWindow()
@@ -164,6 +212,9 @@ app.whenReady().then(async () => {
 
 app.on('before-quit', () => {
   agents?.closeAll()
+  ptys.killAll()
+  observer?.stop()
+  hookBridge?.stop()
   store?.close()
   telemetry.stop()
 })

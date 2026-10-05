@@ -97,6 +97,8 @@ export interface SessionState {
   createdAt: number
   /** False for a saved session opened from history whose agent isn't running. */
   live: boolean
+  /** Watched from a terminal session; Harness can show it but not send to it while it runs. */
+  observed: boolean
   status: SessionStatus
   model?: string
   permissionMode: PermissionMode
@@ -131,6 +133,7 @@ export function createSession(s: SessionSummary, permissionMode: PermissionMode 
     createdAt: s.createdAt,
     model: s.model,
     live,
+    observed: !!s.observed,
     status: 'starting',
     permissionMode,
     slashCommands: [],
@@ -162,8 +165,13 @@ export function applyEvent(s: SessionState, e: HarnessEvent): void {
       s.claudeCodeVersion = e.claudeCodeVersion
       break
 
+    case 'cost':
+      s.totalCostUsd = Math.max(s.totalCostUsd, e.totalCostUsd)
+      break
+
     case 'session.resumed':
       s.live = true
+      s.observed = false
       s.costOffset = s.totalCostUsd
       break
 

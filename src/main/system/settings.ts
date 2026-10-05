@@ -12,6 +12,7 @@ const DEFAULTS: StoredSettings = {
   defaultModel: '',
   defaultPermissionMode: 'default',
   recentProjects: [],
+  observeTerminalSessions: true,
 }
 
 export class SettingsStore {

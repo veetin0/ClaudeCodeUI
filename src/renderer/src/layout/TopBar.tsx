@@ -1,4 +1,4 @@
-import { LayoutGrid, MessageSquare, Network, PanelLeft } from 'lucide-react'
+import { LayoutGrid, MessageSquare, Network, PanelLeft, SquareTerminal } from 'lucide-react'
 import { ContextGauge } from '@/features/meters/ContextGauge'
 import { useElapsed } from '@/features/meters/useElapsed'
 import { basename, cn, formatCost, formatDuration, formatTokens } from '@/lib/format'
@@ -7,7 +7,7 @@ import { StatusDot, STATUS_LABEL } from './StatusDot'
 
 export function TopBar() {
   const session = useActiveSession()
-  const { focusMode, toggleFocusMode, view, setView } = useApp()
+  const { focusMode, toggleFocusMode, view, setView, terminalOpen, toggleTerminalPanel } = useApp()
   const activeSubagents = session ? Object.values(session.subagents).filter((s) => s.status === 'running').length : 0
   const elapsed = useElapsed(session?.status === 'running' || session?.status === 'waiting' ? session.turnStartedAt : undefined)
 
@@ -54,6 +54,13 @@ export function TopBar() {
             <span className="tabular-nums font-medium text-fg" title="Cost this session">
               {formatCost(session.totalCostUsd)}
             </span>
+            <button
+              onClick={toggleTerminalPanel}
+              title="Terminal (⌘J)"
+              className={cn('no-drag rounded p-1 hover:bg-black/5 dark:hover:bg-white/10', terminalOpen ? 'text-fg' : 'text-muted')}
+            >
+              <SquareTerminal className="size-4" />
+            </button>
           </div>
         </>
       ) : (

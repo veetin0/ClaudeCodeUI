@@ -42,6 +42,18 @@ How the "before" is known: the SDK's `PreToolUse` hook snapshots each file just 
 
 ![Diff view](docs/screenshots/diff.png)
 
+## Terminal and observe mode
+
+**Terminal** (⌘J, or the terminal icon in the top bar) is a panel of real terminals built on node-pty and xterm.js. They open in the session's project and use your login shell, so your PATH, aliases and tools work. Tabs keep their scrollback while hidden. **✳ Claude** opens the interactive Claude Code CLI in a tab.
+
+![Terminal panel](docs/screenshots/terminal.png)
+
+**Observe mode** shows Claude Code sessions you start outside Harness (iTerm, Terminal, an editor, `claude -p` in a script) in the sidebar with a terminal icon. You get the full live UI for them: conversation, Board, Mission graph and timeline, files and cost. It needs no setup. Harness watches the transcripts Claude Code writes to `~/.claude/projects/`, attributes subagent work through each subagent's metadata file, and saves the session to History so you can resume it later. Sessions Harness runs itself, and other Agent SDK apps, are skipped.
+
+For instant "needs approval", "done" and "ended" status, **Settings → Install hooks** adds a tiny `curl` hook for four events to `~/.claude/settings.json`. The file is backed up first, existing hooks are kept, and **Remove hooks** takes out only Harness's entries. The hook never blocks or fails Claude Code (`curl -m 1 … || true`).
+
+![Watching a terminal session](docs/screenshots/observed.png)
+
 ## Action buttons instead of /commands
 
 The buttons above the prompt cover common jobs: parallel agents, train a model, analyze data, fix tests, build a feature, debug, explain, Remotion video and commit. Each opens a form prefilled with example parameters and a preview of the exact prompt. **Commands ▾** lists the session's slash commands and skills, with descriptions and example arguments. Run sends the prompt right away; Edit in prompt drops it into the box so you can change it first.
@@ -58,7 +70,7 @@ Opening a saved session replays its event log through the same reducer as live v
 
 ## Status
 
-Phases 1–4 of [the plan](docs/PLAN.md) are done. Phases 1–2:
+Phases 1–5 of [the plan](docs/PLAN.md) are done. Phases 1–2:
 
 - **Engine:** Claude Agent SDK with streaming input, so you can queue follow-ups while Claude works. Stop with Esc. Switch model and permission mode mid-session.
 - **Live conversation:** streamed markdown, collapsible thinking, and compact tool chips coloured by kind (read, write, search, exec…). Click a chip to see its input, output and diff.
@@ -102,6 +114,9 @@ Everything the UI shows is derived from one typed event stream (`src/shared/even
 | `src/main/store/SessionStore.ts` | SQLite sessions + event log + file snapshots |
 | `src/main/project/ChangeTracker.ts` | Pre-edit snapshots, git fallback, diff stats, revert/accept |
 | `src/main/project/projectFiles.ts` | Project file listing and recursive watcher |
+| `src/main/observe/TranscriptObserver.ts` | Observe mode: transcript tailing → HarnessEvents |
+| `src/main/observe/hooks.ts` | Status hook bridge and safe settings.json install/remove |
+| `src/main/pty/PtyService.ts` | node-pty terminals streamed to xterm.js |
 | `src/renderer/src/features/mission/` | Agent graph (React Flow) and swim-lane timeline |
 | `src/renderer/src/features/files/` | Heat tree, changes list, Monaco diff view |
 | `src/main/events/normalizer.ts` | SDK messages → `HarnessEvent`s (tools, subagents, tasks, usage, visuals) |

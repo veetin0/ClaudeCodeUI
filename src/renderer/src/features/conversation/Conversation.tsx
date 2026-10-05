@@ -1,4 +1,4 @@
-import { History } from 'lucide-react'
+import { History, SquareTerminal } from 'lucide-react'
 import { lazy, Suspense } from 'react'
 import { MissionView } from '../mission/MissionView'
 import { AgentDetail } from '../agents/AgentDetail'
@@ -27,13 +27,20 @@ export function Conversation({ session }: { session: SessionState }) {
           ))}
         </div>
       )}
-      {!session.live && (
+      {session.observed && session.live ? (
         <div className="mx-auto mb-2 flex w-full max-w-3xl items-center gap-2 px-6 text-[12px] text-muted">
-          <History className="size-3.5" />
-          Saved session. Send a message or pick an action to resume where it left off.
+          <SquareTerminal className="size-3.5" />
+          Watching a Claude Code session running in your terminal. Everything it does shows up here live.
         </div>
+      ) : (
+        !session.live && (
+          <div className="mx-auto mb-2 flex w-full max-w-3xl items-center gap-2 px-6 text-[12px] text-muted">
+            <History className="size-3.5" />
+            Saved session. Send a message or pick an action to resume where it left off.
+          </div>
+        )
       )}
-      <ActionBar session={session} />
+      {!(session.observed && session.live) && <ActionBar session={session} />}
       <PromptBox session={session} />
       {detailAgent && <AgentDetail session={session} />}
       {diffPath && (

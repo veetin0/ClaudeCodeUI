@@ -14,6 +14,7 @@ interface SessionRow {
   cost_usd: number
   model: string | null
   claude_session_id: string | null
+  observed: number
 }
 
 /**
@@ -42,7 +43,8 @@ export class SessionStore {
         updated_at INTEGER NOT NULL,
         cost_usd REAL NOT NULL DEFAULT 0,
         model TEXT,
-        claude_session_id TEXT
+        claude_session_id TEXT,
+        observed INTEGER NOT NULL DEFAULT 0
       );
       CREATE TABLE IF NOT EXISTS events (
         session_id TEXT NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
@@ -60,17 +62,33 @@ export class SessionStore {
         PRIMARY KEY (session_id, path)
       );
     `)
+    this.migrate()
+  }
+
+  private migrate() {
+    const cols = (this.db.prepare('PRAGMA table_info(sessions)').all() as { name: string }[]).map((c) => c.name)
+    if (!cols.includes('observed')) this.db.exec('ALTER TABLE sessions ADD COLUMN observed INTEGER NOT NULL DEFAULT 0')
   }
 
   /** Registers a new session, or marks a saved one as resumed. */
   open(summary: SessionSummary) {
     this.db
       .prepare(
-        `INSERT INTO sessions (id, cwd, title, created_at, updated_at, cost_usd, model, claude_session_id)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        `INSERT INTO sessions (id, cwd, title, created_at, updated_at, cost_usd, model, claude_session_id, observed)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
          ON CONFLICT(id) DO UPDATE SET updated_at = excluded.updated_at`,
       )
-      .run(summary.id, summary.cwd, summary.title, summary.createdAt, summary.updatedAt, summary.costUsd, summary.model ?? null, summary.claudeSessionId ?? null)
+      .run(
+        summary.id,
+        summary.cwd,
+        summary.title,
+        summary.createdAt,
+        summary.updatedAt,
+        summary.costUsd,
+        summary.model ?? null,
+        summary.claudeSessionId ?? null,
+        summary.observed ? 1 : 0,
+      )
   }
 
   record(e: HarnessEvent) {
@@ -181,6 +199,9 @@ export class SessionStore {
           .run(makeTitle(e.text), e.ts, e.sessionId)
         touch.run(e.ts, e.sessionId)
         break
+      case 'cost':
+        this.db.prepare('UPDATE sessions SET cost_usd = MAX(cost_usd, ?) WHERE id = ?').run(e.totalCostUsd, e.sessionId)
+        break
       case 'turn.end': {
         const cost = (this.costOffset.get(e.sessionId) ?? 0) + e.costUsd
         this.db.prepare('UPDATE sessions SET cost_usd = MAX(cost_usd, ?), updated_at = ? WHERE id = ?').run(cost, e.ts, e.sessionId)
@@ -205,5 +226,6 @@ function toSummary(r: SessionRow): SessionSummary {
     costUsd: r.cost_usd,
     model: r.model ?? undefined,
     claudeSessionId: r.claude_session_id ?? undefined,
+    observed: r.observed === 1 || undefined,
   }
 }

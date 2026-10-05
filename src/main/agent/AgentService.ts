@@ -56,6 +56,8 @@ class AgentSession {
   /** Set once closed; a replacement session may reuse this id, so nothing more may be emitted. */
   private disposed = false
   readonly tracker: ChangeTracker | null = null
+  /** Claude Code's own session id (known up front when resuming, else from the init message). */
+  claudeSessionId: string | null = null
   private watcher: FSWatcher | null = null
   private knownFiles = new Set<string>()
 
@@ -76,6 +78,7 @@ class AgentSession {
       this.startWatching()
     }
     if (resume) {
+      this.claudeSessionId = resume.claudeSessionId
       this.normalizer.seedTasks(resume.todos)
       this.deps.bus.emit({ type: 'session.resumed', claudeSessionId: resume.claudeSessionId, sessionId: id, ts: now })
     }
@@ -94,6 +97,7 @@ class AgentSession {
     if (this.disposed) return
     const list = Array.isArray(e) ? e : [e]
     for (const ev of list) {
+      if (ev.type === 'session.init') this.claudeSessionId = ev.claudeSessionId
       if (ev.type === 'tool.start' && EXEC_TOOLS.has(ev.name)) this.runningExec.push({ toolUseId: ev.toolUseId, agentId: ev.agentId })
       if (ev.type === 'tool.end') {
         this.runningExec = this.runningExec.filter((r) => r.toolUseId !== ev.toolUseId)
@@ -277,6 +281,11 @@ export class AgentService {
     const s = new AgentSession(this.deps, opts, resume)
     this.sessions.set(s.id, s)
     return s.summary
+  }
+
+  /** Whether a running Harness session is driving this Claude session (so observe mode skips it). */
+  ownsClaudeSession(claudeSessionId: string): boolean {
+    return [...this.sessions.values()].some((s) => s.isRunning && s.claudeSessionId === claudeSessionId)
   }
 
   tracker(id: string): ChangeTracker | null {

@@ -23,6 +23,24 @@ const api: HarnessApi = {
   getSettings: () => ipcRenderer.invoke(IPC.getSettings),
   setApiKey: (key) => ipcRenderer.invoke(IPC.setApiKey, key),
   updateSettings: (patch) => ipcRenderer.invoke(IPC.updateSettings, patch),
+  getObserveStatus: () => ipcRenderer.invoke(IPC.observeStatus),
+  setObserveEnabled: (enabled) => ipcRenderer.invoke(IPC.observeEnable, enabled),
+  installObserveHooks: () => ipcRenderer.invoke(IPC.observeInstallHooks),
+  removeObserveHooks: () => ipcRenderer.invoke(IPC.observeRemoveHooks),
+  ptyCreate: (opts) => ipcRenderer.invoke(IPC.ptyCreate, opts),
+  ptyWrite: (id, data) => ipcRenderer.send(IPC.ptyWrite, id, data),
+  ptyResize: (id, cols, rows) => ipcRenderer.send(IPC.ptyResize, id, cols, rows),
+  ptyKill: (id) => ipcRenderer.send(IPC.ptyKill, id),
+  onPtyData: (cb) => {
+    const l = (_: unknown, id: string, data: string) => cb(id, data)
+    ipcRenderer.on(IPC.ptyData, l)
+    return () => ipcRenderer.removeListener(IPC.ptyData, l)
+  },
+  onPtyExit: (cb) => {
+    const l = (_: unknown, id: string, code: number) => cb(id, code)
+    ipcRenderer.on(IPC.ptyExit, l)
+    return () => ipcRenderer.removeListener(IPC.ptyExit, l)
+  },
   onEvents: (cb) => {
     const listener = (_: unknown, events: HarnessEvent[]) => cb(events)
     ipcRenderer.on(IPC.events, listener)

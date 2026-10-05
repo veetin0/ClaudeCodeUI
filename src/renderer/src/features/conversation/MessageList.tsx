@@ -90,7 +90,8 @@ function BlockView({ block, session }: { block: Block; session: SessionState }) 
         <div className="flex items-center gap-3 text-[11px] text-muted">
           <div className="h-px flex-1 bg-line" />
           <span className="tabular-nums">
-            {block.isError ? 'Stopped' : 'Done'} · {formatDuration(block.durationMs)} · {formatCost(block.costUsd)}
+            {block.isError ? 'Stopped' : 'Done'} · {formatDuration(block.durationMs)}
+            {block.costUsd > 0 && ` · ${formatCost(block.costUsd)}`}
           </span>
           <div className="h-px flex-1 bg-line" />
         </div>

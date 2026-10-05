@@ -5,6 +5,7 @@ import { TopBar } from './layout/TopBar'
 import { Conversation } from './features/conversation/Conversation'
 import { Welcome } from './features/conversation/Welcome'
 import { SettingsDialog } from './layout/SettingsDialog'
+import { TerminalPanel } from './features/terminal/TerminalPanel'
 import { useActiveSession, useApp } from './stores/app'
 
 export function App() {
@@ -27,6 +28,9 @@ export function App() {
       } else if (e.metaKey && e.shiftKey && e.key.toLowerCase() === 'm') {
         e.preventDefault()
         app.setView('mission')
+      } else if (e.metaKey && e.key.toLowerCase() === 'j') {
+        e.preventDefault()
+        app.toggleTerminalPanel()
       } else if (e.metaKey && e.key === ',') {
         e.preventDefault()
         app.setSettingsOpen(true)
@@ -47,6 +51,7 @@ export function App() {
           <div className="flex min-w-0 flex-1 flex-col">{session ? <Conversation session={session} /> : <Welcome />}</div>
           {session && !focusMode && <Inspector session={session} />}
         </div>
+        <TerminalPanel />
       </main>
       <SettingsDialog />
     </div>

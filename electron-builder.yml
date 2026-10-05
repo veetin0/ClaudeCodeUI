@@ -9,6 +9,8 @@ files:
 asarUnpack:
   # The Claude Code binary ships inside platform packages and must run from disk.
   - node_modules/@anthropic-ai/claude-agent-sdk*/**
+  # node-pty's native addon and macOS spawn-helper must be real files.
+  - node_modules/node-pty/**
 mac:
   category: public.app-category.developer-tools
   target:

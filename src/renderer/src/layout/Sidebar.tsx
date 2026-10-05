@@ -1,4 +1,4 @@
-import { FolderOpen, History, Plus, Search, Settings, Trash2, X } from 'lucide-react'
+import { FolderOpen, History, Plus, Search, Settings, SquareTerminal, Trash2, X } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import type { SessionSummary } from '@shared/ipc'
 import { basename, cn, formatCost } from '@/lib/format'
@@ -17,8 +17,9 @@ export function Sidebar() {
 
   const groups = useMemo(() => {
     const q = query.trim().toLowerCase()
+    // Sessions that never got a prompt have nothing worth reopening.
     const saved = history.filter(
-      (h) => !openIds.has(h.id) && (!q || h.title.toLowerCase().includes(q) || h.cwd.toLowerCase().includes(q)),
+      (h) => h.title && !openIds.has(h.id) && (!q || h.title.toLowerCase().includes(q) || h.cwd.toLowerCase().includes(q)),
     )
     const out: { label: string; items: SessionSummary[] }[] = []
     for (const h of saved) {
@@ -128,9 +129,12 @@ function OpenRow({ s, active, onSelect, onClose }: { s: SessionState; active: bo
     >
       <StatusDot status={s.status} />
       <div className="min-w-0 flex-1">
-        <div className="truncate font-medium">{s.title || 'New session'}</div>
+        <div className="flex items-center gap-1 truncate font-medium">
+          {s.observed && <SquareTerminal className="size-3 shrink-0 text-muted" aria-label="Terminal session" />}
+          <span className="truncate">{s.title || 'New session'}</span>
+        </div>
         <div className={cn('truncate text-[11px]', waiting ? 'text-amber-600 dark:text-amber-400' : 'text-muted')}>
-          {basename(s.cwd)} · {waiting ? `${s.permissions.length} waiting for approval` : s.live ? STATUS_LABEL[s.status] : 'Saved'}
+          {basename(s.cwd)} · {waiting ? `${s.permissions.length} waiting for approval` : !s.live ? 'Saved' : s.observed ? `Terminal · ${STATUS_LABEL[s.status]}` : STATUS_LABEL[s.status]}
         </div>
       </div>
       <button
@@ -139,7 +143,7 @@ function OpenRow({ s, active, onSelect, onClose }: { s: SessionState; active: bo
           onClose()
         }}
         className="invisible rounded p-0.5 text-muted hover:bg-black/10 group-hover:visible dark:hover:bg-white/10"
-        title={s.live ? 'Stop and close (stays in history)' : 'Close'}
+        title={s.live && !s.observed ? 'Stop and close (stays in history)' : 'Close'}
       >
         <X className="size-3.5" />
       </button>
@@ -151,7 +155,10 @@ function HistoryRow({ h, onOpen, onDelete }: { h: SessionSummary; onOpen: () => 
   return (
     <div onClick={onOpen} className="group flex cursor-default items-center gap-2 rounded-lg px-2.5 py-1.5 hover:bg-black/[0.04] dark:hover:bg-white/5">
       <div className="min-w-0 flex-1">
-        <div className="truncate">{h.title || 'Untitled session'}</div>
+        <div className="flex items-center gap-1 truncate">
+          {h.observed && <SquareTerminal className="size-3 shrink-0 text-muted" aria-label="Terminal session" />}
+          <span className="truncate">{h.title || 'Untitled session'}</span>
+        </div>
         <div className="truncate text-[11px] text-muted">
           {basename(h.cwd)} · {relativeTime(h.updatedAt)}
           {h.costUsd > 0 && ` · ${formatCost(h.costUsd)}`}

@@ -1,3 +1,4 @@
+import type { SessionSummary } from './ipc'
 import type { VisualSource, VisualUpdate } from './visuals'
 
 /**
@@ -48,6 +49,10 @@ export type HarnessEvent =
       slashCommands: string[]
       claudeCodeVersion: string
     }>
+  /** A Claude Code session running outside Harness (e.g. in a terminal) is now being watched. */
+  | E<'session.observed', { summary: SessionSummary }>
+  /** Session total cost reported by the CLI (observed sessions). */
+  | E<'cost', { totalCostUsd: number }>
   /** A saved session was reopened and its Claude conversation resumed in a fresh process. */
   | E<'session.resumed', { claudeSessionId: string }>
   | E<'status', { status: SessionStatus }>

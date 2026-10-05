@@ -28,6 +28,8 @@ export function PromptBox({ session }: { session: SessionState }) {
   const busy = session.status === 'running' || session.status === 'waiting' || session.status === 'compacting'
   // A saved (not live) session accepts input: sending resumes it.
   const saved = !session.live
+  // A terminal session being watched: Harness can't type into another process's conversation.
+  const watching = session.observed && session.live
   useEffect(() => ref.current?.focus(), [session.id, text === ''])
 
   // Grow with content up to a cap.
@@ -40,7 +42,7 @@ export function PromptBox({ session }: { session: SessionState }) {
 
   const submit = () => {
     const t = text.trim()
-    if (!t) return
+    if (!t || watching) return
     // Messages sent while the agent is working are queued by the SDK and picked up next.
     void send(t)
     setText('')
@@ -60,7 +62,16 @@ export function PromptBox({ session }: { session: SessionState }) {
             }
           }}
           rows={1}
-          placeholder={saved ? 'Send a message to resume this session…' : busy ? 'Queue a follow-up…' : 'Ask Claude to do something…'}
+          disabled={watching}
+          placeholder={
+            watching
+              ? 'Watching a session running in your terminal. Reply there.'
+              : saved
+                ? 'Send a message to resume this session…'
+                : busy
+                  ? 'Queue a follow-up…'
+                  : 'Ask Claude to do something…'
+          }
           className="selectable block w-full resize-none bg-transparent px-4 pt-3 pb-1 leading-relaxed outline-none placeholder:text-muted"
         />
         <div className="flex items-center gap-2 px-2.5 pb-2">
@@ -71,7 +82,7 @@ export function PromptBox({ session }: { session: SessionState }) {
             options={MODELS.map((m) => (m.value === '' && session.model ? { ...m, label: session.model } : m))}
           />
           <div className="ml-auto flex items-center gap-2">
-            {busy && (
+            {busy && !watching && (
               <button onClick={() => void interrupt()} title="Stop (Esc)" className="flex size-7 items-center justify-center rounded-full bg-fg text-surface hover:opacity-80">
                 <Square className="size-3 fill-current" />
               </button>

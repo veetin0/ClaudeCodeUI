@@ -8,6 +8,8 @@ export interface StartSessionOptions {
 
 export interface SessionSummary {
   id: string
+  /** Watched from a Claude Code session running elsewhere (terminal), not run by Harness. */
+  observed?: boolean
   cwd: string
   /** From the first prompt; empty until one is sent. */
   title: string
@@ -38,8 +40,27 @@ export type PermissionDecision =
   | { behavior: 'allow'; always?: boolean; updatedInput?: Record<string, unknown> }
   | { behavior: 'deny'; message?: string }
 
+export interface ObserveStatus {
+  /** Watching ~/.claude/projects for sessions started outside Harness. */
+  enabled: boolean
+  hooksInstalled: boolean
+  /** Port the status hooks post to; null if it couldn't be bound. */
+  hookPort: number | null
+  settingsPath: string
+  watching: number
+}
+
+export interface PtyOptions {
+  cwd: string
+  cols: number
+  rows: number
+  /** Run this instead of an interactive shell, e.g. 'claude'. */
+  command?: string
+}
+
 export interface AppSettings {
   hasApiKey: boolean
+  observeTerminalSessions: boolean
   defaultModel: string
   defaultPermissionMode: PermissionMode
   recentProjects: string[]
@@ -72,6 +93,17 @@ export interface HarnessApi {
   getSettings(): Promise<AppSettings>
   setApiKey(key: string | null): Promise<void>
   updateSettings(patch: Partial<Omit<AppSettings, 'hasApiKey'>>): Promise<AppSettings>
+  getObserveStatus(): Promise<ObserveStatus>
+  setObserveEnabled(enabled: boolean): Promise<ObserveStatus>
+  /** Adds status hooks to ~/.claude/settings.json (after backing it up). */
+  installObserveHooks(): Promise<ObserveStatus>
+  removeObserveHooks(): Promise<ObserveStatus>
+  ptyCreate(opts: PtyOptions): Promise<string>
+  ptyWrite(id: string, data: string): void
+  ptyResize(id: string, cols: number, rows: number): void
+  ptyKill(id: string): void
+  onPtyData(cb: (id: string, data: string) => void): () => void
+  onPtyExit(cb: (id: string, code: number) => void): () => void
   /** Events arrive batched (~30fps) to keep the renderer smooth during heavy streaming. */
   onEvents(cb: (events: HarnessEvent[]) => void): () => void
 }
@@ -96,5 +128,15 @@ export const IPC = {
   getSettings: 'settings:get',
   setApiKey: 'settings:api-key',
   updateSettings: 'settings:update',
+  observeStatus: 'observe:status',
+  observeEnable: 'observe:enable',
+  observeInstallHooks: 'observe:install-hooks',
+  observeRemoveHooks: 'observe:remove-hooks',
+  ptyCreate: 'pty:create',
+  ptyWrite: 'pty:write',
+  ptyResize: 'pty:resize',
+  ptyKill: 'pty:kill',
+  ptyData: 'pty:data',
+  ptyExit: 'pty:exit',
   events: 'events',
 } as const
