@@ -65,6 +65,31 @@ Remotion downloads its own headless Chrome the first time you render. Set `HARNE
 
 ![Remotion Studio with a finished render](docs/screenshots/remotion.png)
 
+## HackForge
+
+Harness is built to drive **HackForge**, the Claude Code plugin for hackathons and coding challenges. Install the plugin once (Harness sessions load your installed plugins):
+
+```bash
+claude plugin marketplace add ./hackforge-marketplace
+claude plugin install hackforge@veeti-tools
+```
+
+- **Automatic in HackForge projects.** When a project has `challenge/` or `.hackforge/`, every session gets instructions to work through the `/hackforge:*` skills and keep `.hackforge/` current. **Settings → HackForge** switches this to *always* (suggest HackForge in every session) or *off*.
+- **Buttons for every command:** Init, Run (with a profile picker that writes `profile:` to `challenge/hackforge.yaml`), Kickoff, Build, Verify (normal or final), Perfect (target score, max iterations, hours), Pitch, Craft, Eval, Focus, Rules and Status. Before kickoff only the setup commands show.
+- **HackForge dashboard** (⌘5, or the HackForge tab, which shows the loop iteration or the latest mock score). It reads `.hackforge/` live as the agents write it:
+  - the phase stepper (config → submit) and a deadline countdown
+  - COMPLIANCE, flagged *stale* when code changed after VERIFY.md, as the loop gate would; MOCK_SCORE against the target; the gate result; and the next action
+  - the improvement loop: iteration / max, best score, the no-gain streak against the plateau limit, a score chart with the target line, and every iteration kept or reverted
+  - **Stop loop**, which creates `.hackforge/STOP_LOOP`
+  - hard rules and deliverables with their compliance checks, judging criteria with weights and per-criterion mock scores, milestones, the fix order, team directives and the decision
+- **Checkpoints:** when HackForge stops for "go / adjust", **Go** and **Adjust…** buttons appear above the prompt. Questions Claude asks with AskUserQuestion appear as a card with option buttons and a free-text answer.
+- HackForge's subagents show up by role (Rules Lawyer, Judge, Builder…) on the Board and in the graph.
+- A banner shows the install commands if the plugin isn't enabled. A hint suggests **Accept edits** while the loop runs, because every permission prompt pauses it.
+
+![HackForge dashboard with a running improvement loop](docs/screenshots/hackforge.png)
+
+![A HackForge checkpoint question](docs/screenshots/hackforge-checkpoint.png)
+
 ## Everyday polish
 
 - **Native menu** with every command and its shortcut. It also makes ⌘C/⌘V/⌘Z work everywhere.
@@ -77,7 +102,7 @@ Remotion downloads its own headless Chrome the first time you render. Set `HARNE
 
 ## Action buttons instead of /commands
 
-The buttons above the prompt cover common jobs: parallel agents, train a model, analyze data, fix tests, build a feature, debug, explain, Remotion video and commit. Each opens a form prefilled with example parameters and a preview of the exact prompt. **Commands ▾** lists the session's slash commands and skills, with descriptions and example arguments. Run sends the prompt right away; Edit in prompt drops it into the box so you can change it first.
+The buttons above the prompt (with a HackForge row in HackForge projects) cover common jobs: parallel agents, train a model, analyze data, fix tests, build a feature, debug, explain, Remotion video and commit. Each opens a form prefilled with example parameters and a preview of the exact prompt. **Commands ▾** lists the session's slash commands and skills, with descriptions and example arguments. Run sends the prompt right away; Edit in prompt drops it into the box so you can change it first.
 
 ![Action form](docs/screenshots/actions.png)
 

@@ -1,9 +1,10 @@
-import { LayoutGrid, MessageSquare, MonitorPlay, Network, PanelLeft, SquareTerminal } from 'lucide-react'
+import { Flame, LayoutGrid, MessageSquare, MonitorPlay, Network, PanelLeft, SquareTerminal } from 'lucide-react'
 import { ContextGauge } from '@/features/meters/ContextGauge'
 import { useElapsed } from '@/features/meters/useElapsed'
 import { basename, cn, formatCost, formatDuration, formatTokens } from '@/lib/format'
 import { useApp } from '@/stores/app'
 import { useDisplaySession } from '@/stores/replay'
+import { useHackforge } from '@/stores/hackforge'
 import { StatusDot, STATUS_LABEL } from './StatusDot'
 
 export function TopBar() {
@@ -12,6 +13,9 @@ export function TopBar() {
   const project = useApp((st) => (session ? st.projects[session.cwd] : undefined))
   const serverUp = useApp((st) => !!session && st.preview.servers.some((x) => x.cwd === session.cwd && x.status === 'ready'))
   const activeSubagents = session ? Object.values(session.subagents).filter((s) => s.status === 'running').length : 0
+  const hf = useHackforge(session?.cwd)
+  const hfMode = useApp((st) => st.settings?.hackforgeMode ?? 'projects')
+  const showHf = hfMode !== 'off' && (hf?.present || hfMode === 'always' || view === 'hackforge')
   const elapsed = useElapsed(session?.status === 'running' || session?.status === 'waiting' ? session.turnStartedAt : undefined)
 
   return (
@@ -51,6 +55,16 @@ export function TopBar() {
               <MonitorPlay className="size-3.5" /> Preview
               {(serverUp || project?.remotion) && <span className={cn('size-1.5 rounded-full', serverUp ? 'bg-emerald-500' : 'bg-[var(--accent)]')} />}
             </ViewButton>
+            {showHf && (
+              <ViewButton active={view === 'hackforge'} onClick={() => setView('hackforge')} title="HackForge: phase, compliance, mock score, improvement loop (⌘5)">
+                <Flame className="size-3.5" /> HackForge
+                {hf?.loop?.active ? (
+                  <span className="rounded-full bg-orange-500 px-1.5 text-[10px] leading-4 text-white tabular-nums">#{hf.loop.iteration}</span>
+                ) : hf?.verify?.mockScore !== undefined ? (
+                  <span className="text-[10.5px] tabular-nums text-muted">{hf.verify.mockScore.toFixed(1)}</span>
+                ) : null}
+              </ViewButton>
+            )}
           </div>
           <div className="ml-auto flex items-center gap-4 text-muted">
             {session.model && <span className="hidden truncate lg:inline">{session.model}</span>}

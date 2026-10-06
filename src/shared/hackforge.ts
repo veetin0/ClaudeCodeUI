@@ -113,6 +113,8 @@ export interface HackforgeSnapshot {
   verifyStale: boolean
   loop?: LoopStatus
   stopRequested: boolean
+  /** The hackforge plugin is enabled in Claude Code settings (user or project). */
+  pluginInstalled: boolean
   /** Memory files present, e.g. ['BRIEF.md', 'RULES.md', …]. */
   files: string[]
   updatedAt: number

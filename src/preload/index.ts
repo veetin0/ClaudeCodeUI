@@ -62,6 +62,15 @@ const api: HarnessApi = {
     return () => ipcRenderer.removeListener(IPC.command, l)
   },
   setActiveSession: (id) => ipcRenderer.send(IPC.activeSession, id),
+  hackforgeWatch: (cwd) => ipcRenderer.invoke(IPC.hackforgeWatch, cwd),
+  hackforgeUnwatch: (cwd) => ipcRenderer.send(IPC.hackforgeUnwatch, cwd),
+  hackforgeStopLoop: (cwd) => ipcRenderer.invoke(IPC.hackforgeStopLoop, cwd),
+  hackforgeSetProfile: (cwd, profile) => ipcRenderer.invoke(IPC.hackforgeSetProfile, cwd, profile),
+  onHackforge: (cb) => {
+    const l = (_: unknown, s: import('../shared/hackforge').HackforgeSnapshot) => cb(s)
+    ipcRenderer.on(IPC.hackforgeUpdate, l)
+    return () => ipcRenderer.removeListener(IPC.hackforgeUpdate, l)
+  },
   onEvents: (cb) => {
     const listener = (_: unknown, events: HarnessEvent[]) => cb(events)
     ipcRenderer.on(IPC.events, listener)

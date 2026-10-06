@@ -1,4 +1,5 @@
 import type { HarnessEvent, PermissionMode } from './events'
+import type { HackforgeMode, HackforgeSnapshot } from './hackforge'
 import type { Composition, PreviewServer, PreviewState, ProjectInfo, RenderJob } from './preview'
 
 export interface StartSessionOptions {
@@ -67,6 +68,8 @@ export interface AppSettings {
   recentProjects: string[]
   /** macOS notifications when Claude needs approval or finishes while Harness is in the background. */
   notifications: boolean
+  /** Route work through the HackForge plugin: never, in projects that use it, or in every session. */
+  hackforgeMode: HackforgeMode
 }
 
 /** The API the preload script exposes on `window.harness`. */
@@ -123,6 +126,14 @@ export interface HarnessApi {
   onCommand(cb: (cmd: import('./commands').CommandMessage) => void): () => void
   /** Tells main which session is in front, so notifications skip it while the window is focused. */
   setActiveSession(sessionId: string | null): void
+  /** Current HackForge state of a project; keeps it live via onHackforge until unwatched. */
+  hackforgeWatch(cwd: string): Promise<HackforgeSnapshot>
+  hackforgeUnwatch(cwd: string): void
+  /** Creates .hackforge/STOP_LOOP: the improvement loop ends after its current iteration. */
+  hackforgeStopLoop(cwd: string): Promise<void>
+  /** Rewrites `profile:` in challenge/hackforge.yaml. */
+  hackforgeSetProfile(cwd: string, profile: string): Promise<void>
+  onHackforge(cb: (snapshot: HackforgeSnapshot) => void): () => void
   /** Events arrive batched (~30fps) to keep the renderer smooth during heavy streaming. */
   onEvents(cb: (events: HarnessEvent[]) => void): () => void
 }
@@ -170,5 +181,10 @@ export const IPC = {
   openExternal: 'shell:open-external',
   command: 'app:command',
   activeSession: 'app:active-session',
+  hackforgeWatch: 'hackforge:watch',
+  hackforgeUnwatch: 'hackforge:unwatch',
+  hackforgeStopLoop: 'hackforge:stop-loop',
+  hackforgeSetProfile: 'hackforge:set-profile',
+  hackforgeUpdate: 'hackforge:snapshot',
   events: 'events',
 } as const

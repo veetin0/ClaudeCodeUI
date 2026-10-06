@@ -1,9 +1,11 @@
-import { ChevronDown, Play, SquarePen, Terminal, X } from 'lucide-react'
+import { ChevronDown, Flame, Play, SquarePen, Terminal, X } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { commandAction, fillTemplate, KNOWN_COMMANDS, QUICK_ACTIONS, visibleCommands, type QuickAction } from '@/lib/actions'
 import { cn } from '@/lib/format'
 import { useApp } from '@/stores/app'
 import type { SessionState } from '@/stores/reducer'
+import { useHackforge } from '@/stores/hackforge'
+import { HACKFORGE_ACTIONS, HACKFORGE_SETUP } from '@/lib/hackforgeActions'
 
 /**
  * Buttons in place of typing /commands: each opens a small form prefilled with example
@@ -12,14 +14,36 @@ import type { SessionState } from '@/stores/reducer'
 export function ActionBar({ session }: { session: SessionState }) {
   const formId = useApp((s) => s.actionForm)
   const setForm = useApp((s) => s.setActionForm)
-  const active: QuickAction | null = formId ? (QUICK_ACTIONS.find((a) => a.id === formId) ?? (formId.startsWith('cmd:') ? commandAction(formId.slice(4)) : null)) : null
+  const mode = useApp((s) => s.settings?.hackforgeMode ?? 'projects')
+  const hf = useHackforge(session.cwd)
+  // HackForge buttons: in projects that use it, or everywhere in "always" mode.
+  const hfOn = mode !== 'off' && (hf?.present || mode === 'always')
+  // Prefill from the project: Run starts on the profile hackforge.yaml already has.
+  const hfAll = useMemo(
+    () => HACKFORGE_ACTIONS.map((a) => (a.id === 'hf-run' && hf?.config.profile ? { ...a, params: a.params.map((p) => (p.key === 'profile' ? { ...p, example: hf.config.profile! } : p)) } : a)),
+    [hf?.config.profile],
+  )
+  const hfActions = hfOn ? hfAll.filter((a) => hf?.initialized || HACKFORGE_SETUP.has(a.id)) : []
+  const active: QuickAction | null = formId
+    ? (QUICK_ACTIONS.find((a) => a.id === formId) ?? hfAll.find((a) => a.id === formId) ?? (formId.startsWith('cmd:') ? commandAction(formId.slice(4)) : null))
+    : null
   const setActive = (a: QuickAction | null) => setForm(a?.id ?? null)
   const [commandsOpen, setCommandsOpen] = useState(false)
-  const commands = visibleCommands(session.slashCommands)
+  const commands = visibleCommands(session.slashCommands).filter((c) => !(hfOn && c.startsWith('hackforge:')))
 
   return (
     <div className="mx-auto w-full max-w-3xl px-6">
-      {active && <ActionForm key={active.id} action={active} onClose={() => setActive(null)} />}
+      {active && <ActionForm key={active.id} action={active} cwd={session.cwd} onClose={() => setActive(null)} />}
+      {hfActions.length > 0 && (
+        <div className="relative flex items-center gap-1.5 overflow-x-auto pb-1.5 pr-6 [mask-image:linear-gradient(to_right,black_calc(100%-32px),transparent)] [scrollbar-width:none]">
+          <span className="flex shrink-0 items-center gap-1 pr-1 text-[10.5px] font-semibold uppercase tracking-wide text-orange-600 dark:text-orange-400" title="HackForge commands">
+            <Flame className="size-3.5" /> HackForge
+          </span>
+          {hfActions.map((a) => (
+            <ActionButton key={a.id} action={a} hf selected={active?.id === a.id} onClick={() => setActive(active?.id === a.id ? null : a)} />
+          ))}
+        </div>
+      )}
       <div className="relative flex items-center gap-1.5 overflow-x-auto pb-2 pr-6 [mask-image:linear-gradient(to_right,black_calc(100%-32px),transparent)] [scrollbar-width:none]">
         {QUICK_ACTIONS.map((a) => (
           <ActionButton key={a.id} action={a} selected={active?.id === a.id} onClick={() => setActive(active?.id === a.id ? null : a)} />
@@ -47,7 +71,7 @@ export function ActionBar({ session }: { session: SessionState }) {
   )
 }
 
-function ActionButton({ action, selected, disabled, onClick }: { action: QuickAction; selected: boolean; disabled?: boolean; onClick: () => void }) {
+function ActionButton({ action, selected, disabled, hf, onClick }: { action: QuickAction; selected: boolean; disabled?: boolean; hf?: boolean; onClick: () => void }) {
   const Icon = action.icon
   return (
     <button
@@ -57,6 +81,7 @@ function ActionButton({ action, selected, disabled, onClick }: { action: QuickAc
       className={cn(
         'flex shrink-0 items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11.5px] transition-colors disabled:opacity-40',
         selected ? 'border-[var(--accent)]/50 bg-[var(--accent)]/10 text-fg' : 'border-line text-muted hover:bg-surface-2 hover:text-fg',
+        hf && !selected && 'border-orange-500/30',
       )}
     >
       <Icon className="size-3.5" />
@@ -65,7 +90,7 @@ function ActionButton({ action, selected, disabled, onClick }: { action: QuickAc
   )
 }
 
-function ActionForm({ action, onClose }: { action: QuickAction; onClose: () => void }) {
+function ActionForm({ action, cwd, onClose }: { action: QuickAction; cwd: string; onClose: () => void }) {
   const { send, setDraft } = useApp()
   const [values, setValues] = useState<Record<string, string>>(() => Object.fromEntries(action.params.map((p) => [p.key, p.example])))
   const prompt = useMemo(() => fillTemplate(action.template, values), [action, values])
@@ -78,8 +103,15 @@ function ActionForm({ action, onClose }: { action: QuickAction; onClose: () => v
   }, [])
 
   const run = () => {
-    void send(prompt)
     onClose()
+    void (async () => {
+      try {
+        await action.beforeRun?.(values, cwd)
+      } catch (err) {
+        console.error(err)
+      }
+      await send(prompt)
+    })()
   }
 
   return (
@@ -122,7 +154,7 @@ function ActionForm({ action, onClose }: { action: QuickAction; onClose: () => v
                       values[p.key] === o ? 'border-[var(--accent)]/60 bg-[var(--accent)]/10 font-medium' : 'border-line text-muted hover:text-fg',
                     )}
                   >
-                    {o}
+                    {o || 'default'}
                   </button>
                 ))}
               </div>

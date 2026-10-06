@@ -52,6 +52,7 @@ export function PromptBox({ session }: { session: SessionState }) {
     <div className="mx-auto w-full max-w-3xl px-6 pb-5">
       <div className="rounded-2xl border border-line bg-surface shadow-[0_1px_8px_rgb(0_0_0/0.06)] focus-within:border-[var(--accent)]/50">
         <textarea
+          data-prompt
           ref={ref}
           value={text}
           onChange={(e) => setText(e.target.value)}

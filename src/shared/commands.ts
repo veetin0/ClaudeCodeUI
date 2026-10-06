@@ -6,6 +6,7 @@ export type CommandId =
   | 'view-board'
   | 'view-mission'
   | 'view-preview'
+  | 'view-hackforge'
   | 'toggle-terminal'
   | 'new-terminal'
   | 'new-claude-terminal'

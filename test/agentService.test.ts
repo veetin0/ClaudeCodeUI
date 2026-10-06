@@ -14,6 +14,41 @@ function setup(factory: QueryFactory) {
 const tick = () => new Promise((r) => setTimeout(r, 10))
 
 describe('AgentService', () => {
+  it('adds per-folder guidance (HackForge mode) to the system prompt', () => {
+    const seen: { append?: string }[] = []
+    const factory = (({ options }: { options: { systemPrompt: { append?: string } } }) => {
+      seen.push(options.systemPrompt)
+      return Object.assign((async function* () {})(), { interrupt: async () => {} })
+    }) as unknown as QueryFactory
+    const bus = { emit: () => {} } as unknown as EventBus
+    const svc = new AgentService({ bus, getEnv: () => ({}), queryFactory: factory, promptAppend: (cwd) => (cwd === '/hack' ? 'USE HACKFORGE' : undefined) })
+    const a = svc.start({ cwd: '/hack' })
+    const b = svc.start({ cwd: '/other' })
+    expect(seen[0].append).toMatch(/USE HACKFORGE$/)
+    expect(seen[1].append).not.toMatch(/HACKFORGE/)
+    svc.close(a.id)
+    svc.close(b.id)
+  })
+
+  it('passes AskUserQuestion answers back as updatedInput', async () => {
+    let result: { behavior: string; updatedInput?: Record<string, unknown> } | undefined
+    const input = { questions: [{ question: 'Which option?', header: 'Decision', multiSelect: false, options: [{ label: 'A' }, { label: 'B' }] }] }
+    const factory = (({ prompt, options }: { prompt: AsyncIterable<unknown>; options: { canUseTool: Function } }) => {
+      async function* run() {
+        for await (const _msg of prompt) result = await options.canUseTool('AskUserQuestion', input, { signal: new AbortController().signal, toolUseID: 't9', requestId: 'q1' })
+      }
+      return Object.assign(run(), { interrupt: async () => {} })
+    }) as unknown as QueryFactory
+    const { svc } = setup(factory)
+    const { id } = svc.start({ cwd: '/tmp' })
+    svc.send(id, 'decide')
+    await tick()
+    svc.respondPermission(id, 'q1', { behavior: 'allow', updatedInput: { ...input, answers: { 'Which option?': 'B' } } })
+    await tick()
+    expect(result).toMatchObject({ behavior: 'allow', updatedInput: { answers: { 'Which option?': 'B' } } })
+    svc.close(id)
+  })
+
   it('runs a turn: user message → SDK messages → idle', async () => {
     const fixture = loadFixture('tasks-and-subagent.json')
     const factory = (({ prompt }: { prompt: AsyncIterable<unknown> }) => {

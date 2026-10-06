@@ -22,6 +22,8 @@ export function runCommand(cmd: CommandMessage) {
       return app.setView('mission')
     case 'view-preview':
       return app.setView('preview')
+    case 'view-hackforge':
+      return app.setView('hackforge')
     case 'toggle-terminal':
       return app.toggleTerminalPanel()
     case 'new-terminal':

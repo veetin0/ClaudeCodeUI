@@ -1,3 +1,4 @@
+import type { HackforgeMode } from '@shared/hackforge'
 import { SquareTerminal, X } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import type { ObserveStatus } from '@shared/ipc'
@@ -90,6 +91,18 @@ export function SettingsDialog() {
             <span className="mt-0.5 block text-[11px] text-muted">Tell me when Claude needs approval or finishes a longer task while Harness is in the background.</span>
           </span>
         </label>
+
+        <Field label="HackForge" hint="Sessions get instructions to work through the /hackforge:* skills, and the HackForge buttons and dashboard (⌘5) appear. Applies to new sessions.">
+          <select
+            value={settings.hackforgeMode}
+            onChange={(e) => void updateSettings({ hackforgeMode: e.target.value as HackforgeMode })}
+            className="w-full rounded-md border border-line bg-surface-2 px-2 py-1.5"
+          >
+            <option value="projects">In projects that use it (challenge/ or .hackforge/)</option>
+            <option value="always">Always: suggest HackForge in every session</option>
+            <option value="off">Off</option>
+          </select>
+        </Field>
 
         <ObserveSection />
 

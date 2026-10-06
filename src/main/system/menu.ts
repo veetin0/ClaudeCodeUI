@@ -68,6 +68,7 @@ export function installMenu() {
         item('Board', 'view-board', 'CmdOrCtrl+2'),
         item('Mission Control', 'view-mission', 'CmdOrCtrl+3'),
         item('Preview', 'view-preview', 'CmdOrCtrl+4'),
+        item('HackForge', 'view-hackforge', 'CmdOrCtrl+5'),
         { type: 'separator' },
         item('Toggle Terminal', 'toggle-terminal', 'CmdOrCtrl+J'),
         item('Focus Mode', 'focus-mode', 'CmdOrCtrl+\\'),

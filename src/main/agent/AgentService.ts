@@ -26,6 +26,8 @@ export interface AgentServiceDeps {
   telemetry?: TelemetryServer
   /** Enables change tracking (snapshots, diffs, revert) and the project watcher. */
   snapshots?: SnapshotStore
+  /** Extra system-prompt text for a session in this folder (e.g. HackForge mode). */
+  promptAppend?: (cwd: string) => string | undefined
 }
 
 /** Tools that write files; the PreToolUse hook snapshots their target first. */
@@ -127,7 +129,7 @@ class AgentSession {
         resume: resumeClaudeSessionId,
         model: opts.model || undefined,
         permissionMode: opts.permissionMode ?? 'default',
-        systemPrompt: { type: 'preset', preset: 'claude_code', append: HARNESS_TOOL_GUIDE },
+        systemPrompt: { type: 'preset', preset: 'claude_code', append: [HARNESS_TOOL_GUIDE, this.deps.promptAppend?.(opts.cwd)].filter(Boolean).join('\n\n') },
         mcpServers: { harness: createHarnessServer() },
         allowedTools: ['mcp__harness'],
         // Same CLAUDE.md, settings, MCP servers and skills as the terminal CLI.

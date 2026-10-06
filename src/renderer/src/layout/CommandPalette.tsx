@@ -1,5 +1,6 @@
 import { Command } from 'cmdk'
 import {
+  Flame,
   FolderOpen,
   History,
   LayoutGrid,
@@ -16,6 +17,7 @@ import {
 } from 'lucide-react'
 import type { CommandId } from '@shared/commands'
 import { QUICK_ACTIONS } from '@/lib/actions'
+import { HACKFORGE_ACTIONS } from '@/lib/hackforgeActions'
 import { runCommand } from '@/lib/commands'
 import { basename } from '@/lib/format'
 import { relativeTime } from '@/lib/time'
@@ -27,6 +29,7 @@ const COMMANDS: { id: CommandId; label: string; icon: LucideIcon; keys?: string 
   { id: 'view-board', label: 'Go to Board', icon: LayoutGrid, keys: '⌘2' },
   { id: 'view-mission', label: 'Go to Mission control', icon: Network, keys: '⌘3' },
   { id: 'view-preview', label: 'Go to Preview', icon: MonitorPlay, keys: '⌘4' },
+  { id: 'view-hackforge', label: 'Go to HackForge', icon: Flame, keys: '⌘5' },
   { id: 'toggle-terminal', label: 'Toggle terminal', icon: SquareTerminal, keys: '⌘J' },
   { id: 'new-claude-terminal', label: 'New Claude terminal', icon: SquareTerminal, keys: '⇧⌘T' },
   { id: 'replay', label: 'Replay this session', icon: Play, keys: '⇧⌘R' },
@@ -73,7 +76,7 @@ export function CommandPalette() {
 
         {activeId && (
           <Command.Group heading="Ask Claude">
-            {QUICK_ACTIONS.map((a) => (
+            {[...QUICK_ACTIONS, ...(settings?.hackforgeMode === 'off' ? [] : HACKFORGE_ACTIONS.map((a) => ({ ...a, label: `HackForge: ${a.label}` })))].map((a) => (
               <Row
                 key={a.id}
                 value={`${a.label} ${a.description}`}

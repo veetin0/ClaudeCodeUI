@@ -33,6 +33,8 @@ export interface QuickAction {
   /** Prompt with {param} placeholders. */
   template: string
   params: ActionParam[]
+  /** Runs before the prompt is sent (e.g. saving a setting the command reads). */
+  beforeRun?: (values: Record<string, string>, cwd: string) => Promise<void>
 }
 
 /** Prompt-level actions: what people most often ask Claude to do, with sensible example parameters. */

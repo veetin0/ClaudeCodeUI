@@ -10,6 +10,9 @@ import type { SessionState } from '@/stores/reducer'
 import { ActionBar } from './ActionBar'
 import { MessageList } from './MessageList'
 import { PermissionCard } from './PermissionCard'
+import { QuestionCard } from './QuestionCard'
+import { CheckpointBar } from '../hackforge/CheckpointBar'
+import { HackforgeView } from '../hackforge/HackforgeView'
 import { PromptBox } from './PromptBox'
 
 // Monaco is large; load it only when a diff is first opened.
@@ -29,6 +32,8 @@ export function Conversation({ session }: { session: SessionState }) {
         <MissionView session={session} />
       ) : view === 'preview' ? (
         <PreviewView session={session} />
+      ) : view === 'hackforge' ? (
+        <HackforgeView session={session} />
       ) : (
         <MessageList session={session} />
       )}
@@ -38,9 +43,9 @@ export function Conversation({ session }: { session: SessionState }) {
         <>
       {session.permissions.length > 0 && (
         <div className="mx-auto w-full max-w-3xl space-y-2 px-6 pb-3">
-          {session.permissions.map((p, i) => (
-            <PermissionCard key={p.requestId} req={p} primary={i === 0} />
-          ))}
+          {session.permissions.map((p, i) =>
+            p.toolName === 'AskUserQuestion' ? <QuestionCard key={p.requestId} req={p} /> : <PermissionCard key={p.requestId} req={p} primary={i === 0} />,
+          )}
         </div>
       )}
       {session.observed && session.live ? (
@@ -59,6 +64,7 @@ export function Conversation({ session }: { session: SessionState }) {
           </div>
         )
       )}
+      {session.live && !session.observed && <CheckpointBar session={session} />}
       {!(session.observed && session.live) && <ActionBar session={session} />}
       <PromptBox session={session} />
         </>
