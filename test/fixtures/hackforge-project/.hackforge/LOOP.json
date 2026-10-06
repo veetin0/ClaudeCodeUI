@@ -1,0 +1,1 @@
+{"active": true, "iteration": 4, "max_iterations": 30, "target_score": 9.0, "plateau_limit": 3, "deadline": "2026-10-12T18:00+03:00", "reserve_minutes": 90, "max_hours": null, "started_at": "2026-10-12T05:10:00+03:00", "best_score": 8.1, "no_gain_streak": 1, "ended_reason": null, "ended_at": null}

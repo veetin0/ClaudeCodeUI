@@ -1,0 +1,13 @@
+challenge: "Acme city routing"
+deadline: 2026-10-12T18:00+03:00
+hours: 48
+team: 3
+profile: standard   # chosen by the team
+loop:
+  enabled: true
+  target_score: 9.0
+  max_iterations: 30
+  max_hours: ""
+  reserve_minutes: 90
+  plateau: 3
+checkpoints: [decision, before_submit]
