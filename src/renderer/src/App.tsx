@@ -9,7 +9,10 @@ import { TerminalPanel } from './features/terminal/TerminalPanel'
 import { useApp } from './stores/app'
 import { useDisplaySession } from './stores/replay'
 import { runCommand } from './lib/commands'
+import type { CommandId } from '@shared/commands'
 import { CommandPalette } from './layout/CommandPalette'
+
+const VIEW_KEYS: Record<string, CommandId> = { '1': 'view-chat', '2': 'view-board', '3': 'view-mission', '4': 'view-preview', '5': 'view-hackforge' }
 
 export function App() {
   const session = useDisplaySession()
@@ -18,8 +21,14 @@ export function App() {
   useEffect(() => {
     void useApp.getState().init()
     const offCommand = window.harness.onCommand(runCommand)
-    // Shortcuts live in the native menu (so they show there); Escape is the one in-page key.
+    // Most shortcuts live in the native menu; the view switches (⌘1–⌘5) and Escape are handled here.
     const onKey = (e: KeyboardEvent) => {
+      const view = VIEW_KEYS[e.key]
+      if (view && (e.metaKey || e.ctrlKey) && !e.shiftKey && !e.altKey) {
+        e.preventDefault()
+        runCommand({ id: view })
+        return
+      }
       const app = useApp.getState()
       if (e.key !== 'Escape' || app.detailAgent || app.diffPath || app.paletteOpen) return
       if (app.replay) app.setReplay(null)

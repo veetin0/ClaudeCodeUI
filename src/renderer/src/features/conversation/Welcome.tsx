@@ -1,10 +1,10 @@
-import { FolderOpen, History, KeyRound } from 'lucide-react'
+import { Flame, FolderOpen, History, KeyRound } from 'lucide-react'
 import { basename, formatCost } from '@/lib/format'
 import { relativeTime } from '@/lib/time'
 import { useApp } from '@/stores/app'
 
 export function Welcome() {
-  const { settings, history, openProject, openSaved, startSession, startError, setSettingsOpen } = useApp()
+  const { settings, history, openProject, openSaved, startSession, startError, setSettingsOpen, setView } = useApp()
   const recents = settings?.recentProjects ?? []
   const lastSessions = history.filter((h) => h.title).slice(0, 4)
 
@@ -21,6 +21,19 @@ export function Welcome() {
           <FolderOpen className="size-4" />
           Open project… <kbd className="opacity-70">⌘O</kbd>
         </button>
+        {settings?.hackforgeMode !== 'off' && (
+          <button
+            onClick={() => {
+              // Pick or create a folder, then land on the HackForge view with its Init button.
+              setView('hackforge')
+              void openProject()
+            }}
+            className="ml-2 mt-6 inline-flex items-center gap-2 rounded-lg border border-orange-500/40 px-4 py-2 font-medium hover:bg-orange-500/10"
+          >
+            <Flame className="size-4 text-orange-500" />
+            New HackForge project…
+          </button>
+        )}
         {startError && <div className="selectable mt-4 text-[12px] text-red-500">{startError}</div>}
         {lastSessions.length > 0 && (
           <div className="mt-8 text-left">

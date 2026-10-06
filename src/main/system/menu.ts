@@ -11,11 +11,15 @@ export function sendCommand(cmd: CommandMessage) {
   win.webContents.send(IPC.command, cmd)
 }
 
-const item = (label: string, id: CommandId, accelerator?: string): MenuItemConstructorOptions => ({
+const item = (label: string, id: CommandId, accelerator?: string, registerAccelerator = true): MenuItemConstructorOptions => ({
   label,
   accelerator,
+  registerAccelerator,
   click: () => sendCommand({ id }),
 })
+
+/** View switches are handled by the page's own key listener (reliable whatever has focus); the menu only shows them. */
+const viewItem = (label: string, id: CommandId, accelerator: string) => item(label, id, accelerator, false)
 
 /**
  * The macOS application menu. Besides discoverability it is what makes ⌘C/⌘V/⌘Z work in text
@@ -64,11 +68,11 @@ export function installMenu() {
       submenu: [
         item('Command Palette…', 'palette', 'CmdOrCtrl+K'),
         { type: 'separator' },
-        item('Chat', 'view-chat', 'CmdOrCtrl+1'),
-        item('Board', 'view-board', 'CmdOrCtrl+2'),
-        item('Mission Control', 'view-mission', 'CmdOrCtrl+3'),
-        item('Preview', 'view-preview', 'CmdOrCtrl+4'),
-        item('HackForge', 'view-hackforge', 'CmdOrCtrl+5'),
+        viewItem('Chat', 'view-chat', 'CmdOrCtrl+1'),
+        viewItem('Board', 'view-board', 'CmdOrCtrl+2'),
+        viewItem('Mission Control', 'view-mission', 'CmdOrCtrl+3'),
+        viewItem('Preview', 'view-preview', 'CmdOrCtrl+4'),
+        viewItem('HackForge', 'view-hackforge', 'CmdOrCtrl+5'),
         { type: 'separator' },
         item('Toggle Terminal', 'toggle-terminal', 'CmdOrCtrl+J'),
         item('Focus Mode', 'focus-mode', 'CmdOrCtrl+\\'),

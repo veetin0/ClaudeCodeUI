@@ -15,7 +15,8 @@ export function TopBar() {
   const activeSubagents = session ? Object.values(session.subagents).filter((s) => s.status === 'running').length : 0
   const hf = useHackforge(session?.cwd)
   const hfMode = useApp((st) => st.settings?.hackforgeMode ?? 'projects')
-  const showHf = hfMode !== 'off' && (hf?.present || hfMode === 'always' || view === 'hackforge')
+  // Always offered (unless HackForge is off), so a fresh folder can be set up from there.
+  const showHf = hfMode !== 'off'
   const elapsed = useElapsed(session?.status === 'running' || session?.status === 'waiting' ? session.turnStartedAt : undefined)
 
   return (

@@ -23,7 +23,10 @@ export function runCommand(cmd: CommandMessage) {
     case 'view-preview':
       return app.setView('preview')
     case 'view-hackforge':
-      return app.setView('hackforge')
+      app.setView('hackforge')
+      // Nothing open yet: pick a project folder to show it for.
+      if (!app.activeId) void app.openProject()
+      return
     case 'toggle-terminal':
       return app.toggleTerminalPanel()
     case 'new-terminal':
