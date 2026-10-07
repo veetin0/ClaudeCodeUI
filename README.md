@@ -90,6 +90,22 @@ claude plugin install hackforge@veeti-tools
 
 ![A HackForge checkpoint question](docs/screenshots/hackforge-checkpoint.png)
 
+## Event mode (hackathon war room)
+
+**⌘6**, the event entry in the sidebar, or the card on the start screen opens event mode. Event mode is reusable: everything comes from an `event.yaml`. **Junction 2026** (Espoo, 13–15 Nov) ships as the built-in preset.
+
+- **Clock:** a countdown to the doors opening, then to the next deadline (amber 3 h before, red in the last hour), the next step of the plan, and who is asleep right now. Times are shown in the event's time zone. Junction's are Helsinki local time, so the switch to winter time (UTC+2) on Oct 25 is already accounted for.
+- **The weekend:** one timeline with official times, the two submission deadlines, our plan and the sleep shifts, plus an agenda per day. It covers about 40 h of build time: preliminary submission Fri 23:55, final Sun 10:00.
+- **Event project:** one click sets up a folder (or an existing repo) for the event:
+  - `challenge/event.yaml` (schedule, partners, checklists; edit it freely)
+  - an event brief and a strategy directive that HackForge reads
+  - HackForge settings for the event: 40 h, team of 4, the real deadline, the loop stopping 4 h before it, cheaper models for builders and stronger ones for the architect and judges
+- **Checklists:** preparation (week by week up to the event), event-day logistics, the preliminary submission and the final submission. Each has a due time, and overdue items turn red.
+- **Partners board:** all 16 Junction partners by category, each with *Keys* (account and API key ready) and *Kit* (starter kit tested) toggles.
+- Ticks are saved to `challenge/event-checklist.json`. Commit it, and the team shares one checklist through git.
+
+![Event mode during Junction 2026 (simulated clock)](docs/screenshots/event-mode.png)
+
 ## Everyday polish
 
 - **Native menu** with every command and its shortcut. It also makes ⌘C/⌘V/⌘Z work everywhere.

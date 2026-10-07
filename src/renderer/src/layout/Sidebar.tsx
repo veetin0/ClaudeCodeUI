@@ -1,4 +1,6 @@
-import { FolderOpen, History, Plus, Search, Settings, SquareTerminal, Trash2, X } from 'lucide-react'
+import { CalendarClock, FolderOpen, History, Plus, Search, Settings, SquareTerminal, Trash2, X } from 'lucide-react'
+import { eventClock, formatSpan } from '@shared/event'
+import { useEventState, useNow } from '@/stores/event'
 import { useMemo, useState } from 'react'
 import type { SessionSummary } from '@shared/ipc'
 import { basename, cn, formatCost } from '@/lib/format'
@@ -43,6 +45,7 @@ export function Sidebar() {
           New session
           <kbd className="ml-auto text-[11px] text-muted">⌘O</kbd>
         </button>
+        <EventEntry />
       </div>
 
       <div className="mt-3 min-h-0 flex-1 overflow-y-auto px-3 pb-3">
@@ -180,4 +183,40 @@ function HistoryRow({ h, onOpen, onDelete }: { h: SessionSummary; onOpen: () => 
 
 function SectionLabel({ children, className }: { children: React.ReactNode; className?: string }) {
   return <div className={cn('mb-1 px-2.5 text-[11px] font-semibold uppercase tracking-wide text-muted', className)}>{children}</div>
+}
+
+/** Event mode entry with a live countdown to the next thing that matters. */
+function EventEntry() {
+  const state = useEventState()
+  const open = useApp((s) => s.eventOpen)
+  const setEventOpen = useApp((s) => s.setEventOpen)
+  const now = useNow(30_000)
+  if (!state) return null
+  const clock = eventClock(state.config, now)
+  const sub =
+    clock.stage === 'before'
+      ? `starts in ${formatSpan(clock.start - now)}`
+      : clock.stage === 'during'
+        ? clock.nextDeadline
+          ? `${clock.nextDeadline.label.split(' ')[0]} due in ${formatSpan(clock.nextDeadline.t - now)}`
+          : 'judging'
+        : 'ended'
+  const urgent = clock.stage === 'during' && clock.nextDeadline && clock.nextDeadline.t - now < 3_600_000
+  return (
+    <button
+      onClick={() => setEventOpen(!open)}
+      title="Event mode (⌘6)"
+      className={cn(
+        'no-drag mt-1 flex w-full items-center gap-2 rounded-lg px-2.5 py-1.5 text-left hover:bg-black/5 dark:hover:bg-white/5',
+        open && 'bg-black/[0.07] dark:bg-white/10',
+      )}
+    >
+      <CalendarClock className="size-4 shrink-0 text-[var(--accent)]" />
+      <span className="min-w-0 flex-1">
+        <span className="block truncate font-medium">{state.config.name}</span>
+        <span className={cn('block truncate text-[11px] tabular-nums', urgent ? 'font-medium text-red-500' : 'text-muted')}>{sub}</span>
+      </span>
+      <kbd className="text-[11px] text-muted">⌘6</kbd>
+    </button>
+  )
 }

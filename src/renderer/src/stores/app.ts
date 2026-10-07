@@ -62,6 +62,8 @@ interface AppState {
   terminalOpen: boolean
   terminalHeight: number
   startError: string | null
+  /** Event mode (the hackathon war room) fills the main area. */
+  eventOpen: boolean
 
   init(): Promise<void>
   applyEvents(events: HarnessEvent[]): void
@@ -79,6 +81,7 @@ interface AppState {
   respondPermission(requestId: string, decision: PermissionDecision): Promise<void>
   setInspectorTab(tab: InspectorTab): void
   setView(view: MainView): void
+  setEventOpen(open: boolean): void
   openAgent(key: string, toolId?: string): void
   closeAgent(): void
   openDiff(path: string): void
@@ -138,6 +141,7 @@ export const useApp = create<AppState>((set, get) => ({
   terminalOpen: false,
   terminalHeight: 260,
   startError: null,
+  eventOpen: false,
 
   async init() {
     set({ settings: await api().getSettings() })
@@ -221,6 +225,7 @@ export const useApp = create<AppState>((set, get) => ({
         order: [summary.id, ...st.order],
         activeId: summary.id,
         startError: null,
+        eventOpen: false,
       }))
       set({ settings: await api().getSettings() })
       void get().detectProject(cwd)
@@ -236,7 +241,7 @@ export const useApp = create<AppState>((set, get) => ({
   },
 
   select(id) {
-    set({ activeId: id, detailAgent: null, diffPath: null, replay: null })
+    set({ activeId: id, detailAgent: null, diffPath: null, replay: null, eventOpen: false })
     const cwd = get().sessions[id]?.cwd
     if (cwd) void get().detectProject(cwd)
   },
@@ -318,7 +323,8 @@ export const useApp = create<AppState>((set, get) => ({
   },
 
   setInspectorTab: (inspectorTab) => set({ inspectorTab }),
-  setView: (view) => set({ view }),
+  setView: (view) => set({ view, eventOpen: false }),
+  setEventOpen: (eventOpen) => set({ eventOpen }),
   openAgent: (detailAgent, toolId) => set({ detailAgent, detailTool: toolId ?? null }),
   closeAgent: () => set({ detailAgent: null, detailTool: null }),
   openDiff: (diffPath) => set({ diffPath, detailAgent: null }),

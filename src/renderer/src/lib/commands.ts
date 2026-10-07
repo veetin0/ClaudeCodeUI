@@ -22,6 +22,8 @@ export function runCommand(cmd: CommandMessage) {
       return app.setView('mission')
     case 'view-preview':
       return app.setView('preview')
+    case 'event-mode':
+      return app.setEventOpen(!app.eventOpen)
     case 'view-hackforge':
       app.setView('hackforge')
       // Nothing open yet: pick a project folder to show it for.

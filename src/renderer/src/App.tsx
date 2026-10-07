@@ -11,12 +11,14 @@ import { useDisplaySession } from './stores/replay'
 import { runCommand } from './lib/commands'
 import type { CommandId } from '@shared/commands'
 import { CommandPalette } from './layout/CommandPalette'
+import { EventView } from './features/event/EventView'
 
-const VIEW_KEYS: Record<string, CommandId> = { '1': 'view-chat', '2': 'view-board', '3': 'view-mission', '4': 'view-preview', '5': 'view-hackforge' }
+const VIEW_KEYS: Record<string, CommandId> = { '1': 'view-chat', '2': 'view-board', '3': 'view-mission', '4': 'view-preview', '5': 'view-hackforge', '6': 'event-mode' }
 
 export function App() {
   const session = useDisplaySession()
   const focusMode = useApp((s) => s.focusMode)
+  const eventOpen = useApp((s) => s.eventOpen)
 
   useEffect(() => {
     void useApp.getState().init()
@@ -31,7 +33,8 @@ export function App() {
       }
       const app = useApp.getState()
       if (e.key !== 'Escape' || app.detailAgent || app.diffPath || app.paletteOpen) return
-      if (app.replay) app.setReplay(null)
+      if (app.eventOpen) app.setEventOpen(false)
+      else if (app.replay) app.setReplay(null)
       else if (app.activeId && app.sessions[app.activeId]?.status === 'running') void app.interrupt()
     }
     window.addEventListener('keydown', onKey)
@@ -51,8 +54,8 @@ export function App() {
       <main className="flex min-w-0 flex-1 flex-col bg-surface shadow-[-1px_0_0_var(--line)]">
         <TopBar />
         <div className="flex min-h-0 flex-1">
-          <div className="flex min-w-0 flex-1 flex-col">{session ? <Conversation session={session} /> : <Welcome />}</div>
-          {session && !focusMode && <Inspector session={session} />}
+          <div className="flex min-w-0 flex-1 flex-col">{eventOpen ? <EventView /> : session ? <Conversation session={session} /> : <Welcome />}</div>
+          {session && !focusMode && !eventOpen && <Inspector session={session} />}
         </div>
         <TerminalPanel />
       </main>

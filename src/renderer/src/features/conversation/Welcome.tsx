@@ -1,4 +1,6 @@
-import { Flame, FolderOpen, History, KeyRound } from 'lucide-react'
+import { CalendarClock, Flame, FolderOpen, History, KeyRound } from 'lucide-react'
+import { eventClock, formatSpan } from '@shared/event'
+import { useEventState, useNow } from '@/stores/event'
 import { basename, formatCost } from '@/lib/format'
 import { relativeTime } from '@/lib/time'
 import { useApp } from '@/stores/app'
@@ -34,6 +36,7 @@ export function Welcome() {
             New HackForge project…
           </button>
         )}
+        <EventCard />
         {startError && <div className="selectable mt-4 text-[12px] text-red-500">{startError}</div>}
         {lastSessions.length > 0 && (
           <div className="mt-8 text-left">
@@ -84,5 +87,30 @@ export function Welcome() {
         )}
       </div>
     </div>
+  )
+}
+
+function EventCard() {
+  const state = useEventState()
+  const setEventOpen = useApp((s) => s.setEventOpen)
+  const now = useNow(30_000)
+  if (!state) return null
+  const clock = eventClock(state.config, now)
+  if (clock.stage === 'after') return null
+  return (
+    <button
+      onClick={() => setEventOpen(true)}
+      className="mt-6 flex w-full items-center gap-3 rounded-xl border border-[var(--accent)]/40 bg-[var(--accent)]/[0.06] px-4 py-3 text-left hover:bg-[var(--accent)]/10"
+    >
+      <CalendarClock className="size-5 shrink-0 text-[var(--accent)]" />
+      <span className="min-w-0 flex-1">
+        <span className="block font-semibold">{state.config.name}</span>
+        <span className="block text-[12px] text-muted">
+          {clock.stage === 'before' ? `Starts in ${formatSpan(clock.start - now)}` : clock.nextDeadline ? `${clock.nextDeadline.label} in ${formatSpan(clock.nextDeadline.t - now)}` : 'Judging'} · open
+          event mode
+        </span>
+      </span>
+      <kbd className="text-[11px] text-muted">⌘6</kbd>
+    </button>
   )
 }

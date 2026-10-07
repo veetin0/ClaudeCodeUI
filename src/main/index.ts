@@ -21,6 +21,7 @@ import { Presence, projectName } from './system/presence'
 import appIcon from '../../resources/icon.png?asset'
 import { SettingsStore } from './system/settings'
 import { HackforgeService } from './hackforge/HackforgeService'
+import { EventService } from './event/EventService'
 import { hackforgeGuide } from '@shared/hackforge'
 
 loadLoginShellPath()
@@ -40,6 +41,12 @@ let settings: SettingsStore
 let store: SessionStore
 let agents: AgentService
 let presence: Presence
+const eventService = new EventService(
+  () => settings?.get().eventProject ?? undefined,
+  (state) => {
+    for (const w of BrowserWindow.getAllWindows()) w.webContents.send(IPC.eventPush, state)
+  },
+)
 const hackforge = new HackforgeService(claudeSettingsPath, (snap) => {
   for (const w of BrowserWindow.getAllWindows()) w.webContents.send(IPC.hackforgeUpdate, snap)
 })
@@ -188,6 +195,17 @@ function registerIpc() {
   ipcMain.on(IPC.hackforgeUnwatch, (_e, cwd: string) => hackforge.unwatch(cwd))
   ipcMain.handle(IPC.hackforgeStopLoop, (_e, cwd: string) => hackforge.stopLoop(cwd))
   ipcMain.handle(IPC.hackforgeSetProfile, (_e, cwd: string, profile: string) => hackforge.setProfile(cwd, profile))
+  ipcMain.handle(IPC.eventState, () => eventService.state())
+  ipcMain.handle(IPC.eventLink, (_e, dir: string | null) => {
+    settings.update({ eventProject: dir })
+    return eventService.state()
+  })
+  ipcMain.handle(IPC.eventSetup, async (_e, dir: string) => {
+    settings.update({ eventProject: dir })
+    settings.addRecentProject(dir)
+    return eventService.setup(dir)
+  })
+  ipcMain.handle(IPC.eventUpdate, (_e, patch) => eventService.updateProgress(patch))
   ipcMain.handle(IPC.getSettings, () => settings.get())
   ipcMain.handle(IPC.setApiKey, (_e, key: string | null) => settings.setApiKey(key))
   ipcMain.handle(IPC.updateSettings, (_e, patch) => settings.update(patch))
@@ -262,6 +280,7 @@ app.on('before-quit', () => {
   presence?.destroy()
   preview.stopAll()
   hackforge.dispose()
+  eventService.dispose()
   observer?.stop()
   hookBridge?.stop()
   store?.close()

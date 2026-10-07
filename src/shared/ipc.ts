@@ -1,5 +1,6 @@
 import type { HarnessEvent, PermissionMode } from './events'
 import type { HackforgeMode, HackforgeSnapshot } from './hackforge'
+import type { EventState } from './event'
 import type { Composition, PreviewServer, PreviewState, ProjectInfo, RenderJob } from './preview'
 
 export interface StartSessionOptions {
@@ -70,7 +71,11 @@ export interface AppSettings {
   notifications: boolean
   /** Route work through the HackForge plugin: never, in projects that use it, or in every session. */
   hackforgeMode: HackforgeMode
+  /** Folder of the project linked to event mode (shared with the team through git). */
+  eventProject: string | null
 }
+
+export type EventProgressPatch = { done?: Record<string, boolean>; partner?: { name: string; keys?: boolean; kit?: boolean } }
 
 /** The API the preload script exposes on `window.harness`. */
 export interface HarnessApi {
@@ -134,6 +139,14 @@ export interface HarnessApi {
   /** Rewrites `profile:` in challenge/hackforge.yaml. */
   hackforgeSetProfile(cwd: string, profile: string): Promise<void>
   onHackforge(cb: (snapshot: HackforgeSnapshot) => void): () => void
+  /** Event mode: config, clock data and the team's shared checklist progress. */
+  eventState(): Promise<EventState>
+  /** Links (or with null unlinks) the event project folder. */
+  eventLink(dir: string | null): Promise<EventState>
+  /** Sets a folder up from the event preset (challenge/, event.yaml, HackForge settings) and links it. */
+  eventSetup(dir: string): Promise<EventState>
+  eventUpdate(patch: EventProgressPatch): Promise<EventState>
+  onEvent(cb: (state: EventState) => void): () => void
   /** Events arrive batched (~30fps) to keep the renderer smooth during heavy streaming. */
   onEvents(cb: (events: HarnessEvent[]) => void): () => void
 }
@@ -186,5 +199,10 @@ export const IPC = {
   hackforgeStopLoop: 'hackforge:stop-loop',
   hackforgeSetProfile: 'hackforge:set-profile',
   hackforgeUpdate: 'hackforge:snapshot',
+  eventState: 'event:state',
+  eventLink: 'event:link',
+  eventSetup: 'event:setup',
+  eventUpdate: 'event:update',
+  eventPush: 'event:push',
   events: 'events',
 } as const

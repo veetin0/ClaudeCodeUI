@@ -15,6 +15,7 @@ const DEFAULTS: StoredSettings = {
   observeTerminalSessions: true,
   notifications: true,
   hackforgeMode: 'projects',
+  eventProject: null,
 }
 
 export class SettingsStore {

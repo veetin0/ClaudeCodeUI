@@ -1,5 +1,6 @@
 import { Command } from 'cmdk'
 import {
+  CalendarClock,
   Flame,
   FolderOpen,
   History,
@@ -30,6 +31,7 @@ const COMMANDS: { id: CommandId; label: string; icon: LucideIcon; keys?: string 
   { id: 'view-mission', label: 'Go to Mission control', icon: Network, keys: '⌘3' },
   { id: 'view-preview', label: 'Go to Preview', icon: MonitorPlay, keys: '⌘4' },
   { id: 'view-hackforge', label: 'Go to HackForge', icon: Flame, keys: '⌘5' },
+  { id: 'event-mode', label: 'Event mode: hackathon clock, checklists, partners', icon: CalendarClock, keys: '⌘6' },
   { id: 'toggle-terminal', label: 'Toggle terminal', icon: SquareTerminal, keys: '⌘J' },
   { id: 'new-claude-terminal', label: 'New Claude terminal', icon: SquareTerminal, keys: '⇧⌘T' },
   { id: 'replay', label: 'Replay this session', icon: Play, keys: '⇧⌘R' },
