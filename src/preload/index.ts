@@ -80,6 +80,22 @@ const api: HarnessApi = {
     ipcRenderer.on(IPC.eventPush, l)
     return () => ipcRenderer.removeListener(IPC.eventPush, l)
   },
+  challengeAdd: (c) => ipcRenderer.invoke(IPC.challengeAdd, c),
+  challengeUpdate: (id, patch) => ipcRenderer.invoke(IPC.challengeUpdate, id, patch),
+  challengeDelete: (id) => ipcRenderer.invoke(IPC.challengeDelete, id),
+  challengeChoose: (id) => ipcRenderer.invoke(IPC.challengeChoose, id),
+  setElevenLabsKey: (key) => ipcRenderer.invoke(IPC.setElevenLabsKey, key),
+  pitchState: () => ipcRenderer.invoke(IPC.pitchState),
+  pitchScaffold: (name) => ipcRenderer.invoke(IPC.pitchScaffold, name),
+  pitchSave: (script) => ipcRenderer.invoke(IPC.pitchSave, script),
+  pitchInstall: () => ipcRenderer.invoke(IPC.pitchInstall),
+  pitchNarrate: () => ipcRenderer.invoke(IPC.pitchNarrate),
+  pitchVoices: () => ipcRenderer.invoke(IPC.pitchVoices),
+  onPitch: (cb) => {
+    const l = (_: unknown, s: import('../shared/ipc').PitchState) => cb(s)
+    ipcRenderer.on(IPC.pitchPush, l)
+    return () => ipcRenderer.removeListener(IPC.pitchPush, l)
+  },
   teamState: () => ipcRenderer.invoke(IPC.teamState),
   teamCreate: (opts) => ipcRenderer.invoke(IPC.teamCreate, opts),
   teamJoin: (code, name) => ipcRenderer.invoke(IPC.teamJoin, code, name),

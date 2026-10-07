@@ -1,6 +1,9 @@
 import type { HarnessEvent, PermissionMode } from './events'
 import type { HackforgeMode, HackforgeSnapshot } from './hackforge'
 import type { EventState } from './event'
+import type { ChallengePatch } from './challenges'
+import type { PitchScript, PitchState, Voice } from './pitch'
+export type { PitchState, Voice, PitchJob } from './pitch'
 import type { MemberSession, TeamConfig, TeamState } from './team'
 import type { Composition, PreviewServer, PreviewState, ProjectInfo, RenderJob } from './preview'
 
@@ -78,6 +81,8 @@ export interface AppSettings {
   team: TeamConfig | null
   /** Stable id for this install on team boards. */
   teamMemberId: string
+  /** An ElevenLabs key is stored (for pitch narration). */
+  hasElevenLabsKey: boolean
 }
 
 export type EventProgressPatch = { done?: Record<string, boolean>; partner?: { name: string; keys?: boolean; kit?: boolean } }
@@ -108,7 +113,8 @@ export interface HarnessApi {
   pickDirectory(): Promise<string | null>
   getSettings(): Promise<AppSettings>
   setApiKey(key: string | null): Promise<void>
-  updateSettings(patch: Partial<Omit<AppSettings, 'hasApiKey'>>): Promise<AppSettings>
+  updateSettings(patch: Partial<Omit<AppSettings, 'hasApiKey' | 'hasElevenLabsKey'>>): Promise<AppSettings>
+  setElevenLabsKey(key: string | null): Promise<AppSettings>
   getObserveStatus(): Promise<ObserveStatus>
   setObserveEnabled(enabled: boolean): Promise<ObserveStatus>
   /** Adds status hooks to ~/.claude/settings.json (after backing it up). */
@@ -152,6 +158,20 @@ export interface HarnessApi {
   eventSetup(dir: string): Promise<EventState>
   eventUpdate(patch: EventProgressPatch): Promise<EventState>
   onEvent(cb: (state: EventState) => void): () => void
+  challengeAdd(c: { partner: string; title: string; description: string; link?: string }): Promise<EventState>
+  challengeUpdate(id: string, patch: ChallengePatch): Promise<EventState>
+  challengeDelete(id: string): Promise<EventState>
+  /** Marks it chosen, writes challenge/brief/00-chosen-challenge.md and names it in hackforge.yaml. */
+  challengeChoose(id: string): Promise<EventState>
+  pitchState(): Promise<PitchState>
+  /** Creates pitch/ (Remotion template + a starter script.json) in the event project. */
+  pitchScaffold(eventName: string): Promise<PitchState>
+  pitchSave(script: PitchScript): Promise<PitchState>
+  pitchInstall(): Promise<PitchState>
+  /** Generates ElevenLabs narration for scenes whose audio is missing or out of date. */
+  pitchNarrate(): Promise<PitchState>
+  pitchVoices(): Promise<Voice[]>
+  onPitch(cb: (state: PitchState) => void): () => void
   teamState(): Promise<TeamState>
   /** New team: host the relay on this computer, or use a relay server URL. */
   teamCreate(opts: { name: string; host: boolean; relayUrl?: string }): Promise<TeamState>
@@ -218,6 +238,10 @@ export const IPC = {
   eventSetup: 'event:setup',
   eventUpdate: 'event:update',
   eventPush: 'event:push',
+  challengeAdd: 'challenge:add',
+  challengeUpdate: 'challenge:update',
+  challengeDelete: 'challenge:delete',
+  challengeChoose: 'challenge:choose',
   teamState: 'team:state',
   teamCreate: 'team:create',
   teamJoin: 'team:join',
@@ -225,5 +249,13 @@ export const IPC = {
   teamUpdate: 'team:update',
   teamSetLocal: 'team:set-local',
   teamPush: 'team:push',
+  setElevenLabsKey: 'settings:elevenlabs-key',
+  pitchState: 'pitch:state',
+  pitchScaffold: 'pitch:scaffold',
+  pitchSave: 'pitch:save',
+  pitchInstall: 'pitch:install',
+  pitchNarrate: 'pitch:narrate',
+  pitchVoices: 'pitch:voices',
+  pitchPush: 'pitch:push',
   events: 'events',
 } as const

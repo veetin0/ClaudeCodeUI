@@ -122,6 +122,37 @@ Harness suggests who should take the next milestone (the person with the most us
 
 ![Team board](docs/screenshots/team-board.png)
 
+### Challenge board
+
+The **Challenges** tab in event mode. At the opening ceremony, use **Paste all** with the challenge page's text, and Claude splits it into one file per challenge in `challenges/` (outside `challenge/`, so HackForge only ever reads the one you pick).
+
+- **Analyze all with Claude** researches each partner and adds a summary, an idea with its demo moment, the partner technology it would run on, risks, and scores for six weighted criteria: partner value 25 %, team fit 20 %, feasible in ~40 h 20 %, demo wow 15 %, theme 10 %, less competition 10 %.
+- Click the dots to give your own scores. They override Claude's, which show as rings.
+- Each challenge has mentor notes, plus **Research partner**, **Shortlist** and **Drop**.
+- **Choose** writes `challenge/brief/00-chosen-challenge.md` (description, mentor notes, starting idea) for HackForge, names the challenge in `hackforge.yaml`, and ticks "Challenge chosen" on the preliminary checklist.
+
+Prompts sent from event mode go to a Claude session in the event project while you stay on the board. If Claude needs approval (e.g. for web search), the notice turns amber.
+
+![Challenge board](docs/screenshots/challenges.png)
+
+### Pitch studio
+
+The **Pitch** tab creates `pitch/`, a Remotion video driven by `pitch/script.json`:
+- **Scenes:** title, bullet points, big statement, demo clip or screenshot, and end card, with a progress bar.
+- **Starter script:** the stage arc (the inherited model → our flip → live demo → how it works → why it matters).
+
+- **Write script with Claude** writes the script from `.hackforge/` (decision, plan, demo, verify) to fit the time limit.
+- **Narration with ElevenLabs:** pick a voice, then **Generate narration**. Only scenes whose text or voice changed are regenerated (files are content-hashed, so there are no repeat charges), and the video times each scene to its real audio length.
+- **Editor:** the length is shown against the time limit; edits save to `script.json` automatically.
+- **Rehearse:** a full-screen teleprompter with the video's timing, per-scene countdowns and the overall clock.
+- **Preview & render:** opens Remotion Studio and Render on the Preview tab. The output is `pitch/out/pitch.mp4`.
+
+The ElevenLabs key is stored in the Keychain, or read from `ELEVENLABS_API_KEY`.
+
+![Pitch studio](docs/screenshots/pitch-studio.png)
+
+![Scenes from the pitch video template](docs/screenshots/pitch-video.png)
+
 ## Everyday polish
 
 - **Native menu** with every command and its shortcut. It also makes ⌘C/⌘V/⌘Z work everywhere.

@@ -23,6 +23,7 @@ import { SettingsStore } from './system/settings'
 import { HackforgeService } from './hackforge/HackforgeService'
 import { EventService } from './event/EventService'
 import { newMemberId, TeamService } from './team/TeamService'
+import { PitchService } from './pitch/PitchService'
 import { readHackforge } from './hackforge/HackforgeService'
 import { hackforgeGuide } from '@shared/hackforge'
 
@@ -44,6 +45,7 @@ let store: SessionStore
 let agents: AgentService
 let presence: Presence
 let team: TeamService
+let pitch: PitchService
 const eventService = new EventService(
   () => settings?.get().eventProject ?? undefined,
   (state) => {
@@ -209,6 +211,20 @@ function registerIpc() {
     return eventService.setup(dir)
   })
   ipcMain.handle(IPC.eventUpdate, (_e, patch) => eventService.updateProgress(patch))
+  ipcMain.handle(IPC.challengeAdd, (_e, c) => eventService.addChallenge(c))
+  ipcMain.handle(IPC.challengeUpdate, (_e, id: string, patch) => eventService.updateChallenge(id, patch))
+  ipcMain.handle(IPC.challengeDelete, (_e, id: string) => eventService.deleteChallenge(id))
+  ipcMain.handle(IPC.challengeChoose, (_e, id: string) => eventService.chooseChallenge(id))
+  ipcMain.handle(IPC.setElevenLabsKey, (_e, key: string | null) => {
+    settings.setElevenLabsKey(key)
+    return settings.get()
+  })
+  ipcMain.handle(IPC.pitchState, () => pitch.state())
+  ipcMain.handle(IPC.pitchScaffold, (_e, name: string) => pitch.scaffold(name))
+  ipcMain.handle(IPC.pitchSave, (_e, script) => pitch.saveScript(script))
+  ipcMain.handle(IPC.pitchInstall, () => pitch.install())
+  ipcMain.handle(IPC.pitchNarrate, () => pitch.narrate())
+  ipcMain.handle(IPC.pitchVoices, () => pitch.voices())
   ipcMain.handle(IPC.teamState, () => team.state())
   ipcMain.handle(IPC.teamCreate, (_e, opts: { name: string; host: boolean; relayUrl?: string }) => team.create(opts))
   ipcMain.handle(IPC.teamJoin, (_e, code: string, name: string) => team.join(code, name))
@@ -294,6 +310,14 @@ async function start() {
     },
   })
   team.start()
+  pitch = new PitchService({
+    projectDir: () => settings.get().eventProject ?? undefined,
+    elevenLabsKey: () => settings.getElevenLabsKey(),
+    templateDir: join(app.getAppPath(), 'resources', 'pitch-template'),
+    push: (state) => {
+      for (const w of BrowserWindow.getAllWindows()) w.webContents.send(IPC.pitchPush, state)
+    },
+  })
   registerIpc()
   createWindow()
 
@@ -310,6 +334,7 @@ app.on('before-quit', () => {
   hackforge.dispose()
   eventService.dispose()
   team?.dispose()
+  pitch?.dispose()
   observer?.stop()
   hookBridge?.stop()
   store?.close()

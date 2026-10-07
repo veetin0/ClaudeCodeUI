@@ -51,6 +51,8 @@ export interface EventConfig {
   checklist: ChecklistItem[]
 }
 
+import type { Challenge } from './challenges'
+
 /** Shared, git-synced progress for an event project (challenge/event-checklist.json). */
 export interface EventProgress {
   done: Record<string, boolean>
@@ -67,6 +69,8 @@ export interface EventState {
   /** The project has been set up for the event (challenge/event.yaml exists). */
   projectReady: boolean
   progress: EventProgress
+  /** Candidate challenges from challenges/*.md, unsorted. */
+  challenges: Challenge[]
 }
 
 export const CHECKLIST_GROUPS: Record<ChecklistGroup, string> = {

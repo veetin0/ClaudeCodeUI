@@ -102,7 +102,7 @@ interface AppState {
   toggleTerminalPanel(): void
   setTerminalHeight(h: number): void
   saveApiKey(key: string | null): Promise<void>
-  updateSettings(patch: Partial<Omit<AppSettings, 'hasApiKey'>>): Promise<void>
+  updateSettings(patch: Partial<Omit<AppSettings, 'hasApiKey' | 'hasElevenLabsKey'>>): Promise<void>
 }
 
 const api = () => window.harness

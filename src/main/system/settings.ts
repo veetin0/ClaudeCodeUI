@@ -3,9 +3,11 @@ import { existsSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import type { AppSettings } from '@shared/ipc'
 
-interface StoredSettings extends Omit<AppSettings, 'hasApiKey'> {
+interface StoredSettings extends Omit<AppSettings, 'hasApiKey' | 'hasElevenLabsKey'> {
   /** API key encrypted with the macOS Keychain-backed safeStorage, base64. */
   apiKeyEnc?: string
+  /** ElevenLabs key for pitch narration, encrypted the same way. */
+  elevenLabsKeyEnc?: string
 }
 
 const DEFAULTS: StoredSettings = {
@@ -36,11 +38,11 @@ export class SettingsStore {
   }
 
   get(): AppSettings {
-    const { apiKeyEnc, ...rest } = this.data
-    return { ...rest, hasApiKey: Boolean(apiKeyEnc) }
+    const { apiKeyEnc, elevenLabsKeyEnc, ...rest } = this.data
+    return { ...rest, hasApiKey: Boolean(apiKeyEnc), hasElevenLabsKey: Boolean(elevenLabsKeyEnc) }
   }
 
-  update(patch: Partial<Omit<AppSettings, 'hasApiKey'>>): AppSettings {
+  update(patch: Partial<Omit<AppSettings, 'hasApiKey' | 'hasElevenLabsKey'>>): AppSettings {
     this.data = { ...this.data, ...patch }
     this.save()
     return this.get()
@@ -65,6 +67,24 @@ export class SettingsStore {
     } catch {
       return undefined
     }
+  }
+
+  setElevenLabsKey(key: string | null) {
+    if (!key) delete this.data.elevenLabsKeyEnc
+    else if (safeStorage.isEncryptionAvailable()) this.data.elevenLabsKeyEnc = safeStorage.encryptString(key.trim()).toString('base64')
+    else throw new Error('Secure storage is unavailable; set ELEVENLABS_API_KEY in your shell instead.')
+    this.save()
+  }
+
+  getElevenLabsKey(): string | undefined {
+    if (this.data.elevenLabsKeyEnc) {
+      try {
+        return safeStorage.decryptString(Buffer.from(this.data.elevenLabsKeyEnc, 'base64'))
+      } catch {
+        // Fall through to the environment.
+      }
+    }
+    return process.env.ELEVENLABS_API_KEY || undefined
   }
 
   private save() {

@@ -1,0 +1,15 @@
+{
+  "name": "pitch",
+  "private": true,
+  "description": "Narrated pitch video. Edit script.json in Harness (event mode → Pitch) or by hand.",
+  "scripts": {
+    "studio": "remotion studio",
+    "render": "remotion render Pitch out/pitch.mp4"
+  },
+  "dependencies": {
+    "@remotion/cli": "4.0.533",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "remotion": "4.0.533"
+  }
+}

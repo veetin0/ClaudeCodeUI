@@ -16,11 +16,15 @@ import { basename, cn } from '@/lib/format'
 import { useApp } from '@/stores/app'
 import { useEvent, useEventState, useNow } from '@/stores/event'
 import { TeamPanel } from './TeamPanel'
+import { ChallengeBoard, Notice } from './ChallengeBoard'
+import { PitchStudio } from './PitchStudio'
+import type { EventTab } from '@/stores/event'
 
 /** The hackathon war room: clock, weekend timeline, agenda, project setup, checklists, partners. */
 export function EventView() {
   const state = useEventState()
   const error = useEvent((s) => s.error)
+  const tab = useEvent((s) => s.tab)
   const now = useNow(1000)
   if (!state) return <div className="flex flex-1 items-center justify-center text-[12px] text-muted">Loading event…</div>
   const { config } = state
@@ -57,21 +61,58 @@ export function EventView() {
 
         {error && <div className="selectable rounded-lg border border-red-500/40 bg-red-500/5 px-3 py-2 text-[12px] text-red-600">{error}</div>}
 
-        <Countdown state={state} now={now} />
-        <TeamPanel timezone={config.timezone} now={now} suggestedNames={config.team} />
-        <Weekend state={state} now={now} />
-        <ProjectCard state={state} />
-        <div className="grid gap-4 lg:grid-cols-2">
-          {(['prep', 'logistics', 'preliminary', 'final'] as ChecklistGroup[]).map((g) => (
-            <Checklist key={g} group={g} state={state} now={now} />
-          ))}
-        </div>
-        <Partners state={state} />
-        <p className="pb-2 text-[11px] text-muted">
-          Settings come from {state.source === 'project' ? <code>challenge/event.yaml</code> : 'the built-in preset'}. Checklist ticks are saved to{' '}
-          <code>challenge/event-checklist.json</code>: commit and pull it so the whole team sees the same progress.
-        </p>
+        <Tabs state={state} />
+        <Notice />
+        {tab === 'challenges' ? (
+          <ChallengeBoard state={state} />
+        ) : tab === 'pitch' ? (
+          <PitchStudio event={state} />
+        ) : (
+          <>
+            <Countdown state={state} now={now} />
+            <TeamPanel timezone={config.timezone} now={now} suggestedNames={config.team} />
+            <Weekend state={state} now={now} />
+            <ProjectCard state={state} />
+            <div className="grid gap-4 lg:grid-cols-2">
+              {(['prep', 'logistics', 'preliminary', 'final'] as ChecklistGroup[]).map((g) => (
+                <Checklist key={g} group={g} state={state} now={now} />
+              ))}
+            </div>
+            <Partners state={state} />
+            <p className="pb-2 text-[11px] text-muted">
+              Settings come from {state.source === 'project' ? <code>challenge/event.yaml</code> : 'the built-in preset'}. Checklist ticks are saved to{' '}
+              <code>challenge/event-checklist.json</code>: commit and pull it so the whole team sees the same progress.
+            </p>
+          </>
+        )}
       </div>
+    </div>
+  )
+}
+
+function Tabs({ state }: { state: EventState }) {
+  const { tab, setTab } = useEvent()
+  const chosen = state.challenges.find((c) => c.status === 'chosen')
+  const tabs: { id: EventTab; label: string; badge?: string }[] = [
+    { id: 'overview', label: 'Overview' },
+    { id: 'challenges', label: 'Challenges', badge: chosen ? '★' : state.challenges.length ? String(state.challenges.length) : undefined },
+    { id: 'pitch', label: 'Pitch' },
+  ]
+  return (
+    <div className="flex gap-1 border-b border-line">
+      {tabs.map((t) => (
+        <button
+          key={t.id}
+          onClick={() => setTab(t.id)}
+          className={cn(
+            '-mb-px flex items-center gap-1.5 border-b-2 px-3 py-1.5 text-[12.5px]',
+            tab === t.id ? 'border-[var(--accent)] font-medium text-fg' : 'border-transparent text-muted hover:text-fg',
+          )}
+        >
+          {t.label}
+          {t.badge && <span className="rounded-full bg-surface-2 px-1.5 text-[10.5px] tabular-nums">{t.badge}</span>}
+        </button>
+      ))}
     </div>
   )
 }

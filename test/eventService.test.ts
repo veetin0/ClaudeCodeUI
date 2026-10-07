@@ -54,6 +54,41 @@ describe('EventService', () => {
     svc.dispose()
   })
 
+  it('adds, patches, chooses and deletes challenges', async () => {
+    const d = tmp()
+    const svc = new EventService(() => d, () => {})
+    await svc.setup(d)
+    let s = await svc.addChallenge({ partner: 'OpenAI', title: 'Agents for good', description: 'Build agents.' })
+    s = await svc.addChallenge({ partner: 'OpenAI', title: 'Agents for good', description: 'Duplicate title.' })
+    s = await svc.addChallenge({ partner: 'Aalto University', title: 'Smart grids', description: 'Balance it.' })
+    expect(s.challenges.map((c) => c.id)).toEqual(['aalto-university-smart-grids', 'openai-agents-for-good', 'openai-agents-for-good-2'])
+
+    // Claude adds an analysis directly in the file; a later UI patch must keep it.
+    const file = join(d, 'challenges', 'openai-agents-for-good.md')
+    writeFileSync(file, readFileSync(file, 'utf8').replace('status: candidate', 'status: candidate\nai:\n  idea: "Voice permits"\n  scores: { wow: 5 }'))
+    s = await svc.updateChallenge('openai-agents-for-good', { scores: { fit: 4 }, notes: '- mentor likes voice' })
+    const c = s.challenges.find((x) => x.id === 'openai-agents-for-good')!
+    expect(c).toMatchObject({ scores: { fit: 4 }, notes: '- mentor likes voice', ai: { idea: 'Voice permits', scores: { wow: 5 } } })
+    s = await svc.updateChallenge('openai-agents-for-good', { scores: { fit: null } })
+    expect(s.challenges.find((x) => x.id === 'openai-agents-for-good')!.scores).toEqual({})
+
+    await svc.chooseChallenge('aalto-university-smart-grids')
+    s = await svc.chooseChallenge('openai-agents-for-good')
+    expect(s.challenges.map((x) => [x.id, x.status])).toEqual([
+      ['aalto-university-smart-grids', 'shortlist'],
+      ['openai-agents-for-good', 'chosen'],
+      ['openai-agents-for-good-2', 'candidate'],
+    ])
+    expect(readFileSync(join(d, 'challenge', 'brief', '00-chosen-challenge.md'), 'utf8')).toMatch(/^# Our challenge: Agents for good \(OpenAI\)[\s\S]*mentor likes voice[\s\S]*Voice permits/)
+    expect(YAML.parse(readFileSync(join(d, 'challenge', 'hackforge.yaml'), 'utf8')).challenge).toBe('OpenAI: Agents for good')
+    expect(s.progress.done['p-challenge']).toBe(true)
+
+    s = await svc.deleteChallenge('openai-agents-for-good-2')
+    expect(s.challenges).toHaveLength(2)
+    await expect(svc.updateChallenge('../../etc/passwd', { title: 'x' })).rejects.toThrow(/Invalid challenge id/)
+    svc.dispose()
+  })
+
   it('writes a fresh hackforge.yaml when there is none', () => {
     const y = mergeHackforgeYaml(undefined, { team: 4, models: { build: 'sonnet' }, checkpoints: ['decision'] })
     expect(YAML.parse(y)).toEqual({ team: 4, models: { build: 'sonnet' }, checkpoints: ['decision'] })
