@@ -14,6 +14,8 @@ export function handleFileScheme() {
   protocol.handle(FILE_SCHEME, (req) => {
     let path = decodeURI(new URL(req.url).pathname)
     if (path.startsWith('/~/')) path = homedir() + path.slice(2)
+    // Windows: "/C:/x/y.mp4" → "C:/x/y.mp4"
+    else if (/^\/[A-Za-z]:\//.test(path)) path = path.slice(1)
     if (!MEDIA_EXTENSIONS.includes(extname(path).toLowerCase())) return new Response('Forbidden', { status: 403 })
     // Pass Range through so <video> can seek.
     return net.fetch(pathToFileURL(path).toString(), { headers: req.headers })

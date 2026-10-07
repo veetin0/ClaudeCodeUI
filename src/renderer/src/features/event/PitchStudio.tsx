@@ -167,7 +167,7 @@ function VoiceRow() {
     return (
       <section className="flex flex-wrap items-center gap-2 rounded-2xl border border-line p-3 text-[12px]">
         <KeyRound className="size-4 text-muted" />
-        <span>Add your ElevenLabs API key for narration (stored in the macOS Keychain).</span>
+        <span>Add your ElevenLabs API key for narration (stored in your system keychain).</span>
         <input type="password" value={key} onChange={(e) => setKeyText(e.target.value)} placeholder="xi-…" className={cn(field, 'w-64')} />
         <button disabled={!key.trim()} onClick={() => void setKey(key.trim())} className="rounded-md bg-[var(--accent)] px-3 py-1.5 font-medium text-white hover:brightness-110 disabled:opacity-40">
           Save key

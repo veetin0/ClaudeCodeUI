@@ -3,6 +3,7 @@ import { useEffect, useLayoutEffect, useRef } from 'react'
 import { cn } from '@/lib/format'
 import { useApp } from '@/stores/app'
 import { disposeTerminal, getTerminal } from './xtermRegistry'
+import { shortcut } from '@/lib/keys'
 
 /** Bottom panel of real terminals (⌘J). "Claude" opens the interactive CLI, which observe mode then visualizes. */
 export function TerminalPanel() {
@@ -60,7 +61,7 @@ export function TerminalPanel() {
         >
           <span className="text-[var(--accent)]">✳︎</span> Claude
         </button>
-        <button onClick={toggleTerminalPanel} className="ml-auto rounded p-1 text-muted hover:bg-surface-2 hover:text-fg" title="Hide (⌘J)">
+        <button onClick={toggleTerminalPanel} className="ml-auto rounded p-1 text-muted hover:bg-surface-2 hover:text-fg" title={shortcut('Hide (⌘J)')}>
           <X className="size-3.5" />
         </button>
       </div>

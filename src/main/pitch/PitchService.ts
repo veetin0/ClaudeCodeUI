@@ -1,4 +1,4 @@
-import { spawn } from 'node:child_process'
+import { spawnTool } from '../system/proc'
 import { existsSync, watch, type FSWatcher } from 'node:fs'
 import { mkdir, readdir, readFile, rm, stat, writeFile } from 'node:fs/promises'
 import { dirname, join, relative } from 'node:path'
@@ -53,11 +53,10 @@ async function elevenError(res: Response): Promise<string> {
 
 function defaultInstall(cwd: string, onLine: (l: string) => void): Promise<number> {
   return new Promise((resolve) => {
-    const npm = process.platform === 'win32' ? 'npm.cmd' : 'npm'
-    const p = spawn(npm, ['install', '--no-audit', '--no-fund'], { cwd, env: process.env })
+    const p = spawnTool('npm', ['install', '--no-audit', '--no-fund'], { cwd, env: process.env })
     const feed = (d: Buffer) => d.toString().split(/\r?\n/).filter(Boolean).forEach(onLine)
-    p.stdout.on('data', feed)
-    p.stderr.on('data', feed)
+    p.stdout?.on('data', feed)
+    p.stderr?.on('data', feed)
     p.on('error', (e) => {
       onLine(e.message)
       resolve(1)

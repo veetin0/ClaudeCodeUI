@@ -8,6 +8,7 @@ import { dateGroup, relativeTime } from '@/lib/time'
 import { useApp } from '@/stores/app'
 import type { SessionState } from '@/stores/reducer'
 import { StatusDot, STATUS_LABEL } from './StatusDot'
+import { isMac, shortcut } from '@/lib/keys'
 
 export function Sidebar() {
   const { order, sessions, history, activeId, settings, select, closeSession, openProject, startSession, openSaved, deleteSaved, setSettingsOpen } =
@@ -35,7 +36,8 @@ export function Sidebar() {
 
   return (
     <aside className="flex w-64 shrink-0 flex-col">
-      <div className="drag h-12 shrink-0" />
+      {/* Room for the macOS traffic lights; Windows has a normal title bar above. */}
+      <div className={isMac ? 'drag h-12 shrink-0' : 'h-3 shrink-0'} />
       <div className="px-3">
         <button
           onClick={() => void openProject()}
@@ -43,7 +45,7 @@ export function Sidebar() {
         >
           <Plus className="size-4 text-[var(--accent)]" />
           New session
-          <kbd className="ml-auto text-[11px] text-muted">⌘O</kbd>
+          <kbd className="ml-auto text-[11px] text-muted">{shortcut('⌘O')}</kbd>
         </button>
         <EventEntry />
       </div>
@@ -205,7 +207,7 @@ function EventEntry() {
   return (
     <button
       onClick={() => setEventOpen(!open)}
-      title="Event mode (⌘6)"
+      title={shortcut('Event mode (⌘6)')}
       className={cn(
         'no-drag mt-1 flex w-full items-center gap-2 rounded-lg px-2.5 py-1.5 text-left hover:bg-black/5 dark:hover:bg-white/5',
         open && 'bg-black/[0.07] dark:bg-white/10',
@@ -216,7 +218,7 @@ function EventEntry() {
         <span className="block truncate font-medium">{state.config.name}</span>
         <span className={cn('block truncate text-[11px] tabular-nums', urgent ? 'font-medium text-red-500' : 'text-muted')}>{sub}</span>
       </span>
-      <kbd className="text-[11px] text-muted">⌘6</kbd>
+      <kbd className="text-[11px] text-muted">{shortcut('⌘6')}</kbd>
     </button>
   )
 }

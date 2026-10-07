@@ -2,6 +2,7 @@ import { execFile } from 'node:child_process'
 import { existsSync } from 'node:fs'
 import { readFile, stat, unlink, writeFile } from 'node:fs/promises'
 import { relative } from 'node:path'
+import { normPath } from '@shared/paths'
 import { promisify } from 'node:util'
 import { diffLines } from 'diff'
 import type { FileChange, HarnessEvent } from '@shared/events'
@@ -54,6 +55,7 @@ export class ChangeTracker {
 
   /** Call before an agent writes `path`. Keeps the first snapshot only. */
   async beforeEdit(path: string) {
+    path = normPath(path)
     if (this.snapshots.has(path)) return
     const original = await readText(path)
     if (original === undefined) return
@@ -62,6 +64,7 @@ export class ChangeTracker {
 
   /** A file changed on disk without a prior snapshot: try git for a baseline. */
   async onDiskChange(path: string, change: 'created' | 'modified' | 'deleted') {
+    path = normPath(path)
     // Created and deleted within the session (e.g. an atomic-write temp file): nothing to track.
     if (change === 'deleted' && this.snapshots.get(path) === null) return this.forget(path)
     if (!this.snapshots.has(path)) {
@@ -78,6 +81,7 @@ export class ChangeTracker {
   }
 
   async diff(path: string): Promise<FileDiff> {
+    path = normPath(path)
     const current = (await readText(path)) ?? null
     if (this.snapshots.has(path)) return { path, original: this.snapshots.get(path) ?? null, current, hasBaseline: true }
     const fromGit = await this.gitHead(path)
@@ -85,6 +89,7 @@ export class ChangeTracker {
   }
 
   async revert(path: string) {
+    path = normPath(path)
     if (!this.snapshots.has(path)) throw new Error('No saved original for this file.')
     const original = this.snapshots.get(path)
     if (original === null) {
@@ -96,6 +101,7 @@ export class ChangeTracker {
   }
 
   accept(path: string) {
+    path = normPath(path)
     this.forget(path)
   }
 
@@ -150,7 +156,7 @@ export class ChangeTracker {
     const rel = relative(this.cwd, path)
     if (rel.startsWith('..')) return undefined
     try {
-      const { stdout } = await run('git', ['show', `HEAD:./${rel}`], { cwd: this.cwd, maxBuffer: MAX_BYTES, encoding: 'utf8' })
+      const { stdout } = await run('git', ['show', `HEAD:./${rel.replace(/\\/g, '/')}`], { cwd: this.cwd, maxBuffer: MAX_BYTES, encoding: 'utf8' })
       return stdout.includes('\0') ? undefined : stdout
     } catch {
       return undefined

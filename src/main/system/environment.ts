@@ -30,7 +30,9 @@ export function resolveClaudeExecutable(): string | undefined {
   try {
     const require = createRequire(import.meta.url)
     const pkg = require.resolve(`@anthropic-ai/claude-agent-sdk-${process.platform}-${process.arch}/package.json`)
-    const bin = join(dirname(pkg), 'claude').replace(`app.asar${'/'}`, `app.asar.unpacked/`)
+    const name = process.platform === 'win32' ? 'claude.exe' : 'claude'
+    // Either separator: Windows paths use backslashes.
+    const bin = join(dirname(pkg), name).replace(/app\.asar([\\/])/, 'app.asar.unpacked$1')
     return existsSync(bin) ? bin : undefined
   } catch {
     return undefined

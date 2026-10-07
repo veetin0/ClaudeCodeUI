@@ -4,6 +4,7 @@ import { useEventState, useNow } from '@/stores/event'
 import { basename, formatCost } from '@/lib/format'
 import { relativeTime } from '@/lib/time'
 import { useApp } from '@/stores/app'
+import { shortcut } from '@/lib/keys'
 
 export function Welcome() {
   const { settings, history, openProject, openSaved, startSession, startError, setSettingsOpen, setView } = useApp()
@@ -21,7 +22,7 @@ export function Welcome() {
           className="mt-6 inline-flex items-center gap-2 rounded-lg bg-[var(--accent)] px-4 py-2 font-medium text-white hover:brightness-110"
         >
           <FolderOpen className="size-4" />
-          Open project… <kbd className="opacity-70">⌘O</kbd>
+          Open project… <kbd className="opacity-70">{shortcut('⌘O')}</kbd>
         </button>
         {settings?.hackforgeMode !== 'off' && (
           <button
@@ -110,7 +111,7 @@ function EventCard() {
           event mode
         </span>
       </span>
-      <kbd className="text-[11px] text-muted">⌘6</kbd>
+      <kbd className="text-[11px] text-muted">{shortcut('⌘6')}</kbd>
     </button>
   )
 }

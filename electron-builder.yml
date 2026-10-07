@@ -9,14 +9,14 @@ files:
   - package.json
   # Icons the main process loads at runtime (tray, window).
   - resources/**
-  # Only the glibc/macOS Claude Code binary is ever used.
+  # Only the glibc/macOS/Windows Claude Code binaries are ever used.
   - '!node_modules/@anthropic-ai/claude-agent-sdk-*-musl/**'
 asarUnpack:
   # The Claude Code binary ships inside platform packages and must run from disk.
   - node_modules/@anthropic-ai/claude-agent-sdk*/**
   # node-pty's native addon and macOS spawn-helper must be real files.
   - node_modules/node-pty/**
-# node-pty ships N-API prebuilds for macOS; no recompiling (and no Xcode) needed.
+# node-pty ships N-API prebuilds for macOS and Windows; no recompiling (no Xcode / Visual Studio) needed.
 npmRebuild: false
 mac:
   category: public.app-category.developer-tools
@@ -39,8 +39,21 @@ mac:
 dmg:
   title: Harness ${version}
   writeUpdateInfo: false
+win:
+  # Build on Windows (`npm run build:win`) so npm installs the Windows Claude Code binary package.
+  icon: build/icon.png
+  target:
+    - target: nsis
+      arch: [x64]
+  # Unsigned builds work; Windows SmartScreen shows "More info → Run anyway" the first time.
+nsis:
+  oneClick: false
+  perMachine: false
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: true
+  artifactName: Harness-Setup-${version}.${ext}
 linux:
-  # Only used to smoke-test packaging on CI/Linux; the product targets macOS.
+  # Only used to smoke-test packaging on CI/Linux; the product targets macOS and Windows.
   target: dir
   icon: build/icon.png
   category: Development

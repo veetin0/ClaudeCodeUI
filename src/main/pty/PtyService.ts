@@ -3,6 +3,7 @@ import { existsSync } from 'node:fs'
 import { homedir } from 'node:os'
 import type { WebContents } from 'electron'
 import { spawn, type IPty } from 'node-pty'
+import { terminalShell } from '../system/proc'
 import { IPC, type PtyOptions } from '@shared/ipc'
 import { agentEnv } from '../system/environment'
 
@@ -17,10 +18,8 @@ export class PtyService {
 
   create(owner: WebContents, opts: PtyOptions): string {
     const id = randomUUID()
-    const shell = process.env.SHELL || (process.platform === 'darwin' ? '/bin/zsh' : '/bin/bash')
-    // A command runs inside a login shell so PATH, aliases and nvm etc. behave as in Terminal.app.
-    const args = opts.command ? ['-l', '-c', opts.command] : ['-l']
-    const pty = spawn(shell, args, {
+    const { file, args } = terminalShell(opts.command)
+    const pty = spawn(file, args, {
       name: 'xterm-256color',
       cols: Math.max(2, opts.cols),
       rows: Math.max(2, opts.rows),

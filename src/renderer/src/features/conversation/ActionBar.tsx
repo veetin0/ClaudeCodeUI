@@ -6,6 +6,7 @@ import { useApp } from '@/stores/app'
 import type { SessionState } from '@/stores/reducer'
 import { useHackforge } from '@/stores/hackforge'
 import { HACKFORGE_ACTIONS, HACKFORGE_SETUP } from '@/lib/hackforgeActions'
+import { shortcut } from '@/lib/keys'
 
 /**
  * Buttons in place of typing /commands: each opens a small form prefilled with example
@@ -187,7 +188,7 @@ function ActionForm({ action, cwd, onClose }: { action: QuickAction; cwd: string
 
       <div className="mt-3 flex items-center gap-2">
         <button onClick={run} className="flex items-center gap-1.5 rounded-md bg-[var(--accent)] px-3 py-1.5 text-[12px] font-medium text-white hover:brightness-110">
-          <Play className="size-3.5 fill-current" /> Run <kbd className="opacity-70">⌘⏎</kbd>
+          <Play className="size-3.5 fill-current" /> Run <kbd className="opacity-70">{shortcut('⌘⏎')}</kbd>
         </button>
         <button
           onClick={() => {

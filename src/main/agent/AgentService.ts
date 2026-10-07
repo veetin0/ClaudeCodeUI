@@ -4,6 +4,7 @@ import { join } from 'node:path'
 import { query, type CanUseTool, type Query, type SDKRateLimitInfo, type SDKUserMessage } from '@anthropic-ai/claude-agent-sdk'
 import { EXEC_TOOLS, type AgentId, type HarnessEvent, type PermissionMode, type SessionStatus, type TodoItem } from '@shared/events'
 import { toVisual } from '@shared/visuals'
+import { normPath } from '@shared/paths'
 import type { PermissionDecision, SessionSummary, StartSessionOptions } from '@shared/ipc'
 import type { EventBus } from '../events/bus'
 import { EventNormalizer } from '../events/normalizer'
@@ -242,8 +243,8 @@ class AgentSession {
       const change = !exists ? 'deleted' : this.knownFiles.has(path) ? 'modified' : 'created'
       if (exists) this.knownFiles.add(path)
       else this.knownFiles.delete(path)
-      this.emit({ type: 'file.change', path, change, sessionId: this.id, ts: Date.now() })
-      void this.tracker?.onDiskChange(path, change)
+      this.emit({ type: 'file.change', path: normPath(path), change, sessionId: this.id, ts: Date.now() })
+      void this.tracker?.onDiskChange(normPath(path), change)
     })
   }
 

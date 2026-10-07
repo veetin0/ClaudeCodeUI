@@ -1,4 +1,4 @@
-import { app, BrowserWindow, dialog, ipcMain, shell } from 'electron'
+import { app, BrowserWindow, dialog, ipcMain, nativeTheme, shell } from 'electron'
 import { homedir } from 'node:os'
 import { join } from 'node:path'
 import { IPC, type ObserveStatus, type PermissionDecision, type PtyOptions, type StartSessionOptions } from '@shared/ipc'
@@ -56,6 +56,14 @@ const hackforge = new HackforgeService(claudeSettingsPath, (snap) => {
   for (const w of BrowserWindow.getAllWindows()) w.webContents.send(IPC.hackforgeUpdate, snap)
 })
 
+/** macOS: inset traffic lights over a translucent sidebar. Windows/Linux: the standard frame and menu bar. */
+function windowChrome(): Electron.BrowserWindowConstructorOptions {
+  if (process.platform === 'darwin') {
+    return { titleBarStyle: 'hiddenInset', trafficLightPosition: { x: 16, y: 16 }, vibrancy: 'sidebar', visualEffectState: 'followWindow', backgroundColor: '#00000000' }
+  }
+  return { backgroundColor: nativeTheme.shouldUseDarkColors ? '#1c1c1e' : '#f4f3f1', autoHideMenuBar: false }
+}
+
 function createWindow() {
   const win = new BrowserWindow({
     width: 1440,
@@ -64,11 +72,7 @@ function createWindow() {
     minHeight: 600,
     title: 'Harness',
     icon: appIcon,
-    titleBarStyle: 'hiddenInset',
-    trafficLightPosition: { x: 16, y: 16 },
-    vibrancy: 'sidebar',
-    visualEffectState: 'followWindow',
-    backgroundColor: '#00000000',
+    ...windowChrome(),
     show: false,
     webPreferences: {
       preload: join(import.meta.dirname, '../preload/index.cjs'),
@@ -244,6 +248,8 @@ app.whenReady().then(start).catch((err: unknown) => {
 })
 
 async function start() {
+  // Windows only shows notifications for apps with an AppUserModelID (matches appId in electron-builder.yml).
+  if (process.platform === 'win32') app.setAppUserModelId('dev.harness.app')
   handleFileScheme()
   await telemetry.start()
   settings = new SettingsStore()

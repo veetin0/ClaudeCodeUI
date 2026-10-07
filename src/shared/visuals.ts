@@ -53,14 +53,19 @@ export const MEDIA_EXTENSIONS = [...IMAGE_EXTENSIONS, '.mp4', '.webm', '.mov', '
 /** URL scheme the main process serves local media files on (see main/system/fileProtocol.ts). */
 export const FILE_SCHEME = 'harness-file'
 
+/** Windows `C:\x\y.mp4` becomes `/C:/x/y.mp4` so it forms a valid URL path. */
 export function fileUrl(path: string): string {
-  return `${FILE_SCHEME}://local${encodeURI(path)}`
+  const p = path.replace(/\\/g, '/')
+  return `${FILE_SCHEME}://local${encodeURI(/^[A-Za-z]:\//.test(p) ? `/${p}` : p)}`
 }
 
+/** Absolute on any OS: `/x`, `C:\x`, `C:/x` or a `\\server` share. */
+export const isAbsolutePath = (p: string) => /^(?:\/|[A-Za-z]:[\\/]|\\\\)/.test(p)
+
 function resolvePath(p: string, cwd: string): string {
-  if (p.startsWith('/')) return p
+  if (isAbsolutePath(p)) return p
   if (p.startsWith('~/')) return p // left as-is; the file protocol expands it
-  return `${cwd.replace(/\/$/, '')}/${p.replace(/^\.\//, '')}`
+  return `${cwd.replace(/[\\/]$/, '')}/${p.replace(/^\.[\\/]/, '')}`
 }
 
 const isNum = (v: unknown): v is number => typeof v === 'number' && Number.isFinite(v)

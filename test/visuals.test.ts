@@ -1,3 +1,4 @@
+import { fileUrl, isAbsolutePath } from '@shared/visuals'
 import { describe, expect, it } from 'vitest'
 import type { SDKMessage } from '@anthropic-ai/claude-agent-sdk'
 import type { HarnessEvent } from '@shared/events'
@@ -96,5 +97,17 @@ describe('quick actions', () => {
       expect(filled).not.toMatch(/\{\w+\}/)
     }
     expect(fillTemplate('/compact {args}', { args: '' })).toBe('/compact')
+  })
+})
+
+describe('cross-platform media paths', () => {
+  it('builds valid URLs for macOS and Windows paths', () => {
+    expect(fileUrl('/Users/a/out/v.mp4')).toBe('harness-file://local/Users/a/out/v.mp4')
+    expect(fileUrl('C:\\Users\\a b\\out\\v.mp4')).toBe('harness-file://local/C:/Users/a%20b/out/v.mp4')
+    expect(new URL(fileUrl('C:\\x\\v.mp4')).pathname).toBe('/C:/x/v.mp4')
+  })
+  it('recognises absolute paths on both', () => {
+    expect(['/a', 'C:\\a', 'c:/a', '\\\\server\\share'].every(isAbsolutePath)).toBe(true)
+    expect(['a/b', './a', 'out\\v.mp4'].some(isAbsolutePath)).toBe(false)
   })
 })

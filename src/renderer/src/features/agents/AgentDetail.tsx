@@ -1,3 +1,4 @@
+import { relTo } from '@shared/paths'
 import { Bot, FileText, Sparkles, X } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { cn, formatDuration, formatTokens } from '@/lib/format'
@@ -111,7 +112,7 @@ export function AgentDetail({ session }: { session: SessionState }) {
                   >
                     <FileText className={cn('size-3.5 shrink-0', f.writes ? 'text-orange-500' : 'text-sky-500')} />
                     <span className="truncate font-mono text-[11.5px]" title={f.path}>
-                      {f.path.startsWith(session.cwd + '/') ? f.path.slice(session.cwd.length + 1) : f.path}
+                      {relTo(f.path, session.cwd) ?? f.path}
                     </span>
                     <span className="ml-auto shrink-0 text-[11px] text-muted">
                       {f.writes > 0 && `${f.writes} write${f.writes > 1 ? 's' : ''}`}

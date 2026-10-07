@@ -18,7 +18,7 @@ export function formatDuration(ms: number): string {
 }
 
 export function basename(p: string): string {
-  return p.split('/').filter(Boolean).pop() ?? p
+  return p.split(/[\\/]/).filter(Boolean).pop() ?? p
 }
 
 export function cn(...classes: (string | false | null | undefined)[]): string {

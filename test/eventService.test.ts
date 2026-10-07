@@ -4,7 +4,7 @@ import { join } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
 import YAML from 'yaml'
 import { pickConfig } from '@shared/hackforge'
-import { EventService, mergeHackforgeYaml } from '../src/main/event/EventService'
+import { ensureLfAttributes, EventService, mergeHackforgeYaml } from '../src/main/event/EventService'
 
 const dirs: string[] = []
 const tmp = () => {
@@ -37,6 +37,7 @@ describe('EventService', () => {
     for (const sub of ['brief', 'data', 'assets', 'examples']) expect(existsSync(join(d, 'challenge', sub))).toBe(true)
     expect(readFileSync(join(d, 'challenge', 'prompts', '10-junction-strategy.md'), 'utf8')).toBe('OUR OWN')
     expect(readFileSync(join(d, 'challenge', 'brief', 'junction-2026-event.md'), 'utf8')).toMatch(/Final submissions/)
+    expect(readFileSync(join(d, '.gitattributes'), 'utf8')).toMatch(/^\*\.sh text eol=lf$/m)
 
     const yaml = readFileSync(join(d, 'challenge', 'hackforge.yaml'), 'utf8')
     expect(yaml).toMatch(/# we chose this/)
@@ -87,6 +88,14 @@ describe('EventService', () => {
     expect(s.challenges).toHaveLength(2)
     await expect(svc.updateChallenge('../../etc/passwd', { title: 'x' })).rejects.toThrow(/Invalid challenge id/)
     svc.dispose()
+  })
+
+  it('adds LF rules to an existing .gitattributes once', async () => {
+    const d = tmp()
+    writeFileSync(join(d, '.gitattributes'), '*.png binary\n*.sh   text eol=lf')
+    await ensureLfAttributes(d)
+    await ensureLfAttributes(d)
+    expect(readFileSync(join(d, '.gitattributes'), 'utf8')).toBe('*.png binary\n*.sh   text eol=lf\n*.bash text eol=lf\n*.py text eol=lf\n')
   })
 
   it('writes a fresh hackforge.yaml when there is none', () => {

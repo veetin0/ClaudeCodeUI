@@ -7,6 +7,7 @@ import { useDisplaySession } from '@/stores/replay'
 import { useHackforge } from '@/stores/hackforge'
 import { useTeamState } from '@/stores/team'
 import { StatusDot, STATUS_LABEL } from './StatusDot'
+import { isMac, shortcut } from '@/lib/keys'
 
 export function TopBar() {
   const session = useDisplaySession()
@@ -22,9 +23,9 @@ export function TopBar() {
 
   return (
     <header
-      className={cn('drag flex h-12 shrink-0 items-center gap-4 border-b border-line px-4 text-[12px]', focusMode && 'pl-20')}
+      className={cn('flex h-12 shrink-0 items-center gap-4 border-b border-line px-4 text-[12px]', isMac && 'drag', isMac && focusMode && 'pl-20')}
     >
-      <button onClick={toggleFocusMode} className="no-drag rounded p-1 text-muted hover:bg-black/5 dark:hover:bg-white/10" title="Focus mode (⌘\)">
+      <button onClick={toggleFocusMode} className="no-drag rounded p-1 text-muted hover:bg-black/5 dark:hover:bg-white/10" title={shortcut('Focus mode (⌘\\)')}>
         <PanelLeft className="size-4" />
       </button>
       {session ? (
@@ -43,22 +44,22 @@ export function TopBar() {
             {elapsed > 0 && <span className="tabular-nums">· {formatDuration(elapsed)}</span>}
           </div>
           <div className="no-drag ml-2 flex rounded-lg bg-black/[0.05] p-0.5 dark:bg-white/[0.07]">
-            <ViewButton active={view === 'chat'} onClick={() => setView('chat')} title="Conversation (⌘1)">
+            <ViewButton active={view === 'chat'} onClick={() => setView('chat')} title={shortcut('Conversation (⌘1)')}>
               <MessageSquare className="size-3.5" /> Chat
             </ViewButton>
-            <ViewButton active={view === 'board'} onClick={() => setView('board')} title="Agent board (⌘2)">
+            <ViewButton active={view === 'board'} onClick={() => setView('board')} title={shortcut('Agent board (⌘2)')}>
               <LayoutGrid className="size-3.5" /> Board
               {activeSubagents > 0 && <span className="rounded-full bg-emerald-500 px-1.5 text-[10px] leading-4 text-white">{activeSubagents}</span>}
             </ViewButton>
-            <ViewButton active={view === 'mission'} onClick={() => setView('mission')} title="Mission control: agent graph + timeline (⌘3)">
+            <ViewButton active={view === 'mission'} onClick={() => setView('mission')} title={shortcut('Mission control: agent graph + timeline (⌘3)')}>
               <Network className="size-3.5" /> Mission
             </ViewButton>
-            <ViewButton active={view === 'preview'} onClick={() => setView('preview')} title="Preview: Remotion Studio, dev servers (⌘4)">
+            <ViewButton active={view === 'preview'} onClick={() => setView('preview')} title={shortcut('Preview: Remotion Studio, dev servers (⌘4)')}>
               <MonitorPlay className="size-3.5" /> Preview
               {(serverUp || project?.remotion) && <span className={cn('size-1.5 rounded-full', serverUp ? 'bg-emerald-500' : 'bg-[var(--accent)]')} />}
             </ViewButton>
             {showHf && (
-              <ViewButton active={view === 'hackforge'} onClick={() => setView('hackforge')} title="HackForge: phase, compliance, mock score, improvement loop (⌘5)">
+              <ViewButton active={view === 'hackforge'} onClick={() => setView('hackforge')} title={shortcut('HackForge: phase, compliance, mock score, improvement loop (⌘5)')}>
                 <Flame className="size-3.5" /> HackForge
                 {hf?.loop?.active ? (
                   <span className="rounded-full bg-orange-500 px-1.5 text-[10px] leading-4 text-white tabular-nums">#{hf.loop.iteration}</span>
@@ -80,7 +81,7 @@ export function TopBar() {
             </span>
             <button
               onClick={toggleTerminalPanel}
-              title="Terminal (⌘J)"
+              title={shortcut('Terminal (⌘J)')}
               className={cn('no-drag rounded p-1 hover:bg-black/5 dark:hover:bg-white/10', terminalOpen ? 'text-fg' : 'text-muted')}
             >
               <SquareTerminal className="size-4" />

@@ -198,12 +198,15 @@ npm install
 npm run dev          # launches the app with hot reload
 ```
 
-Requirements: macOS, Node 20+. Sessions use your existing Claude Code login. You can also store an Anthropic API key under **Settings**; it's encrypted with your macOS Keychain. Sessions load your usual `~/.claude` settings, CLAUDE.md files, MCP servers and skills.
+Requirements: macOS or Windows, Node 20+. On Windows you also need Git for Windows and Python 3 (for HackForge); see **[docs/WINDOWS.md](docs/WINDOWS.md)** for setup, the Windows installer, and a small patch that makes the HackForge plugin work there. Mixed Mac and Windows teams share one event project.
+
+Sessions use your existing Claude Code login. You can also store an Anthropic API key under **Settings**; it's encrypted with the system keychain (Keychain on macOS, DPAPI on Windows). Sessions load your usual `~/.claude` settings, CLAUDE.md files, MCP servers and skills.
 
 ```bash
 npm test             # normalizer/reducer tests replay real recorded SDK sessions
 npm run typecheck
 npm run build:mac    # signed + notarized .dmg when credentials are set; see docs/RELEASING.md
+npm run build:win    # Windows installer (run on Windows): dist\Harness-Setup-<version>.exe
 npm run build:dir    # unpacked app for a quick packaging smoke test
 ```
 

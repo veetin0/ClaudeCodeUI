@@ -6,6 +6,7 @@ import type { EventBus } from '../events/bus'
 import { sendCommand } from './menu'
 import trayIcon1x from '../../../resources/trayTemplate.png?asset'
 import trayIcon2x from '../../../resources/trayTemplate@2x.png?asset'
+import appIconPath from '../../../resources/icon.png?asset'
 
 interface Deps {
   bus: EventBus
@@ -47,6 +48,8 @@ export class Presence {
   }
 
   private trayImage() {
+    // Template images are a macOS idea (black, recoloured by the menu bar); elsewhere use the colour icon.
+    if (process.platform !== 'darwin') return nativeImage.createFromPath(appIconPath).resize({ width: 16, height: 16, quality: 'best' })
     const image = nativeImage.createEmpty()
     image.addRepresentation({ scaleFactor: 1, buffer: readFileSync(trayIcon1x) })
     image.addRepresentation({ scaleFactor: 2, buffer: readFileSync(trayIcon2x) })
@@ -89,7 +92,11 @@ export class Presence {
   private refreshBadge() {
     const waiting = [...this.status.values()].filter((s) => s === 'waiting').length
     app.dock?.setBadge(waiting ? String(waiting) : '')
-    if (waiting && !BrowserWindow.getFocusedWindow()) app.dock?.bounce('informational')
+    if (waiting && !BrowserWindow.getFocusedWindow()) {
+      app.dock?.bounce('informational')
+      // Windows/Linux: flash the taskbar button instead.
+      if (process.platform !== 'darwin') BrowserWindow.getAllWindows()[0]?.flashFrame(true)
+    }
   }
 
   private refreshTray() {

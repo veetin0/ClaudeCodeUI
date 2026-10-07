@@ -1,3 +1,5 @@
+import { normPath, relTo } from '@shared/paths'
+
 export interface TreeNode {
   name: string
   /** Path relative to the project root ('' for the root). */
@@ -10,8 +12,7 @@ export interface TreeNode {
 export const OUTSIDE = '(outside project)'
 
 export function relPath(abs: string, cwd: string): string {
-  const root = cwd.endsWith('/') ? cwd : `${cwd}/`
-  return abs.startsWith(root) ? abs.slice(root.length) : abs
+  return relTo(abs, cwd) ?? abs
 }
 
 /**
@@ -22,11 +23,12 @@ export function buildTree(relFiles: string[], extraAbs: string[], cwd: string): 
   const root: TreeNode = { name: '', rel: '', children: [] }
   const dirs = new Map<string, TreeNode>([['', root]])
   const seen = new Set<string>()
-  const root_ = cwd.replace(/\/$/, '')
+  const root_ = normPath(cwd).replace(/\/$/, '')
 
   const addFile = (rel: string, abs: string) => {
-    if (seen.has(abs)) return
-    seen.add(abs)
+    const key = normPath(abs)
+    if (seen.has(key)) return
+    seen.add(key)
     const parts = rel.split('/')
     let parent = root
     let acc = ''

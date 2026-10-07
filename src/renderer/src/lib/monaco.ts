@@ -28,7 +28,7 @@ const LANG_BY_EXT: Record<string, string> = {
 }
 
 export function languageFor(path: string): string {
-  const name = path.split('/').pop()?.toLowerCase() ?? ''
+  const name = path.split(/[\\/]/).pop()?.toLowerCase() ?? ''
   if (name === 'dockerfile') return 'dockerfile'
   return LANG_BY_EXT[name.split('.').pop() ?? ''] ?? 'plaintext'
 }

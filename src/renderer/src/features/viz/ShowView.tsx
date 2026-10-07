@@ -32,7 +32,7 @@ function Img({ path, compact }: { path: string; compact?: boolean }) {
   return (
     <img
       src={fileUrl(path)}
-      alt={path.split('/').pop()}
+      alt={path.split(/[\\/]/).pop()}
       onError={() => setFailed(true)}
       className={compact ? 'max-h-40 w-full rounded object-contain' : 'mx-auto max-h-[480px] rounded object-contain'}
     />

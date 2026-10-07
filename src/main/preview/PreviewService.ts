@@ -1,4 +1,5 @@
-import { spawn, type ChildProcess } from 'node:child_process'
+import type { ChildProcess } from 'node:child_process'
+import { killTree, spawnTool } from '../system/proc'
 import { randomUUID } from 'node:crypto'
 import { existsSync } from 'node:fs'
 import { mkdir, readFile } from 'node:fs/promises'
@@ -102,10 +103,10 @@ export class PreviewService {
   async compositions(cwd: string): Promise<Composition[]> {
     const [cmd, pre] = remotionCommand(cwd)
     const out = await new Promise<string>((resolve, reject) => {
-      const p = spawn(cmd, [...pre, 'compositions', ...this.browserArgs()], { cwd, env: this.env() })
+      const p = spawnTool(cmd, [...pre, 'compositions', ...this.browserArgs()], { cwd, env: this.env() })
       let buf = ''
-      p.stdout.on('data', (d) => (buf += d))
-      p.stderr.on('data', (d) => (buf += d))
+      p.stdout?.on('data', (d) => (buf += d))
+      p.stderr?.on('data', (d) => (buf += d))
       p.on('error', reject)
       p.on('close', (code) => (code === 0 ? resolve(buf) : reject(new Error(stripAnsi(buf).trim().split('\n').slice(-6).join('\n') || `remotion exited with ${code}`))))
     })
@@ -117,7 +118,7 @@ export class PreviewService {
     await mkdir(join(output, '..'), { recursive: true })
     const [cmd, pre] = remotionCommand(cwd)
     const info: RenderJob = { id: randomUUID(), cwd, composition, output, status: 'running', startedAt: Date.now() }
-    const proc = spawn(cmd, [...pre, 'render', composition, output, ...this.browserArgs()], { cwd, env: this.env(), detached: true })
+    const proc = spawnTool(cmd, [...pre, 'render', composition, output, ...this.browserArgs()], { cwd, env: this.env(), group: true })
     const entry = { info, proc: proc as ChildProcess | null }
     this.renders.set(info.id, entry)
     let tail = ''
@@ -189,8 +190,8 @@ export class PreviewService {
 
   private launch(cwd: string, kind: PreviewServer['kind'], label: string, cmd: string, args: string[]): PreviewServer {
     const info: PreviewServer = { id: randomUUID(), cwd, kind, label, status: 'starting', log: [], startedAt: Date.now() }
-    // Own process group, so stopping also stops whatever npm/npx started underneath.
-    const proc = spawn(cmd, args, { cwd, env: this.env(), detached: true })
+    // Own process group (macOS/Linux), so stopping also stops whatever npm/npx started underneath.
+    const proc = spawnTool(cmd, args, { cwd, env: this.env(), group: true })
     this.servers.set(info.id, { info, proc })
     const onData = (d: Buffer) => {
       const text = stripAnsi(d.toString())
@@ -222,11 +223,7 @@ export class PreviewService {
   }
 
   private kill(proc: ChildProcess) {
-    try {
-      if (proc.pid) process.kill(-proc.pid, 'SIGTERM')
-    } catch {
-      proc.kill('SIGTERM')
-    }
+    killTree(proc)
   }
 
   private env(): Record<string, string | undefined> {

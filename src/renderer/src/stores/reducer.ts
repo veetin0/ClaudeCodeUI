@@ -1,3 +1,4 @@
+import { normPath } from '@shared/paths'
 import type { AgentId, EventOf, FileChange, HarnessEvent, PermissionMode, SessionStatus, TodoItem } from '@shared/events'
 import { HARNESS_TOOL_PREFIX, SUBAGENT_TOOLS } from '@shared/events'
 import type { ShowUpdate, VisualSource } from '@shared/visuals'
@@ -235,7 +236,8 @@ export function applyEvent(s: SessionState, e: HarnessEvent): void {
       } else {
         s.subagents[e.agentId]?.toolIds.push(e.toolUseId)
       }
-      const path = typeof e.input.file_path === 'string' ? e.input.file_path : typeof e.input.notebook_path === 'string' ? e.input.notebook_path : null
+      const raw = typeof e.input.file_path === 'string' ? e.input.file_path : typeof e.input.notebook_path === 'string' ? e.input.notebook_path : null
+      const path = raw && normPath(raw)
       if (path && (READ_TOOLS.has(e.name) || WRITE_TOOLS.has(e.name))) {
         const write = WRITE_TOOLS.has(e.name)
         const f = (s.files[path] ??= { reads: 0, writes: 0, diskChanges: 0, lastTs: e.ts, lastKind: 'read', agents: [] })

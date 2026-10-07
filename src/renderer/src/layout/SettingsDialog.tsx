@@ -6,6 +6,7 @@ import { ipcErrorMessage } from '@/lib/time'
 import type { PermissionMode } from '@shared/events'
 import { MODELS, PERMISSION_MODES } from '@/features/conversation/PromptBox'
 import { useApp } from '@/stores/app'
+import { shortcut } from '@/lib/keys'
 
 export function SettingsDialog() {
   const { settingsOpen, setSettingsOpen, settings, saveApiKey, updateSettings } = useApp()
@@ -23,7 +24,7 @@ export function SettingsDialog() {
           </button>
         </div>
 
-        <Field label="Anthropic API key" hint={settings.hasApiKey ? 'A key is stored in your Keychain.' : 'Optional. Without one, Harness uses your existing Claude Code login.'}>
+        <Field label="Anthropic API key" hint={settings.hasApiKey ? 'A key is stored in your system keychain.' : 'Optional. Without one, Harness uses your existing Claude Code login.'}>
           <div className="flex gap-2">
             <input
               type="password"
@@ -92,7 +93,7 @@ export function SettingsDialog() {
           </span>
         </label>
 
-        <Field label="HackForge" hint="Sessions get instructions to work through the /hackforge:* skills, and the HackForge buttons and dashboard (⌘5) appear. Applies to new sessions.">
+        <Field label="HackForge" hint={shortcut('Sessions get instructions to work through the /hackforge:* skills, and the HackForge buttons and dashboard (⌘5) appear. Applies to new sessions.')}>
           <select
             value={settings.hackforgeMode}
             onChange={(e) => void updateSettings({ hackforgeMode: e.target.value as HackforgeMode })}

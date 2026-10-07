@@ -49,7 +49,8 @@ export function watchProject(cwd: string, onChange: (rel: string) => void): FSWa
   try {
     const w = watch(cwd, { recursive: true }, (_event, file) => {
       if (!file) return
-      const rel = file.toString()
+      // Windows reports `src\a.ts`; everything downstream uses forward slashes.
+      const rel = file.toString().replace(/\\/g, '/')
       if (ignored(rel)) return
       clearTimeout(pending.get(rel))
       pending.set(

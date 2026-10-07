@@ -23,21 +23,22 @@ import { runCommand } from '@/lib/commands'
 import { basename } from '@/lib/format'
 import { relativeTime } from '@/lib/time'
 import { useApp } from '@/stores/app'
+import { shortcut } from '@/lib/keys'
 
 const COMMANDS: { id: CommandId; label: string; icon: LucideIcon; keys?: string }[] = [
-  { id: 'new-session', label: 'New session…', icon: Plus, keys: '⌘O' },
-  { id: 'view-chat', label: 'Go to Chat', icon: MessageSquare, keys: '⌘1' },
-  { id: 'view-board', label: 'Go to Board', icon: LayoutGrid, keys: '⌘2' },
-  { id: 'view-mission', label: 'Go to Mission control', icon: Network, keys: '⌘3' },
-  { id: 'view-preview', label: 'Go to Preview', icon: MonitorPlay, keys: '⌘4' },
-  { id: 'view-hackforge', label: 'Go to HackForge', icon: Flame, keys: '⌘5' },
-  { id: 'event-mode', label: 'Event mode: hackathon clock, checklists, partners', icon: CalendarClock, keys: '⌘6' },
-  { id: 'toggle-terminal', label: 'Toggle terminal', icon: SquareTerminal, keys: '⌘J' },
-  { id: 'new-claude-terminal', label: 'New Claude terminal', icon: SquareTerminal, keys: '⇧⌘T' },
-  { id: 'replay', label: 'Replay this session', icon: Play, keys: '⇧⌘R' },
-  { id: 'interrupt', label: 'Stop the agent', icon: Square, keys: '⌘.' },
-  { id: 'focus-mode', label: 'Toggle focus mode', icon: PanelLeft, keys: '⌘\\' },
-  { id: 'settings', label: 'Settings', icon: Settings, keys: '⌘,' },
+  { id: 'new-session', label: 'New session…', icon: Plus, keys: shortcut('⌘O') },
+  { id: 'view-chat', label: 'Go to Chat', icon: MessageSquare, keys: shortcut('⌘1') },
+  { id: 'view-board', label: 'Go to Board', icon: LayoutGrid, keys: shortcut('⌘2') },
+  { id: 'view-mission', label: 'Go to Mission control', icon: Network, keys: shortcut('⌘3') },
+  { id: 'view-preview', label: 'Go to Preview', icon: MonitorPlay, keys: shortcut('⌘4') },
+  { id: 'view-hackforge', label: 'Go to HackForge', icon: Flame, keys: shortcut('⌘5') },
+  { id: 'event-mode', label: 'Event mode: hackathon clock, checklists, partners', icon: CalendarClock, keys: shortcut('⌘6') },
+  { id: 'toggle-terminal', label: 'Toggle terminal', icon: SquareTerminal, keys: shortcut('⌘J') },
+  { id: 'new-claude-terminal', label: 'New Claude terminal', icon: SquareTerminal, keys: shortcut('⇧⌘T') },
+  { id: 'replay', label: 'Replay this session', icon: Play, keys: shortcut('⇧⌘R') },
+  { id: 'interrupt', label: 'Stop the agent', icon: Square, keys: shortcut('⌘.') },
+  { id: 'focus-mode', label: 'Toggle focus mode', icon: PanelLeft, keys: shortcut('⌘\\') },
+  { id: 'settings', label: 'Settings', icon: Settings, keys: shortcut('⌘,') },
 ]
 
 /** ⌘K: every command, session, project and quick action, fuzzy-searchable. */

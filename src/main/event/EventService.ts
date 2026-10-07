@@ -29,6 +29,20 @@ async function writeIfMissing(path: string, content: string): Promise<boolean> {
   }
 }
 
+/**
+ * Mixed Mac/Windows teams: Git on Windows may check scripts out with CRLF endings, which breaks bash
+ * (HackForge's gate.sh). Force LF for scripts, keeping any .gitattributes the repo already has.
+ */
+export const LF_RULES = ['*.sh text eol=lf', '*.bash text eol=lf', '*.py text eol=lf']
+export async function ensureLfAttributes(dir: string) {
+  const path = join(dir, '.gitattributes')
+  const cur = (await readText(path)) ?? ''
+  const missing = LF_RULES.filter((r) => !cur.split(/\r?\n/).some((l) => l.trim().replace(/\s+/g, ' ') === r))
+  if (!missing.length) return
+  const header = cur ? '' : '# Scripts keep Unix line endings on every OS (bash breaks on CRLF).\n'
+  await writeFile(path, `${cur}${cur && !cur.endsWith('\n') ? '\n' : ''}${header}${missing.join('\n')}\n`)
+}
+
 /** Sets keys in hackforge.yaml without touching the rest (comments and other settings survive). */
 export function mergeHackforgeYaml(existing: string | undefined, settings: Record<string, unknown>): string {
   const doc = YAML.parseDocument(existing ?? '# HackForge configuration (set up by Harness event mode).\n')
@@ -108,6 +122,7 @@ export class EventService {
     const hfPath = join(dir, HACKFORGE_FILE)
     await writeFile(hfPath, mergeHackforgeYaml(await readText(hfPath), preset.hackforge))
     await writeIfMissing(join(dir, PROGRESS_FILE), JSON.stringify({ done: {}, partners: {} }, null, 2) + '\n')
+    await ensureLfAttributes(dir)
     return this.state()
   }
 
@@ -215,8 +230,8 @@ export class EventService {
     try {
       // challenge/ may not exist yet; watch the project root so setup and `git pull` are both seen.
       this.watcher = watch(dir, { recursive: true }, (_e, file) => {
-        const f = file?.toString() ?? ''
-        if (f !== EVENT_FILE && f !== PROGRESS_FILE && f !== 'challenge' && f !== CHALLENGES_DIR && !f.startsWith(`${CHALLENGES_DIR}/`)) return
+        const f = (file?.toString() ?? '').replace(/\\/g, '/')
+        if (f !== 'challenge/event.yaml' && f !== 'challenge/event-checklist.json' && f !== 'challenge' && f !== CHALLENGES_DIR && !f.startsWith(`${CHALLENGES_DIR}/`)) return
         clearTimeout(this.timer)
         this.timer = setTimeout(() => void this.state().then(this.push, () => {}), 150)
       })
