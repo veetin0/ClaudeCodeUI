@@ -16,6 +16,8 @@ const DEFAULTS: StoredSettings = {
   notifications: true,
   hackforgeMode: 'projects',
   eventProject: null,
+  team: null,
+  teamMemberId: '',
 }
 
 export class SettingsStore {

@@ -15,6 +15,7 @@ import {
 import { basename, cn } from '@/lib/format'
 import { useApp } from '@/stores/app'
 import { useEvent, useEventState, useNow } from '@/stores/event'
+import { TeamPanel } from './TeamPanel'
 
 /** The hackathon war room: clock, weekend timeline, agenda, project setup, checklists, partners. */
 export function EventView() {
@@ -57,6 +58,7 @@ export function EventView() {
         {error && <div className="selectable rounded-lg border border-red-500/40 bg-red-500/5 px-3 py-2 text-[12px] text-red-600">{error}</div>}
 
         <Countdown state={state} now={now} />
+        <TeamPanel timezone={config.timezone} now={now} suggestedNames={config.team} />
         <Weekend state={state} now={now} />
         <ProjectCard state={state} />
         <div className="grid gap-4 lg:grid-cols-2">

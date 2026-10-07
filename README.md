@@ -106,6 +106,22 @@ claude plugin install hackforge@veeti-tools
 
 ![Event mode during Junction 2026 (simulated clock)](docs/screenshots/event-mode.png)
 
+### Team board
+
+Event mode's **Team** panel shows all four laptops in one place. Each teammate keeps using their own Claude login, and their Harness shares a small status through a relay:
+- what they're working on and their git branch
+- their open sessions, with what the agent is doing right now
+- their HackForge phase and score
+- **how much of their Claude plan is left** (5-hour and weekly windows, with reset times)
+
+Harness suggests who should take the next milestone (the person with the most usage left) and warns when someone is close to or at a limit. Your own 5-hour usage also shows in the top bar.
+
+- **Create the team** by hosting the relay on one laptop (same network, good for practice), or point it at a relay server. For the venue, [`relay/`](relay/README.md) is one dependency-free Node file plus a Dockerfile, deployable to any host with HTTPS.
+- **Join** with the join code from **Copy join code**.
+- Plan usage comes from what Claude Code reports while a session runs, so a teammate's numbers appear after their first session. With an API key set in Settings, the board shows "API key" instead.
+
+![Team board](docs/screenshots/team-board.png)
+
 ## Everyday polish
 
 - **Native menu** with every command and its shortcut. It also makes ⌘C/⌘V/⌘Z work everywhere.

@@ -12,6 +12,7 @@ import { runCommand } from './lib/commands'
 import type { CommandId } from '@shared/commands'
 import { CommandPalette } from './layout/CommandPalette'
 import { EventView } from './features/event/EventView'
+import { useTeamReporter } from './stores/team'
 
 const VIEW_KEYS: Record<string, CommandId> = { '1': 'view-chat', '2': 'view-board', '3': 'view-mission', '4': 'view-preview', '5': 'view-hackforge', '6': 'event-mode' }
 
@@ -19,6 +20,7 @@ export function App() {
   const session = useDisplaySession()
   const focusMode = useApp((s) => s.focusMode)
   const eventOpen = useApp((s) => s.eventOpen)
+  useTeamReporter()
 
   useEffect(() => {
     void useApp.getState().init()

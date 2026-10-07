@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto'
 import { statSync, type FSWatcher } from 'node:fs'
 import { join } from 'node:path'
-import { query, type CanUseTool, type Query, type SDKUserMessage } from '@anthropic-ai/claude-agent-sdk'
+import { query, type CanUseTool, type Query, type SDKRateLimitInfo, type SDKUserMessage } from '@anthropic-ai/claude-agent-sdk'
 import { EXEC_TOOLS, type AgentId, type HarnessEvent, type PermissionMode, type SessionStatus, type TodoItem } from '@shared/events'
 import { toVisual } from '@shared/visuals'
 import type { PermissionDecision, SessionSummary, StartSessionOptions } from '@shared/ipc'
@@ -28,6 +28,16 @@ export interface AgentServiceDeps {
   snapshots?: SnapshotStore
   /** Extra system-prompt text for a session in this folder (e.g. HackForge mode). */
   promptAppend?: (cwd: string) => string | undefined
+  /** Plan rate-limit updates (claude.ai subscriptions) as the CLI reports them. */
+  onRateLimit?: (info: SDKRateLimitInfo) => void
+}
+
+/** Plan usage windows, as reported by the CLI's usage call (null fields when unknown). */
+export interface PlanUsageReading {
+  subscription: string | null
+  available: boolean
+  fiveHour?: { utilization: number | null; resetsAt: string | null } | null
+  sevenDay?: { utilization: number | null; resetsAt: string | null } | null
 }
 
 /** Tools that write files; the PreToolUse hook snapshots their target first. */
@@ -172,6 +182,7 @@ class AgentSession {
   private async pump() {
     try {
       for await (const msg of this.q!) {
+        if (msg.type === 'rate_limit_event') this.deps.onRateLimit?.(msg.rate_limit_info)
         const events = this.normalizer.normalize(msg)
         this.emit(events)
         for (const e of events) {
@@ -188,6 +199,29 @@ class AgentSession {
     } finally {
       this.permissions.cancelAll()
       this.setStatus('closed')
+    }
+  }
+
+  /** Plan usage via the CLI's (experimental) usage call; undefined when unsupported or failing. */
+  async planUsage(): Promise<PlanUsageReading | undefined> {
+    const q = this.q as (Query & { usage_EXPERIMENTAL_MAY_CHANGE_DO_NOT_RELY_ON_THIS_API_YET?: (o: { skipBehaviors: boolean }) => Promise<unknown> }) | null
+    const fn = q?.usage_EXPERIMENTAL_MAY_CHANGE_DO_NOT_RELY_ON_THIS_API_YET
+    if (!this.isRunning || typeof fn !== 'function') return undefined
+    try {
+      const r = (await fn.call(q, { skipBehaviors: true })) as {
+        subscription_type?: string | null
+        rate_limits_available?: boolean
+        rate_limits?: { five_hour?: { utilization: number | null; resets_at: string | null } | null; seven_day?: { utilization: number | null; resets_at: string | null } | null } | null
+      }
+      const w = (x?: { utilization: number | null; resets_at: string | null } | null) => (x ? { utilization: x.utilization, resetsAt: x.resets_at } : x)
+      return {
+        subscription: r.subscription_type ?? null,
+        available: r.rate_limits_available === true,
+        fiveHour: w(r.rate_limits?.five_hour),
+        sevenDay: w(r.rate_limits?.seven_day),
+      }
+    } catch {
+      return undefined
     }
   }
 
@@ -292,6 +326,15 @@ export class AgentService {
 
   tracker(id: string): ChangeTracker | null {
     return this.sessions.get(id)?.tracker ?? null
+  }
+
+  /** Plan usage from any running session (they share the same login). */
+  async planUsage(): Promise<PlanUsageReading | undefined> {
+    for (const s of this.sessions.values()) {
+      const r = await s.planUsage()
+      if (r) return r
+    }
+    return undefined
   }
 
   /** True while the session's agent process is up (false after it exits or crashes). */

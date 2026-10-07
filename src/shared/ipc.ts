@@ -1,6 +1,7 @@
 import type { HarnessEvent, PermissionMode } from './events'
 import type { HackforgeMode, HackforgeSnapshot } from './hackforge'
 import type { EventState } from './event'
+import type { MemberSession, TeamConfig, TeamState } from './team'
 import type { Composition, PreviewServer, PreviewState, ProjectInfo, RenderJob } from './preview'
 
 export interface StartSessionOptions {
@@ -73,6 +74,10 @@ export interface AppSettings {
   hackforgeMode: HackforgeMode
   /** Folder of the project linked to event mode (shared with the team through git). */
   eventProject: string | null
+  /** Team board membership (relay URL, team token, my name). */
+  team: TeamConfig | null
+  /** Stable id for this install on team boards. */
+  teamMemberId: string
 }
 
 export type EventProgressPatch = { done?: Record<string, boolean>; partner?: { name: string; keys?: boolean; kit?: boolean } }
@@ -147,6 +152,15 @@ export interface HarnessApi {
   eventSetup(dir: string): Promise<EventState>
   eventUpdate(patch: EventProgressPatch): Promise<EventState>
   onEvent(cb: (state: EventState) => void): () => void
+  teamState(): Promise<TeamState>
+  /** New team: host the relay on this computer, or use a relay server URL. */
+  teamCreate(opts: { name: string; host: boolean; relayUrl?: string }): Promise<TeamState>
+  teamJoin(code: string, name: string): Promise<TeamState>
+  teamLeave(): Promise<TeamState>
+  teamUpdate(patch: { name?: string; focus?: string }): Promise<TeamState>
+  /** This machine's open sessions, for the team board. */
+  teamSetLocal(local: { sessions: MemberSession[]; cwd?: string }): void
+  onTeam(cb: (state: TeamState) => void): () => void
   /** Events arrive batched (~30fps) to keep the renderer smooth during heavy streaming. */
   onEvents(cb: (events: HarnessEvent[]) => void): () => void
 }
@@ -204,5 +218,12 @@ export const IPC = {
   eventSetup: 'event:setup',
   eventUpdate: 'event:update',
   eventPush: 'event:push',
+  teamState: 'team:state',
+  teamCreate: 'team:create',
+  teamJoin: 'team:join',
+  teamLeave: 'team:leave',
+  teamUpdate: 'team:update',
+  teamSetLocal: 'team:set-local',
+  teamPush: 'team:push',
   events: 'events',
 } as const

@@ -5,6 +5,7 @@ import { basename, cn, formatCost, formatDuration, formatTokens } from '@/lib/fo
 import { useApp } from '@/stores/app'
 import { useDisplaySession } from '@/stores/replay'
 import { useHackforge } from '@/stores/hackforge'
+import { useTeamState } from '@/stores/team'
 import { StatusDot, STATUS_LABEL } from './StatusDot'
 
 export function TopBar() {
@@ -70,6 +71,7 @@ export function TopBar() {
           <div className="ml-auto flex items-center gap-4 text-muted">
             {session.model && <span className="hidden truncate lg:inline">{session.model}</span>}
             <ContextGauge used={session.contextTokens} total={session.contextWindow} />
+            <PlanUsageChip />
             <span className="tabular-nums" title="Output tokens this session">
               ↑ {formatTokens(session.outputTokens)}
             </span>
@@ -104,5 +106,23 @@ function ViewButton({ active, onClick, title, children }: { active: boolean; onC
     >
       {children}
     </button>
+  )
+}
+
+/** This laptop's Claude plan usage (5-hour window), once a reading exists. */
+function PlanUsageChip() {
+  const usage = useTeamState()?.myUsage
+  const w = usage?.fiveHour
+  if (!usage || usage.source !== 'plan' || (!w && !usage.status)) return null
+  const pct = w && (!w.resetsAt || w.resetsAt > Date.now()) ? Math.round(w.pct) : w ? 0 : undefined
+  const hot = usage.status === 'rejected' || (pct ?? 0) >= 90
+  const warm = usage.status === 'allowed_warning' || (pct ?? 0) >= 70
+  return (
+    <span
+      className={cn('tabular-nums', hot ? 'font-medium text-red-500' : warm ? 'text-amber-600 dark:text-amber-400' : '')}
+      title={`Claude plan usage, 5-hour window${w?.resetsAt ? ` (resets ${new Date(w.resetsAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })})` : ''}${usage.sevenDay ? ` · week ${Math.round(usage.sevenDay.pct)}%` : ''}`}
+    >
+      {usage.status === 'rejected' ? 'limit reached' : pct !== undefined ? `5h ${pct}%` : 'near limit'}
+    </span>
   )
 }

@@ -22,6 +22,8 @@ import appIcon from '../../resources/icon.png?asset'
 import { SettingsStore } from './system/settings'
 import { HackforgeService } from './hackforge/HackforgeService'
 import { EventService } from './event/EventService'
+import { newMemberId, TeamService } from './team/TeamService'
+import { readHackforge } from './hackforge/HackforgeService'
 import { hackforgeGuide } from '@shared/hackforge'
 
 loadLoginShellPath()
@@ -41,6 +43,7 @@ let settings: SettingsStore
 let store: SessionStore
 let agents: AgentService
 let presence: Presence
+let team: TeamService
 const eventService = new EventService(
   () => settings?.get().eventProject ?? undefined,
   (state) => {
@@ -206,6 +209,12 @@ function registerIpc() {
     return eventService.setup(dir)
   })
   ipcMain.handle(IPC.eventUpdate, (_e, patch) => eventService.updateProgress(patch))
+  ipcMain.handle(IPC.teamState, () => team.state())
+  ipcMain.handle(IPC.teamCreate, (_e, opts: { name: string; host: boolean; relayUrl?: string }) => team.create(opts))
+  ipcMain.handle(IPC.teamJoin, (_e, code: string, name: string) => team.join(code, name))
+  ipcMain.handle(IPC.teamLeave, () => team.leave())
+  ipcMain.handle(IPC.teamUpdate, (_e, patch: { name?: string; focus?: string }) => team.update(patch))
+  ipcMain.on(IPC.teamSetLocal, (_e, local) => team.setLocal(local))
   ipcMain.handle(IPC.getSettings, () => settings.get())
   ipcMain.handle(IPC.setApiKey, (_e, key: string | null) => settings.setApiKey(key))
   ipcMain.handle(IPC.updateSettings, (_e, patch) => settings.update(patch))
@@ -241,6 +250,7 @@ async function start() {
       return present || mode === 'always' ? hackforgeGuide(present) : undefined
     },
     claudeExecutablePath: resolveClaudeExecutable(),
+    onRateLimit: (info) => team?.onRateLimit(info),
     getEnv: () => {
       const key = settings.getApiKey()
       return agentEnv(key ? { ANTHROPIC_API_KEY: key } : {})
@@ -266,6 +276,24 @@ async function start() {
   presence.createTray()
   installMenu()
   if (process.platform === 'darwin' && !app.isPackaged) app.dock?.setIcon(appIcon)
+  if (!settings.get().teamMemberId) settings.update({ teamMemberId: newMemberId() })
+  team = new TeamService({
+    getConfig: () => settings.get().team,
+    setConfig: (c) => settings.update({ team: c }),
+    memberId: () => settings.get().teamMemberId,
+    usesApiKey: () => settings.get().hasApiKey,
+    planUsage: () => agents.planUsage(),
+    projectDir: () => settings.get().eventProject ?? undefined,
+    hackforge: async (dir) => {
+      const s = await readHackforge(dir, claudeSettingsPath)
+      if (!s.present) return undefined
+      return { phase: s.state.phase, milestone: s.state.milestone, mockScore: s.verify?.mockScore ?? s.state.latestMockScore, loopIteration: s.loop?.iteration, loopActive: s.loop?.active }
+    },
+    push: (state) => {
+      for (const w of BrowserWindow.getAllWindows()) w.webContents.send(IPC.teamPush, state)
+    },
+  })
+  team.start()
   registerIpc()
   createWindow()
 
@@ -281,6 +309,7 @@ app.on('before-quit', () => {
   preview.stopAll()
   hackforge.dispose()
   eventService.dispose()
+  team?.dispose()
   observer?.stop()
   hookBridge?.stop()
   store?.close()

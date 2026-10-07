@@ -80,6 +80,17 @@ const api: HarnessApi = {
     ipcRenderer.on(IPC.eventPush, l)
     return () => ipcRenderer.removeListener(IPC.eventPush, l)
   },
+  teamState: () => ipcRenderer.invoke(IPC.teamState),
+  teamCreate: (opts) => ipcRenderer.invoke(IPC.teamCreate, opts),
+  teamJoin: (code, name) => ipcRenderer.invoke(IPC.teamJoin, code, name),
+  teamLeave: () => ipcRenderer.invoke(IPC.teamLeave),
+  teamUpdate: (patch) => ipcRenderer.invoke(IPC.teamUpdate, patch),
+  teamSetLocal: (local) => ipcRenderer.send(IPC.teamSetLocal, local),
+  onTeam: (cb) => {
+    const l = (_: unknown, s: import('../shared/team').TeamState) => cb(s)
+    ipcRenderer.on(IPC.teamPush, l)
+    return () => ipcRenderer.removeListener(IPC.teamPush, l)
+  },
   onEvents: (cb) => {
     const listener = (_: unknown, events: HarnessEvent[]) => cb(events)
     ipcRenderer.on(IPC.events, listener)
