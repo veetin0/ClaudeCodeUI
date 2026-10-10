@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { analyzePrompt, chosenBrief, importPrompt, parseChallenge, rankChallenges, scoreChallenge, serializeChallenge, slugify, type Challenge } from '@shared/challenges'
+import { analyzePrompt, applyPatch, chosenBrief, importPrompt, parseChallenge, rankChallenges, scoreChallenge, serializeChallenge, slugify, type Challenge } from '@shared/challenges'
 
 const FILE = `---
 partner: OpenAI
@@ -44,6 +44,16 @@ describe('challenge files', () => {
     const c = parseChallenge(FILE, 'x')
     const again = parseChallenge(serializeChallenge(c), 'x')
     expect(again).toEqual(c)
+  })
+
+  it('keeps front-matter keys it does not know when a UI edit rewrites the file', () => {
+    const src = '---\npartner: P\ntitle: T\nstatus: Shortlist\ndeadline: Sat 12:00\ntags: [voice, ml]\nai:\n  summary: s\n  confidence: high\n---\n\nDesc\n\n## Mentor notes\n\nn\n'
+    const c = parseChallenge(src, 'p-t')
+    expect(c.status).toBe('shortlist')
+    const again = parseChallenge(serializeChallenge(applyPatch(c, { scores: { fit: 4 } })), 'p-t')
+    expect(again).toMatchObject({ status: 'shortlist', scores: { fit: 4 }, extra: { deadline: 'Sat 12:00', tags: ['voice', 'ml'] }, ai: { summary: 's', extra: { confidence: 'high' } } })
+    // Extra keys can't override the fields Harness owns.
+    expect(serializeChallenge({ ...c, extra: { ...c.extra, status: 'dropped' } })).toMatch(/^status: shortlist$/m)
   })
 
   it('keeps everything when the front matter is missing or broken', () => {

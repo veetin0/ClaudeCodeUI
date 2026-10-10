@@ -26,6 +26,8 @@ export interface ChallengeAnalysis {
   partnerTech?: string
   risks: string[]
   scores: Scores
+  /** Other keys under `ai:` (kept as they are when the file is rewritten). */
+  extra?: Record<string, unknown>
 }
 
 export interface Challenge {
@@ -40,6 +42,8 @@ export interface Challenge {
   ai?: ChallengeAnalysis
   description: string
   notes: string
+  /** Front-matter keys Harness doesn't use (added by Claude or a teammate), kept on rewrite. */
+  extra?: Record<string, unknown>
 }
 
 export const CHALLENGES_DIR = 'challenges'
@@ -99,6 +103,13 @@ function pickScores(v: unknown): Scores {
   return out
 }
 
+const META_KEYS = ['partner', 'title', 'status', 'link', 'prize', 'scores', 'ai']
+const AI_KEYS = ['summary', 'idea', 'partner_tech', 'partnerTech', 'risks', 'scores']
+function rest(o: Record<string, unknown>, known: string[]): Record<string, unknown> | undefined {
+  const out = Object.fromEntries(Object.entries(o).filter(([k]) => !known.includes(k)))
+  return Object.keys(out).length ? out : undefined
+}
+
 const text = (v: unknown) => (typeof v === 'string' ? v.trim() : typeof v === 'number' ? String(v) : '')
 
 /** Parses a challenge file; tolerant of missing or broken front matter (the whole file is then the description). */
@@ -119,7 +130,7 @@ export function parseChallenge(source: string, id: string): Challenge {
   const description = (at >= 0 ? body.slice(0, at) : body).trim()
   const notes = at >= 0 ? body.slice(at + NOTES_HEADING.length).trim() : ''
   const ai = meta.ai && typeof meta.ai === 'object' ? (meta.ai as Record<string, unknown>) : undefined
-  const status = text(meta.status) as ChallengeStatus
+  const status = text(meta.status).toLowerCase() as ChallengeStatus
   const firstLine = description.split('\n').find((l) => l.trim())?.replace(/^#+\s*/, '').trim()
   return {
     id,
@@ -136,10 +147,12 @@ export function parseChallenge(source: string, id: string): Challenge {
           partnerTech: text(ai.partner_tech ?? ai.partnerTech) || undefined,
           risks: Array.isArray(ai.risks) ? ai.risks.map(text).filter(Boolean).slice(0, 8) : [],
           scores: pickScores(ai.scores),
+          extra: rest(ai, AI_KEYS),
         }
       : undefined,
     description,
     notes,
+    extra: rest(meta, META_KEYS),
   }
 }
 
@@ -148,6 +161,7 @@ export function serializeChallenge(c: Challenge): string {
   if (c.link) meta.link = c.link
   if (c.prize) meta.prize = c.prize
   if (Object.keys(c.scores).length) meta.scores = c.scores
+  for (const [k, v] of Object.entries(c.extra ?? {})) if (!META_KEYS.includes(k)) meta[k] = v
   if (c.ai) {
     const ai: Record<string, unknown> = {}
     if (c.ai.summary) ai.summary = c.ai.summary
@@ -155,6 +169,7 @@ export function serializeChallenge(c: Challenge): string {
     if (c.ai.partnerTech) ai.partner_tech = c.ai.partnerTech
     if (c.ai.risks.length) ai.risks = c.ai.risks
     if (Object.keys(c.ai.scores).length) ai.scores = c.ai.scores
+    for (const [k, v] of Object.entries(c.ai.extra ?? {})) if (!AI_KEYS.includes(k)) ai[k] = v
     if (Object.keys(ai).length) meta.ai = ai
   }
   const fm = YAML.stringify(meta, { lineWidth: 0 }).trimEnd()
