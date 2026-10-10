@@ -123,6 +123,32 @@ describe('relay + TeamService', () => {
     expect(host.svc.state().members.map((m) => m.name)).toEqual(['Ada'])
   })
 
+  it('leaving while a sync is in flight really leaves', async () => {
+    const relay = createRelay()
+    let slow = false
+    const server = createServer(async (req, res) => {
+      if (slow && req.method === 'PUT') await new Promise((r) => setTimeout(r, 200))
+      relay(req, res)
+    }).listen(0)
+    servers.push(server)
+    await new Promise((r) => server.once('listening', r))
+    const base = `http://127.0.0.1:${(server.address() as { port: number }).port}`
+    const token = 'abcdefghijklmnopqrstuvwx'
+    const l = laptop('leaver01', 1)
+    await l.svc.join(makeJoinCode(base, token), 'Cy')
+    slow = true
+    const running = l.svc.sync()
+    await new Promise((r) => setTimeout(r, 30))
+    const left = await l.svc.leave()
+    await running
+    expect(left).toMatchObject({ config: null, connected: false, members: [] })
+    // The in-flight sync must neither revive the local board nor re-add me on the relay.
+    expect(l.svc.state()).toMatchObject({ connected: false, members: [] })
+    expect(l.pushed.at(-1)).toMatchObject({ config: null, members: [] })
+    const onRelay = await fetch(`${base}/v1/team`, { headers: { authorization: `Bearer ${token}` } }).then((r) => r.json())
+    expect(onRelay.members).toEqual([])
+  })
+
   it('reports a wrong code or unreachable relay clearly', async () => {
     const l = laptop('solo0001', 1)
     await expect(l.svc.join('hello', 'X')).rejects.toThrow(/not a valid join code/)

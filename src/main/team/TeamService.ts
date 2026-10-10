@@ -50,7 +50,8 @@ export class TeamService {
   private usageTimer?: NodeJS.Timeout
   private kick?: NodeJS.Timeout
   private server: Server | null = null
-  private syncing = false
+  /** The sync in flight, if any (leave waits for it so its PUT can't land after the DELETE). */
+  private inflight?: Promise<void>
 
   constructor(private readonly deps: TeamDeps) {}
 
@@ -110,10 +111,12 @@ export class TeamService {
 
   async leave(): Promise<TeamState> {
     const c = this.deps.getConfig()
+    // Clear the config first so no new sync starts, and let a running one finish before deleting.
+    this.deps.setConfig(null)
+    await this.inflight
     if (c) {
       await this.request(c, `/v1/team/members/${c.memberId}`, { method: 'DELETE' }).catch(() => {})
     }
-    this.deps.setConfig(null)
     this.stopHosting()
     this.members = []
     this.connected = false
@@ -200,13 +203,21 @@ export class TeamService {
     }
   }
 
-  async sync(): Promise<void> {
+  sync(): Promise<void> {
+    if (this.inflight) return this.inflight
     const c = this.deps.getConfig()
-    if (!c || this.syncing) return
-    this.syncing = true
+    if (!c) return Promise.resolve()
+    this.inflight = this.syncWith(c).finally(() => (this.inflight = undefined))
+    return this.inflight
+  }
+
+  private async syncWith(c: TeamConfig): Promise<void> {
+    // Left (or switched team) while this was in flight: its answer no longer applies.
+    const current = () => this.deps.getConfig()?.token === c.token
     try {
       const me = await this.buildStatus(c)
       const res = (await this.request(c, `/v1/team/members/${c.memberId}`, { method: 'PUT', body: JSON.stringify(me) })) as { members?: unknown[] }
+      if (!current()) return
       this.members = (res.members ?? []).map(pickMember).filter((m): m is MemberStatus => !!m)
       // Show my own status straight from here (no round-trip lag).
       this.members = [me, ...this.members.filter((m) => m.id !== me.id)]
@@ -214,11 +225,11 @@ export class TeamService {
       this.error = undefined
       this.lastSync = Date.now()
     } catch (err) {
+      if (!current()) return
       this.connected = false
       this.error = err instanceof Error ? err.message : String(err)
     } finally {
-      this.syncing = false
-      this.deps.push(this.state())
+      if (current()) this.deps.push(this.state())
     }
   }
 
