@@ -164,6 +164,16 @@ describe('relay + TeamService', () => {
     expect(saved.svc.state()).toMatchObject({ connected: true, error: undefined })
   })
 
+  it('reads the usage call as percent, so a fresh window is not shown as full', async () => {
+    const reading = { subscription: 'max', available: true, fiveHour: { utilization: 1, resetsAt: '2026-11-14T12:00:00Z' }, sevenDay: { utilization: 0.5, resetsAt: null } }
+    const l = laptop('usage001', 1, { planUsage: async () => reading })
+    await (l.svc as unknown as { pollUsage(): Promise<void> }).pollUsage()
+    expect(l.svc.state().myUsage).toMatchObject({ source: 'plan', fiveHour: { pct: 1, resetsAt: Date.parse('2026-11-14T12:00:00Z') }, sevenDay: { pct: 0.5 } })
+    reading.fiveHour.utilization = 140
+    await (l.svc as unknown as { pollUsage(): Promise<void> }).pollUsage()
+    expect(l.svc.state().myUsage.fiveHour?.pct).toBe(100)
+  })
+
   it('reports a wrong code or unreachable relay clearly', async () => {
     const l = laptop('solo0001', 1)
     await expect(l.svc.join('hello', 'X')).rejects.toThrow(/not a valid join code/)

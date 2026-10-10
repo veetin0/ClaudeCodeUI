@@ -28,7 +28,10 @@ export interface TeamDeps {
   port?: number
 }
 
-/** Seconds or ms → ms; 0–1 or 0–100 → percent. The CLI's units aren't documented, so accept both. */
+/**
+ * Seconds or ms → ms; 0–1 or 0–100 → percent. Only for rate-limit events, whose units aren't
+ * documented. The usage call is documented as 0–100, so it doesn't go through toPct.
+ */
 const toMs = (t?: number) => (t === undefined ? undefined : t < 1e12 ? t * 1000 : t)
 const toPct = (u?: number | null) => (u === undefined || u === null ? undefined : u <= 1 ? u * 100 : u)
 
@@ -157,7 +160,8 @@ export class TeamService {
     const r = await this.deps.planUsage()
     if (!r) return
     const win = (w?: { utilization: number | null; resetsAt: string | null } | null) => {
-      const pct = toPct(w?.utilization)
+      // Already a percentage: 0.5 means half a percent, not 50 %.
+      const pct = typeof w?.utilization === 'number' ? Math.max(0, Math.min(100, w.utilization)) : undefined
       return pct === undefined ? undefined : { pct, resetsAt: w?.resetsAt ? Date.parse(w.resetsAt) : undefined }
     }
     this.usage = {
