@@ -47,3 +47,10 @@ export function terminalShell(command?: string): { file: string; args: string[] 
   // A login shell so PATH, aliases and nvm etc. behave as in Terminal.app.
   return { file, args: command ? ['-l', '-c', command] : ['-l'] }
 }
+
+/** The shell to use when the configured one (HARNESS_SHELL / SHELL) can't be started. */
+export function fallbackShell(command?: string): { file: string; args: string[] } {
+  if (isWindows) return { file: 'powershell.exe', args: command ? ['-NoLogo', '-NoExit', '-Command', command] : ['-NoLogo'] }
+  const file = process.platform === 'darwin' ? '/bin/zsh' : '/bin/sh'
+  return { file, args: command ? ['-l', '-c', command] : ['-l'] }
+}
