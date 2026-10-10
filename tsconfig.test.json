@@ -4,5 +4,5 @@
     "composite": false,
     "types": ["node"]
   },
-  "include": ["test/**/*", "src/main/**/*", "src/shared/**/*", "src/renderer/src/**/*", "src/preload/*.d.ts"]
+  "include": ["test/**/*", "e2e/**/*", "vitest.e2e.config.ts", "src/main/**/*", "src/shared/**/*", "src/renderer/src/**/*", "src/preload/*.d.ts"]
 }
