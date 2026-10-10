@@ -173,6 +173,23 @@ describe('PitchService', () => {
     t.svc.dispose()
   })
 
+  it("doesn't drop narration attached while the editor had unsaved edits", async () => {
+    const t = setup((async () => new Response(new Uint8Array(16000), { status: 200 })) as unknown as typeof fetch)
+    const s = await t.svc.scaffold('J')
+    const draft = { ...s.script!, voiceId: 'v', scenes: s.script!.scenes.slice(0, 2) }
+    await t.svc.saveScript(draft)
+    await t.svc.narrate()
+    expect((await settle(t.svc)).script!.scenes.every((x) => audioState(x, 'v') === 'fresh' || audioState(x, 'v') === 'silent')).toBe(true)
+    // The editor still holds its pre-narration draft (no audio fields) and autosaves a title change.
+    const after = (await t.svc.saveScript({ ...draft, title: 'Typed meanwhile' })).script!
+    expect(after.title).toBe('Typed meanwhile')
+    expect(audioState(after.scenes[0], 'v')).toBe('fresh')
+    // A real narration change still makes the take stale.
+    const edited = (await t.svc.saveScript({ ...draft, scenes: [{ ...draft.scenes[0], narration: 'Different words.' }, draft.scenes[1]] })).script!
+    expect(audioState(edited.scenes[0], 'v')).toBe('none')
+    t.svc.dispose()
+  })
+
   it('installs dependencies in the background', async () => {
     const { svc } = setup()
     await svc.scaffold('J')

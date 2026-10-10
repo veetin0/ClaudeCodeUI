@@ -42,6 +42,16 @@ async function copyMissing(from: string, to: string) {
   }
 }
 
+/** script.json as saved, or null if it's missing or not valid JSON. */
+async function readScriptFile(dir: string): Promise<PitchScript | null> {
+  const raw = await readFile(join(dir, SCRIPT_FILE), 'utf8').catch(() => undefined)
+  try {
+    return raw === undefined ? null : parseScript(JSON.parse(raw))
+  } catch {
+    return null
+  }
+}
+
 /** ElevenLabs errors come as { detail: { message } } or { detail: "…" }. */
 async function elevenError(res: Response): Promise<string> {
   const body = (await res.json().catch(() => null)) as { detail?: { message?: string; status?: string } | string } | null
@@ -132,6 +142,14 @@ export class PitchService {
     const dir = this.requireDir()
     const clean = parseScript(script)
     if (!clean) throw new Error('Invalid script')
+    // The editor's draft predates any narration attached while it was being edited; keep those takes.
+    const onDisk = await readScriptFile(dir)
+    for (const scene of clean.scenes) {
+      const disk = onDisk?.scenes.find((s) => s.id === scene.id)
+      if (disk?.audio && audioState(scene, clean.voiceId) !== 'fresh' && audioState({ ...disk, narration: scene.narration }, clean.voiceId) === 'fresh') {
+        Object.assign(scene, { audio: disk.audio, audioHash: disk.audioHash, audioSeconds: disk.audioSeconds })
+      }
+    }
     await mkdir(dir, { recursive: true })
     await this.writeScript(dir, clean)
     return this.state()
