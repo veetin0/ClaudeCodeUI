@@ -30,6 +30,10 @@ export function createRelay({ now = () => Date.now() } = {}) {
     }
     return out
   }
+  /** Drops expired members and the teams they leave empty, so old teams don't fill the relay. */
+  const sweep = () => {
+    for (const [key, team] of teams) if (members(team).length === 0) teams.delete(key)
+  }
   const readBody = (req) =>
     new Promise((resolve, reject) => {
       let size = 0
@@ -67,6 +71,7 @@ export function createRelay({ now = () => Date.now() } = {}) {
       const status = JSON.parse(await readBody(req))
       if (!status || typeof status !== 'object' || status.id !== m[1]) return send(res, 400, { error: 'status.id must match the URL' })
       if (!team) {
+        if (teams.size >= MAX_TEAMS) sweep()
         if (teams.size >= MAX_TEAMS) return send(res, 503, { error: 'relay full' })
         team = new Map()
         teams.set(key, team)

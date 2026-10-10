@@ -82,6 +82,21 @@ describe('relay + TeamService', () => {
     expect((await fetch(`${base}/v1/team`, { headers: { authorization: 'Bearer zzzzzzzzzzzzzzzzzzzz' } }).then((r) => r.json())).members).toEqual([])
   })
 
+  it('relay frees the slots of teams whose members all expired', async () => {
+    let t = 0
+    const server = createServer(createRelay({ now: () => t })).listen(0)
+    servers.push(server)
+    await new Promise((r) => server.once('listening', r))
+    const base = `http://127.0.0.1:${(server.address() as { port: number }).port}`
+    const put = (token: string) =>
+      fetch(`${base}/v1/team/members/m001`, { method: 'PUT', headers: { authorization: `Bearer ${token}` }, body: JSON.stringify({ id: 'm001', name: 'A' }) })
+    for (let i = 0; i < 500; i++) await put(`old-team-${String(i).padStart(10, '0')}`)
+    expect((await put('one-team-too-many-0001')).status).toBe(503)
+    // Half a day later every old team has expired; a new team must fit again.
+    t = 13 * 3600_000
+    expect((await put('new-team-after-expiry1')).status).toBe(200)
+  })
+
   it('one laptop hosts, another joins with the code, both see each other', async () => {
     const port = 47000 + Math.floor(Math.random() * 1000)
     const host = laptop('host0001', port)
