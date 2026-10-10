@@ -1,4 +1,4 @@
-import { fileUrl, isAbsolutePath } from '@shared/visuals'
+import { fileUrl, isAbsolutePath, pathFromFileUrl } from '@shared/visuals'
 import { describe, expect, it } from 'vitest'
 import type { SDKMessage } from '@anthropic-ai/claude-agent-sdk'
 import type { HarnessEvent } from '@shared/events'
@@ -105,6 +105,11 @@ describe('cross-platform media paths', () => {
     expect(fileUrl('/Users/a/out/v.mp4')).toBe('harness-file://local/Users/a/out/v.mp4')
     expect(fileUrl('C:\\Users\\a b\\out\\v.mp4')).toBe('harness-file://local/C:/Users/a%20b/out/v.mp4')
     expect(new URL(fileUrl('C:\\x\\v.mp4')).pathname).toBe('/C:/x/v.mp4')
+  })
+  it('serves files whose names contain #, ? or %', () => {
+    const files = ['/Users/me/plots/run #3.png', '/Users/me/what?.png', '/Users/me/100%.png', '/Users/me/ä ö.png', 'C:\\Users\\Me Name\\v #2.mp4']
+    for (const f of files) expect(pathFromFileUrl(fileUrl(f), '/Users/me')).toBe(f.replace(/\\/g, '/'))
+    expect(pathFromFileUrl('harness-file://local/~/out/v.mp4', '/Users/me')).toBe('/Users/me/out/v.mp4')
   })
   it('recognises absolute paths on both', () => {
     expect(['/a', 'C:\\a', 'c:/a', '\\\\server\\share'].every(isAbsolutePath)).toBe(true)

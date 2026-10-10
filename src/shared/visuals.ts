@@ -53,10 +53,26 @@ export const MEDIA_EXTENSIONS = [...IMAGE_EXTENSIONS, '.mp4', '.webm', '.mov', '
 /** URL scheme the main process serves local media files on (see main/system/fileProtocol.ts). */
 export const FILE_SCHEME = 'harness-file'
 
-/** Windows `C:\x\y.mp4` becomes `/C:/x/y.mp4` so it forms a valid URL path. */
+/**
+ * Windows `C:\x\y.mp4` becomes `/C:/x/y.mp4` so it forms a valid URL path. Each segment is
+ * percent-encoded whole, so `#`, `?` and `%` in a file name stay part of the path.
+ */
 export function fileUrl(path: string): string {
   const p = path.replace(/\\/g, '/')
-  return `${FILE_SCHEME}://local${encodeURI(/^[A-Za-z]:\//.test(p) ? `/${p}` : p)}`
+  const encoded = (/^[A-Za-z]:\//.test(p) ? `/${p}` : p)
+    .split('/')
+    .map((seg) => encodeURIComponent(seg).replace(/^([A-Za-z])%3A$/, '$1:'))
+    .join('/')
+  return `${FILE_SCHEME}://local${encoded}`
+}
+
+/** The file a fileUrl() points at (the inverse, used by the main process's protocol handler). */
+export function pathFromFileUrl(url: string, home: string): string {
+  let path = new URL(url).pathname.split('/').map(decodeURIComponent).join('/')
+  if (path.startsWith('/~/')) path = home + path.slice(2)
+  // Windows: "/C:/x/y.mp4" → "C:/x/y.mp4"
+  else if (/^\/[A-Za-z]:\//.test(path)) path = path.slice(1)
+  return path
 }
 
 /** Absolute on any OS: `/x`, `C:\x`, `C:/x` or a `\\server` share. */
