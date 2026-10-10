@@ -157,3 +157,37 @@ describe('AgentService resume', () => {
     expect(svc.isLive(id)).toBe(false)
   })
 })
+
+describe('AgentService when the Claude process crashes', () => {
+  it('stops watching the project and listening for telemetry', async () => {
+    const { mkdtempSync, writeFileSync, rmSync } = await import('node:fs')
+    const { tmpdir } = await import('node:os')
+    const { join } = await import('node:path')
+    const dir = mkdtempSync(join(tmpdir(), 'crash-'))
+    const factory = (({ prompt }: { prompt: AsyncIterable<unknown> }) => {
+      async function* run() {
+        for await (const _msg of prompt) throw new Error('Claude Code process exited with code 1')
+      }
+      return Object.assign(run(), { interrupt: async () => {} })
+    }) as unknown as QueryFactory
+    const events: HarnessEvent[] = []
+    const bus = { emit: (e: HarnessEvent | HarnessEvent[]) => events.push(...(Array.isArray(e) ? e : [e])) } as unknown as EventBus
+    const registered = new Set<string>()
+    const telemetry = { register: (t: string) => (registered.add(t), `http://127.0.0.1:1/t/${t}`), unregister: (t: string) => registered.delete(t) }
+    const snapshots = { getSnapshots: () => new Map(), saveSnapshot: () => {}, deleteSnapshot: () => {} }
+    const svc = new AgentService({ bus, getEnv: () => ({}), queryFactory: factory, telemetry: telemetry as never, snapshots })
+    const { id } = svc.start({ cwd: dir })
+    expect(registered.size).toBe(1)
+    svc.send(id, 'go')
+    await tick()
+    expect(events.filter((e) => e.type === 'status').at(-1)).toMatchObject({ status: 'closed' })
+    expect(events.find((e) => e.type === 'error')).toMatchObject({ message: expect.stringContaining('exited with code 1') })
+    expect(registered.size).toBe(0)
+    // Files changed after the crash aren't the dead session's doing.
+    writeFileSync(join(dir, 'later.txt'), 'x')
+    await new Promise((r) => setTimeout(r, 600))
+    expect(events.some((e) => e.type === 'file.change')).toBe(false)
+    svc.close(id)
+    rmSync(dir, { recursive: true, force: true })
+  })
+})

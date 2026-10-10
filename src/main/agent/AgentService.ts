@@ -200,7 +200,16 @@ class AgentSession {
     } finally {
       this.permissions.cancelAll()
       this.setStatus('closed')
+      // The process ended on its own (crash, CLI exit): stop watching and listening for it. close()
+      // does the rest; the tracker stays so its diffs and reverts keep working.
+      this.release()
     }
+  }
+
+  private release() {
+    this.deps.telemetry?.unregister(this.telemetryToken)
+    this.watcher?.close()
+    this.watcher = null
   }
 
   /** Plan usage via the CLI's (experimental) usage call; undefined when unsupported or failing. */
@@ -297,11 +306,10 @@ class AgentSession {
 
   close() {
     if (this.disposed) return
-    this.deps.telemetry?.unregister(this.telemetryToken)
+    this.release()
     this.permissions.cancelAll()
     this.setStatus('closed')
     this.disposed = true
-    this.watcher?.close()
     this.tracker?.dispose()
     this.input.close()
     this.abort.abort()
