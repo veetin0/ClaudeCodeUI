@@ -27,6 +27,11 @@ import { PitchService } from './pitch/PitchService'
 import { readHackforge } from './hackforge/HackforgeService'
 import { hackforgeGuide } from '@shared/hackforge'
 
+// Tests (and a second, throwaway profile) can keep everything out of the real profile folder.
+if (process.env.HARNESS_USER_DATA) app.setPath('userData', process.env.HARNESS_USER_DATA)
+/** Optional port overrides, so a test instance doesn't collide with a running Harness. */
+const envPort = (name: string) => Number(process.env[name]) || undefined
+
 loadLoginShellPath()
 registerFileScheme()
 
@@ -285,7 +290,7 @@ async function start() {
     projectsDir: join(claudeDir, 'projects'),
   })
   hookBridge = new HookBridge((input) => observer.onHook(input))
-  await hookBridge.start()
+  await hookBridge.start(envPort('HARNESS_HOOK_PORT'))
   if (settings.get().observeTerminalSessions) await observer.start()
   presence = new Presence({
     bus,
@@ -300,6 +305,7 @@ async function start() {
   if (process.platform === 'darwin' && !app.isPackaged) app.dock?.setIcon(appIcon)
   if (!settings.get().teamMemberId) settings.update({ teamMemberId: newMemberId() })
   team = new TeamService({
+    port: envPort('HARNESS_RELAY_PORT'),
     getConfig: () => settings.get().team,
     setConfig: (c) => settings.update({ team: c }),
     memberId: () => settings.get().teamMemberId,
