@@ -303,17 +303,18 @@ export const useApp = create<AppState>((set, get) => ({
     if (id) await api().interrupt(id)
   },
 
+  // A saved session has no agent to tell yet: keep the choice, and send() resumes with it.
   async setPermissionMode(mode) {
     const id = get().activeId
     if (!id) return
-    await api().setPermissionMode(id, mode)
+    if (get().sessions[id]?.live) await api().setPermissionMode(id, mode)
     set((st) => produce(st, (d) => void (d.sessions[id].permissionMode = mode)))
   },
 
   async setModel(model) {
     const id = get().activeId
     if (!id) return
-    await api().setModel(id, model)
+    if (get().sessions[id]?.live) await api().setModel(id, model)
     set((st) => produce(st, (d) => void (d.sessions[id].model = model)))
   },
 
