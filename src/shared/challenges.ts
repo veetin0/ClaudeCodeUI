@@ -57,8 +57,22 @@ export interface ChallengePatch {
   prize?: string
   description?: string
   notes?: string
+  /** The notes the edit started from. When set, text added to the file meanwhile (e.g. Claude's research) is kept. */
+  notesBase?: string
   /** null clears a team score. */
   scores?: Partial<Record<CriterionKey, number | null>>
+}
+
+/**
+ * Notes the user edited from `base` while the file changed to `theirs`. When the file only grew
+ * (Claude appended its research), the user's text plus what was appended; else the user's text.
+ */
+export function mergeNotes(base: string, mine: string, theirs: string): string {
+  const b = base.trim()
+  const t = theirs.trim()
+  if (t === b || !t.startsWith(b)) return mine
+  const added = t.slice(b.length).trim()
+  return mine.trim() ? `${mine.trim()}\n\n${added}` : added
 }
 
 export function applyPatch(c: Challenge, p: ChallengePatch): Challenge {
@@ -67,6 +81,7 @@ export function applyPatch(c: Challenge, p: ChallengePatch): Challenge {
     const v = p[k]
     if (v !== undefined) (next as unknown as Record<string, unknown>)[k] = k === 'link' || k === 'prize' ? v.trim() || undefined : v
   }
+  if (p.notes !== undefined && p.notesBase !== undefined) next.notes = mergeNotes(p.notesBase, p.notes, c.notes)
   if (p.status) next.status = p.status
   for (const [k, v] of Object.entries(p.scores ?? {}) as [CriterionKey, number | null][]) {
     if (v === null) delete next.scores[k]

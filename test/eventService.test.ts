@@ -113,6 +113,22 @@ describe('EventService', () => {
     svc.dispose()
   })
 
+  it("keeps Claude's research when mentor notes typed meanwhile are saved", async () => {
+    const d = tmp()
+    const svc = new EventService(() => d, () => {})
+    await svc.setup(d)
+    await svc.updateChallenge((await svc.addChallenge({ partner: 'P', title: 'T', description: 'D' })).challenges[0].id, { notes: '- likes voice' })
+    // The user starts typing; meanwhile "Research partner" appends to the file.
+    const file = join(d, 'challenges', 'p-t.md')
+    writeFileSync(file, readFileSync(file, 'utf8').replace('- likes voice', '- likes voice\n- Research: P ships a speech API'))
+    const s = await svc.updateChallenge('p-t', { notes: '- likes voice, hates slides', notesBase: '- likes voice' })
+    expect(s.challenges[0].notes).toBe('- likes voice, hates slides\n\n- Research: P ships a speech API')
+    // Without a base (or when the file changed some other way) the typed text wins, as before.
+    expect((await svc.updateChallenge('p-t', { notes: 'only mine' })).challenges[0].notes).toBe('only mine')
+    expect((await svc.updateChallenge('p-t', { notes: 'mine again', notesBase: 'something else' })).challenges[0].notes).toBe('mine again')
+    svc.dispose()
+  })
+
   it('adds LF rules to an existing .gitattributes once', async () => {
     const d = tmp()
     writeFileSync(join(d, '.gitattributes'), '*.png binary\n*.sh   text eol=lf')

@@ -1,5 +1,5 @@
 import { Bot, ChevronDown, ChevronRight, ClipboardPaste, ExternalLink, Plus, Search, Star, Trash2, Trophy, X } from 'lucide-react'
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import {
   analyzePrompt,
   CHALLENGE_STATUSES,
@@ -269,7 +269,11 @@ function Scores({ c, onSet }: { c: Challenge; onSet: (k: CriterionKey, v: number
 function Details({ c }: { c: Challenge }) {
   const update = useEvent((s) => s.updateChallenge)
   const [notes, setNotes] = useState(c.notes)
-  useEffect(() => setNotes(c.notes), [c.notes])
+  /** c.notes when typing began; while set, changes from disk don't replace what's being typed. */
+  const base = useRef<string | null>(null)
+  useEffect(() => {
+    if (base.current === null) setNotes(c.notes)
+  }, [c.notes])
   return (
     <div className="mt-3 space-y-3">
       {(c.ai?.partnerTech || (c.ai?.risks.length ?? 0) > 0) && (
@@ -295,8 +299,14 @@ function Details({ c }: { c: Challenge }) {
         <div className="mb-1 text-[11.5px] font-medium">Mentor notes (what the partner said, constraints, data/APIs they give)</div>
         <textarea
           value={notes}
+          onFocus={() => (base.current = c.notes)}
           onChange={(e) => setNotes(e.target.value)}
-          onBlur={() => notes !== c.notes && void update(c.id, { notes })}
+          onBlur={() => {
+            const from = base.current ?? c.notes
+            base.current = null
+            if (notes !== from) void update(c.id, { notes, notesBase: from })
+            else setNotes(c.notes)
+          }}
           rows={4}
           placeholder="- They care most about…"
           className={cn(field, 'resize-y')}
