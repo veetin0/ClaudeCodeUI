@@ -90,6 +90,29 @@ describe('EventService', () => {
     svc.dispose()
   })
 
+  it('keeps every change when ticks and score clicks overlap', async () => {
+    const d = tmp()
+    const svc = new EventService(() => d, () => {})
+    await svc.setup(d)
+    await svc.addChallenge({ partner: 'P', title: 'T', description: 'D' })
+    await Promise.all([
+      svc.updateProgress({ done: { a: true } }),
+      svc.updateProgress({ done: { b: true } }),
+      svc.updateProgress({ partner: { name: 'OpenAI', keys: true } }),
+      svc.updateChallenge('p-t', { scores: { fit: 2 } }),
+      svc.updateChallenge('p-t', { scores: { wow: 5 } }),
+      svc.updateChallenge('p-t', { notes: 'mentor note' }),
+    ])
+    // Overlapping writes used to interleave and leave invalid JSON behind.
+    expect(JSON.parse(readFileSync(join(d, 'challenge', 'event-checklist.json'), 'utf8'))).toEqual({ done: { a: true, b: true }, partners: { OpenAI: { keys: true } } })
+    const s = await svc.state()
+    expect(s.challenges[0]).toMatchObject({ scores: { fit: 2, wow: 5 }, notes: 'mentor note' })
+    await expect(svc.updateChallenge('missing', { title: 'x' })).rejects.toThrow(/no longer exists/)
+    // A failed write doesn't block the ones after it.
+    expect((await svc.updateProgress({ done: { c: true } })).progress.done).toEqual({ a: true, b: true, c: true })
+    svc.dispose()
+  })
+
   it('adds LF rules to an existing .gitattributes once', async () => {
     const d = tmp()
     writeFileSync(join(d, '.gitattributes'), '*.png binary\n*.sh   text eol=lf')

@@ -76,6 +76,8 @@ export class EventService {
   private watcher: FSWatcher | null = null
   private watchedDir: string | null = null
   private timer?: NodeJS.Timeout
+  /** Writes run one at a time: each is read-modify-write, and quick clicks overlap otherwise. */
+  private queue: Promise<unknown> = Promise.resolve()
 
   constructor(
     private getProjectDir: () => string | undefined,
@@ -114,7 +116,11 @@ export class EventService {
   }
 
   /** Prepares a folder for the event: challenge/ layout, event.yaml, team directive, brief, HackForge settings. */
-  async setup(dir: string): Promise<EventState> {
+  setup(dir: string): Promise<EventState> {
+    return this.serial(() => this.writeSetup(dir))
+  }
+
+  private async writeSetup(dir: string): Promise<EventState> {
     const preset = EVENT_PRESETS[this.preset]
     for (const d of CHALLENGE_DIRS) await mkdir(join(dir, 'challenge', d), { recursive: true })
     await writeIfMissing(join(dir, EVENT_FILE), preset.yaml)
@@ -126,7 +132,17 @@ export class EventService {
     return this.state()
   }
 
-  async updateProgress(patch: ProgressPatch): Promise<EventState> {
+  private serial<T>(fn: () => Promise<T>): Promise<T> {
+    const next = this.queue.then(fn, fn)
+    this.queue = next.catch(() => {})
+    return next
+  }
+
+  updateProgress(patch: ProgressPatch): Promise<EventState> {
+    return this.serial(() => this.writeProgress(patch))
+  }
+
+  private async writeProgress(patch: ProgressPatch): Promise<EventState> {
     const dir = this.getProjectDir()
     if (!dir) throw new Error('Link an event project first.')
     const cur = (await this.state()).progress
@@ -168,7 +184,11 @@ export class EventService {
   }
 
   /** Adds a challenge typed or pasted into the board. */
-  async addChallenge(c: { partner: string; title: string; description: string; link?: string }): Promise<EventState> {
+  addChallenge(c: { partner: string; title: string; description: string; link?: string }): Promise<EventState> {
+    return this.serial(() => this.writeNewChallenge(c))
+  }
+
+  private async writeNewChallenge(c: { partner: string; title: string; description: string; link?: string }): Promise<EventState> {
     const dir = this.requireDir()
     await mkdir(join(dir, CHALLENGES_DIR), { recursive: true })
     const base = slugify(`${c.partner} ${c.title}`)
@@ -188,7 +208,11 @@ export class EventService {
     return this.state()
   }
 
-  async updateChallenge(id: string, patch: ChallengePatch): Promise<EventState> {
+  updateChallenge(id: string, patch: ChallengePatch): Promise<EventState> {
+    return this.serial(() => this.patchChallenge(id, patch))
+  }
+
+  private async patchChallenge(id: string, patch: ChallengePatch): Promise<EventState> {
     const dir = this.requireDir()
     const path = this.challengePath(dir, id)
     const src = await readText(path)
@@ -197,28 +221,34 @@ export class EventService {
     return this.state()
   }
 
-  async deleteChallenge(id: string): Promise<EventState> {
-    const dir = this.requireDir()
-    await rm(this.challengePath(dir, id), { force: true })
-    return this.state()
+  deleteChallenge(id: string): Promise<EventState> {
+    return this.serial(async () => {
+      const dir = this.requireDir()
+      await rm(this.challengePath(dir, id), { force: true })
+      return this.state()
+    })
   }
 
   /**
    * Picks the challenge: marks it chosen (any previous pick goes back to the shortlist), writes the
    * brief HackForge reads, names the challenge in hackforge.yaml and ticks the checklist item.
    */
-  async chooseChallenge(id: string): Promise<EventState> {
+  chooseChallenge(id: string): Promise<EventState> {
+    return this.serial(() => this.writeChoice(id))
+  }
+
+  private async writeChoice(id: string): Promise<EventState> {
     const dir = this.requireDir()
     for (const c of await this.readChallenges(dir)) {
-      if (c.id !== id && c.status === 'chosen') await this.updateChallenge(c.id, { status: 'shortlist' })
+      if (c.id !== id && c.status === 'chosen') await this.patchChallenge(c.id, { status: 'shortlist' })
     }
-    await this.updateChallenge(id, { status: 'chosen' })
+    await this.patchChallenge(id, { status: 'chosen' })
     const chosen = parseChallenge((await readText(this.challengePath(dir, id)))!, id)
     await mkdir(join(dir, 'challenge', 'brief'), { recursive: true })
     await writeFile(join(dir, CHOSEN_BRIEF), chosenBrief(chosen))
     const hfPath = join(dir, HACKFORGE_FILE)
     await writeFile(hfPath, mergeHackforgeYaml(await readText(hfPath), { challenge: `${chosen.partner}: ${chosen.title}` }))
-    return this.updateProgress({ done: { 'p-challenge': true } })
+    return this.writeProgress({ done: { 'p-challenge': true } })
   }
 
   private ensureWatch(dir: string | undefined) {
