@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { existsSync, type FSWatcher, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
@@ -126,6 +126,22 @@ describe('EventService', () => {
     // Without a base (or when the file changed some other way) the typed text wins, as before.
     expect((await svc.updateChallenge('p-t', { notes: 'only mine' })).challenges[0].notes).toBe('only mine')
     expect((await svc.updateChallenge('p-t', { notes: 'mine again', notesBase: 'something else' })).challenges[0].notes).toBe('mine again')
+    svc.dispose()
+  })
+
+  it('starts a new watcher after the old one fails', async () => {
+    const d = tmp()
+    const pushed: number[] = []
+    const svc = new EventService(() => d, (s) => pushed.push(Object.keys(s.progress.done).length))
+    await svc.setup(d)
+    const priv = svc as unknown as { watcher: FSWatcher | null }
+    const first = priv.watcher!
+    first.emit('error', new Error('EPERM'))
+    await svc.state()
+    expect(priv.watcher).not.toBeNull()
+    expect(priv.watcher).not.toBe(first)
+    writeFileSync(join(d, 'challenge', 'event-checklist.json'), JSON.stringify({ done: { roles: true }, partners: {} }))
+    await expect.poll(() => pushed.at(-1), { timeout: 3000 }).toBe(1)
     svc.dispose()
   })
 

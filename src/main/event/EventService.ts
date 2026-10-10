@@ -265,7 +265,12 @@ export class EventService {
         clearTimeout(this.timer)
         this.timer = setTimeout(() => void this.state().then(this.push, () => {}), 150)
       })
-      this.watcher.on('error', () => this.watcher?.close())
+      // E.g. the folder was moved or deleted. Drop the watcher so the next state() starts a new one.
+      const w = this.watcher
+      w.on('error', () => {
+        w.close()
+        if (this.watcher === w) this.watcher = null
+      })
     } catch {
       this.watcher = null
     }
