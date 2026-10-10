@@ -3,7 +3,8 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import type { PreviewState } from '@shared/preview'
-import { PreviewService } from '../src/main/preview/PreviewService'
+import { createServer, type Server } from 'node:net'
+import { freePort, PreviewService } from '../src/main/preview/PreviewService'
 
 let dir: string
 let last: PreviewState | null
@@ -75,5 +76,22 @@ describe('PreviewService', () => {
     svc.noteOutput('ready at http://localhost:5173/', 'command', dir)
     svc.noteOutput('also http://127.0.0.1:8080 and http://localhost:5173/', 'terminal', dir)
     expect(svc.state().detected.map((d) => d.url)).toEqual(['http://localhost:5173/', 'http://localhost:8080'])
+  })
+})
+
+describe('freePort', () => {
+  it('skips a port a dev server holds on any interface', async () => {
+    const held: Server[] = []
+    const hold = (port: number, host: string) =>
+      new Promise<number>((resolve) => {
+        const srv = createServer().listen(port, host, () => resolve((srv.address() as { port: number }).port))
+        held.push(srv)
+      })
+    // Next.js and Vite listen on `::` / 0.0.0.0; others on loopback only.
+    const a = await hold(0, '::')
+    const b = await hold(0, '0.0.0.0')
+    const c = await hold(0, '127.0.0.1')
+    for (const p of [a, b, c]) expect(await freePort(p)).not.toBe(p)
+    held.forEach((s) => s.close())
   })
 })

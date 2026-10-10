@@ -23,16 +23,33 @@ import { agentEnv } from '../system/environment'
 const LOG_LINES = 200
 const MAX_DETECTED = 12
 
-/** A free localhost port, so several Studios/servers can run side by side. */
-async function freePort(preferred: number): Promise<number> {
-  const tryPort = (p: number) =>
-    new Promise<number | null>((resolve) => {
-      const srv = createServer()
-      srv.once('error', () => resolve(null))
-      srv.listen(p, '127.0.0.1', () => srv.close(() => resolve(p)))
+const canListen = (port: number, host: string) =>
+  new Promise<boolean>((resolve) => {
+    const srv = createServer()
+    srv.once('error', (e: NodeJS.ErrnoException) => resolve(e.code === 'EADDRNOTAVAIL' || e.code === 'EAFNOSUPPORT'))
+    srv.listen(port, host, () => srv.close(() => resolve(true)))
+  })
+
+/**
+ * A free localhost port, so several Studios/servers can run side by side. A dev server may listen
+ * on 127.0.0.1, ::1 or every interface; binding only 127.0.0.1 succeeds next to a server on `::`
+ * or 0.0.0.0 (macOS and Windows allow it), so check them all. A missing IPv6 stack doesn't count.
+ */
+export async function freePort(preferred: number): Promise<number> {
+  const free = async (p: number) => {
+    for (const host of ['127.0.0.1', '0.0.0.0', '::1', '::']) if (!(await canListen(p, host))) return false
+    return true
+  }
+  for (let p = preferred; p < preferred + 50; p++) if (await free(p)) return p
+  // All 50 taken: let the OS pick one.
+  return new Promise((resolve) => {
+    const srv = createServer()
+    srv.once('error', () => resolve(preferred))
+    srv.listen(0, () => {
+      const { port } = srv.address() as { port: number }
+      srv.close(() => resolve(port))
     })
-  for (let p = preferred; p < preferred + 50; p++) if ((await tryPort(p)) !== null) return p
-  return (await tryPort(0)) ?? preferred
+  })
 }
 
 function packageManager(cwd: string): string {
