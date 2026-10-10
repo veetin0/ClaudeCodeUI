@@ -262,9 +262,11 @@ describe('PitchService', () => {
     await t.svc.state()
     expect(priv.watcher).not.toBeNull()
     expect(priv.watcher).not.toBe(first)
+    // Let the new watcher start delivering events (macOS needs a moment; see eventService.test.ts).
+    await new Promise((r) => setTimeout(r, 500))
     const before = t.pushed.length
     writeFileSync(join(t.root, 'pitch', 'script.json'), JSON.stringify({ title: 'Edited by hand', scenes: [] }))
-    await expect.poll(() => t.pushed.length, { timeout: 3000 }).toBeGreaterThan(before)
+    await expect.poll(() => t.pushed.length, { timeout: 5000 }).toBeGreaterThan(before)
     t.svc.dispose()
   })
 

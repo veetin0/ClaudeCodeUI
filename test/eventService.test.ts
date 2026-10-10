@@ -140,8 +140,11 @@ describe('EventService', () => {
     await svc.state()
     expect(priv.watcher).not.toBeNull()
     expect(priv.watcher).not.toBe(first)
+    // macOS starts delivering events a moment after fs.watch() returns; under load a write made
+    // straight away can be missed, which isn't what this test is about.
+    await new Promise((r) => setTimeout(r, 500))
     writeFileSync(join(d, 'challenge', 'event-checklist.json'), JSON.stringify({ done: { roles: true }, partners: {} }))
-    await expect.poll(() => pushed.at(-1), { timeout: 3000 }).toBe(1)
+    await expect.poll(() => pushed.at(-1), { timeout: 5000 }).toBe(1)
     svc.dispose()
   })
 

@@ -63,6 +63,7 @@ describe('HackforgeService', () => {
     first.emit('error', new Error('EPERM'))
     // A fresh watcher takes over (and re-reads) a moment later.
     await expect.poll(() => entry.watcher && entry.watcher !== first, { timeout: 4000 }).toBe(true)
+    await new Promise((r) => setTimeout(r, 500))
     writeFileSync(join(d, '.hackforge', 'STATE.md'), readFileSync(join(d, '.hackforge', 'STATE.md'), 'utf8').replace(/^- Next:.*$/m, '- Next: ship it'))
     await expect.poll(() => pushed.at(-1), { timeout: 4000 }).toBe('ship it')
     svc.dispose()
