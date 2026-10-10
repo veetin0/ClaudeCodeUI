@@ -362,7 +362,7 @@ export function pickConfig(y: unknown): HackforgeConfig {
 export function setYamlProfile(yaml: string, profile: string): string {
   const re = /^profile\s*:[^#\n]*?(\s*#.*)?$/m
   if (re.test(yaml)) return yaml.replace(re, (_m, comment = '') => `profile: ${profile}${comment}`)
-  return `${yaml.replace(/\s*$/, '\n')}profile: ${profile}\n`
+  return `${yaml.trim() ? yaml.replace(/\s*$/, '\n') : ''}profile: ${profile}\n`
 }
 
 /** HackForge's subagents arrive as `hackforge:rules-lawyer` etc. */

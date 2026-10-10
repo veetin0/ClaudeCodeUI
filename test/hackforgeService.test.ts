@@ -1,4 +1,4 @@
-import { cpSync, existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
@@ -38,6 +38,17 @@ describe('HackforgeService', () => {
     dirs.push(d)
     const s = await readHackforge(d, join(d, 'none.json'))
     expect(s).toMatchObject({ present: false, initialized: false, pluginInstalled: false, rules: [], milestones: [] })
+  })
+
+  it('sets the profile in a project that has .hackforge/ but no challenge/ yet', async () => {
+    const d = mkdtempSync(join(tmpdir(), 'hf-'))
+    dirs.push(d)
+    mkdirSync(join(d, '.hackforge'))
+    const svc = new HackforgeService(join(d, 'none.json'), () => {})
+    await svc.setProfile(d, 'deep')
+    expect(readFileSync(join(d, 'challenge', 'hackforge.yaml'), 'utf8')).toBe('profile: deep\n')
+    expect((await svc.snapshot(d)).config.profile).toBe('deep')
+    svc.dispose()
   })
 
   it('stops the loop, sets the profile, and pushes live updates', async () => {

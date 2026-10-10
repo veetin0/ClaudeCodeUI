@@ -1,5 +1,5 @@
 import { existsSync, type FSWatcher } from 'node:fs'
-import { readdir, readFile, stat, writeFile } from 'node:fs/promises'
+import { mkdir, readdir, readFile, stat, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import YAML from 'yaml'
 import {
@@ -176,6 +176,8 @@ export class HackforgeService {
   async setProfile(cwd: string, profile: string) {
     const path = join(cwd, CONFIG)
     const yaml = (await readText(path)) ?? ''
+    // .hackforge/ without challenge/ still shows the picker; create the folder rather than fail.
+    await mkdir(join(cwd, 'challenge'), { recursive: true })
     await writeFile(path, setYamlProfile(yaml, profile))
   }
 

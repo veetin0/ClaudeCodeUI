@@ -2,6 +2,7 @@ import { AlertTriangle, CheckCircle2, Circle, CircleDot, Copy, Flame, FolderPlus
 import { useEffect, useState } from 'react'
 import { HACKFORGE_PHASES, HACKFORGE_PROFILES, type HackforgeSnapshot, type LoopEntry, type RuleItem } from '@shared/hackforge'
 import { cn } from '@/lib/format'
+import { ipcErrorMessage } from '@/lib/time'
 import { useApp } from '@/stores/app'
 import { useHackforge } from '@/stores/hackforge'
 import type { SessionState } from '@/stores/reducer'
@@ -121,6 +122,7 @@ export function timeLeft(deadline: string | undefined, now: number): { text: str
 
 function Header({ hf }: { hf: HackforgeSnapshot }) {
   const now = useNow()
+  const [profileError, setProfileError] = useState<string | null>(null)
   const deadline = hf.config.deadline ?? hf.state.deadline
   const left = timeLeft(deadline, now)
   const profile = hf.config.profile ?? hf.state.profile
@@ -149,7 +151,10 @@ function Header({ hf }: { hf: HackforgeSnapshot }) {
             Profile
             <select
               value={profile && (HACKFORGE_PROFILES as readonly string[]).includes(profile) ? profile : 'auto'}
-              onChange={(e) => void window.harness.hackforgeSetProfile(hf.cwd, e.target.value)}
+              onChange={(e) => {
+                setProfileError(null)
+                window.harness.hackforgeSetProfile(hf.cwd, e.target.value).catch((err: unknown) => setProfileError(`Couldn't save the profile: ${ipcErrorMessage(err)}`))
+              }}
               className="rounded-md border border-line bg-surface px-1.5 py-0.5 text-fg"
             >
               {HACKFORGE_PROFILES.map((p) => (
@@ -159,6 +164,7 @@ function Header({ hf }: { hf: HackforgeSnapshot }) {
           </label>
         )}
       </div>
+      {profileError && <div className="selectable w-full text-right text-[11.5px] text-red-500">{profileError}</div>}
     </div>
   )
 }
