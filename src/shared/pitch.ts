@@ -107,28 +107,30 @@ const num = (v: unknown) => (typeof v === 'number' && Number.isFinite(v) && v >=
 export function parseScript(json: unknown): PitchScript | null {
   if (!json || typeof json !== 'object') return null
   const o = json as Record<string, unknown>
+  const raw = (Array.isArray(o.scenes) ? o.scenes : []).filter((x): x is Record<string, unknown> => !!x && typeof x === 'object')
+  // Ids must come out the same on every read: narration files are named by id and re-attached by
+  // id after the request. Missing or repeated ids get "scene-N" / "-2"; ids in the file win.
+  const given = raw.map((r) => str(r.id, 40)?.replace(/[^\w-]/g, '') || '')
+  const taken = new Set(given.filter(Boolean))
   const seen = new Set<string>()
-  const scenes = (Array.isArray(o.scenes) ? o.scenes : []).flatMap((x): PitchScene[] => {
-    if (!x || typeof x !== 'object') return []
-    const r = x as Record<string, unknown>
-    let id = str(r.id, 40)?.replace(/[^\w-]/g, '') || newSceneId()
-    while (seen.has(id)) id = newSceneId()
+  const scenes = raw.map((r, i): PitchScene => {
+    const base = given[i] || `scene-${i + 1}`
+    let id = base
+    for (let n = 2; seen.has(id) || (!given[i] && taken.has(id)); n++) id = `${base}-${n}`
     seen.add(id)
     const visual = VISUALS.includes(r.visual as Visual) ? (r.visual as Visual) : 'title'
-    return [
-      {
-        id,
-        title: str(r.title, 200) ?? '',
-        narration: str(r.narration) ?? '',
-        visual,
-        bullets: Array.isArray(r.bullets) ? r.bullets.map((b) => str(b, 200)).filter((b): b is string => !!b).slice(0, 8) : undefined,
-        media: safeRelPath(str(r.media, 200)),
-        seconds: num(r.seconds),
-        audio: safeRelPath(str(r.audio, 200)),
-        audioSeconds: num(r.audioSeconds),
-        audioHash: str(r.audioHash, 16) || undefined,
-      },
-    ]
+    return {
+      id,
+      title: str(r.title, 200) ?? '',
+      narration: str(r.narration) ?? '',
+      visual,
+      bullets: Array.isArray(r.bullets) ? r.bullets.map((b) => str(b, 200)).filter((b): b is string => !!b).slice(0, 8) : undefined,
+      media: safeRelPath(str(r.media, 200)),
+      seconds: num(r.seconds),
+      audio: safeRelPath(str(r.audio, 200)),
+      audioSeconds: num(r.audioSeconds),
+      audioHash: str(r.audioHash, 16) || undefined,
+    }
   })
   return {
     title: str(o.title, 200) ?? 'Our project',

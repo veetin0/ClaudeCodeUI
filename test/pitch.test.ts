@@ -30,6 +30,13 @@ describe('pitch script model', () => {
     expect(audioState({ ...script.scenes[1], narration: '  ' }, 'v1')).toBe('silent')
   })
 
+  it('gives missing and repeated scene ids stable names, keeping the ids in the file', () => {
+    const json = { scenes: [{ title: 'a' }, { id: 'intro' }, { id: 'intro' }, { title: 'b' }, { id: 'scene-1' }] }
+    const ids = parseScript(json)!.scenes.map((s) => s.id)
+    expect(ids).toEqual(['scene-1-2', 'intro', 'intro-2', 'scene-4', 'scene-1'])
+    expect(parseScript(json)!.scenes.map((s) => s.id)).toEqual(ids)
+  })
+
   it('parses defensively', () => {
     const s = parseScript({
       title: 'T',
@@ -187,6 +194,22 @@ describe('PitchService', () => {
     // A real narration change still makes the take stale.
     const edited = (await t.svc.saveScript({ ...draft, scenes: [{ ...draft.scenes[0], narration: 'Different words.' }, draft.scenes[1]] })).script!
     expect(audioState(edited.scenes[0], 'v')).toBe('none')
+    t.svc.dispose()
+  })
+
+  it('narrates a script written without scene ids once, and attaches it', async () => {
+    let calls = 0
+    const t = setup((async () => (calls++, new Response(new Uint8Array(16000), { status: 200 }))) as unknown as typeof fetch)
+    await t.svc.scaffold('J')
+    // E.g. "Write script with Claude" leaving out the ids.
+    writeFileSync(join(t.root, 'pitch', 'script.json'), JSON.stringify({ title: 'X', voiceId: 'v', scenes: [{ title: 'A', narration: 'Hello there.' }, { title: 'B', narration: 'Second.' }] }))
+    expect((await t.svc.state()).script!.scenes.map((s) => s.id)).toEqual((await t.svc.state()).script!.scenes.map((s) => s.id))
+    await t.svc.narrate()
+    const s = (await settle(t.svc)).script!
+    expect(s.scenes.map((x) => audioState(x, 'v'))).toEqual(['fresh', 'fresh'])
+    await t.svc.narrate()
+    expect((await settle(t.svc)).job?.message).toMatch(/up to date/)
+    expect(calls).toBe(2)
     t.svc.dispose()
   })
 
