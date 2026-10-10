@@ -60,6 +60,12 @@ export function EventView() {
         </header>
 
         {error && <div className="selectable rounded-lg border border-red-500/40 bg-red-500/5 px-3 py-2 text-[12px] text-red-600">{error}</div>}
+        {config.invalidTimezone && (
+          <div className="selectable rounded-lg border border-amber-500/50 bg-amber-500/[0.08] px-3 py-2 text-[12px]">
+            <code>challenge/event.yaml</code> names the time zone “{config.invalidTimezone}”, which this computer doesn't know, so all times are shown in UTC. Use an IANA
+            name such as <code>Europe/Helsinki</code>.
+          </div>
+        )}
 
         <Tabs state={state} />
         <Notice />

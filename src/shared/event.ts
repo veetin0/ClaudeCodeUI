@@ -44,6 +44,8 @@ export interface EventConfig {
   address?: string
   url?: string
   timezone: string
+  /** The time zone event.yaml named but this system doesn't know (times then show in UTC). */
+  invalidTimezone?: string
   teamSize?: number
   team: string[]
   milestones: EventMilestone[]
@@ -81,6 +83,16 @@ export const CHECKLIST_GROUPS: Record<ChecklistGroup, string> = {
 }
 
 // ---------- time zones (no library: Intl gives the offset) ----------
+
+/** Whether Intl knows this IANA zone; an unknown one makes every Intl call throw. */
+export function isTimeZone(zone: string): boolean {
+  try {
+    new Intl.DateTimeFormat('en-US', { timeZone: zone })
+    return true
+  } catch {
+    return false
+  }
+}
 
 /** Offset of `zone` from UTC at instant `ms`, in minutes. */
 export function zoneOffsetMinutes(ms: number, zone: string): number {
@@ -191,6 +203,8 @@ export function pickEvent(y: unknown, fallbackId = 'event'): EventConfig {
   const o = (y && typeof y === 'object' ? y : {}) as Record<string, unknown>
   const list = (v: unknown) => (Array.isArray(v) ? (v as Record<string, unknown>[]).filter((x) => x && typeof x === 'object') : [])
   const name = str(o.name) || 'Hackathon'
+  const zone = str(o.timezone) || 'UTC'
+  const zoneOk = isTimeZone(zone)
   return {
     id: str(o.id) || slug(name) || fallbackId,
     name,
@@ -199,7 +213,8 @@ export function pickEvent(y: unknown, fallbackId = 'event'): EventConfig {
     location: str(o.location) || undefined,
     address: str(o.address) || undefined,
     url: str(o.url) || undefined,
-    timezone: str(o.timezone) || 'UTC',
+    timezone: zoneOk ? zone : 'UTC',
+    invalidTimezone: zoneOk ? undefined : zone,
     teamSize: typeof o.team_size === 'number' ? o.team_size : undefined,
     team: Array.isArray(o.team) ? o.team.map(str).filter(Boolean) : [],
     milestones: list(o.schedule)

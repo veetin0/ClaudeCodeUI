@@ -61,4 +61,15 @@ describe('Junction 2026 preset', () => {
     ])
     expect(pickProgress({ done: { a: true, b: 'x' }, partners: { OpenAI: { keys: true } } })).toEqual({ done: { a: true }, partners: { OpenAI: { keys: true, kit: false } } })
   })
+
+  it('falls back to UTC with a warning for an unknown time zone instead of crashing', () => {
+    const cfg = pickEvent({ timezone: 'Europe/Helsnki', schedule: [{ label: 'Doors', at: '2026-11-13 16:00', kind: 'official' }] })
+    expect(cfg).toMatchObject({ timezone: 'UTC', invalidTimezone: 'Europe/Helsnki' })
+    // Everything the event view renders with the zone must work.
+    const clock = eventClock(cfg, at('2026-11-01T00:00Z'))
+    expect(clock.start).toBe(at('2026-11-13T16:00Z'))
+    expect(formatInZone(clock.start, cfg.timezone)).toMatch(/16:00/)
+    expect(zoneLabel(clock.start, cfg.timezone)).toBe('UTC+0')
+    expect(junction.invalidTimezone).toBeUndefined()
+  })
 })
