@@ -198,6 +198,22 @@ const slug = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(
 const KINDS: MilestoneKind[] = ['official', 'deadline', 'plan', 'sleep']
 const GROUPS = Object.keys(CHECKLIST_GROUPS) as ChecklistGroup[]
 
+/**
+ * Ticks are keyed by id, so two items with the same label get "-2", "-3"… Ids written in the YAML
+ * keep their value (progress is saved under them); only generated ones move out of the way.
+ */
+function uniqueIds<T extends { id: string }>(items: (T & { explicit: boolean })[]): T[] {
+  const taken = new Set(items.filter((it) => it.explicit).map((it) => it.id))
+  const seen = new Set<string>()
+  return items.map(({ explicit, ...rest }) => {
+    const it = rest as unknown as T
+    let id = it.id
+    for (let n = 2; seen.has(id) || (!explicit && taken.has(id)); n++) id = `${it.id}-${n}`
+    seen.add(id)
+    return { ...it, id }
+  })
+}
+
 /** event.yaml after YAML parsing → EventConfig. Unknown or malformed entries are dropped, not fatal. */
 export function pickEvent(y: unknown, fallbackId = 'event'): EventConfig {
   const o = (y && typeof y === 'object' ? y : {}) as Record<string, unknown>
@@ -217,9 +233,11 @@ export function pickEvent(y: unknown, fallbackId = 'event'): EventConfig {
     invalidTimezone: zoneOk ? undefined : zone,
     teamSize: typeof o.team_size === 'number' ? o.team_size : undefined,
     team: Array.isArray(o.team) ? o.team.map(str).filter(Boolean) : [],
-    milestones: list(o.schedule)
+    milestones: uniqueIds(
+      list(o.schedule)
       .map((m) => ({
         id: str(m.id) || slug(str(m.label)),
+        explicit: !!str(m.id),
         label: str(m.label),
         at: str(m.at),
         end: str(m.end) || undefined,
@@ -227,18 +245,22 @@ export function pickEvent(y: unknown, fallbackId = 'event'): EventConfig {
         note: str(m.note) || undefined,
       }))
       .filter((m) => m.label && m.at),
+    ),
     partners: list(o.partners)
       .map((p) => ({ name: str(p.name), url: str(p.url) || undefined, category: str(p.category) || 'Other', note: str(p.note) || undefined }))
       .filter((p) => p.name),
-    checklist: list(o.checklist)
+    checklist: uniqueIds(
+      list(o.checklist)
       .map((c) => ({
         id: str(c.id) || slug(str(c.label)),
+        explicit: !!str(c.id),
         group: (GROUPS.includes(c.group as ChecklistGroup) ? c.group : 'prep') as ChecklistGroup,
         label: str(c.label),
         due: str(c.due) || undefined,
         note: str(c.note) || undefined,
       }))
       .filter((c) => c.label),
+    ),
   }
 }
 

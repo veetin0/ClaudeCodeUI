@@ -62,6 +62,25 @@ describe('Junction 2026 preset', () => {
     expect(pickProgress({ done: { a: true, b: 'x' }, partners: { OpenAI: { keys: true } } })).toEqual({ done: { a: true }, partners: { OpenAI: { keys: true, kit: false } } })
   })
 
+  it('gives repeated labels their own ids so ticking one does not tick the other', () => {
+    const cfg = pickEvent({
+      schedule: [
+        { label: 'Standup', at: '2026-11-14 09:00' },
+        { label: 'Standup', at: '2026-11-15 09:00' },
+      ],
+      checklist: [
+        { group: 'preliminary', label: 'Push to GitHub' },
+        { group: 'final', label: 'Push to GitHub' },
+        { id: 'push-to-github-2', label: 'Explicit id' },
+        { id: 'standup', label: 'Explicit wins over a generated id' },
+      ],
+    })
+    expect(cfg.milestones.map((m) => m.id)).toEqual(['standup', 'standup-2'])
+    expect(pickEvent({ schedule: [{ label: 'Demo', at: '2026-11-14 09:00' }, { id: 'demo', label: 'Final demo', at: '2026-11-15 09:00' }] }).milestones.map((m) => m.id)).toEqual(['demo-2', 'demo'])
+    expect(cfg.checklist.map((c) => c.id)).toEqual(['push-to-github', 'push-to-github-3', 'push-to-github-2', 'standup'])
+    expect(new Set(junction.checklist.map((c) => c.id)).size).toBe(junction.checklist.length)
+  })
+
   it('falls back to UTC with a warning for an unknown time zone instead of crashing', () => {
     const cfg = pickEvent({ timezone: 'Europe/Helsnki', schedule: [{ label: 'Doors', at: '2026-11-13 16:00', kind: 'official' }] })
     expect(cfg).toMatchObject({ timezone: 'UTC', invalidTimezone: 'Europe/Helsnki' })
