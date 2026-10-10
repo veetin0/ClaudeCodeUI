@@ -268,6 +268,25 @@ describe('PitchService', () => {
     t.svc.dispose()
   })
 
+  it('keeps editor saves that land while narration attaches a take', async () => {
+    const t = setup((async () => new Response(new Uint8Array(16000), { status: 200 })) as unknown as typeof fetch)
+    const s = await t.svc.scaffold('J')
+    const draft = { ...s.script!, voiceId: 'v' }
+    await t.svc.saveScript(draft)
+    await t.svc.narrate()
+    // Autosaves keep arriving while the takes are attached one by one.
+    let last = ''
+    for (let i = 0; (await t.svc.state()).job?.status === 'running' && i < 200; i++) {
+      last = `Title ${i}`
+      await Promise.all([t.svc.saveScript({ ...draft, title: last }), new Promise((r) => setTimeout(r, 1))])
+    }
+    await settle(t.svc)
+    const saved = JSON.parse(readFileSync(join(t.root, 'pitch', 'script.json'), 'utf8'))
+    expect(saved.title).toBe(last || draft.title)
+    expect(parseScript(saved)!.scenes.filter((x) => x.narration.trim()).every((x) => audioState(x, 'v') === 'fresh')).toBe(true)
+    t.svc.dispose()
+  })
+
   it('installs dependencies in the background', async () => {
     const { svc } = setup()
     await svc.scaffold('J')

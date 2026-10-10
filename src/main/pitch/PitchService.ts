@@ -96,8 +96,16 @@ export class PitchService {
   private watcher: FSWatcher | null = null
   private watched?: string
   private timer?: NodeJS.Timeout
+  /** script.json writes run one at a time: editor saves and narration both read, change and write it. */
+  private queue: Promise<unknown> = Promise.resolve()
 
   constructor(private readonly deps: PitchDeps) {}
+
+  private serial<T>(fn: () => Promise<T>): Promise<T> {
+    const next = this.queue.then(fn, fn)
+    this.queue = next.catch(() => {})
+    return next
+  }
 
   private pitchDir(): string | undefined {
     const p = this.deps.projectDir()
@@ -142,7 +150,7 @@ export class PitchService {
     // Packaging can drop dotfiles from the template; this one keeps node_modules out of the team's repo.
     if (!existsSync(join(dir, '.gitignore'))) await writeFile(join(dir, '.gitignore'), 'node_modules/\nout/\n')
     await mkdir(join(dir, 'public', 'audio'), { recursive: true })
-    if (!existsSync(join(dir, SCRIPT_FILE))) await this.writeScript(dir, defaultScript(eventName))
+    if (!existsSync(join(dir, SCRIPT_FILE))) await this.serial(() => this.writeScript(dir, defaultScript(eventName)))
     return this.state()
   }
 
@@ -150,7 +158,11 @@ export class PitchService {
     return writeFile(join(dir, SCRIPT_FILE), JSON.stringify(script, null, 2) + '\n')
   }
 
-  async saveScript(script: PitchScript): Promise<PitchState> {
+  saveScript(script: PitchScript): Promise<PitchState> {
+    return this.serial(() => this.writeEdited(script))
+  }
+
+  private async writeEdited(script: PitchScript): Promise<PitchState> {
     const dir = this.requireDir()
     const clean = parseScript(script)
     if (!clean) throw new Error('Invalid script')
@@ -260,7 +272,8 @@ export class PitchService {
           await mkdir(dirname(abs), { recursive: true })
           await writeFile(abs, buf)
         }
-        await this.attachAudio(dir, t.id, hash, rel, mp3Seconds((await stat(abs)).size))
+        const seconds = mp3Seconds((await stat(abs)).size)
+        await this.serial(() => this.attachAudio(dir, t.id, hash, rel, seconds))
         done++
       }
       this.job = { kind: 'narrate', status: 'done', message: `Narration ready (${done} scene${done === 1 ? '' : 's'}).`, done, total: todo.length }
