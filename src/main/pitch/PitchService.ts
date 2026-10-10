@@ -287,7 +287,7 @@ export class PitchService {
   }
 
   private ensureWatch(dir: string | undefined) {
-    if (dir === this.watched) return
+    if (dir === this.watched && (this.watcher || !dir)) return
     this.watcher?.close()
     this.watcher = null
     this.watched = dir
@@ -302,7 +302,12 @@ export class PitchService {
         clearTimeout(this.timer)
         this.timer = setTimeout(() => void this.publish(), 250)
       })
-      this.watcher.on('error', () => this.watcher?.close())
+      // E.g. the folder was moved or deleted. Drop the watcher so the next state() starts a new one.
+      const w = this.watcher
+      w.on('error', () => {
+        w.close()
+        if (this.watcher === w) this.watcher = null
+      })
     } catch {
       this.watcher = null
     }

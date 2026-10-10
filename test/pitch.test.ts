@@ -1,4 +1,4 @@
-import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { existsSync, type FSWatcher, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
@@ -251,6 +251,21 @@ describe('PitchService', () => {
     }) as unknown as typeof fetch)
     await expect(slow.svc.voices()).rejects.toThrow("ElevenLabs didn't answer within 15 s. Try again.")
     slow.svc.dispose()
+  })
+
+  it('starts a new watcher after the old one fails', async () => {
+    const t = setup()
+    await t.svc.scaffold('J')
+    const priv = t.svc as unknown as { watcher: FSWatcher | null }
+    const first = priv.watcher!
+    first.emit('error', new Error('EPERM'))
+    await t.svc.state()
+    expect(priv.watcher).not.toBeNull()
+    expect(priv.watcher).not.toBe(first)
+    const before = t.pushed.length
+    writeFileSync(join(t.root, 'pitch', 'script.json'), JSON.stringify({ title: 'Edited by hand', scenes: [] }))
+    await expect.poll(() => t.pushed.length, { timeout: 3000 }).toBeGreaterThan(before)
+    t.svc.dispose()
   })
 
   it('installs dependencies in the background', async () => {
