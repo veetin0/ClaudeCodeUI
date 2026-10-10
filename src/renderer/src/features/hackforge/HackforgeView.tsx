@@ -1,6 +1,6 @@
 import { AlertTriangle, CheckCircle2, Circle, CircleDot, Copy, Flame, FolderPlus, OctagonX, Play, ShieldAlert, XCircle } from 'lucide-react'
 import { useEffect, useState } from 'react'
-import { HACKFORGE_PHASES, HACKFORGE_PROFILES, type HackforgeSnapshot, type LoopEntry, type RuleItem } from '@shared/hackforge'
+import { HACKFORGE_PHASES, HACKFORGE_PROFILES, loopRunId, loopStopPending, type HackforgeSnapshot, type LoopEntry, type RuleItem } from '@shared/hackforge'
 import { cn } from '@/lib/format'
 import { ipcErrorMessage } from '@/lib/time'
 import { useApp } from '@/stores/app'
@@ -335,8 +335,13 @@ function ScoreChart({ entries, target }: { entries: LoopEntry[]; target: number 
 
 function LoopPanel({ hf }: { hf: HackforgeSnapshot }) {
   const loop = hf.loop!
-  const [stopping, setStopping] = useState(false)
-  const stopPending = hf.stopRequested || stopping
+  const [clickedFor, setClickedFor] = useState<string | null>(null)
+  const [stopError, setStopError] = useState<string | null>(null)
+  const stopPending = loopStopPending(loop, hf.stopRequested, clickedFor)
+  // A run that ended (or was never seen to start) can't still be stopping.
+  useEffect(() => {
+    if (!loop.active) setClickedFor(null)
+  }, [loop.active])
   return (
     <Panel
       title="Improvement loop"
@@ -346,8 +351,12 @@ function LoopPanel({ hf }: { hf: HackforgeSnapshot }) {
           <button
             disabled={stopPending}
             onClick={() => {
-              setStopping(true)
-              void window.harness.hackforgeStopLoop(hf.cwd)
+              setStopError(null)
+              setClickedFor(loopRunId(loop))
+              window.harness.hackforgeStopLoop(hf.cwd).catch((err: unknown) => {
+                setClickedFor(null)
+                setStopError(`Couldn't stop the loop: ${ipcErrorMessage(err)}`)
+              })
             }}
             title="Creates .hackforge/STOP_LOOP: the loop finishes its iteration, writes a summary and stops"
             className="flex items-center gap-1.5 rounded-md border border-red-500/40 px-2.5 py-1 text-[12px] text-red-600 hover:bg-red-500/10 disabled:opacity-50 dark:text-red-400"
@@ -357,6 +366,7 @@ function LoopPanel({ hf }: { hf: HackforgeSnapshot }) {
         )
       }
     >
+      {stopError && <div className="selectable mb-2 text-[12px] text-red-500">{stopError}</div>}
       <div className="mb-2 flex flex-wrap gap-x-5 gap-y-1 text-[12px]">
         <Stat label="Iteration" value={`${loop.iteration} / ${loop.maxIterations}`} />
         <Stat label="Best" value={loop.bestScore !== undefined ? loop.bestScore.toFixed(1) : '—'} />

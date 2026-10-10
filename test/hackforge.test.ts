@@ -13,6 +13,8 @@ import {
   parseVerify,
   parseWeight,
   pickConfig,
+  loopRunId,
+  loopStopPending,
   setYamlProfile,
 } from '@shared/hackforge'
 
@@ -133,5 +135,20 @@ describe('helpers', () => {
   it('names HackForge agents', () => {
     expect(hackforgeRole('hackforge:rules-lawyer')).toBe('Rules Lawyer')
     expect(hackforgeRole('general-purpose')).toBeUndefined()
+  })
+})
+
+describe('Stop loop button', () => {
+  const run = (startedAt: string | undefined, active = true) => ({ ...parseLoop({ active, started_at: startedAt }, undefined) })
+  it('reads "stopping" only for the run it was clicked for', () => {
+    const first = run('2026-11-14T10:00Z')
+    const clicked = loopRunId(first)
+    expect(loopStopPending(first, false, clicked)).toBe(true)
+    // The gate removed STOP_LOOP and the run ended; a later run must get a working Stop button.
+    expect(loopStopPending(run('2026-11-14T10:00Z', false), false, clicked)).toBe(false)
+    expect(loopStopPending(run('2026-11-14T13:30Z'), false, clicked)).toBe(false)
+    // STOP_LOOP on disk always counts (e.g. created by a teammate or by hand).
+    expect(loopStopPending(run('2026-11-14T13:30Z'), true, null)).toBe(true)
+    expect(loopStopPending(first, false, null)).toBe(false)
   })
 })

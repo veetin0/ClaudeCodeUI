@@ -292,6 +292,17 @@ export function parseLoop(json: unknown, md: string | undefined): LoopStatus {
   }
 }
 
+/** Which loop run a Stop click was for (a new run of the loop gets a new started_at). */
+export const loopRunId = (loop: LoopStatus) => loop.startedAt ?? `run-${loop.maxIterations}-${loop.targetScore}`
+
+/**
+ * Whether the Stop button should read "Stopping after this iteration…": STOP_LOOP exists, or Stop
+ * was clicked for this same, still-active run (not an earlier one that has since ended).
+ */
+export function loopStopPending(loop: LoopStatus, stopRequested: boolean, clickedFor: string | null): boolean {
+  return stopRequested || (loop.active && clickedFor !== null && clickedFor === loopRunId(loop))
+}
+
 /** STATE.md bullets (kickoff/templates/STATE.md). The unfilled template is ignored. */
 export function parseState(md: string): StateInfo {
   const field = (label: string) => {
