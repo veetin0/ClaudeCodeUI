@@ -113,9 +113,12 @@ async function newestSourceMtime(cwd: string): Promise<number> {
   return newest
 }
 
+const WATCH_RETRY_MS = 2000
+
 interface Watched {
   watcher: FSWatcher | null
   timer?: NodeJS.Timeout
+  retry?: NodeJS.Timeout
   last?: HackforgeSnapshot
   refs: number
 }
@@ -148,22 +151,41 @@ export class HackforgeService {
     else {
       w = { watcher: null, refs: 1 }
       this.watched.set(cwd, w)
-      const entry = w
-      entry.watcher = watchProject(cwd, (rel) => {
-        const memory = isMemoryChange(rel)
-        // Code changes only matter once there is a VERIFY.md that could go stale.
-        if (!memory && !entry.last?.verify) return
-        clearTimeout(entry.timer)
-        entry.timer = setTimeout(() => void this.snapshot(cwd).then((s) => this.watched.has(cwd) && this.push(s)), memory ? 200 : 1500)
-      })
+      this.startWatcher(cwd, w)
     }
     return this.snapshot(cwd)
+  }
+
+  private startWatcher(cwd: string, entry: Watched) {
+    const refresh = (delay: number) => {
+      clearTimeout(entry.timer)
+      entry.timer = setTimeout(() => void this.snapshot(cwd).then((s) => this.watched.get(cwd) === entry && this.push(s)), delay)
+    }
+    const watcher = watchProject(cwd, (rel) => {
+      const memory = isMemoryChange(rel)
+      // Code changes only matter once there is a VERIFY.md that could go stale.
+      if (!memory && !entry.last?.verify) return
+      refresh(memory ? 200 : 1500)
+    })
+    entry.watcher = watcher
+    // watchProject closes a watcher that errors (folder moved, EPERM on Windows…). Start a new one
+    // shortly, and re-read, so the dashboard doesn't silently stop updating.
+    watcher?.on('error', () => {
+      if (entry.watcher !== watcher) return
+      entry.watcher = null
+      entry.retry = setTimeout(() => {
+        if (this.watched.get(cwd) !== entry) return
+        this.startWatcher(cwd, entry)
+        refresh(0)
+      }, WATCH_RETRY_MS)
+    })
   }
 
   unwatch(cwd: string) {
     const w = this.watched.get(cwd)
     if (!w || --w.refs > 0) return
     clearTimeout(w.timer)
+    clearTimeout(w.retry)
     w.watcher?.close()
     this.watched.delete(cwd)
   }

@@ -1,4 +1,4 @@
-import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { cpSync, existsSync, type FSWatcher, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
@@ -48,6 +48,23 @@ describe('HackforgeService', () => {
     await svc.setProfile(d, 'deep')
     expect(readFileSync(join(d, 'challenge', 'hackforge.yaml'), 'utf8')).toBe('profile: deep\n')
     expect((await svc.snapshot(d)).config.profile).toBe('deep')
+    svc.dispose()
+  })
+
+  it('keeps the dashboard live after the watcher fails', async () => {
+    const d = project()
+    const pushed: (string | undefined)[] = []
+    const svc = new HackforgeService(join(d, 'none.json'), (s) => pushed.push(s.state.next))
+    await svc.watch(d)
+    // Let the events from copying the fixture settle, so they can't stand in for the watcher.
+    await new Promise((r) => setTimeout(r, 800))
+    const entry = (svc as unknown as { watched: Map<string, { watcher: FSWatcher | null }> }).watched.get(d)!
+    const first = entry.watcher!
+    first.emit('error', new Error('EPERM'))
+    // A fresh watcher takes over (and re-reads) a moment later.
+    await expect.poll(() => entry.watcher && entry.watcher !== first, { timeout: 4000 }).toBe(true)
+    writeFileSync(join(d, '.hackforge', 'STATE.md'), readFileSync(join(d, '.hackforge', 'STATE.md'), 'utf8').replace(/^- Next:.*$/m, '- Next: ship it'))
+    await expect.poll(() => pushed.at(-1), { timeout: 4000 }).toBe('ship it')
     svc.dispose()
   })
 
