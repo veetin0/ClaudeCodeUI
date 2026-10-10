@@ -1,13 +1,24 @@
 # Releasing Harness
 
+## Build for yourself or your team (macOS)
+
+```bash
+npm run build:mac        # → dist/Harness-<version>-arm64.dmg, unsigned
+```
+
+This never signs, even if your keychain has an Apple certificate. Signing needs Apple's timestamp
+server, and with only an "Apple Development" certificate it fails ("A timestamp was expected but was
+not found") without producing a .dmg. An unsigned build runs on the Mac that built it. On another Mac,
+right-click → Open the first time.
+
 ## Build a signed, notarized .dmg (macOS)
 
 ```bash
 npm ci
-npm run build:mac        # → dist/Harness-<version>-arm64.dmg and .zip
+npm run release:mac      # → dist/Harness-<version>-arm64.dmg and .zip
 ```
 
-- **Signing:** electron-builder uses the "Developer ID Application" certificate from your keychain. On CI, set `CSC_LINK` (a base64 .p12) and `CSC_KEY_PASSWORD`. Without a certificate the app is built unsigned. It still runs locally after right-click → Open.
+- **Signing:** electron-builder uses the "Developer ID Application" certificate from your keychain (an "Apple Development" certificate isn't meant for distribution). On CI, set `CSC_LINK` (a base64 .p12) and `CSC_KEY_PASSWORD`.
 - **Notarization:** runs automatically when these are set: `APPLE_ID`, `APPLE_APP_SPECIFIC_PASSWORD` and `APPLE_TEAM_ID`, or an API key via `APPLE_API_KEY`, `APPLE_API_KEY_ID` and `APPLE_API_ISSUER`.
 - **Entitlements:** `build/entitlements.mac.plist` grants what the hardened runtime needs. JIT is for V8 and the bundled Claude Code binary; library validation is relaxed for node-pty's native addon. They are applied to helpers too (`entitlementsInherit`).
 

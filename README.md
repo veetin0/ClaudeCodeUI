@@ -205,7 +205,8 @@ Sessions use your existing Claude Code login. You can also store an Anthropic AP
 ```bash
 npm test             # normalizer/reducer tests replay real recorded SDK sessions
 npm run typecheck
-npm run build:mac    # signed + notarized .dmg when credentials are set; see docs/RELEASING.md
+npm run build:mac    # unsigned .dmg for you and your team
+npm run release:mac  # signed + notarized .dmg with a Developer ID; see docs/RELEASING.md
 npm run build:win    # Windows installer (run on Windows): dist\Harness-Setup-<version>.exe
 npm run build:dir    # unpacked app for a quick packaging smoke test
 ```
