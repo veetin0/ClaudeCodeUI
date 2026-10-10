@@ -7,7 +7,7 @@
   "type": "module",
   "private": true,
   "scripts": {
-    "postinstall": "install-electron",
+    "postinstall": "install-electron && node scripts/fix-node-pty.mjs",
     "dev": "electron-vite dev",
     "build": "electron-vite build",
     "preview": "electron-vite preview",

@@ -34,6 +34,7 @@ npm install --cpu=x64 --os=darwin
 
 - Runtime dependencies are deliberately few (`package.json` → `dependencies`): the Agent SDK, node-pty, diff and zod. Everything the renderer uses is bundled by Vite and lives in `devDependencies`.
 - `app.asar.unpacked` holds the Claude Code binary and node-pty, which must be real files on disk. `resources/` holds the tray and window icons.
+- node-pty's macOS `spawn-helper` must be executable or no terminal can start ("posix_spawnp failed"). npm installs it without the execute bit, so `postinstall` runs `scripts/fix-node-pty.mjs`. electron-builder keeps the mode in the bundle. If you copy `node_modules` some other way, run that script before packaging.
 
 ## Smoke test the packaged app
 
