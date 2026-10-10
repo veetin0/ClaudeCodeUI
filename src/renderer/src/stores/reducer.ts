@@ -179,7 +179,13 @@ export function applyEvent(s: SessionState, e: HarnessEvent): void {
     case 'status':
       s.status = e.status
       if (e.status === 'running' && s.turnStartedAt === undefined) s.turnStartedAt = e.ts
-      if (e.status === 'closed') s.live = false
+      if (e.status === 'closed') {
+        s.live = false
+        // The agent process is gone (closed or crashed mid-turn): nothing it started is still running,
+        // background subagents included.
+        for (const t of Object.values(s.tools)) if (t.status === 'running') t.status = 'error'
+        for (const sub of Object.values(s.subagents)) if (sub.status === 'running') sub.status = 'stopped'
+      }
       if (e.status === 'idle' || e.status === 'closed') {
         s.turnStartedAt = undefined
         s.streamingText = ''

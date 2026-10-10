@@ -89,3 +89,26 @@ describe('reducer: saved sessions', () => {
     expect(turns.at(-1)).toMatchObject({ costUsd: expect.closeTo(0.05, 5) })
   })
 })
+
+describe('reducer when the agent process dies mid-turn', () => {
+  it('stops showing its tools and subagents as running', () => {
+    const base = { sessionId: 's1', ts: 1 } as const
+    const events = [
+      { ...base, type: 'status', status: 'running' },
+      { ...base, type: 'tool.start', toolUseId: 'bash1', agentId: null, name: 'Bash', input: { command: 'npm test' } },
+      { ...base, type: 'tool.start', toolUseId: 'task1', agentId: null, name: 'Task', input: { description: 'Review', run_in_background: true } },
+      { ...base, type: 'tool.start', toolUseId: 'read1', agentId: 'task1', name: 'Read', input: { file_path: '/p/a.ts' } },
+      { ...base, type: 'error', message: 'Claude Code process exited with code 1' },
+      { ...base, ts: 2, type: 'status', status: 'closed' },
+    ] as HarnessEvent[]
+    const s = reduceAll(events)
+    expect(s.live).toBe(false)
+    expect(Object.values(s.tools).map((t) => [t.id, t.status])).toEqual([
+      ['bash1', 'error'],
+      ['task1', 'error'],
+      ['read1', 'error'],
+    ])
+    expect(s.subagents.task1.status).toBe('stopped')
+    expect(s.items.some((i) => i.kind === 'error')).toBe(true)
+  })
+})
