@@ -140,8 +140,12 @@ export function usageAdvice(members: MemberStatus[], now: number, fmtTime: (ms: 
   return { best, warnings }
 }
 
-/** Sanitises a status received from the relay (it's other people's data). */
-export function pickMember(x: unknown): MemberStatus | null {
+/**
+ * Sanitises a status received from the relay (it's other people's data). `updatedAt` comes from
+ * the relay's "seen n ms ago" when it sends one, so a teammate whose clock is off still shows
+ * online correctly; older relays fall back to the sender's own timestamp.
+ */
+export function pickMember(x: unknown, now = Date.now()): MemberStatus | null {
   if (!x || typeof x !== 'object') return null
   const o = x as Record<string, unknown>
   const s = (v: unknown, max = 200) => (typeof v === 'string' ? v.slice(0, max) : undefined)
@@ -158,7 +162,7 @@ export function pickMember(x: unknown): MemberStatus | null {
     name: s(o.name, 40)!,
     focus: s(o.focus),
     branch: s(o.branch, 100),
-    updatedAt: n(o.updatedAt)!,
+    updatedAt: n(o.seenMsAgo) !== undefined && n(o.seenMsAgo)! >= 0 ? now - n(o.seenMsAgo)! : n(o.updatedAt)!,
     sessions: (Array.isArray(o.sessions) ? o.sessions : []).slice(0, 12).flatMap((x) => {
       const r = (x && typeof x === 'object' ? x : {}) as Record<string, unknown>
       const status = s(r.status, 20) as MemberSession['status'] | undefined

@@ -1,6 +1,6 @@
 import { createServer, type Server } from 'node:http'
 import { afterEach, describe, expect, it } from 'vitest'
-import { headroom, makeJoinCode, parseJoinCode, pickMember, usageAdvice, type MemberStatus, type TeamConfig, type TeamState } from '@shared/team'
+import { headroom, isOnline, makeJoinCode, parseJoinCode, pickMember, usageAdvice, type MemberStatus, type TeamConfig, type TeamState } from '@shared/team'
 import { createRelay } from '../relay/relay.mjs'
 import { TeamService, type TeamDeps } from '../src/main/team/TeamService'
 
@@ -77,9 +77,28 @@ describe('relay + TeamService', () => {
     const auth = { authorization: 'Bearer 0123456789abcdef0123' }
     expect((await fetch(`${base}/v1/team/members/aaaa`, { method: 'PUT', headers: auth, body: JSON.stringify({ id: 'bbbb' }) })).status).toBe(400)
     const put = await fetch(`${base}/v1/team/members/aaaa`, { method: 'PUT', headers: auth, body: JSON.stringify({ id: 'aaaa', name: 'A' }) }).then((r) => r.json())
-    expect(put.members).toEqual([{ id: 'aaaa', name: 'A' }])
+    expect(put.members).toEqual([{ id: 'aaaa', name: 'A', seenMsAgo: expect.any(Number) }])
     // Another team's token sees nothing.
     expect((await fetch(`${base}/v1/team`, { headers: { authorization: 'Bearer zzzzzzzzzzzzzzzzzzzz' } }).then((r) => r.json())).members).toEqual([])
+  })
+
+  it("judges online from the relay's clock, not the teammate's", async () => {
+    let t = 1_000_000
+    const server = createServer(createRelay({ now: () => t })).listen(0)
+    servers.push(server)
+    await new Promise((r) => server.once('listening', r))
+    const base = `http://127.0.0.1:${(server.address() as { port: number }).port}`
+    const auth = { authorization: 'Bearer 0123456789abcdef0123' }
+    // A teammate whose clock runs 10 minutes behind reports in right now.
+    const skewed = { id: 'slow0001', name: 'Dee', sessions: [], usage: { source: 'plan' }, updatedAt: NOW - 600_000 }
+    await fetch(`${base}/v1/team/members/slow0001`, { method: 'PUT', headers: auth, body: JSON.stringify(skewed) })
+    t += 5_000
+    const { members } = await fetch(`${base}/v1/team`, { headers: auth }).then((r) => r.json())
+    const dee = pickMember(members[0], NOW)!
+    expect(dee.updatedAt).toBe(NOW - 5_000)
+    expect(isOnline(dee, NOW)).toBe(true)
+    // An older relay without seenMsAgo: the sender's timestamp, as before.
+    expect(pickMember(skewed, NOW)!.updatedAt).toBe(NOW - 600_000)
   })
 
   it('relay frees the slots of teams whose members all expired', async () => {

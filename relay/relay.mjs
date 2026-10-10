@@ -26,7 +26,8 @@ export function createRelay({ now = () => Date.now() } = {}) {
     const out = []
     for (const [id, m] of team) {
       if (t - m.seen > EXPIRE_MS) team.delete(id)
-      else out.push(m.status)
+      // How long ago, on the relay's clock: laptops' clocks can disagree by minutes.
+      else out.push({ ...m.status, seenMsAgo: t - m.seen })
     }
     return out
   }

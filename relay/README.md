@@ -21,3 +21,5 @@ Check it's up with `curl https://our-relay.example.com/health`.
 
 API: `PUT /v1/team/members/:id` (store my status, returns everyone's), `GET /v1/team`,
 `DELETE /v1/team/members/:id`, all with `Authorization: Bearer <team token>`.
+Each returned status carries `seenMsAgo` (on the relay's clock), so online/offline doesn't depend on
+teammates' laptop clocks agreeing.

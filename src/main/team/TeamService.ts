@@ -223,7 +223,8 @@ export class TeamService {
       const me = await this.buildStatus(c)
       const res = (await this.request(c, `/v1/team/members/${c.memberId}`, { method: 'PUT', body: JSON.stringify(me) })) as { members?: unknown[] }
       if (!current()) return
-      this.members = (res.members ?? []).map(pickMember).filter((m): m is MemberStatus => !!m)
+      const now = Date.now()
+      this.members = (res.members ?? []).map((m) => pickMember(m, now)).filter((m): m is MemberStatus => !!m)
       // Show my own status straight from here (no round-trip lag).
       this.members = [me, ...this.members.filter((m) => m.id !== me.id)]
       this.connected = true
