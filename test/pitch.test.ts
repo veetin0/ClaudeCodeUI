@@ -213,6 +213,23 @@ describe('PitchService', () => {
     t.svc.dispose()
   })
 
+  it('a double click on Generate narration starts one run, not two', async () => {
+    let calls = 0
+    const t = setup((async () => (calls++, new Response(new Uint8Array(16000), { status: 200 }))) as unknown as typeof fetch)
+    const s = await t.svc.scaffold('J')
+    await t.svc.saveScript({ ...s.script!, voiceId: 'v' })
+    const [a, b] = await Promise.allSettled([t.svc.narrate(), t.svc.narrate()])
+    expect(a.status).toBe('fulfilled')
+    expect(b).toMatchObject({ status: 'rejected', reason: expect.objectContaining({ message: expect.stringMatching(/still running/) }) })
+    await settle(t.svc)
+    expect(calls).toBe(s.script!.scenes.filter((x) => x.narration.trim()).length)
+    // A failed check gives the job back.
+    await t.svc.saveScript({ ...s.script!, voiceId: undefined })
+    await expect(t.svc.narrate()).rejects.toThrow(/Pick a narrator voice/)
+    expect((await t.svc.state()).job?.status).not.toBe('running')
+    t.svc.dispose()
+  })
+
   it('installs dependencies in the background', async () => {
     const { svc } = setup()
     await svc.scaffold('J')

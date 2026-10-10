@@ -198,9 +198,17 @@ export class PitchService {
     const key = this.deps.elevenLabsKey()
     if (!key) throw new Error('Add your ElevenLabs API key first (Pitch → Voice).')
     if (this.job?.status === 'running') throw new Error('Another pitch job is still running.')
-    const script = (await this.state()).script
-    if (!script) throw new Error('No script.json yet.')
-    if (!script.voiceId) throw new Error('Pick a narrator voice first.')
+    // Claim the job before the first await, so a double click can't start (and pay for) two runs.
+    const before = this.job
+    this.job = { kind: 'narrate', status: 'running', message: 'Checking the script…' }
+    const script = await this.state().then(
+      (st) => st.script,
+      () => null,
+    )
+    if (!script?.voiceId) {
+      this.job = before
+      throw new Error(script ? 'Pick a narrator voice first.' : 'No script.json yet.')
+    }
     const todo = script.scenes.filter((s) => audioState(s, script.voiceId) === 'none' || audioState(s, script.voiceId) === 'stale')
     if (todo.length === 0) {
       this.job = { kind: 'narrate', status: 'done', message: 'All narration is up to date.' }
