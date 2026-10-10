@@ -37,6 +37,11 @@ describe('pitch script model', () => {
     expect(parseScript(json)!.scenes.map((s) => s.id)).toEqual(ids)
   })
 
+  it('keeps long narration whole when saving', () => {
+    const long = 'word '.repeat(1200).trim() // 6000 characters, about 8 minutes spoken
+    expect(parseScript({ scenes: [{ narration: long }] })!.scenes[0].narration).toBe(long)
+  })
+
   it('parses defensively', () => {
     const s = parseScript({
       title: 'T',

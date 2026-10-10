@@ -100,6 +100,8 @@ export function safeRelPath(p: string | undefined): string | undefined {
   return clean || undefined
 }
 
+/** ElevenLabs' per-request limit for eleven_multilingual_v2; anything longer couldn't be narrated anyway. */
+export const MAX_NARRATION_CHARS = 10_000
 const str = (v: unknown, max = 2000) => (typeof v === 'string' ? v.slice(0, max) : undefined)
 const num = (v: unknown) => (typeof v === 'number' && Number.isFinite(v) && v >= 0 ? v : undefined)
 
@@ -122,7 +124,8 @@ export function parseScript(json: unknown): PitchScript | null {
     return {
       id,
       title: str(r.title, 200) ?? '',
-      narration: str(r.narration) ?? '',
+      // Not the 2000 default: a long scene's text must survive a save untouched.
+      narration: str(r.narration, MAX_NARRATION_CHARS) ?? '',
       visual,
       bullets: Array.isArray(r.bullets) ? r.bullets.map((b) => str(b, 200)).filter((b): b is string => !!b).slice(0, 8) : undefined,
       media: safeRelPath(str(r.media, 200)),
