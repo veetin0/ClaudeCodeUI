@@ -149,6 +149,21 @@ describe('relay + TeamService', () => {
     expect(onRelay.members).toEqual([])
   })
 
+  it('says so when the relay port is taken, and hosts once it is free', async () => {
+    const port = 46000 + Math.floor(Math.random() * 1000)
+    const blocker = createServer().listen(port)
+    await new Promise((r) => blocker.once('listening', r))
+    const l = laptop('hostbusy', port)
+    await expect(l.svc.create({ name: 'Ada', host: true })).rejects.toThrow(`port ${port} is already in use`)
+    // A saved hosting config at launch (e.g. after a restart) shows the real cause, not "can't reach".
+    const saved = laptop('hostbusy', port, { getConfig: () => ({ relayUrl: `http://127.0.0.1:${port}`, token: 'abcdefghijklmnopqrstuvwx', memberId: 'hostbusy', memberName: 'Ada', hosting: true }) })
+    await saved.svc.sync()
+    expect(saved.svc.state()).toMatchObject({ connected: false, error: expect.stringContaining('already in use') })
+    await new Promise<void>((r) => blocker.close(() => r()))
+    await saved.svc.sync()
+    expect(saved.svc.state()).toMatchObject({ connected: true, error: undefined })
+  })
+
   it('reports a wrong code or unreachable relay clearly', async () => {
     const l = laptop('solo0001', 1)
     await expect(l.svc.join('hello', 'X')).rejects.toThrow(/not a valid join code/)

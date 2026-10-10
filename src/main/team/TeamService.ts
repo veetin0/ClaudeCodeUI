@@ -57,7 +57,7 @@ export class TeamService {
 
   start() {
     const c = this.deps.getConfig()
-    if (c?.hosting) void this.host().catch((e) => (this.error = `Couldn't host the relay: ${e instanceof Error ? e.message : e}`))
+    // Hosting (re)starts inside sync(), so a port that was busy at launch is retried every round.
     this.timer = setInterval(() => void this.sync(), SYNC_MS)
     this.usageTimer = setInterval(() => void this.pollUsage(), USAGE_POLL_MS)
     void this.sync()
@@ -215,6 +215,7 @@ export class TeamService {
     // Left (or switched team) while this was in flight: its answer no longer applies.
     const current = () => this.deps.getConfig()?.token === c.token
     try {
+      if (c.hosting) await this.host()
       const me = await this.buildStatus(c)
       const res = (await this.request(c, `/v1/team/members/${c.memberId}`, { method: 'PUT', body: JSON.stringify(me) })) as { members?: unknown[] }
       if (!current()) return
@@ -265,7 +266,15 @@ export class TeamService {
     if (this.server) return Promise.resolve()
     return new Promise((resolve, reject) => {
       const server = createServer(createRelay())
-      server.once('error', reject)
+      server.once('error', (e: NodeJS.ErrnoException) =>
+        reject(
+          new Error(
+            e.code === 'EADDRINUSE'
+              ? `Couldn't host the team relay: port ${this.port} is already in use (another Harness or app?). Quit it, or leave and use a relay server.`
+              : `Couldn't host the team relay: ${e.message}`,
+          ),
+        ),
+      )
       server.listen(this.port, '0.0.0.0', () => {
         this.server = server
         resolve()
