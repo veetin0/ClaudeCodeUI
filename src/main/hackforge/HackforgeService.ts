@@ -18,6 +18,14 @@ import { listFiles, watchProject } from '../project/projectFiles'
 const MEMORY = '.hackforge'
 const CONFIG = join('challenge', 'hackforge.yaml')
 
+/**
+ * Whether a watcher path (always forward slashes, see watchProject) is HackForge state rather than
+ * code. Compared as a string, not with join(): on Windows join() gives `challenge\hackforge.yaml`.
+ */
+export function isMemoryChange(rel: string): boolean {
+  return rel === MEMORY || rel.startsWith(`${MEMORY}/`) || rel === 'challenge' || rel === 'challenge/hackforge.yaml' || rel.startsWith('.claude/')
+}
+
 async function readText(path: string): Promise<string | undefined> {
   try {
     return await readFile(path, 'utf8')
@@ -142,7 +150,7 @@ export class HackforgeService {
       this.watched.set(cwd, w)
       const entry = w
       entry.watcher = watchProject(cwd, (rel) => {
-        const memory = rel === MEMORY || rel.startsWith(`${MEMORY}/`) || rel === 'challenge' || rel === CONFIG || rel.startsWith('.claude/')
+        const memory = isMemoryChange(rel)
         // Code changes only matter once there is a VERIFY.md that could go stale.
         if (!memory && !entry.last?.verify) return
         clearTimeout(entry.timer)
