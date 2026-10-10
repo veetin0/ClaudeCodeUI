@@ -61,6 +61,18 @@ async function elevenError(res: Response): Promise<string> {
   return `ElevenLabs error ${res.status}${detail ? `: ${detail}` : ''}`
 }
 
+/** A request to ElevenLabs whose network failures say what happened ("fetch failed" doesn't). */
+async function callEleven(f: typeof fetch, url: string, init: RequestInit & { signal: AbortSignal }, timeoutSec: number): Promise<Response> {
+  try {
+    return await f(url, init)
+  } catch (e) {
+    const err = e as Error & { cause?: { code?: string; message?: string } }
+    if (err.name === 'TimeoutError' || err.name === 'AbortError') throw new Error(`ElevenLabs didn't answer within ${timeoutSec} s. Try again.`)
+    const why = err.cause?.code ?? err.cause?.message ?? err.message
+    throw new Error(`Couldn't reach ElevenLabs (${why}). Check the internet connection.`)
+  }
+}
+
 function defaultInstall(cwd: string, onLine: (l: string) => void): Promise<number> {
   return new Promise((resolve) => {
     const p = spawnTool('npm', ['install', '--no-audit', '--no-fund'], { cwd, env: process.env })
@@ -179,7 +191,7 @@ export class PitchService {
   async voices(): Promise<Voice[]> {
     const key = this.deps.elevenLabsKey()
     if (!key) throw new Error('Add your ElevenLabs API key first.')
-    const res = await (this.deps.fetch ?? fetch)(`${ELEVEN}/voices`, { headers: { 'xi-api-key': key }, signal: AbortSignal.timeout(15_000) })
+    const res = await callEleven(this.deps.fetch ?? fetch, `${ELEVEN}/voices`, { headers: { 'xi-api-key': key }, signal: AbortSignal.timeout(15_000) }, 15)
     if (!res.ok) throw new Error(await elevenError(res))
     const body = (await res.json()) as { voices?: { voice_id: string; name: string; category?: string; labels?: Record<string, string> }[] }
     return (body.voices ?? []).map((v) => ({
@@ -231,12 +243,17 @@ export class PitchService {
         if (!existsSync(abs)) {
           this.job = { kind: 'narrate', status: 'running', message: `Narrating “${t.title || t.id}”…`, done, total: todo.length }
           void this.publish()
-          const res = await f(`${ELEVEN}/text-to-speech/${encodeURIComponent(voiceId)}?output_format=mp3_44100_128`, {
-            method: 'POST',
-            headers: { 'xi-api-key': key, 'content-type': 'application/json', accept: 'audio/mpeg' },
-            body: JSON.stringify({ text: t.text.trim(), model_id: TTS_MODEL }),
-            signal: AbortSignal.timeout(90_000),
-          })
+          const res = await callEleven(
+            f,
+            `${ELEVEN}/text-to-speech/${encodeURIComponent(voiceId)}?output_format=mp3_44100_128`,
+            {
+              method: 'POST',
+              headers: { 'xi-api-key': key, 'content-type': 'application/json', accept: 'audio/mpeg' },
+              body: JSON.stringify({ text: t.text.trim(), model_id: TTS_MODEL }),
+              signal: AbortSignal.timeout(90_000),
+            },
+            90,
+          )
           if (!res.ok) throw new Error(await elevenError(res))
           const buf = Buffer.from(await res.arrayBuffer())
           if (buf.length < 512) throw new Error(`ElevenLabs returned no audio for “${t.title || t.id}”.`)

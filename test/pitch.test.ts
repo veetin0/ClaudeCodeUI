@@ -235,6 +235,24 @@ describe('PitchService', () => {
     t.svc.dispose()
   })
 
+  it('says what went wrong when ElevenLabs is unreachable or slow', async () => {
+    const offline = setup((async () => {
+      throw Object.assign(new TypeError('fetch failed'), { cause: { code: 'ENOTFOUND' } })
+    }) as unknown as typeof fetch)
+    const s = await offline.svc.scaffold('J')
+    await offline.svc.saveScript({ ...s.script!, voiceId: 'v' })
+    await offline.svc.narrate()
+    expect((await settle(offline.svc)).job).toMatchObject({ status: 'error', message: "Couldn't reach ElevenLabs (ENOTFOUND). Check the internet connection." })
+    await expect(offline.svc.voices()).rejects.toThrow(/Couldn't reach ElevenLabs/)
+    offline.svc.dispose()
+
+    const slow = setup((async () => {
+      throw new DOMException('The operation was aborted due to timeout', 'TimeoutError')
+    }) as unknown as typeof fetch)
+    await expect(slow.svc.voices()).rejects.toThrow("ElevenLabs didn't answer within 15 s. Try again.")
+    slow.svc.dispose()
+  })
+
   it('installs dependencies in the background', async () => {
     const { svc } = setup()
     await svc.scaffold('J')
