@@ -11,6 +11,7 @@ import {
   parseRules,
   parseState,
   parseVerify,
+  parseVerifyJson,
   parseWeight,
   pickConfig,
   loopRunId,
@@ -34,7 +35,7 @@ describe('HackForge templates as shipped (unfilled)', () => {
 
   it('reads the skeleton hackforge.yaml', () => {
     const c = pickConfig(YAML.parse(readFileSync(join(TEMPLATES, 'hackforge.yaml'), 'utf8')))
-    expect(c).toMatchObject({ hours: 24, team: 1, profile: 'auto', targetScore: 9, reserveMinutes: 90, plateau: 3, loopEnabled: true, checkpoints: ['decision'] })
+    expect(c).toMatchObject({ hours: 24, team: 1, profile: 'auto', plan: 'auto', fableOk: false, targetScore: 9, reserveMinutes: 90, plateau: 3, loopEnabled: true, checkpoints: ['decision'] })
     expect(c.deadline).toBeUndefined()
     expect(c.maxIterations).toBeUndefined()
   })
@@ -72,7 +73,7 @@ describe('a filled-in HackForge project', () => {
   })
 
   it('reads VERIFY.md', () => {
-    expect(parseVerify(read('.hackforge/VERIFY.md'), 1)).toEqual({
+    expect(parseVerify(read('.hackforge/VERIFY.md'), 1)).toMatchObject({
       compliance: 'FAIL',
       mockScore: 8.1,
       gate: 'PASS',
@@ -150,5 +151,62 @@ describe('Stop loop button', () => {
     // STOP_LOOP on disk always counts (e.g. created by a teammate or by hand).
     expect(loopStopPending(run('2026-11-14T13:30Z'), true, null)).toBe(true)
     expect(loopStopPending(first, false, null)).toBe(false)
+  })
+})
+
+describe('HackForge 2.1 verify output (rendered by its own `tools verify-md`)', () => {
+  const V2 = join(import.meta.dirname, 'fixtures', 'hackforge-2')
+  const md = parseVerify(readFileSync(join(V2, 'VERIFY.md'), 'utf8'), 1)
+  const json = parseVerifyJson(JSON.parse(readFileSync(join(V2, 'verify.json'), 'utf8')), 1)!
+
+  it('reads VERIFY.md and verify.json to the same result', () => {
+    const expected = {
+      compliance: 'PASS',
+      mockScore: 8.4,
+      gate: 'PASS',
+      mode: 'full',
+      integrity: 'OK',
+      checks: [{ id: 'R1', ok: true, note: 'no external LLM API in requirements.txt' }],
+      // The Score column, not the 0.3 weight next to it.
+      criterionScores: [{ id: 'J1', score: 8.5 }],
+      findings: [{ severity: 'major', title: 'Accuracy claim not measured on held-out data', fix: 'run eval on split v2' }],
+      fixOrder: ['Accuracy claim not measured on held-out data — run eval on split v2'],
+      unverified: ['J3 live demo on venue Wi-Fi'],
+    }
+    expect(md).toMatchObject({ ...expected, source: 'md' })
+    expect(json).toMatchObject({ ...expected, source: 'json' })
+    expect(md.blind).toMatchObject({ vote: 'maybe', divergence: 'rubric judges 8.6, blind judge lost at the architecture slide' })
+    expect(json.blind).toMatchObject({ vote: 'maybe' })
+  })
+
+  it('treats "not observed" compliance as unknown, not failed', () => {
+    const r = parseVerify('COMPLIANCE: FAIL\n| ID | Status | Evidence | Fix |\n|---|---|---|---|\n| R1 | ⬜ not observed |  |  |\n| D1 | ❌ fail | no video | record it |\n', 1)
+    expect(r.checks).toEqual([
+      { id: 'R1', ok: undefined, note: undefined },
+      { id: 'D1', ok: false, note: 'no video' },
+    ])
+  })
+
+  it('orders verify.json findings by severity, then gain per hour', () => {
+    const r = parseVerifyJson(
+      {
+        findings: [
+          { severity: 'minor', title: 'Typo', gain: 0.1, hours: 0.1 },
+          { severity: 'major', title: 'Slow', gain: 0.2, hours: 2 },
+          { severity: 'critical', title: 'Crash on start' },
+          { severity: 'major', title: 'No README', gain: 0.3, hours: 0.5 },
+        ],
+      },
+      1,
+    )!
+    expect(r.findings.map((f) => f.title)).toEqual(['Crash on start', 'No README', 'Slow', 'Typo'])
+  })
+
+  it('reads advisor consultations from LOOP.json', () => {
+    const loop = parseLoop({ active: true, advisor: { ab12: { reason_code: 'retry-threshold', answered: true, decision: 'correction', summary: 'Mock the API' }, cd34: { reason_code: 'repeated-findings', answered: false } } }, undefined)
+    expect(loop.advisor).toEqual([
+      { reason: 'retry-threshold', answered: true, decision: 'CORRECTION', summary: 'Mock the API' },
+      { reason: 'repeated-findings', answered: false, decision: undefined, summary: undefined },
+    ])
   })
 })

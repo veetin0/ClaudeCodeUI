@@ -1,0 +1,53 @@
+{
+  "schema": "hackforge-contract.v1",
+  "milestone": "M2",
+  "goal": "Live data ingestion feeding the forecast view",
+  "covers": [
+    "J1",
+    "D2",
+    "R4"
+  ],
+  "owned": [
+    "backend/ingest/**",
+    "backend/tests/test_ingest.py",
+    "frontend/src/views/Forecast.tsx"
+  ],
+  "dod": [
+    {
+      "id": "D1",
+      "check": "Ingest of the sample feed stores 120 rows",
+      "command": "python -m pytest backend/tests/test_ingest.py -q"
+    },
+    {
+      "id": "D2",
+      "check": "Forecast view renders with the stored rows",
+      "command": "npm run test -- Forecast"
+    }
+  ],
+  "validation_commands": [
+    "python -m pytest -q",
+    "npm run build"
+  ],
+  "risk": [],
+  "max_iterations": 3,
+  "status": "todo",
+  "tasks": [
+    {
+      "id": "M2.1",
+      "role": "backend",
+      "owned": [
+        "backend/ingest/**",
+        "backend/tests/test_ingest.py"
+      ],
+      "owner": "agent"
+    },
+    {
+      "id": "M2.2",
+      "role": "frontend",
+      "owned": [
+        "frontend/src/views/Forecast.tsx"
+      ],
+      "owner": "veeti"
+    }
+  ]
+}

@@ -21,6 +21,7 @@ import { Presence, projectName } from './system/presence'
 import appIcon from '../../resources/icon.png?asset'
 import { SettingsStore } from './system/settings'
 import { HackforgeService } from './hackforge/HackforgeService'
+import { builtinPlugin, choosePlugin, installedPlugin } from './hackforge/plugin'
 import { EventService } from './event/EventService'
 import { newMemberId, TeamService } from './team/TeamService'
 import { PitchService } from './pitch/PitchService'
@@ -57,7 +58,9 @@ const eventService = new EventService(
     for (const w of BrowserWindow.getAllWindows()) w.webContents.send(IPC.eventPush, state)
   },
 )
-const hackforge = new HackforgeService(claudeSettingsPath, (snap) => {
+/** The HackForge sessions get: the copy built into Harness, unless an installed one is newer. */
+const hackforgePlugin = () => choosePlugin(builtinPlugin(app.getAppPath()), installedPlugin(claudeDir))
+const hackforge = new HackforgeService(hackforgePlugin, (snap) => {
   for (const w of BrowserWindow.getAllWindows()) w.webContents.send(IPC.hackforgeUpdate, snap)
 })
 
@@ -207,6 +210,7 @@ function registerIpc() {
   })
   ipcMain.handle(IPC.hackforgeWatch, (_e, cwd: string) => hackforge.watch(cwd))
   ipcMain.on(IPC.hackforgeUnwatch, (_e, cwd: string) => hackforge.unwatch(cwd))
+  ipcMain.handle(IPC.hackforgeOpenView, (_e, cwd: string, name: string) => shell.openPath(hackforge.viewPath(cwd, name)))
   ipcMain.handle(IPC.hackforgeStopLoop, (_e, cwd: string) => hackforge.stopLoop(cwd))
   ipcMain.handle(IPC.hackforgeSetProfile, (_e, cwd: string, profile: string) => hackforge.setProfile(cwd, profile))
   ipcMain.handle(IPC.eventState, () => eventService.state())
@@ -276,6 +280,13 @@ async function start() {
       const present = hackforge.isProject(cwd)
       return present || mode === 'always' ? hackforgeGuide(present) : undefined
     },
+    // Every session (unless HackForge is off) gets the plugin, so /hackforge:init works in a new folder too.
+    // Its hooks do nothing outside HackForge projects.
+    plugins: () => {
+      if (settings.get().hackforgeMode === 'off') return []
+      const p = hackforgePlugin()
+      return p.source === 'builtin' && p.path ? [{ type: 'local' as const, path: p.path }] : []
+    },
     claudeExecutablePath: resolveClaudeExecutable(),
     onRateLimit: (info) => team?.onRateLimit(info),
     getEnv: () => {
@@ -313,7 +324,7 @@ async function start() {
     planUsage: () => agents.planUsage(),
     projectDir: () => settings.get().eventProject ?? undefined,
     hackforge: async (dir) => {
-      const s = await readHackforge(dir, claudeSettingsPath)
+      const s = await readHackforge(dir, hackforgePlugin)
       if (!s.present) return undefined
       return { phase: s.state.phase, milestone: s.state.milestone, mockScore: s.verify?.mockScore ?? s.state.latestMockScore, loopIteration: s.loop?.iteration, loopActive: s.loop?.active }
     },

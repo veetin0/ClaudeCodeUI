@@ -149,6 +149,8 @@ export interface HarnessApi {
   hackforgeStopLoop(cwd: string): Promise<void>
   /** Rewrites `profile:` in challenge/hackforge.yaml. */
   hackforgeSetProfile(cwd: string, profile: string): Promise<void>
+  /** Opens .hackforge/views/<name>.html (HackForge's decision pages) in the default browser. */
+  hackforgeOpenView(cwd: string, name: string): Promise<string>
   onHackforge(cb: (snapshot: HackforgeSnapshot) => void): () => void
   /** Event mode: config, clock data and the team's shared checklist progress. */
   eventState(): Promise<EventState>
@@ -232,6 +234,7 @@ export const IPC = {
   hackforgeUnwatch: 'hackforge:unwatch',
   hackforgeStopLoop: 'hackforge:stop-loop',
   hackforgeSetProfile: 'hackforge:set-profile',
+  hackforgeOpenView: 'hackforge:open-view',
   hackforgeUpdate: 'hackforge:snapshot',
   eventState: 'event:state',
   eventLink: 'event:link',

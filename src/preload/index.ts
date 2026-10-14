@@ -66,6 +66,7 @@ const api: HarnessApi = {
   hackforgeUnwatch: (cwd) => ipcRenderer.send(IPC.hackforgeUnwatch, cwd),
   hackforgeStopLoop: (cwd) => ipcRenderer.invoke(IPC.hackforgeStopLoop, cwd),
   hackforgeSetProfile: (cwd, profile) => ipcRenderer.invoke(IPC.hackforgeSetProfile, cwd, profile),
+  hackforgeOpenView: (cwd, name) => ipcRenderer.invoke(IPC.hackforgeOpenView, cwd, name),
   onHackforge: (cb) => {
     const l = (_: unknown, s: import('../shared/hackforge').HackforgeSnapshot) => cb(s)
     ipcRenderer.on(IPC.hackforgeUpdate, l)

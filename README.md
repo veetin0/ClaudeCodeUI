@@ -67,24 +67,37 @@ Remotion downloads its own headless Chrome the first time you render. Set `HARNE
 
 ## HackForge
 
-Harness is built to drive **HackForge**, the Claude Code plugin for hackathons and coding challenges. Install the plugin once (Harness sessions load your installed plugins):
+Harness is built to drive **HackForge**, the Claude Code plugin for hackathons and coding challenges. **HackForge is built in:** Harness ships a copy in `resources/hackforge` (currently 2.1.1) and loads it into every session through the Agent SDK, so there's nothing to install. If you've also installed HackForge yourself (`claude plugin install hackforge@veeti-tools`) and that copy is newer, Harness uses yours instead. It never loads both. The dashboard shows which one is in use.
+
+To update the built-in copy from your HackForge repository:
 
 ```bash
-claude plugin marketplace add ./hackforge-marketplace
-claude plugin install hackforge@veeti-tools
+npm run hackforge:sync -- ~/Desktop/hackforge-marketplace   # then rebuild Harness
 ```
 
+HackForge's hooks run Python 3 (macOS has it with the Xcode command-line tools; Windows: see docs/WINDOWS.md).
+
 - **Automatic in HackForge projects.** When a project has `challenge/` or `.hackforge/`, every session gets instructions to work through the `/hackforge:*` skills and keep `.hackforge/` current. **Settings → HackForge** switches this to *always* (suggest HackForge in every session) or *off*.
-- **Buttons for every command:** Init, Run (with a profile picker that writes `profile:` to `challenge/hackforge.yaml`), Kickoff, Build, Verify (normal or final), Perfect (target score, max iterations, hours), Pitch, Craft, Eval, Focus, Rules and Status. Before kickoff only the setup commands show.
+- **Buttons for every command:**
+  - **Getting started:** Help (the one next step), Init.
+  - **Running it:** Run (with a profile picker that writes `profile:` to `challenge/hackforge.yaml`, including `lean` for Pro plans), Kickoff, Build.
+  - **Checking and improving:** Verify (quick, full or final), Perfect (target, max iterations, `--hours`…).
+  - **Pitch and assets:** Pitch, Video, Craft, Eval.
+  - **Coordination and wrap-up:** Team (join, who, claim, handoff, driver), Focus, Rules, Views, Status, Retro.
+
+  Before kickoff only the setup commands show.
 - **HackForge dashboard** (⌘5, or the HackForge tab, which shows the loop iteration or the latest mock score). It reads `.hackforge/` live as the agents write it:
   - the phase stepper (config → submit) and a deadline countdown
-  - COMPLIANCE, flagged *stale* when code changed after VERIFY.md, as the loop gate would; MOCK_SCORE against the target; the gate result; and the next action
-  - the improvement loop: iteration / max, best score, the no-gain streak against the plateau limit, a score chart with the target line, and every iteration kept or reverted
+  - COMPLIANCE, flagged *stale* when code changed after the last verify, as the loop gate would; MOCK_SCORE against the target; whether it was a quick or full verify; the gate result and the integrity lock; and the next action. It reads `verify.json` (HackForge 2.x) or `VERIFY.md` (1.x).
+  - the fix order with each finding's severity, the blind judge's first impression, and claims nobody could check yet
+  - the improvement loop: iteration / max, best score, the no-gain streak against the plateau limit, a score chart with the target line, every iteration (from `ledger.jsonl` and `LOOP.md`) kept or reverted, and the advisor's decisions when the loop gets stuck
+  - buttons for HackForge's HTML decision pages (`/hackforge:views`)
   - **Stop loop**, which creates `.hackforge/STOP_LOOP`
   - hard rules and deliverables with their compliance checks, judging criteria with weights and per-criterion mock scores, milestones, the fix order, team directives and the decision
 - **Checkpoints:** when HackForge stops for "go / adjust", **Go** and **Adjust…** buttons appear above the prompt. Questions Claude asks with AskUserQuestion appear as a card with option buttons and a free-text answer.
 - HackForge's subagents show up by role (Rules Lawyer, Judge, Builder…) on the Board and in the graph.
-- A banner shows the install commands if the plugin isn't enabled. A hint suggests **Accept edits** while the loop runs, because every permission prompt pauses it.
+- A hint suggests **Accept edits** while the loop runs, because every permission prompt pauses it.
+- The pitch studio's **3D / animated clips** button runs `/hackforge:video`, which adds clips to `pitch/public/` as screen scenes.
 
 ![HackForge dashboard with a running improvement loop](docs/screenshots/hackforge.png)
 

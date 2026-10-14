@@ -16,6 +16,8 @@ asarUnpack:
   - node_modules/@anthropic-ai/claude-agent-sdk*/**
   # node-pty's native addon and macOS spawn-helper must be real files.
   - node_modules/node-pty/**
+  # The built-in HackForge plugin: Claude Code runs its hook scripts (bash/Python) from disk.
+  - resources/hackforge/**
 # node-pty ships N-API prebuilds for macOS and Windows; no recompiling (no Xcode / Visual Studio) needed.
 npmRebuild: false
 mac:

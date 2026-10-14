@@ -1,0 +1,49 @@
+# HackForge configuration — every field is optional. Delete what you don't need.
+
+challenge: ""                 # short name, e.g. "ABB weak-signal foresight"
+deadline: ""                  # ISO with time zone, e.g. 2026-10-05T12:00+03:00
+hours: 24                     # total time available
+team: 1                       # people building
+
+# Your Claude plan: pro | team | max | api | auto  (auto = treated as pro, the safe choice)
+#   pro  → lean profile, Sonnet for most work, never Fable (Fable bills extra usage credits on Pro)
+plan: auto
+fable_ok: false               # team plan with premium seats: set true to allow Fable
+
+# Effort / budget profile: auto | lean | sprint | standard | deep | max
+#   auto picks from your plan, the challenge's size and the time available.
+profile: auto
+
+# Override models per role (aliases: haiku, sonnet, opus, fable, inherit, or full model IDs).
+# Leave empty to use the profile's defaults (see reference/profiles.md in the plugin).
+models:
+  research: ""
+  architect: ""
+  judge: ""
+  build: ""
+  craft: ""
+  verify: ""
+  advisor: ""              # read-only advisor consulted when the loop is stuck (default fable)
+  auditor: ""              # compliance-auditor
+  blind_judge: ""
+
+# Improvement loop (/hackforge:perfect)
+loop:
+  enabled: true               # run the loop automatically after the build
+  target_score: 9.0           # mock judge score out of 10
+  max_iterations: ""          # empty = profile default
+  max_hours: ""               # hard cap on loop wall-clock time
+  reserve_minutes: 90         # freeze this long before the deadline
+  plateau: 3                  # stop after N iterations without +0.1 gain
+
+# Checkpoints where HackForge waits for you. Remove one to run straight through.
+checkpoints: [decision]       # options: decision, plan, before_submit
+
+# Things HackForge may produce besides code. "suggest" = propose in the decision checkpoint.
+modalities: suggest           # suggest | all | none | [3d, audio, video, cad, hardware, game, slides]
+
+# Allowed / forbidden external services (in addition to the official rules)
+allow: []                     # e.g. [openai-api, mapbox]
+forbid: []                    # e.g. [paid-apis]
+
+stack_preferences: []         # e.g. [nextjs, python] — a hint, not a rule

@@ -83,15 +83,17 @@ describe('freePort', () => {
   it('skips a port a dev server holds on any interface', async () => {
     const held: Server[] = []
     const hold = (port: number, host: string) =>
-      new Promise<number>((resolve) => {
-        const srv = createServer().listen(port, host, () => resolve((srv.address() as { port: number }).port))
+      new Promise<number | null>((resolve) => {
+        const srv = createServer()
+        // No IPv6 stack (some CI machines and containers): nothing can listen on `::` there.
+        srv.once('error', () => resolve(null))
+        srv.listen(port, host, () => resolve((srv.address() as { port: number }).port))
         held.push(srv)
       })
     // Next.js and Vite listen on `::` / 0.0.0.0; others on loopback only.
-    const a = await hold(0, '::')
-    const b = await hold(0, '0.0.0.0')
-    const c = await hold(0, '127.0.0.1')
-    for (const p of [a, b, c]) expect(await freePort(p)).not.toBe(p)
+    const ports = [await hold(0, '::'), await hold(0, '0.0.0.0'), await hold(0, '127.0.0.1')].filter((p): p is number => p !== null)
+    expect(ports.length).toBeGreaterThanOrEqual(2)
+    for (const p of ports) expect(await freePort(p)).not.toBe(p)
     held.forEach((s) => s.close())
   })
 })

@@ -9,8 +9,10 @@ import {
   parseRules,
   parseState,
   parseVerify,
+  parseVerifyJson,
   pickConfig,
   setYamlProfile,
+  type HackforgePluginInfo,
   type HackforgeSnapshot,
 } from '@shared/hackforge'
 import { listFiles, watchProject } from '../project/projectFiles'
@@ -36,7 +38,7 @@ async function readText(path: string): Promise<string | undefined> {
 
 const mtimeOf = (path: string) => stat(path).then((s) => s.mtimeMs, () => undefined)
 
-/** `enabledPlugins` in a Claude Code settings file has a `hackforge@<marketplace>` key set to true. */
+/** `enabledPlugins` in a project's Claude Code settings has a `hackforge@<marketplace>` key set to true. */
 async function pluginEnabledIn(settingsPath: string): Promise<boolean> {
   try {
     const s = JSON.parse(await readFile(settingsPath, 'utf8')) as { enabledPlugins?: Record<string, unknown> }
@@ -47,7 +49,7 @@ async function pluginEnabledIn(settingsPath: string): Promise<boolean> {
 }
 
 /** Reads a project's HackForge state. Never throws: missing files just leave fields empty. */
-export async function readHackforge(cwd: string, userSettingsPath: string): Promise<HackforgeSnapshot> {
+export async function readHackforge(cwd: string, pluginInfo: () => HackforgePluginInfo): Promise<HackforgeSnapshot> {
   const hf = join(cwd, MEMORY)
   const [memFiles, challengeDir] = await Promise.all([readdir(hf).catch(() => null), stat(join(cwd, 'challenge')).then((s) => s.isDirectory(), () => false)])
   const files = (memFiles ?? []).filter((f) => !f.startsWith('.')).sort()
@@ -57,16 +59,19 @@ export async function readHackforge(cwd: string, userSettingsPath: string): Prom
     const f = find(name)
     return f ? readText(join(hf, f)) : Promise.resolve(undefined)
   }
-  const [yaml, state, rules, plan, verify, loopJson, loopMd, directives, decision] = await Promise.all([
+  const [yaml, state, rules, plan, verify, verifyJson, loopJson, loopMd, ledger, directives, decision, views] = await Promise.all([
     readText(join(cwd, CONFIG)),
     mem('STATE.md'),
     mem('RULES.md'),
     mem('PLAN.md'),
     mem('VERIFY.md'),
+    mem('verify.json'),
     mem('LOOP.json'),
     mem('LOOP.md'),
+    mem('ledger.jsonl'),
     mem('DIRECTIVES.md'),
     mem('DECISION.md'),
+    readdir(join(hf, 'views')).then((f) => f.filter((x) => x.endsWith('.html')).sort(), () => [] as string[]),
   ])
   let config = {}
   try {
@@ -80,8 +85,21 @@ export async function readHackforge(cwd: string, userSettingsPath: string): Prom
   } catch {
     loopObj = undefined
   }
-  const verifyFile = find('VERIFY.md')
-  const pluginInstalled = (await pluginEnabledIn(userSettingsPath)) || (await pluginEnabledIn(join(cwd, '.claude', 'settings.json'))) || (await pluginEnabledIn(join(cwd, '.claude', 'settings.local.json')))
+  // verify.json is what the 2.x loop gate trusts; VERIFY.md is its rendering (or 1.x's only output).
+  let verifyResult: HackforgeSnapshot['verify']
+  if (verifyJson) {
+    try {
+      verifyResult = parseVerifyJson(JSON.parse(verifyJson), (await mtimeOf(join(hf, find('verify.json')!))) ?? 0)
+    } catch {
+      verifyResult = undefined
+    }
+  }
+  if (!verifyResult && verify) verifyResult = parseVerify(verify, (await mtimeOf(join(hf, find('VERIFY.md')!))) ?? 0)
+  let plugin = pluginInfo()
+  // A project can enable an installed copy in its own .claude/settings.json.
+  if (plugin.source === 'none' && ((await pluginEnabledIn(join(cwd, '.claude', 'settings.json'))) || (await pluginEnabledIn(join(cwd, '.claude', 'settings.local.json'))))) {
+    plugin = { ...plugin, source: 'installed' }
+  }
   return {
     cwd,
     present: memFiles !== null || challengeDir,
@@ -92,11 +110,13 @@ export async function readHackforge(cwd: string, userSettingsPath: string): Prom
     directives: directives ? parseDirectives(directives) : [],
     decision: decision ? { title: /^#\s+(?:Decision\s*[:—–-]\s*)?(.+)$/im.exec(decision)?.[1]?.trim(), text: decision } : undefined,
     milestones: plan ? parseMilestones(plan) : [],
-    verify: verify ? parseVerify(verify, (await mtimeOf(join(hf, verifyFile!))) ?? 0) : undefined,
+    verify: verifyResult,
     verifyStale: false,
-    loop: loopObj !== undefined || loopMd ? parseLoop(loopObj, loopMd) : undefined,
+    loop: loopObj !== undefined || loopMd || ledger ? parseLoop(loopObj, loopMd, ledger) : undefined,
     stopRequested: files.includes('STOP_LOOP'),
-    pluginInstalled,
+    pluginInstalled: plugin.source !== 'none',
+    plugin,
+    views,
     files,
     updatedAt: Date.now(),
   }
@@ -132,12 +152,12 @@ export class HackforgeService {
   private readonly watched = new Map<string, Watched>()
 
   constructor(
-    private readonly userSettingsPath: string,
+    private readonly pluginInfo: () => HackforgePluginInfo,
     private readonly push: (snapshot: HackforgeSnapshot) => void,
   ) {}
 
   async snapshot(cwd: string): Promise<HackforgeSnapshot> {
-    const snap = await readHackforge(cwd, this.userSettingsPath)
+    const snap = await readHackforge(cwd, this.pluginInfo)
     if (snap.verify) snap.verifyStale = snap.verify.mtime + 1000 < (await newestSourceMtime(cwd))
     const w = this.watched.get(cwd)
     if (w) w.last = snap
@@ -201,6 +221,12 @@ export class HackforgeService {
     // .hackforge/ without challenge/ still shows the picker; create the folder rather than fail.
     await mkdir(join(cwd, 'challenge'), { recursive: true })
     await writeFile(path, setYamlProfile(yaml, profile))
+  }
+
+  /** Opens one of HackForge's HTML decision pages (.hackforge/views/*.html) in the browser. */
+  viewPath(cwd: string, name: string): string {
+    if (!/^[\w.-]+\.html$/.test(name)) throw new Error('Not a HackForge view')
+    return join(cwd, MEMORY, 'views', name)
   }
 
   /** Should sessions in this folder get the HackForge guidance? */

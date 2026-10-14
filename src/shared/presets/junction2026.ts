@@ -121,9 +121,11 @@ How we win Junction, in priority order:
 Working rules:
 
 - Never reuse pre-written solution code. Prepared tools, boilerplates and starter kits are fine; check the official rules.
-- Four people, four Claude Pro plans: split milestones across the four laptops (one builder each, in worktrees).
-  Use the cheaper model for builders; keep the strongest model for the architect and judge roles.
-  Avoid spawning many parallel agents on one machine: it burns one person's limit while the others idle.
+- Four people, four Claude Pro plans (\`plan: pro\` in hackforge.yaml → lean profile): split milestones across the four
+  laptops with /hackforge:team claim (one builder each, in worktrees). Avoid spawning many parallel agents on one
+  machine: it burns one person's limit while the others idle. Never use Fable on Pro plans.
+- One driver: only one teammate runs the /hackforge:perfect loop (/hackforge:team driver); the others build their
+  claimed tasks and pull.
 - If a teammate hits their usage limit, hand their milestone to whoever has the most left.
 - ElevenLabs is for pitch narration, and inside the product only when voice really is the point.
 - Never submit anything automatically; prepare the submission and list the steps.
@@ -166,8 +168,13 @@ export const JUNCTION_2026_HACKFORGE = {
   deadline: '2026-11-15T10:00+02:00',
   hours: 40,
   team: 4,
-  profile: 'standard',
-  models: { research: 'sonnet', architect: 'opus', judge: 'opus', build: 'sonnet', craft: 'sonnet', verify: 'sonnet' },
+  // Four Claude Pro plans: HackForge 2.1's lean profile (Sonnet for most work, Opus only for architects
+  // and the advisor, Haiku for checks, at most 2 agents at once, never Fable, which bills extra on Pro).
+  plan: 'pro',
+  fable_ok: false,
+  profile: 'auto',
+  // Empty = the profile's per-role defaults (clears overrides from earlier versions of this preset).
+  models: { research: '', architect: '', judge: '', build: '', craft: '', verify: '' },
   loop: { enabled: true, target_score: 9.0, reserve_minutes: 240, plateau: 3 },
   checkpoints: ['decision', 'before_submit'],
 } as const

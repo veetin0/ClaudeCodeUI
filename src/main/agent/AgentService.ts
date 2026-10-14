@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto'
 import { statSync, type FSWatcher } from 'node:fs'
 import { join } from 'node:path'
-import { query, type CanUseTool, type Query, type SDKRateLimitInfo, type SDKUserMessage } from '@anthropic-ai/claude-agent-sdk'
+import { query, type CanUseTool, type Query, type SDKRateLimitInfo, type SDKUserMessage, type SdkPluginConfig } from '@anthropic-ai/claude-agent-sdk'
 import { EXEC_TOOLS, type AgentId, type HarnessEvent, type PermissionMode, type SessionStatus, type TodoItem } from '@shared/events'
 import { toVisual } from '@shared/visuals'
 import { normPath } from '@shared/paths'
@@ -29,6 +29,8 @@ export interface AgentServiceDeps {
   snapshots?: SnapshotStore
   /** Extra system-prompt text for a session in this folder (e.g. HackForge mode). */
   promptAppend?: (cwd: string) => string | undefined
+  /** Plugins loaded into a session in this folder, on top of the user's installed ones (HackForge). */
+  plugins?: (cwd: string) => SdkPluginConfig[]
   /** Plan rate-limit updates (claude.ai subscriptions) as the CLI reports them. */
   onRateLimit?: (info: SDKRateLimitInfo) => void
 }
@@ -141,6 +143,7 @@ class AgentSession {
         model: opts.model || undefined,
         permissionMode: opts.permissionMode ?? 'default',
         systemPrompt: { type: 'preset', preset: 'claude_code', append: [HARNESS_TOOL_GUIDE, this.deps.promptAppend?.(opts.cwd)].filter(Boolean).join('\n\n') },
+        plugins: this.deps.plugins?.(opts.cwd),
         mcpServers: { harness: createHarnessServer() },
         allowedTools: ['mcp__harness'],
         // Same CLAUDE.md, settings, MCP servers and skills as the terminal CLI.

@@ -31,7 +31,7 @@ export function HackforgeView({ session }: { session: SessionState }) {
     <div className="min-h-0 flex-1 overflow-y-auto">
       <div className="mx-auto max-w-5xl space-y-4 px-6 py-5">
         <Header hf={hf} />
-        {!hf.pluginInstalled && <InstallBanner />}
+        {hf.plugin.source === 'none' && <InstallBanner />}
         {!hf.present ? (
           <Empty
             icon={FolderPlus}
@@ -61,13 +61,47 @@ export function HackforgeView({ session }: { session: SessionState }) {
               <RulesPanel hf={hf} />
               <div className="space-y-4">
                 <MilestonesPanel hf={hf} />
-                {(hf.verify?.fixOrder.length ?? 0) > 0 && (
-                  <Panel title="Fix order" sub="from VERIFY.md">
+                {(hf.verify?.findings.length ?? 0) > 0 && (
+                  <Panel title="Fix order" sub={hf.verify!.source === 'json' ? 'from verify.json' : 'from VERIFY.md'}>
                     <ol className="list-decimal space-y-1 pl-5 text-[12.5px]">
-                      {hf.verify!.fixOrder.map((f, i) => (
-                        <li key={i}>{f}</li>
+                      {hf.verify!.findings.map((f, i) => (
+                        <li key={i}>
+                          {f.severity && (
+                            <span
+                              className={cn(
+                                'mr-1.5 rounded px-1 py-px text-[10px] font-semibold uppercase',
+                                f.severity === 'critical' ? 'bg-red-500/15 text-red-600' : f.severity === 'major' ? 'bg-amber-500/15 text-amber-700 dark:text-amber-400' : 'bg-surface-2 text-muted',
+                              )}
+                            >
+                              {f.severity}
+                            </span>
+                          )}
+                          {f.title}
+                          {f.fix && <span className="text-muted"> — {f.fix}</span>}
+                        </li>
                       ))}
                     </ol>
+                  </Panel>
+                )}
+                {hf.verify && (hf.verify.unverified.length > 0 || hf.verify.blind) && (
+                  <Panel title="Judges' blind spots" sub="from the last verify">
+                    {hf.verify.blind && (
+                      <div className="mb-2 text-[12.5px]">
+                        <span className="text-muted">Blind first impression{hf.verify.blind.vote ? ` (vote: ${hf.verify.blind.vote})` : ''}: </span>
+                        {hf.verify.blind.impression && hf.verify.blind.impression !== '...' ? hf.verify.blind.impression : '—'}
+                        {hf.verify.blind.divergence && <div className="text-[11.5px] text-muted">{hf.verify.blind.divergence}</div>}
+                      </div>
+                    )}
+                    {hf.verify.unverified.length > 0 && (
+                      <>
+                        <div className="text-[11px] font-semibold uppercase tracking-wide text-muted">Not observed</div>
+                        <ul className="mt-0.5 list-disc space-y-0.5 pl-5 text-[12.5px]">
+                          {hf.verify.unverified.map((u, i) => (
+                            <li key={i}>{u}</li>
+                          ))}
+                        </ul>
+                      </>
+                    )}
                   </Panel>
                 )}
                 {hf.directives.length > 0 && (
@@ -90,6 +124,21 @@ export function HackforgeView({ session }: { session: SessionState }) {
                   <Markdown text={hf.decision.text.replace(/^#\s+.*\n/, '')} className="text-[12.5px]" />
                 </Collapsible>
               </Panel>
+            )}
+            {hf.views.length > 0 && (
+              <div className="flex flex-wrap items-center gap-1.5 text-[12px]">
+                <span className="text-muted">Decision pages:</span>
+                {hf.views.map((v) => (
+                  <button
+                    key={v}
+                    onClick={() => void window.harness.hackforgeOpenView(hf.cwd, v)}
+                    title={`Open .hackforge/views/${v} in your browser`}
+                    className="rounded-md border border-line px-2 py-0.5 hover:bg-surface-2"
+                  >
+                    {v.replace(/\.html$/, '')}
+                  </button>
+                ))}
+              </div>
             )}
             <div className="text-[11px] text-muted">.hackforge/ · {hf.files.join(' · ')}</div>
           </>
@@ -138,6 +187,7 @@ function Header({ hf }: { hf: HackforgeSnapshot }) {
         </div>
       </div>
       <div className="ml-auto flex items-center gap-3 text-[12px]">
+        <PluginBadge hf={hf} />
         {left && (
           <span
             title={deadline}
@@ -169,13 +219,28 @@ function Header({ hf }: { hf: HackforgeSnapshot }) {
   )
 }
 
+/** Which HackForge sessions get: the built-in copy, or an installed newer one. */
+function PluginBadge({ hf }: { hf: HackforgeSnapshot }) {
+  const p = hf.plugin
+  if (p.source === 'none') return null
+  const title =
+    p.source === 'builtin'
+      ? `HackForge ${p.version} is built into Harness and loads into every session.${p.installedVersion ? ` Your installed ${p.installedVersion} is older, so Harness uses its own copy.` : ''}`
+      : `Your installed HackForge${p.version ? ` ${p.version}` : ''} is used${p.builtinVersion ? ` (newer than the ${p.builtinVersion} built into Harness)` : ''}.`
+  return (
+    <span title={title} className="rounded-md bg-surface-2 px-2 py-1 text-[11px] text-muted">
+      HackForge {p.version ?? ''} · {p.source === 'builtin' ? 'built in' : 'installed'}
+    </span>
+  )
+}
+
 function InstallBanner() {
   const [copied, setCopied] = useState(false)
   return (
     <Note icon={AlertTriangle}>
       <div>
-        The HackForge plugin isn't enabled in your Claude Code settings, so <code>/hackforge:*</code> commands won't be found. From the folder that contains
-        hackforge-marketplace, run:
+        HackForge isn't available: this build of Harness doesn't include it and it isn't installed in Claude Code, so <code>/hackforge:*</code> commands won't
+        be found. Rebuild Harness from the repository (it ships HackForge in resources/hackforge), or from the folder that contains hackforge-marketplace, run:
       </div>
       <div className="mt-1.5 flex items-start gap-2">
         <pre className="selectable flex-1 rounded-md bg-surface-2 px-2.5 py-1.5 font-mono text-[11.5px]">{INSTALL}</pre>
@@ -259,13 +324,19 @@ function Tiles({ hf }: { hf: HackforgeSnapshot }) {
   const v = hf.verify
   const target = hf.loop?.targetScore ?? hf.config.targetScore ?? 9
   const score = v?.mockScore ?? hf.state.latestMockScore
-  const failing = v?.checks.filter((c) => !c.ok).length ?? 0
+  const failing = v?.checks.filter((c) => c.ok === false).length ?? 0
   return (
     <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
       <Tile
         label="Compliance"
         tone={!v?.compliance ? undefined : v.compliance === 'PASS' && !hf.verifyStale ? 'good' : v.compliance === 'FAIL' ? 'bad' : 'warn'}
-        sub={!v ? 'run Verify' : hf.verifyStale ? 'stale: code changed since VERIFY.md' : failing ? `${failing} check${failing > 1 ? 's' : ''} failing` : `${v.checks.length} checks`}
+        sub={
+          !v
+            ? 'run Verify'
+            : hf.verifyStale
+              ? `stale: code changed since ${v.source === 'json' ? 'verify.json' : 'VERIFY.md'}`
+              : `${failing ? `${failing} check${failing > 1 ? 's' : ''} failing` : `${v.checks.length} checks`}${v.mode ? ` · ${v.mode} verify` : ''}`
+        }
       >
         {v?.compliance ?? '—'}
       </Tile>
@@ -273,7 +344,11 @@ function Tiles({ hf }: { hf: HackforgeSnapshot }) {
         {score !== undefined ? score.toFixed(1) : '—'}
         <span className="text-[13px] font-normal text-muted"> / 10</span>
       </Tile>
-      <Tile label="Gate" tone={v?.gate === 'PASS' ? 'good' : v?.gate === 'FAIL' ? 'bad' : undefined} sub="gate.sh">
+      <Tile
+        label="Gate"
+        tone={v?.gate === 'FAIL' || (v?.integrity && v.integrity !== 'OK') ? 'bad' : v?.gate === 'PASS' ? 'good' : undefined}
+        sub={v?.integrity ? `gate.sh · integrity ${v.integrity === 'OK' ? 'intact' : v.integrity.toLowerCase()}` : 'gate.sh'}
+      >
         {v?.gate ?? '—'}
       </Tile>
       <Tile label="Next" sub={hf.state.milestone}>
@@ -377,13 +452,24 @@ function LoopPanel({ hf }: { hf: HackforgeSnapshot }) {
       <div className="mb-2 h-1.5 overflow-hidden rounded-full bg-line">
         <div className="h-full rounded-full bg-[var(--accent)]" style={{ width: `${Math.min(100, (loop.iteration / Math.max(1, loop.maxIterations)) * 100)}%` }} />
       </div>
+      {loop.advisor.length > 0 && (
+        <div className="mb-2 space-y-1">
+          {loop.advisor.map((a, i) => (
+            <div key={i} className={cn('rounded-lg px-2.5 py-1.5 text-[12px]', a.answered ? 'bg-surface-2' : 'bg-amber-500/[0.08]')}>
+              <span className="font-medium">Advisor {a.answered ? (a.decision ?? 'answered') : 'requested'}</span>
+              <span className="text-muted"> · {a.reason.replace(/-/g, ' ')}</span>
+              {a.summary && <div className="text-[11.5px]">{a.summary}</div>}
+            </div>
+          ))}
+        </div>
+      )}
       <ScoreChart entries={loop.entries} target={loop.targetScore} />
       {loop.entries.length > 0 && (
         <div className="mt-2 max-h-40 overflow-y-auto text-[12px]">
           {[...loop.entries].reverse().map((e) => (
             <div key={e.iteration} className="flex items-center gap-2 border-t border-line py-1">
               <span className="w-8 tabular-nums text-muted">#{e.iteration}</span>
-              <span className="min-w-0 flex-1 truncate" title={e.change}>
+              <span className="min-w-0 flex-1 truncate" title={[e.change, ...(e.findings ?? []).map((f) => `• ${f}`)].filter(Boolean).join('\n')}>
                 {e.change}
               </span>
               {e.compliance && <span className={cn('text-[11px]', /pass/i.test(e.compliance) ? 'text-emerald-600' : 'text-red-500')}>{e.compliance}</span>}
@@ -433,10 +519,16 @@ function RulesPanel({ hf }: { hf: HackforgeSnapshot }) {
                   <div key={r.id} className="flex items-start gap-2 py-1 text-[12.5px]" title={r.detail}>
                     <span className="w-6 shrink-0 font-mono text-[11px] text-muted">{r.id}</span>
                     {kind !== 'criterion' &&
-                      (c ? c.ok ? <CheckCircle2 className="mt-0.5 size-3.5 shrink-0 text-emerald-500" /> : <XCircle className="mt-0.5 size-3.5 shrink-0 text-red-500" /> : <Circle className="mt-0.5 size-3.5 shrink-0 text-muted" />)}
+                      (c?.ok === true ? (
+                        <CheckCircle2 className="mt-0.5 size-3.5 shrink-0 text-emerald-500" />
+                      ) : c?.ok === false ? (
+                        <XCircle className="mt-0.5 size-3.5 shrink-0 text-red-500" />
+                      ) : (
+                        <Circle className="mt-0.5 size-3.5 shrink-0 text-muted" aria-label={c ? 'not observed' : 'not checked yet'} />
+                      ))}
                     <div className="min-w-0 flex-1">
                       <div>{r.text}</div>
-                      {(c?.note || r.detail) && <div className="truncate text-[11px] text-muted">{c && !c.ok ? c.note : r.detail}</div>}
+                      {(c?.note || r.detail) && <div className="truncate text-[11px] text-muted">{c && c.ok === false ? c.note : r.detail}</div>}
                     </div>
                     {kind === 'criterion' && (
                       <div className="flex w-28 shrink-0 items-center gap-1.5">

@@ -1,0 +1,5 @@
+{"schema_version": "hackforge-advisor-request.v1", "trigger": "14a7c267f5aa", "reason_code": "repeated-findings",
+ "question": "Judges keep flagging the same two issues. What should change?", "attempt": 3,
+ "last_error": "Mock score stuck at 7.6; findings: demo lacks a hook; accuracy not measured",
+ "tried": ["rewrote intro text", "added accuracy number to README"],
+ "resume_pack": ".hackforge/RESUME.md", "contract": ".hackforge/contracts/M4.json"}

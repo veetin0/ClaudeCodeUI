@@ -1,0 +1,49 @@
+{
+  "hooks": {
+    "SessionStart": [
+      {
+        "matcher": "startup|resume|compact",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash -c 'eval \"$(tr -d \"\\r\" < \"$0\")\"' \"${CLAUDE_PLUGIN_ROOT}/scripts/hf-run.sh\" context"
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Bash|Write|Edit|MultiEdit|NotebookEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash -c 'eval \"$(tr -d \"\\r\" < \"$0\")\"' \"${CLAUDE_PLUGIN_ROOT}/scripts/hf-run.sh\" guard",
+            "timeout": 20
+          }
+        ]
+      }
+    ],
+    "PreCompact": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash -c 'eval \"$(tr -d \"\\r\" < \"$0\")\"' \"${CLAUDE_PLUGIN_ROOT}/scripts/hf-run.sh\" precompact",
+            "timeout": 30
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash -c 'eval \"$(tr -d \"\\r\" < \"$0\")\"' \"${CLAUDE_PLUGIN_ROOT}/scripts/hf-run.sh\" stop",
+            "timeout": 1200
+          }
+        ]
+      }
+    ]
+  }
+}

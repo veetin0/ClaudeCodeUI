@@ -1,0 +1,15 @@
+{
+  "schema": "hackforge-verify.v1",
+  "generated_at": "2026-10-14T12:00:00+03:00",
+  "commit": "abc1234",
+  "compliance": "PASS",
+  "gate": "PASS",
+  "integrity": "OK",
+  "mock_score": 8.4,
+  "panel": [{"persona": "technical", "model": "opus", "weighted_score": 8.2}, {"persona": "experience", "model": "opus", "weighted_score": 8.6}],
+  "criteria": [{"id": "J1", "name": "Impact", "weight": 0.3, "score": 8.5, "status": "pass", "evidence": "demo step 2, evidence/screens/forecast.png"}],
+  "compliance_items": [{"id": "R1", "status": "pass", "evidence": "no external LLM API in requirements.txt"}],
+  "findings": [{"severity": "major", "title": "Accuracy claim not measured on held-out data", "evidence": "SCORES.md has no run for v3", "fix": "run eval on split v2", "gain": 0.4, "hours": 1}],
+  "blind_judge": {"artifact": ".hackforge/DEMO.md", "impression": "...", "vote": "maybe", "divergence": "rubric judges 8.6, blind judge lost at the architecture slide"},
+  "unverified": ["J3 live demo on venue Wi-Fi"]
+}

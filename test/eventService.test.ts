@@ -42,9 +42,10 @@ describe('EventService', () => {
     const yaml = readFileSync(join(d, 'challenge', 'hackforge.yaml'), 'utf8')
     expect(yaml).toMatch(/# we chose this/)
     const cfg = pickConfig(YAML.parse(yaml))
-    expect(cfg).toMatchObject({ challenge: 'Junction 2026', deadline: '2026-11-15T10:00+02:00', team: 4, profile: 'standard', targetScore: 9, reserveMinutes: 240, checkpoints: ['decision', 'before_submit'] })
+    expect(cfg).toMatchObject({ challenge: 'Junction 2026', deadline: '2026-11-15T10:00+02:00', team: 4, plan: 'pro', fableOk: false, profile: 'auto', targetScore: 9, reserveMinutes: 240, checkpoints: ['decision', 'before_submit'] })
     expect(YAML.parse(yaml).stack_preferences).toEqual(['python'])
-    expect(YAML.parse(yaml).models).toMatchObject({ build: 'sonnet', judge: 'opus' })
+    // Pro plans: no per-role overrides, so HackForge's lean profile picks the models.
+    expect(YAML.parse(yaml).models).toMatchObject({ build: '', judge: '', architect: '' })
 
     await svc.updateProgress({ done: { install: true } })
     const after = await svc.updateProgress({ partner: { name: 'OpenAI', keys: true } })

@@ -1,4 +1,4 @@
-import { ArrowDown, ArrowUp, AudioLines, Bot, Clapperboard, Download, KeyRound, MonitorPlay, Pause, Play, Plus, RotateCcw, SkipBack, SkipForward, Timer, Trash2, X } from 'lucide-react'
+import { ArrowDown, ArrowUp, AudioLines, Bot, Box, Clapperboard, Download, KeyRound, MonitorPlay, Pause, Play, Plus, RotateCcw, SkipBack, SkipForward, Timer, Trash2, X } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import type { EventState } from '@shared/event'
 import {
@@ -111,6 +111,14 @@ function Toolbar() {
         </ToolBtn>
         <ToolBtn icon={Bot} onClick={() => void askClaude(writeScriptPrompt(draft?.targetSeconds ?? 120), 'Pitch script')} disabled={!draft}>
           Write script with Claude
+        </ToolBtn>
+        <ToolBtn
+          icon={Box}
+          onClick={() => void askClaude('/hackforge:video', 'HackForge video')}
+          disabled={!draft}
+          title="HackForge picks a visual treatment for your subject (3D product hero, digital-twin flythrough, data in motion, device mockup…) and adds the clips to pitch/public/ as screen scenes. Narration stays as it is."
+        >
+          3D / animated clips
         </ToolBtn>
         <ToolBtn icon={AudioLines} onClick={() => void narrate()} disabled={running || !draft || pending === 0} title={pending ? `${pending} scene(s) need narration` : 'All narration is up to date'}>
           Generate narration{pending ? ` (${pending})` : ''}
