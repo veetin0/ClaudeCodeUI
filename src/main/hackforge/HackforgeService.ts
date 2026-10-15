@@ -1,4 +1,4 @@
-import { existsSync, type FSWatcher } from 'node:fs'
+import { existsSync, readFileSync, type FSWatcher } from 'node:fs'
 import { mkdir, readdir, readFile, stat, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import YAML from 'yaml'
@@ -49,6 +49,25 @@ async function pluginEnabledIn(settingsPath: string): Promise<boolean> {
 }
 
 /** Reads a project's HackForge state. Never throws: missing files just leave fields empty. */
+/**
+ * Whether HackForge picks Sonnet for this project's main session: its Pro plan / lean profile, which is
+ * also HackForge's choice while the plan isn't set yet.
+ */
+export function hackforgeLean(cwd: string): boolean {
+  let raw: string
+  try {
+    raw = readFileSync(join(cwd, CONFIG), 'utf8')
+  } catch {
+    return true
+  }
+  try {
+    const c = pickConfig(YAML.parse(raw))
+    return !c.plan || c.plan === 'pro' || c.plan === 'auto' || c.profile === 'lean'
+  } catch {
+    return true
+  }
+}
+
 export async function readHackforge(cwd: string, pluginInfo: () => HackforgePluginInfo): Promise<HackforgeSnapshot> {
   const hf = join(cwd, MEMORY)
   const [memFiles, challengeDir] = await Promise.all([readdir(hf).catch(() => null), stat(join(cwd, 'challenge')).then((s) => s.isDirectory(), () => false)])

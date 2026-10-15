@@ -1,6 +1,6 @@
-import { AlertTriangle, Archive } from 'lucide-react'
+import { AlertTriangle, Archive, Info, Leaf, Zap } from 'lucide-react'
 import { useEffect, useLayoutEffect, useRef } from 'react'
-import { formatCost, formatDuration } from '@/lib/format'
+import { cn, formatCost, formatDuration } from '@/lib/format'
 import type { Item, SessionState } from '@/stores/reducer'
 import { Markdown } from './Markdown'
 import { Thinking } from './Thinking'
@@ -103,6 +103,23 @@ function BlockView({ block, session }: { block: Block; session: SessionState }) 
           Conversation compacted ({block.trigger}) — {block.preTokens.toLocaleString()} tokens summarized
         </div>
       )
+    case 'saver': {
+      const Icon = block.tone === 'saving' ? Leaf : block.tone === 'power' ? Zap : Info
+      return (
+        <div
+          data-saver-note={block.tone}
+          className={cn(
+            'flex items-start gap-2 px-1 text-[11.5px] leading-relaxed',
+            block.tone === 'saving' ? 'text-emerald-700 dark:text-emerald-300' : block.tone === 'power' ? 'text-amber-700 dark:text-amber-300' : 'text-muted',
+          )}
+        >
+          <Icon className="mt-[3px] size-3 shrink-0" />
+          <span>
+            <span className="font-medium">Usage saver</span> · {block.text}
+          </span>
+        </div>
+      )
+    }
     case 'error':
       return (
         <div className="selectable flex gap-2 rounded-lg border border-red-500/30 bg-red-500/5 px-3 py-2.5 text-[12px] text-red-700 dark:text-red-300">

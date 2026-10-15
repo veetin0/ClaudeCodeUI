@@ -4,6 +4,8 @@ import type { PermissionMode } from '@shared/events'
 import { cn } from '@/lib/format'
 import { useApp } from '@/stores/app'
 import type { SessionState } from '@/stores/reducer'
+import { AUTO_MODEL } from '@shared/usageSaver'
+import { SaverChip } from './SaverChip'
 
 export const PERMISSION_MODES: { value: PermissionMode; label: string }[] = [
   { value: 'default', label: 'Ask before acting' },
@@ -12,6 +14,9 @@ export const PERMISSION_MODES: { value: PermissionMode; label: string }[] = [
   { value: 'auto', label: 'Auto (classifier)' },
   { value: 'bypassPermissions', label: 'Bypass permissions' },
 ]
+
+/** Offered while the Usage saver is on: it picks Opus or Sonnet for each message. */
+export const AUTO_OPTION = { value: AUTO_MODEL, label: 'Auto (Usage saver)' }
 
 export const MODELS = [
   { value: '', label: 'Default model' },
@@ -25,6 +30,7 @@ export function PromptBox({ session }: { session: SessionState }) {
   const setText = useApp((s) => s.setDraft)
   const ref = useRef<HTMLTextAreaElement>(null)
   const { send, interrupt, setPermissionMode, setModel } = useApp()
+  const saverOn = useApp((s) => session.saver?.enabled ?? s.settings?.usageSaver?.enabled ?? false)
   const busy = session.status === 'running' || session.status === 'waiting' || session.status === 'compacting'
   // A saved (not live) session accepts input: sending resumes it.
   const saved = !session.live
@@ -78,10 +84,14 @@ export function PromptBox({ session }: { session: SessionState }) {
         <div className="flex items-center gap-2 px-2.5 pb-2">
           <Select value={session.permissionMode} onChange={(v) => void setPermissionMode(v as PermissionMode)} options={PERMISSION_MODES} />
           <Select
-            value={MODELS.some((m) => m.value === session.model) ? session.model! : ''}
+            value={session.saver?.auto ? AUTO_MODEL : MODELS.some((m) => m.value === session.model) ? session.model! : ''}
             onChange={(v) => v && void setModel(v)}
-            options={MODELS.map((m) => (m.value === '' && session.model ? { ...m, label: session.model } : m))}
+            options={[
+              ...(saverOn ? [AUTO_OPTION] : []),
+              ...MODELS.map((m) => (m.value === '' && session.model && !session.saver?.auto ? { ...m, label: session.model } : m)),
+            ]}
           />
+          {!watching && <SaverChip session={session} />}
           <div className="ml-auto flex items-center gap-2">
             {busy && !watching && (
               <button onClick={() => void interrupt()} title="Stop (Esc)" className="flex size-7 items-center justify-center rounded-full bg-fg text-surface hover:opacity-80">

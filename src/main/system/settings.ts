@@ -2,6 +2,7 @@ import { app, safeStorage } from 'electron'
 import { existsSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import type { AppSettings } from '@shared/ipc'
+import { DEFAULT_USAGE_SAVER } from '@shared/usageSaver'
 
 interface StoredSettings extends Omit<AppSettings, 'hasApiKey' | 'hasElevenLabsKey'> {
   /** API key encrypted with the macOS Keychain-backed safeStorage, base64. */
@@ -20,6 +21,7 @@ const DEFAULTS: StoredSettings = {
   eventProject: null,
   team: null,
   teamMemberId: '',
+  usageSaver: DEFAULT_USAGE_SAVER,
 }
 
 export class SettingsStore {
@@ -30,7 +32,9 @@ export class SettingsStore {
     this.data = { ...DEFAULTS }
     if (existsSync(this.file)) {
       try {
-        this.data = { ...DEFAULTS, ...JSON.parse(readFileSync(this.file, 'utf8')) }
+        const stored = JSON.parse(readFileSync(this.file, 'utf8')) as Partial<StoredSettings>
+        // Settings added in later versions get their defaults (the Usage saver starts on).
+        this.data = { ...DEFAULTS, ...stored, usageSaver: { ...DEFAULT_USAGE_SAVER, ...stored.usageSaver } }
       } catch {
         // Corrupt settings: fall back to defaults rather than refusing to start.
       }

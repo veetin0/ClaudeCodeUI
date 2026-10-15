@@ -4,6 +4,7 @@ import type { HarnessEvent, PermissionMode } from '@shared/events'
 import type { AppSettings, PermissionDecision, SessionSummary } from '@shared/ipc'
 import type { Composition, PreviewState, ProjectInfo } from '@shared/preview'
 import { ipcErrorMessage } from '@/lib/time'
+import { AUTO_MODEL } from '@shared/usageSaver'
 import { applyEvent, createSession, finalizeLoaded, type SessionState } from './reducer'
 import { appendEvents, dropLog, getLog, seedLog } from './eventLog'
 
@@ -219,7 +220,9 @@ export const useApp = create<AppState>((set, get) => ({
     const { settings } = get()
     const permissionMode = settings?.defaultPermissionMode ?? 'default'
     try {
-      const summary = await api().startSession({ cwd, permissionMode, model: settings?.defaultModel || undefined })
+      const saver = settings?.usageSaver
+      const model = saver?.enabled && saver.autoModel ? AUTO_MODEL : settings?.defaultModel || undefined
+      const summary = await api().startSession({ cwd, permissionMode, model })
       set((st) => ({
         sessions: { ...st.sessions, [summary.id]: createSession(summary, permissionMode, true) },
         order: [summary.id, ...st.order],
@@ -285,7 +288,7 @@ export const useApp = create<AppState>((set, get) => ({
     if (s && !s.live) {
       // Sending to a saved session resumes its Claude conversation first.
       try {
-        await api().resumeSession(id, { permissionMode: s.permissionMode, model: s.model })
+        await api().resumeSession(id, { permissionMode: s.permissionMode, model: s.saver?.auto ? AUTO_MODEL : s.model })
       } catch (err) {
         set((st) =>
           produce(st, (d) => {
@@ -314,8 +317,17 @@ export const useApp = create<AppState>((set, get) => ({
   async setModel(model) {
     const id = get().activeId
     if (!id) return
-    if (get().sessions[id]?.live) await api().setModel(id, model)
-    set((st) => produce(st, (d) => void (d.sessions[id].model = model)))
+    const live = get().sessions[id]?.live
+    if (live) await api().setModel(id, model)
+    set((st) =>
+      produce(st, (d) => {
+        const s = d.sessions[id]
+        // Auto keeps showing the model it's on.
+        if (model !== AUTO_MODEL) s.model = model
+        // A live session confirms Auto on/off with a saver event (which also notes it in the chat).
+        if (!live && s.saver) s.saver.auto = model === AUTO_MODEL && s.saver.enabled
+      }),
+    )
   },
 
   async respondPermission(requestId, decision) {

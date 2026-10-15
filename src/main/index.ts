@@ -25,7 +25,7 @@ import { builtinPlugin, choosePlugin, installedPlugin } from './hackforge/plugin
 import { EventService } from './event/EventService'
 import { newMemberId, TeamService } from './team/TeamService'
 import { PitchService } from './pitch/PitchService'
-import { readHackforge } from './hackforge/HackforgeService'
+import { hackforgeLean, readHackforge } from './hackforge/HackforgeService'
 import { hackforgeGuide } from '@shared/hackforge'
 
 // Tests (and a second, throwaway profile) can keep everything out of the real profile folder.
@@ -188,9 +188,12 @@ function registerIpc() {
     if (!summary.claudeSessionId) throw new Error('This session never reached Claude, so there is no conversation to resume.')
     const lastTodos = events.findLast((e) => e.type === 'todo.update')
     const todos: TodoItem[] = lastTodos?.type === 'todo.update' ? lastTodos.todos : []
+    // An Auto session picks up on the model the saver last chose.
+    const lastRoute = events.findLast((e) => e.type === 'saver' && e.note.kind === 'route')
+    const saverTier = lastRoute?.type === 'saver' && lastRoute.note.kind === 'route' ? lastRoute.note.model : undefined
     const resumed = agents.start(
       { cwd: summary.cwd, permissionMode: opts?.permissionMode ?? settings.get().defaultPermissionMode, model: opts?.model ?? summary.model },
-      { summary, claudeSessionId: summary.claudeSessionId, todos },
+      { summary, claudeSessionId: summary.claudeSessionId, todos, saverTier },
     )
     store.open(resumed)
     settings.addRecentProject(summary.cwd)
@@ -289,6 +292,8 @@ async function start() {
     },
     claudeExecutablePath: resolveClaudeExecutable(),
     onRateLimit: (info) => team?.onRateLimit(info),
+    usageSaver: () => settings.get().usageSaver,
+    hackforgeLean,
     getEnv: () => {
       const key = settings.getApiKey()
       return agentEnv(key ? { ANTHROPIC_API_KEY: key } : {})

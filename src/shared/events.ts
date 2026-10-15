@@ -1,4 +1,5 @@
 import type { SessionSummary } from './ipc'
+import type { SaverNote } from './usageSaver'
 import type { VisualSource, VisualUpdate } from './visuals'
 
 /**
@@ -112,7 +113,11 @@ export type HarnessEvent =
       /** Output tokens generated during this turn by the main agent. */
       outputTokens: number
       contextWindow?: number
+      /** A turn Harness ran itself (the Usage saver's compaction): no divider, no "finished" notification. */
+      internal?: boolean
     }>
+  /** What the Usage saver did: the model it picked for a turn, a compaction, a skipped file… */
+  | E<'saver', { note: SaverNote }>
   | E<'error', { message: string }>
 
 export type HarnessEventType = HarnessEvent['type']

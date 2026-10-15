@@ -39,7 +39,7 @@ export function replayBounds(sessionId: string): { start: number; end: number; m
   const marks: Mark[] = []
   for (const e of log) {
     if (e.type === 'user.message') marks.push({ t: e.ts, kind: 'prompt' })
-    else if (e.type === 'turn.end') marks.push({ t: e.ts, kind: 'turn' })
+    else if (e.type === 'turn.end' && !e.internal) marks.push({ t: e.ts, kind: 'turn' })
     else if (e.type === 'subagent.start') marks.push({ t: e.ts, kind: 'subagent' })
   }
   return { start: log[0]?.ts ?? 0, end: log.at(-1)?.ts ?? 0, marks }

@@ -74,7 +74,7 @@ export class Presence {
       }
     } else if (e.type === 'permission.request') {
       this.notify(e.sessionId, 'Claude needs your approval', `${e.toolName}${e.agentId ? ' (subagent)' : ''}`)
-    } else if (e.type === 'turn.end' && e.durationMs > NOTIFY_TURNS_LONGER_THAN_MS) {
+    } else if (e.type === 'turn.end' && !e.internal && e.durationMs > NOTIFY_TURNS_LONGER_THAN_MS) {
       this.notify(e.sessionId, e.isError ? 'Claude stopped' : 'Claude finished', e.result ? e.result.replace(/\s+/g, ' ').slice(0, 140) : `after ${Math.round(e.durationMs / 1000)}s`)
     }
   }

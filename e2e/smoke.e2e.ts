@@ -124,6 +124,17 @@ describe('Harness (real Electron app)', () => {
     await shot('06-pitch-editor')
   })
 
+  it('shows the Usage saver in Settings, on by default', async () => {
+    await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].webContents.send('app:command', { id: 'settings' }))
+    await page.getByText('Spends your Claude plan where it buys quality').waitFor()
+    expect(await page.getByLabel(/Pick the model for each message/).isChecked()).toBe(true)
+    expect(await page.getByLabel(/Compact between tasks/).isChecked()).toBe(true)
+    const saved = await page.evaluate(() => window.harness.getSettings())
+    expect(saved.usageSaver).toEqual({ enabled: true, autoModel: true, compact: true, skipGenerated: true, leanOutput: true })
+    await shot('07-usage-saver-settings')
+    await page.keyboard.press('Escape')
+  })
+
   it('never started a Claude session', async () => {
     const history = await page.evaluate(() => window.harness.listHistory())
     expect(history).toEqual([])

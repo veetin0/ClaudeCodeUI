@@ -6,9 +6,11 @@ import type { PitchScript, PitchState, Voice } from './pitch'
 export type { PitchState, Voice, PitchJob } from './pitch'
 import type { MemberSession, TeamConfig, TeamState } from './team'
 import type { Composition, PreviewServer, PreviewState, ProjectInfo, RenderJob } from './preview'
+import type { UsageSaverSettings } from './usageSaver'
 
 export interface StartSessionOptions {
   cwd: string
+  /** A model alias or ID, or 'auto' for the Usage saver to pick per turn. */
   model?: string
   permissionMode?: PermissionMode
 }
@@ -83,6 +85,8 @@ export interface AppSettings {
   teamMemberId: string
   /** An ElevenLabs key is stored (for pitch narration). */
   hasElevenLabsKey: boolean
+  /** Auto model, compaction between tasks, skipping generated files, lean output. */
+  usageSaver: UsageSaverSettings
 }
 
 export type EventProgressPatch = { done?: Record<string, boolean>; partner?: { name: string; keys?: boolean; kit?: boolean } }

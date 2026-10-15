@@ -3,6 +3,8 @@ import type { AgentId, EventOf, FileChange, HarnessEvent, PermissionMode, Sessio
 import { HARNESS_TOOL_PREFIX, SUBAGENT_TOOLS } from '@shared/events'
 import type { ShowUpdate, VisualSource } from '@shared/visuals'
 import type { SessionSummary } from '@shared/ipc'
+import { approxTokens, type SaverTier, type TurnKind } from '@shared/usageSaver'
+import { baseName } from '@shared/paths'
 
 export interface ToolCall {
   id: string
@@ -42,6 +44,24 @@ export type Item =
   | { kind: 'turn'; id: string; costUsd: number; durationMs: number; isError: boolean; result: string }
   | { kind: 'compact'; id: string; preTokens: number; postTokens?: number; trigger: 'manual' | 'auto' }
   | { kind: 'error'; id: string; message: string }
+  /** The Usage saver switched models, compacted, skipped a file… `saving` (green), `power` (Opus) or `info`. */
+  | { kind: 'saver'; id: string; tone: 'saving' | 'power' | 'info'; text: string }
+
+/** What the Usage saver is doing in this session (from its `saver` events). */
+export interface SaverView {
+  enabled: boolean
+  /** Picks the model per turn; false when a model was picked by hand. */
+  auto: boolean
+  compact: boolean
+  skipGenerated: boolean
+  leanOutput: boolean
+  /** The model on the latest turn, and why. */
+  tier?: SaverTier
+  turn?: TurnKind
+  text?: string
+  held?: boolean
+  stats: { sonnetTurns: number; opusTurns: number; takeovers: number; compactions: number; compactedTokens: number; skipped: number; skippedTokens: number }
+}
 
 export interface ProgressState {
   label: string
@@ -122,6 +142,8 @@ export interface SessionState {
   costOffset: number
   outputTokens: number
   turnStartedAt?: number
+  /** Absent for sessions from before the Usage saver, and for terminal sessions. */
+  saver?: SaverView
 }
 
 const DEFAULT_CONTEXT_WINDOW = 200_000
@@ -375,6 +397,8 @@ export function applyEvent(s: SessionState, e: HarnessEvent): void {
       s.totalCostUsd = Math.max(s.totalCostUsd, cumulative)
       if (e.contextWindow) s.contextWindow = e.contextWindow
       s.outputTokens += e.outputTokens
+      // Harness's own turn (the saver compacting before your message): your turn follows.
+      if (e.internal) break
       s.items.push({
         kind: 'turn',
         id: `turn-${e.ts}-${s.items.length}`,
@@ -395,6 +419,67 @@ export function applyEvent(s: SessionState, e: HarnessEvent): void {
 
     case 'error':
       s.items.push({ kind: 'error', id: `error-${e.ts}-${s.items.length}`, message: e.message })
+      break
+
+    case 'saver':
+      applySaver(s, e)
+      break
+  }
+}
+
+const newSaverView = (): SaverView => ({
+  enabled: false,
+  auto: false,
+  compact: false,
+  skipGenerated: false,
+  leanOutput: false,
+  stats: { sonnetTurns: 0, opusTurns: 0, takeovers: 0, compactions: 0, compactedTokens: 0, skipped: 0, skippedTokens: 0 },
+})
+
+const k = (n: number) => (n >= 1000 ? `${Math.round(n / 1000)}k` : String(n))
+
+function applySaver(s: SessionState, e: EventOf<'saver'>) {
+  const n = e.note
+  const say = (tone: 'saving' | 'power' | 'info', text: string) => s.items.push({ kind: 'saver', id: `saver-${e.ts}-${s.items.length}`, tone, text })
+  if (n.kind === 'config') {
+    const before = s.saver
+    s.saver = { ...(before ?? newSaverView()), enabled: n.enabled, auto: n.auto, compact: n.compact, skipGenerated: n.skipGenerated, leanOutput: n.leanOutput }
+    if (before && before.auto !== n.auto) {
+      say('info', n.auto ? 'Auto is back on: the Usage saver picks Opus or Sonnet for each message.' : 'You picked the model for this session, so the saver won’t switch models (compaction and skipping generated files still apply).')
+    }
+    return
+  }
+  const v = (s.saver ??= { ...newSaverView(), enabled: true })
+  switch (n.kind) {
+    case 'route': {
+      const first = v.tier === undefined
+      v.tier = n.model
+      v.turn = n.turn
+      v.text = n.text
+      v.held = n.held
+      if (n.midTurn) {
+        if (n.model === 'opus') v.stats.takeovers++
+      } else if (n.model === 'sonnet') v.stats.sonnetTurns++
+      else v.stats.opusTurns++
+      if (first || n.switched || n.held || n.midTurn) say(n.model === 'sonnet' ? 'saving' : 'power', n.text)
+      break
+    }
+    case 'compact': {
+      const trimmed = Math.max(0, n.preTokens - (n.postTokens ?? 0))
+      v.stats.compactions++
+      v.stats.compactedTokens += trimmed
+      say('saving', `Compacted the conversation before your message (${k(n.preTokens)} → ${k(n.postTokens ?? 0)} tokens), so every step from here re-reads less.`)
+      break
+    }
+    case 'skip': {
+      const tokens = approxTokens(n.bytes)
+      v.stats.skipped++
+      v.stats.skippedTokens += tokens
+      say('saving', `Didn’t read ${baseName(n.path)} whole (a ${n.what}, ${Math.round(n.bytes / 1024)} KB ≈ ${k(tokens)} tokens). Claude searches it or reads just the part it needs.`)
+      break
+    }
+    case 'notice':
+      say('info', n.text)
       break
   }
 }

@@ -70,7 +70,11 @@ export function TopBar() {
             )}
           </div>
           <div className="ml-auto flex items-center gap-4 text-muted">
-            {session.model && <span className="hidden truncate lg:inline">{session.model}</span>}
+            {session.model && (
+              <span className="hidden truncate lg:inline" title={session.saver?.auto ? 'The Usage saver picks the model for each message' : undefined}>
+                {session.saver?.auto ? `Auto · ${session.model}` : session.model}
+              </span>
+            )}
             <ContextGauge used={session.contextTokens} total={session.contextWindow} />
             <PlanUsageChip />
             <span className="tabular-nums" title="Output tokens this session">

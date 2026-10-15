@@ -1,10 +1,11 @@
 import { randomUUID } from 'node:crypto'
 import { statSync, type FSWatcher } from 'node:fs'
 import { join } from 'node:path'
-import { query, type CanUseTool, type Query, type SDKRateLimitInfo, type SDKUserMessage, type SdkPluginConfig } from '@anthropic-ai/claude-agent-sdk'
+import { query, type CanUseTool, type HookCallbackMatcher, type Query, type SDKRateLimitInfo, type SDKUserMessage, type SdkPluginConfig } from '@anthropic-ai/claude-agent-sdk'
 import { EXEC_TOOLS, type AgentId, type HarnessEvent, type PermissionMode, type SessionStatus, type TodoItem } from '@shared/events'
 import { toVisual } from '@shared/visuals'
 import { normPath } from '@shared/paths'
+import { COMPACT_COMMAND, LEAN_OUTPUT_PROMPT, type SaverTier, type UsageSaverSettings } from '@shared/usageSaver'
 import type { PermissionDecision, SessionSummary, StartSessionOptions } from '@shared/ipc'
 import type { EventBus } from '../events/bus'
 import { EventNormalizer } from '../events/normalizer'
@@ -14,6 +15,7 @@ import type { TelemetryServer } from '../system/telemetry'
 import { createHarnessServer, HARNESS_TOOL_GUIDE } from './harnessTools'
 import { MessageQueue } from './MessageQueue'
 import { PermissionBroker } from './permissions'
+import { UsageSaver } from './UsageSaver'
 
 /** Starts an SDK query. Injected so tests can run the session against a fake engine. */
 export type QueryFactory = typeof query
@@ -33,6 +35,10 @@ export interface AgentServiceDeps {
   plugins?: (cwd: string) => SdkPluginConfig[]
   /** Plan rate-limit updates (claude.ai subscriptions) as the CLI reports them. */
   onRateLimit?: (info: SDKRateLimitInfo) => void
+  /** Usage saver settings; read when a session starts (and when its model picker changes). */
+  usageSaver?: () => UsageSaverSettings
+  /** This folder's HackForge settings pick Sonnet for the main session (Pro plan / lean profile). */
+  hackforgeLean?: (cwd: string) => boolean
 }
 
 /** Plan usage windows, as reported by the CLI's usage call (null fields when unknown). */
@@ -53,6 +59,8 @@ export interface ResumeInfo {
   summary: SessionSummary
   claudeSessionId: string
   todos: TodoItem[]
+  /** The model the Usage saver last picked, so an Auto session resumes on it. */
+  saverTier?: SaverTier
 }
 
 class AgentSession {
@@ -75,6 +83,11 @@ class AgentSession {
   claudeSessionId: string | null = null
   private watcher: FSWatcher | null = null
   private knownFiles = new Set<string>()
+  private readonly saver: UsageSaver | null = null
+  /** Messages go to Claude in order, each after the saver has prepared its turn. */
+  private delivery: Promise<void> = Promise.resolve()
+  /** Turns Harness runs itself (the saver's compaction), oldest first; resolved when each ends. */
+  private internalTurns: (() => void)[] = []
 
   constructor(
     private readonly deps: AgentServiceDeps,
@@ -92,12 +105,32 @@ class AgentSession {
       this.tracker = new ChangeTracker(id, this.summary.cwd, deps.snapshots, (e) => this.emit(e))
       this.startWatching()
     }
+    const saverCfg = deps.usageSaver?.()
+    if (saverCfg) {
+      const cwd = this.summary.cwd
+      this.saver = new UsageSaver(
+        saverCfg,
+        opts.model,
+        opts.permissionMode ?? 'default',
+        {
+          cwd,
+          note: (note) => this.emit({ type: 'saver', note, sessionId: id, ts: Date.now() }),
+          setModel: async (model) => {
+            await this.q?.setModel(model)
+          },
+          compact: () => this.runInternal(COMPACT_COMMAND),
+        },
+        () => deps.hackforgeLean?.(cwd) ?? false,
+        resume ? { tier: resume.saverTier } : undefined,
+      )
+    }
     if (resume) {
       this.claudeSessionId = resume.claudeSessionId
       this.normalizer.seedTasks(resume.todos)
       this.deps.bus.emit({ type: 'session.resumed', claudeSessionId: resume.claudeSessionId, sessionId: id, ts: now })
     }
-    this.start({ ...opts, cwd: this.summary.cwd }, resume?.claudeSessionId)
+    this.start({ ...opts, cwd: this.summary.cwd }, resume?.claudeSessionId, saverCfg)
+    if (this.saver) this.emit({ type: 'saver', note: this.saver.configNote(), sessionId: id, ts: Date.now() })
   }
 
   get id() {
@@ -112,6 +145,9 @@ class AgentSession {
     if (this.disposed) return
     const list = Array.isArray(e) ? e : [e]
     for (const ev of list) {
+      this.saver?.observe(ev)
+      // Keep in step with statuses the CLI reports itself (e.g. compacting).
+      if (ev.type === 'status') this.status = ev.status
       if (ev.type === 'session.init') this.claudeSessionId = ev.claudeSessionId
       if (ev.type === 'tool.start' && EXEC_TOOLS.has(ev.name)) this.runningExec.push({ toolUseId: ev.toolUseId, agentId: ev.agentId })
       if (ev.type === 'tool.end') {
@@ -130,8 +166,12 @@ class AgentSession {
     this.deps.bus.emit({ type: 'status', status, sessionId: this.id, ts: Date.now() })
   }
 
-  private start(opts: StartSessionOptions, resumeClaudeSessionId?: string) {
-    const canUseTool: CanUseTool = (toolName, input, o) => this.permissions.request(toolName, input, o)
+  private start(opts: StartSessionOptions, resumeClaudeSessionId?: string, saverCfg?: UsageSaverSettings) {
+    const canUseTool: CanUseTool = async (toolName, input, o) => {
+      const decision = await this.permissions.request(toolName, input, o)
+      if (toolName === 'ExitPlanMode' && decision.behavior === 'allow') this.saver?.onPlanApproved()
+      return decision
+    }
     const factory = this.deps.queryFactory ?? query
     const harnessUrl = this.deps.telemetry?.register(this.telemetryToken, (p) => this.onTelemetry(p))
 
@@ -140,9 +180,15 @@ class AgentSession {
       options: {
         cwd: opts.cwd,
         resume: resumeClaudeSessionId,
-        model: opts.model || undefined,
+        model: this.saver ? this.saver.startModel(opts.model) : opts.model && opts.model !== 'auto' ? opts.model : undefined,
         permissionMode: opts.permissionMode ?? 'default',
-        systemPrompt: { type: 'preset', preset: 'claude_code', append: [HARNESS_TOOL_GUIDE, this.deps.promptAppend?.(opts.cwd)].filter(Boolean).join('\n\n') },
+        systemPrompt: {
+          type: 'preset',
+          preset: 'claude_code',
+          append: [HARNESS_TOOL_GUIDE, this.deps.promptAppend?.(opts.cwd), saverCfg?.enabled && saverCfg.leanOutput ? LEAN_OUTPUT_PROMPT : undefined]
+            .filter(Boolean)
+            .join('\n\n'),
+        },
         plugins: this.deps.plugins?.(opts.cwd),
         mcpServers: { harness: createHarnessServer() },
         allowedTools: ['mcp__harness'],
@@ -153,22 +199,7 @@ class AgentSession {
         forwardSubagentText: true,
         agentProgressSummaries: true,
         canUseTool,
-        hooks: this.tracker
-          ? {
-              PreToolUse: [
-                {
-                  matcher: [...EDIT_TOOLS].join('|'),
-                  hooks: [
-                    async (input) => {
-                      const target = 'tool_input' in input ? editTarget((input.tool_input ?? {}) as Record<string, unknown>) : null
-                      if (target) await this.tracker?.beforeEdit(target)
-                      return {}
-                    },
-                  ],
-                },
-              ],
-            }
-          : undefined,
+        hooks: this.hooks(),
         abortController: this.abort,
         env: harnessUrl ? { ...this.deps.getEnv(), HARNESS_URL: harnessUrl } : this.deps.getEnv(),
         pathToClaudeCodeExecutable: this.deps.claudeExecutablePath,
@@ -183,16 +214,52 @@ class AgentSession {
     void this.pump()
   }
 
+  private hooks() {
+    const preToolUse: HookCallbackMatcher[] = []
+    if (this.tracker) {
+      preToolUse.push({
+        matcher: [...EDIT_TOOLS].join('|'),
+        hooks: [
+          async (input) => {
+            const target = 'tool_input' in input ? editTarget((input.tool_input ?? {}) as Record<string, unknown>) : null
+            if (target) await this.tracker?.beforeEdit(target)
+            return {}
+          },
+        ],
+      })
+    }
+    const guard = this.saver?.readGuard()
+    if (guard) preToolUse.push(guard)
+    return preToolUse.length ? { PreToolUse: preToolUse } : undefined
+  }
+
+  /** Sends a message as a turn of Harness's own (not shown as yours); resolves when the turn ends. */
+  private runInternal(content: string): Promise<void> {
+    return new Promise((resolve) => {
+      this.internalTurns.push(resolve)
+      this.input.push({ type: 'user', message: { role: 'user', content }, parent_tool_use_id: null, uuid: randomUUID() })
+    })
+  }
+
   private async pump() {
     try {
       for await (const msg of this.q!) {
         if (msg.type === 'rate_limit_event') this.deps.onRateLimit?.(msg.rate_limit_info)
         const events = this.normalizer.normalize(msg)
-        this.emit(events)
-        for (const e of events) {
-          if (e.type === 'turn.end') this.setStatus('idle')
+        // The first turn to end while one of Harness's own is pending is that one.
+        let internalEnded: (() => void) | undefined
+        const tagged = events.map((e) => {
+          if (e.type !== 'turn.end' || internalEnded || !this.internalTurns.length) return e
+          internalEnded = this.internalTurns.shift()
+          return { ...e, internal: true }
+        })
+        this.emit(tagged)
+        for (const e of tagged) {
+          // After Harness's own turn, your message is next: still working.
+          if (e.type === 'turn.end') this.setStatus(e.internal ? 'running' : 'idle')
           else if (e.type === 'compact' && this.status === 'compacting') this.setStatus('running')
         }
+        internalEnded?.()
       }
     } catch (err) {
       if (!this.abort.signal.aborted) {
@@ -202,6 +269,8 @@ class AgentSession {
       }
     } finally {
       this.permissions.cancelAll()
+      // Nothing more will end: let waiting deliveries go (they find the session closed).
+      for (const done of this.internalTurns.splice(0)) done()
       this.setStatus('closed')
       // The process ended on its own (crash, CLI exit): stop watching and listening for it. close()
       // does the rest; the tracker stays so its diffs and reverts keep working.
@@ -280,8 +349,24 @@ class AgentSession {
   send(text: string) {
     if (this.status === 'closed') throw new Error('Session is closed')
     const id = randomUUID()
+    // A message sent while Claude is working joins that turn; the saver only prepares fresh turns.
+    const fresh = this.status === 'idle'
     this.emit({ type: 'user.message', id, text, sessionId: this.id, ts: Date.now() })
     this.setStatus('running')
+    this.delivery = this.delivery
+      .then(() => this.deliver(text, id, fresh))
+      .catch((err: unknown) => this.emit({ type: 'error', message: `Couldn’t send the message: ${err instanceof Error ? err.message : String(err)}`, sessionId: this.id, ts: Date.now() }))
+  }
+
+  private async deliver(text: string, id: ReturnType<typeof randomUUID>, fresh: boolean) {
+    if (this.saver && fresh) {
+      try {
+        await this.saver.beforeTurn(text)
+      } catch {
+        // The saver never holds a message back.
+      }
+    }
+    if (this.disposed || this.status === 'closed') return
     this.input.push({
       type: 'user',
       message: { role: 'user', content: text },
@@ -297,10 +382,14 @@ class AgentSession {
 
   async setPermissionMode(mode: PermissionMode) {
     await this.q?.setPermissionMode(mode)
+    this.saver?.setPermissionMode(mode)
   }
 
+  /** A model alias or ID, or 'auto' to hand the choice back to the Usage saver. */
   async setModel(model: string) {
-    await this.q?.setModel(model)
+    const cfg = this.deps.usageSaver?.()
+    if (this.saver && cfg) await this.saver.pick(model, cfg)
+    else if (model !== 'auto') await this.q?.setModel(model)
   }
 
   respondPermission(requestId: string, decision: PermissionDecision) {
