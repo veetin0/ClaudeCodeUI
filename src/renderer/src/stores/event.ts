@@ -6,7 +6,7 @@ import type { ChallengePatch } from '@shared/challenges'
 import { ipcErrorMessage } from '@/lib/time'
 import { useApp } from './app'
 
-export type EventTab = 'overview' | 'challenges' | 'pitch'
+export type EventTab = 'overview' | 'challenges' | 'partners' | 'pitch'
 
 interface EventStore {
   state: EventState | null

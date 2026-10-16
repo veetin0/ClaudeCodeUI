@@ -1,8 +1,9 @@
-import { app, BrowserWindow, dialog, ipcMain, nativeTheme, shell } from 'electron'
+import { app, BrowserWindow, dialog, ipcMain, nativeTheme, powerMonitor, powerSaveBlocker, safeStorage, shell } from 'electron'
+import { randomUUID } from 'node:crypto'
 import { homedir } from 'node:os'
-import { join } from 'node:path'
+import { basename, join } from 'node:path'
 import { IPC, type ObserveStatus, type PermissionDecision, type PtyOptions, type StartSessionOptions } from '@shared/ipc'
-import type { PermissionMode, TodoItem } from '@shared/events'
+import type { ImageAttachment, PermissionMode, TodoItem } from '@shared/events'
 import { AgentService } from './agent/AgentService'
 import { EventBus } from './events/bus'
 import { SessionStore } from './store/SessionStore'
@@ -27,6 +28,11 @@ import { newMemberId, TeamService } from './team/TeamService'
 import { PitchService } from './pitch/PitchService'
 import { hackforgeLean, readHackforge } from './hackforge/HackforgeService'
 import { hackforgeGuide } from '@shared/hackforge'
+import { takeOverPrompt } from '@shared/handoff'
+import { PhoneAlerts } from './system/phone'
+import { ResetQueue } from './system/resetQueue'
+import { PartnerService } from './event/PartnerService'
+import { checkoutHandoff, planHandoff, pushSnapshot } from './team/handoff'
 
 // Tests (and a second, throwaway profile) can keep everything out of the real profile folder.
 if (process.env.HARNESS_USER_DATA) app.setPath('userData', process.env.HARNESS_USER_DATA)
@@ -52,6 +58,19 @@ let agents: AgentService
 let presence: Presence
 let team: TeamService
 let pitch: PitchService
+let partners: PartnerService
+let resetQueue: ResetQueue
+/** Sends to every window (there's normally one). */
+const broadcast = (channel: string, payload: unknown) => {
+  for (const w of BrowserWindow.getAllWindows()) w.webContents.send(channel, payload)
+}
+const phone = new PhoneAlerts({
+  settings: () => settings.get().phoneAlerts,
+  // Away = screen locked, or no keyboard/mouse input for 90 seconds.
+  away: () => powerMonitor.getSystemIdleState(90) !== 'active',
+})
+/** HackForge loops seen running, so their end can be announced. */
+const loopsRunning = new Set<string>()
 const eventService = new EventService(
   () => settings?.get().eventProject ?? undefined,
   (state) => {
@@ -62,6 +81,12 @@ const eventService = new EventService(
 const hackforgePlugin = () => choosePlugin(builtinPlugin(app.getAppPath()), installedPlugin(claudeDir))
 const hackforge = new HackforgeService(hackforgePlugin, (snap) => {
   for (const w of BrowserWindow.getAllWindows()) w.webContents.send(IPC.hackforgeUpdate, snap)
+  // An improvement loop that was running has ended: worth a ping when you're away.
+  if (snap.loop?.active) loopsRunning.add(snap.cwd)
+  else if (loopsRunning.delete(snap.cwd)) {
+    const best = snap.loop?.bestScore
+    void phone.alert('finished', 'HackForge loop finished', `${basename(snap.cwd)}${best !== undefined ? ` · best score ${best.toFixed(1)}` : ''}`, { tags: ['checkered_flag'] })
+  }
 })
 
 /** macOS: inset traffic lights over a translucent sidebar. Windows/Linux: the standard frame and menu bar. */
@@ -199,7 +224,7 @@ function registerIpc() {
     settings.addRecentProject(summary.cwd)
     return resumed
   })
-  ipcMain.handle(IPC.sendMessage, (_e, id: string, text: string) => agents.send(id, text))
+  ipcMain.handle(IPC.sendMessage, (_e, id: string, text: string, images?: ImageAttachment[]) => agents.send(id, text, images))
   ipcMain.handle(IPC.interrupt, (_e, id: string) => agents.interrupt(id))
   ipcMain.handle(IPC.closeSession, (_e, id: string) => agents.close(id))
   ipcMain.handle(IPC.setPermissionMode, (_e, id: string, mode: PermissionMode) => agents.setPermissionMode(id, mode))
@@ -219,12 +244,15 @@ function registerIpc() {
   ipcMain.handle(IPC.eventState, () => eventService.state())
   ipcMain.handle(IPC.eventLink, (_e, dir: string | null) => {
     settings.update({ eventProject: dir })
+    partners.changed()
     return eventService.state()
   })
   ipcMain.handle(IPC.eventSetup, async (_e, dir: string) => {
     settings.update({ eventProject: dir })
     settings.addRecentProject(dir)
-    return eventService.setup(dir)
+    const state = await eventService.setup(dir)
+    partners.changed()
+    return state
   })
   ipcMain.handle(IPC.eventUpdate, (_e, patch) => eventService.updateProgress(patch))
   ipcMain.handle(IPC.challengeAdd, (_e, c) => eventService.addChallenge(c))
@@ -249,7 +277,72 @@ function registerIpc() {
   ipcMain.on(IPC.teamSetLocal, (_e, local) => team.setLocal(local))
   ipcMain.handle(IPC.getSettings, () => settings.get())
   ipcMain.handle(IPC.setApiKey, (_e, key: string | null) => settings.setApiKey(key))
-  ipcMain.handle(IPC.updateSettings, (_e, patch) => settings.update(patch))
+  ipcMain.handle(IPC.updateSettings, (_e, patch) => {
+    const next = settings.update(patch)
+    if ('resetQueue' in patch) resetQueue.refresh()
+    return next
+  })
+
+  // Handoffs: put work on the team board, or take a teammate's.
+  ipcMain.handle(IPC.handoffPlan, async (_e, sessionId: string) => {
+    const s = store.get(sessionId)
+    if (!s) throw new Error('Session not found')
+    const member = settings.get().team?.memberName ?? null
+    return { ...(await planHandoff(s.cwd, member ?? 'teammate')), member }
+  })
+  ipcMain.handle(IPC.handoffOffer, async (_e, o: { sessionId: string; title: string; note: string; reason: 'limit' | 'manual'; push: boolean }) => {
+    const s = store.get(o.sessionId)
+    if (!s) throw new Error('Session not found')
+    const member = settings.get().team?.memberName ?? 'teammate'
+    const plan = await planHandoff(s.cwd, member)
+    let pushError: string | undefined
+    let branch: string | undefined
+    if (o.push && plan.git && plan.remote) {
+      try {
+        await pushSnapshot(s.cwd, plan.branch, `WIP handoff from ${member}: ${o.title}`.slice(0, 200), member)
+        branch = plan.branch
+      } catch (err) {
+        pushError = err instanceof Error ? err.message : String(err)
+      }
+    }
+    const state = team.offerHandoff({ id: randomUUID(), title: o.title.slice(0, 160), note: o.note, branch, repo: plan.repo, project: basename(s.cwd), reason: o.reason, createdAt: Date.now() })
+    return { state, pushError }
+  })
+  ipcMain.handle(IPC.handoffWithdraw, (_e, id: string) => team.withdrawHandoff(id))
+  ipcMain.handle(IPC.handoffTake, async (_e, id: string) => {
+    const h = team.findHandoff(id)
+    if (!h) throw new Error('That handoff is no longer on the board.')
+    const project = settings.get().eventProject
+    let dir: string
+    if (h.branch) {
+      if (!project) throw new Error('Link the team’s project in event mode first, so Harness knows which repository to check the work out from.')
+      dir = await checkoutHandoff(project, h.branch, h.repo)
+      const dirs = settings.get().handoffDirs
+      if (!dirs.includes(dir)) settings.update({ handoffDirs: [dir, ...dirs].slice(0, 20) })
+      partners.changed()
+    } else if (project) dir = project
+    else throw new Error('This handoff has no branch, and no event project is linked to open it in.')
+    team.markTaken(id)
+    settings.addRecentProject(dir)
+    return { dir, prompt: takeOverPrompt(h.note) }
+  })
+
+  // Run when the limit resets.
+  ipcMain.handle(IPC.resetQueueState, () => resetQueue.state())
+  ipcMain.handle(IPC.resetQueueAdd, (_e, item) => resetQueue.add(item))
+  ipcMain.handle(IPC.resetQueueRemove, (_e, id: string) => resetQueue.remove(id))
+  ipcMain.on(IPC.resetQueueDone, (_e, id: string) => resetQueue.done(id))
+
+  ipcMain.handle(IPC.phoneTest, () => phone.test())
+
+  // Partner API keys.
+  ipcMain.handle(IPC.partnersState, () => partners.state())
+  ipcMain.handle(IPC.partnerSetKey, (_e, env: string, value: string | null, share?: boolean) => partners.setKey(env, value, share))
+  ipcMain.handle(IPC.partnerSetShare, (_e, env: string, share: boolean) => partners.setShare(env, share))
+  ipcMain.handle(IPC.partnerSetDocs, (_e, kitId: string, url: string) => partners.setDocs(kitId, url))
+  ipcMain.handle(IPC.partnerAddCustom, (_e, opts) => partners.addCustom(opts))
+  ipcMain.handle(IPC.partnerRemoveCustom, (_e, id: string) => partners.removeCustom(id))
+  ipcMain.handle(IPC.partnerTest, (_e, kitId: string) => partners.test(kitId))
 }
 
 app.whenReady().then(start).catch((err: unknown) => {
@@ -266,6 +359,23 @@ async function start() {
   await telemetry.start()
   settings = new SettingsStore()
   store = new SessionStore(join(app.getPath('userData'), 'harness.db'))
+  partners = new PartnerService({
+    file: join(app.getPath('userData'), 'partner-keys.json'),
+    encrypt: (v) => {
+      if (!safeStorage.isEncryptionAvailable()) throw new Error('Secure storage is unavailable on this computer, so keys can’t be saved safely.')
+      return safeStorage.encryptString(v).toString('base64')
+    },
+    decrypt: (enc) => {
+      try {
+        return safeStorage.decryptString(Buffer.from(enc, 'base64'))
+      } catch {
+        return undefined
+      }
+    },
+    projectDir: () => settings.get().eventProject ?? undefined,
+    extraDirs: () => settings.get().handoffDirs,
+    push: (state) => broadcast(IPC.partnersPush, state),
+  })
   bus.subscribe((e) => store.record(e))
   // Dev servers an agent starts announce their URL in command output; offer them in Preview.
   const execCalls = new Set<string>()
@@ -294,6 +404,8 @@ async function start() {
     onRateLimit: (info) => team?.onRateLimit(info),
     usageSaver: () => settings.get().usageSaver,
     hackforgeLean,
+    teamRadar: (abs) => team?.radarFor(abs),
+    extraEnv: (cwd) => partners.envFor(cwd),
     getEnv: () => {
       const key = settings.getApiKey()
       return agentEnv(key ? { ANTHROPIC_API_KEY: key } : {})
@@ -315,6 +427,7 @@ async function start() {
       return s ? { title: s.title, project: projectName(s.cwd) } : null
     },
     notificationsEnabled: () => settings.get().notifications,
+    onAlert: (kind, title, body) => void phone.alert(kind, title, body, { tags: [kind === 'approvals' ? 'raised_hand' : 'white_check_mark'], priority: kind === 'approvals' ? 4 : 3 }),
   })
   presence.createTray()
   installMenu()
@@ -335,9 +448,51 @@ async function start() {
     },
     push: (state) => {
       for (const w of BrowserWindow.getAllWindows()) w.webContents.send(IPC.teamPush, state)
+      // New usage readings can move (or reveal) the reset time.
+      resetQueue?.refresh()
+    },
+    sharedSecrets: () => partners.sharedSecrets(),
+    onTeamKeys: (keys) => partners.setTeamKeys(keys),
+    onConflicts: (list) => {
+      const c = list[0]
+      const others = c.members.filter((m) => m.id !== settings.get().teamMemberId).map((m) => m.name)
+      const title = list.length > 1 ? `${list.length} files are being changed by two people` : `${others.join(' and ')} is also changing ${c.path.split('/').pop()}`
+      const body =
+        list.length > 1
+          ? list.slice(0, 3).map((x) => x.path).join(', ')
+          : `${c.overlap === 'lines' ? 'Same lines: merging will conflict.' : 'Different parts of the file.'} Agree who merges first.`
+      presence.notifyApp(title, body)
+      void phone.alert('team', title, body, { tags: ['warning'] })
+    },
+    onHandoff: (h) => {
+      presence.notifyApp(`${h.fromName} handed off work`, `${h.title} · open the Team board to take it over`)
+      void phone.alert('team', `${h.fromName} handed off work`, h.title, { tags: ['handshake'], priority: 4 })
+    },
+    onLimitReached: (resetsAt) => {
+      const at = resetsAt ? new Date(resetsAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : undefined
+      void phone.alert('limits', 'Claude usage limit reached', `${at ? `Resets ${at}. ` : ''}Hand off to a teammate, or queue messages to run at the reset.`, { tags: ['hourglass'], priority: 4 })
     },
   })
   team.start()
+  resetQueue = new ResetQueue({
+    file: join(app.getPath('userData'), 'reset-queue.json'),
+    settings: () => settings.get().resetQueue,
+    usage: () => team.state().myUsage,
+    push: (state) => broadcast(IPC.resetQueuePush, state),
+    fire: (items) => {
+      const w = BrowserWindow.getAllWindows()[0]
+      if (!w) return false
+      w.webContents.send(IPC.resetQueueFire, items)
+      return true
+    },
+    onRan: () => void phone.alert('limits', 'Queued messages started', 'Your usage limit reset and Harness sent what you queued.', { tags: ['alarm_clock'] }),
+    block: () => powerSaveBlocker.start('prevent-app-suspension'),
+    unblock: (id) => powerSaveBlocker.stop(id),
+  })
+  resetQueue.start()
+  // Waking from sleep after the reset: catch up straight away.
+  powerMonitor.on('resume', () => resetQueue.check())
+  partners.changed()
   pitch = new PitchService({
     projectDir: () => settings.get().eventProject ?? undefined,
     elevenLabsKey: () => settings.getElevenLabsKey(),
@@ -363,6 +518,8 @@ app.on('before-quit', () => {
   eventService.dispose()
   team?.dispose()
   pitch?.dispose()
+  resetQueue?.dispose()
+  partners?.dispose()
   observer?.stop()
   hookBridge?.stop()
   store?.close()

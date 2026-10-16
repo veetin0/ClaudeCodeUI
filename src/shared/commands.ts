@@ -16,6 +16,9 @@ export type CommandId =
   | 'palette'
   | 'replay'
   | 'interrupt'
+  | 'handoff'
+  | 'usage'
+  | 'pick-element'
 
 /** A command plus an argument (e.g. which session a notification is about). */
 export type CommandMessage = { id: CommandId } | { id: 'select-session'; sessionId: string }

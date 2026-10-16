@@ -45,5 +45,14 @@ export function runCommand(cmd: CommandMessage) {
       return app.replay ? app.setReplay(null) : app.startReplay()
     case 'interrupt':
       return void app.interrupt()
+    case 'handoff':
+      if (app.activeId) app.openHandoff(app.activeId)
+      return
+    case 'usage':
+      return app.setUsageOpen(!app.usageOpen)
+    case 'pick-element':
+      app.setView('preview')
+      window.dispatchEvent(new CustomEvent('harness:pick-element'))
+      return
   }
 }

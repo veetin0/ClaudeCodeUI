@@ -33,6 +33,39 @@ export interface MemberSession {
   subagents: number
 }
 
+/** A file a teammate changed in the shared project: since their branch left main, committed or not. */
+export interface FileChangeInfo {
+  /** Relative to the repository root, forward slashes. */
+  path: string
+  /** Changed line ranges in the base version (1-based, inclusive). Absent for new or binary files. */
+  ranges?: [number, number][]
+  /** Not committed yet. */
+  uncommitted: boolean
+}
+
+/** Where a member's changes are measured from, so only the same repository is compared. */
+export interface ChangeScan {
+  /** The repository, from its origin URL (host/owner/name), or the folder name without a remote. */
+  repo: string
+  /** Commit the line ranges refer to; ranges only line up between members on the same base. */
+  base?: string
+  files: FileChangeInfo[]
+}
+
+/** Work handed to the team, e.g. when the giver's usage limit ran out. */
+export interface Handoff {
+  id: string
+  title: string
+  /** Markdown: what was asked, the task list, changed files and where it stopped. */
+  note: string
+  /** Branch on the remote with the work (a snapshot of the giver's folder, uncommitted changes included). */
+  branch?: string
+  repo?: string
+  project: string
+  reason: 'limit' | 'manual'
+  createdAt: number
+}
+
 export interface MemberStatus {
   /** Stable per-install id. */
   id: string
@@ -43,6 +76,16 @@ export interface MemberStatus {
   sessions: MemberSession[]
   usage: PlanUsage
   hackforge?: { phase?: string; milestone?: string; mockScore?: number; loopIteration?: number; loopActive?: boolean }
+  /** Files changed in the event project (conflict radar). */
+  changes?: ChangeScan
+  /** Work this member handed to the team. */
+  handoffs?: Handoff[]
+  /** Ids of handoffs this member took over. */
+  took?: string[]
+  /** Partner API keys shared with the team, encrypted with the team token (the relay can't read them). */
+  secrets?: string
+  /** Tokens used today on this laptop (usage view). */
+  today?: { tokens: number; costUsd: number; byModel: Record<string, number> }
   updatedAt: number
 }
 
@@ -53,6 +96,10 @@ export interface TeamConfig {
   memberName: string
   /** This Harness runs the relay (LAN). */
   hosting: boolean
+  /** Work I handed to the team (kept across restarts, shown on everyone's board). */
+  handoffs?: Handoff[]
+  /** Handoffs I took over. */
+  took?: string[]
 }
 
 export interface TeamState {
@@ -66,6 +113,10 @@ export interface TeamState {
   hostUrls?: string[]
   /** This machine's latest plan usage reading (also without a team). */
   myUsage: PlanUsage
+  /** Files two or more teammates changed (conflict radar). */
+  conflicts: Conflict[]
+  /** Work handed to the team, newest first. */
+  handoffs: OpenHandoff[]
 }
 
 /** A member who hasn't reported for this long is shown as offline. */
@@ -180,5 +231,161 @@ export function pickMember(x: unknown, now = Date.now()): MemberStatus | null {
     hackforge: hf
       ? { phase: s(hf.phase, 30), milestone: s(hf.milestone), mockScore: n(hf.mockScore), loopIteration: n(hf.loopIteration), loopActive: hf.loopActive === true }
       : undefined,
+    changes: pickChanges(o.changes),
+    handoffs: (Array.isArray(o.handoffs) ? o.handoffs : []).slice(0, MAX_HANDOFFS).flatMap((x) => {
+      const h = (x && typeof x === 'object' ? x : {}) as Record<string, unknown>
+      if (!s(h.id, 64) || !s(h.title) || !n(h.createdAt)) return []
+      return [
+        {
+          id: s(h.id, 64)!,
+          title: s(h.title)!,
+          note: s(h.note, MAX_NOTE) ?? '',
+          branch: s(h.branch, 120),
+          repo: s(h.repo, 200),
+          project: s(h.project, 80) ?? '',
+          reason: h.reason === 'limit' ? ('limit' as const) : ('manual' as const),
+          createdAt: n(h.createdAt)!,
+        },
+      ]
+    }),
+    took: (Array.isArray(o.took) ? o.took : []).slice(0, 50).flatMap((t) => (s(t, 64) ? [s(t, 64)!] : [])),
+    secrets: s(o.secrets, 16_000),
+    today: pickToday(o.today),
   }
+}
+
+export const MAX_HANDOFFS = 4
+export const MAX_NOTE = 8000
+export const MAX_CHANGED_FILES = 300
+const MAX_RANGES = 24
+
+function pickChanges(x: unknown): ChangeScan | undefined {
+  const o = (x && typeof x === 'object' ? x : null) as Record<string, unknown> | null
+  if (!o || typeof o.repo !== 'string' || !Array.isArray(o.files)) return undefined
+  const files = o.files.slice(0, MAX_CHANGED_FILES).flatMap((f) => {
+    const r = (f && typeof f === 'object' ? f : {}) as Record<string, unknown>
+    if (typeof r.path !== 'string' || !r.path || r.path.length > 400) return []
+    const ranges = Array.isArray(r.ranges)
+      ? r.ranges.slice(0, MAX_RANGES).flatMap((g) => (Array.isArray(g) && typeof g[0] === 'number' && typeof g[1] === 'number' && g[0] <= g[1] ? [[g[0], g[1]] as [number, number]] : []))
+      : undefined
+    return [{ path: r.path, ranges, uncommitted: r.uncommitted === true }]
+  })
+  return { repo: o.repo.slice(0, 200), base: typeof o.base === 'string' ? o.base.slice(0, 64) : undefined, files }
+}
+
+function pickToday(x: unknown): MemberStatus['today'] {
+  const o = (x && typeof x === 'object' ? x : null) as Record<string, unknown> | null
+  if (!o || typeof o.tokens !== 'number' || !Number.isFinite(o.tokens)) return undefined
+  const byModel: Record<string, number> = {}
+  for (const [k, v] of Object.entries((o.byModel && typeof o.byModel === 'object' ? o.byModel : {}) as Record<string, unknown>).slice(0, 8)) {
+    if (typeof v === 'number' && Number.isFinite(v)) byModel[k.slice(0, 40)] = v
+  }
+  return { tokens: o.tokens, costUsd: typeof o.costUsd === 'number' && Number.isFinite(o.costUsd) ? o.costUsd : 0, byModel }
+}
+
+// ---------- conflict radar ----------
+
+export interface ConflictMember {
+  id: string
+  name: string
+  uncommitted: boolean
+  ranges?: [number, number][]
+}
+
+export interface Conflict {
+  path: string
+  /** Everyone with changes to the file; you first. */
+  members: ConflictMember[]
+  /** 'lines': the same lines (or both created the file), so merging will conflict. 'file': different parts of it. */
+  overlap: 'lines' | 'file'
+  involvesMe: boolean
+}
+
+/** Changed lines this close count as the same place (git conflicts on adjacent lines too). */
+const NEAR = 3
+
+function rangesMeet(a?: [number, number][], b?: [number, number][]): boolean {
+  if (!a || !b) return !a && !b
+  return a.some(([s1, e1]) => b.some(([s2, e2]) => s1 <= e2 + NEAR && s2 <= e1 + NEAR))
+}
+
+/**
+ * Files two or more teammates changed in the same repository. Line ranges are compared only when
+ * both were measured from the same commit; otherwise a shared file counts as "same file".
+ */
+export function findConflicts(members: MemberStatus[], meId: string): Conflict[] {
+  const byPath = new Map<string, { m: MemberStatus; f: FileChangeInfo }[]>()
+  const me = members.find((m) => m.id === meId)
+  const repo = me?.changes?.repo
+  for (const m of members) {
+    if (!m.changes || (repo && m.changes.repo !== repo)) continue
+    for (const f of m.changes.files) {
+      const list = byPath.get(f.path) ?? []
+      list.push({ m, f })
+      byPath.set(f.path, list)
+    }
+  }
+  const out: Conflict[] = []
+  for (const [path, list] of byPath) {
+    if (list.length < 2) continue
+    list.sort((a, b) => (a.m.id === meId ? -1 : b.m.id === meId ? 1 : a.m.name.localeCompare(b.m.name)))
+    let lines = false
+    for (let i = 0; i < list.length && !lines; i++)
+      for (let j = i + 1; j < list.length && !lines; j++) {
+        const [x, y] = [list[i], list[j]]
+        const sameBase = !!x.m.changes?.base && x.m.changes.base === y.m.changes?.base
+        lines = sameBase ? rangesMeet(x.f.ranges, y.f.ranges) : !x.f.ranges && !y.f.ranges
+      }
+    out.push({
+      path,
+      members: list.map(({ m, f }) => ({ id: m.id, name: m.name, uncommitted: f.uncommitted, ranges: f.ranges })),
+      overlap: lines ? 'lines' : 'file',
+      involvesMe: list.some((x) => x.m.id === meId),
+    })
+  }
+  const rank = (c: Conflict) => (c.involvesMe ? 0 : 2) + (c.overlap === 'lines' ? 0 : 1)
+  return out.sort((a, b) => rank(a) - rank(b) || a.path.localeCompare(b.path))
+}
+
+/** "lines 40–62, 90" for a heads-up. */
+export function describeRanges(ranges?: [number, number][]): string {
+  if (!ranges?.length) return 'the whole file'
+  const parts = ranges.slice(0, 4).map(([a, b]) => (a === b ? `${a}` : `${a}–${b}`))
+  return `line${ranges.length === 1 && ranges[0][0] === ranges[0][1] ? '' : 's'} ${parts.join(', ')}${ranges.length > 4 ? '…' : ''}`
+}
+
+// ---------- handoffs ----------
+
+/** How long an offered handoff stays on the board. */
+export const HANDOFF_TTL_MS = 12 * 3600_000
+
+export interface OpenHandoff extends Handoff {
+  fromId: string
+  fromName: string
+  /** Name of whoever took it, if someone did. */
+  takenBy?: string
+}
+
+/** Handoffs on the board, newest first: everyone's, with who took them. */
+export function listHandoffs(members: MemberStatus[], now: number): OpenHandoff[] {
+  const takers = new Map<string, string>()
+  for (const m of members) for (const id of m.took ?? []) if (!takers.has(id)) takers.set(id, m.name)
+  return members
+    .flatMap((m) => (m.handoffs ?? []).map((h) => ({ ...h, fromId: m.id, fromName: m.name, takenBy: takers.get(h.id) })))
+    .filter((h) => now - h.createdAt < HANDOFF_TTL_MS)
+    .sort((a, b) => b.createdAt - a.createdAt)
+}
+
+/** "handoff/ada-1114-2305": a branch name for a handoff from this member at this time. */
+export function handoffBranch(name: string, at: Date): string {
+  const slug =
+    name
+      .normalize('NFKD')
+      .replace(/[^\w\s-]/g, '')
+      .trim()
+      .toLowerCase()
+      .replace(/[\s_]+/g, '-')
+      .slice(0, 24) || 'teammate'
+  const p = (n: number) => String(n).padStart(2, '0')
+  return `handoff/${slug}-${p(at.getMonth() + 1)}${p(at.getDate())}-${p(at.getHours())}${p(at.getMinutes())}`
 }

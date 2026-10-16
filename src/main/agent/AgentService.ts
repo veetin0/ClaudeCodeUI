@@ -1,8 +1,8 @@
 import { randomUUID } from 'node:crypto'
 import { statSync, type FSWatcher } from 'node:fs'
-import { join } from 'node:path'
+import { isAbsolute, join } from 'node:path'
 import { query, type CanUseTool, type HookCallbackMatcher, type Query, type SDKRateLimitInfo, type SDKUserMessage, type SdkPluginConfig } from '@anthropic-ai/claude-agent-sdk'
-import { EXEC_TOOLS, type AgentId, type HarnessEvent, type PermissionMode, type SessionStatus, type TodoItem } from '@shared/events'
+import { EXEC_TOOLS, type AgentId, type HarnessEvent, type ImageAttachment, type PermissionMode, type SessionStatus, type TodoItem } from '@shared/events'
 import { toVisual } from '@shared/visuals'
 import { normPath } from '@shared/paths'
 import { COMPACT_COMMAND, LEAN_OUTPUT_PROMPT, type SaverTier, type UsageSaverSettings } from '@shared/usageSaver'
@@ -39,6 +39,10 @@ export interface AgentServiceDeps {
   usageSaver?: () => UsageSaverSettings
   /** This folder's HackForge settings pick Sonnet for the main session (Pro plan / lean profile). */
   hackforgeLean?: (cwd: string) => boolean
+  /** Team radar: a heads-up when a file about to be edited is also changed by teammates. */
+  teamRadar?: (absPath: string) => { text: string; names: string[] } | undefined
+  /** Extra environment for sessions in this folder (partner API keys in the event project). */
+  extraEnv?: (cwd: string) => Record<string, string>
 }
 
 /** Plan usage windows, as reported by the CLI's usage call (null fields when unknown). */
@@ -88,6 +92,8 @@ class AgentSession {
   private delivery: Promise<void> = Promise.resolve()
   /** Turns Harness runs itself (the saver's compaction), oldest first; resolved when each ends. */
   private internalTurns: (() => void)[] = []
+  /** Files the team radar already warned about in this session (once each is enough). */
+  private radarWarned = new Set<string>()
 
   constructor(
     private readonly deps: AgentServiceDeps,
@@ -201,7 +207,7 @@ class AgentSession {
         canUseTool,
         hooks: this.hooks(),
         abortController: this.abort,
-        env: harnessUrl ? { ...this.deps.getEnv(), HARNESS_URL: harnessUrl } : this.deps.getEnv(),
+        env: { ...this.deps.getEnv(), ...this.deps.extraEnv?.(opts.cwd), ...(harnessUrl ? { HARNESS_URL: harnessUrl } : {}) },
         pathToClaudeCodeExecutable: this.deps.claudeExecutablePath,
         stderr: (data) => {
           this.stderrTail.push(data)
@@ -224,6 +230,33 @@ class AgentSession {
             const target = 'tool_input' in input ? editTarget((input.tool_input ?? {}) as Record<string, unknown>) : null
             if (target) await this.tracker?.beforeEdit(target)
             return {}
+          },
+        ],
+      })
+    }
+    const radar = this.deps.teamRadar
+    if (radar) {
+      preToolUse.push({
+        matcher: [...EDIT_TOOLS].join('|'),
+        hooks: [
+          async (input) => {
+            const target = 'tool_input' in input ? editTarget((input.tool_input ?? {}) as Record<string, unknown>) : null
+            if (!target) return {}
+            const abs = normPath(isAbsolute(target) ? target : join(this.summary.cwd, target))
+            if (this.radarWarned.has(abs)) return {}
+            const hit = radar(abs)
+            if (!hit) return {}
+            this.radarWarned.add(abs)
+            const file = abs.split('/').pop()
+            this.emit({
+              type: 'notice',
+              tone: 'warn',
+              source: 'team',
+              text: `Team radar: ${hit.names.join(' and ')} ${hit.names.length > 1 ? 'are' : 'is'} also changing ${file}. Claude was told to keep its edit there small; agree who merges first.`,
+              sessionId: this.id,
+              ts: Date.now(),
+            })
+            return { hookSpecificOutput: { hookEventName: 'PreToolUse' as const, additionalContext: hit.text } }
           },
         ],
       })
@@ -346,19 +379,19 @@ class AgentSession {
     })
   }
 
-  send(text: string) {
+  send(text: string, images?: ImageAttachment[]) {
     if (this.status === 'closed') throw new Error('Session is closed')
     const id = randomUUID()
     // A message sent while Claude is working joins that turn; the saver only prepares fresh turns.
     const fresh = this.status === 'idle'
-    this.emit({ type: 'user.message', id, text, sessionId: this.id, ts: Date.now() })
+    this.emit({ type: 'user.message', id, text, ...(images?.length ? { images } : {}), sessionId: this.id, ts: Date.now() })
     this.setStatus('running')
     this.delivery = this.delivery
-      .then(() => this.deliver(text, id, fresh))
+      .then(() => this.deliver(text, id, fresh, images))
       .catch((err: unknown) => this.emit({ type: 'error', message: `Couldn’t send the message: ${err instanceof Error ? err.message : String(err)}`, sessionId: this.id, ts: Date.now() }))
   }
 
-  private async deliver(text: string, id: ReturnType<typeof randomUUID>, fresh: boolean) {
+  private async deliver(text: string, id: ReturnType<typeof randomUUID>, fresh: boolean, images?: ImageAttachment[]) {
     if (this.saver && fresh) {
       try {
         await this.saver.beforeTurn(text)
@@ -367,9 +400,12 @@ class AgentSession {
       }
     }
     if (this.disposed || this.status === 'closed') return
+    const content = images?.length
+      ? [...images.map((im) => ({ type: 'image' as const, source: { type: 'base64' as const, media_type: im.mediaType, data: im.data } })), { type: 'text' as const, text }]
+      : text
     this.input.push({
       type: 'user',
-      message: { role: 'user', content: text },
+      message: { role: 'user', content },
       parent_tool_use_id: null,
       uuid: id,
     })
@@ -449,8 +485,8 @@ export class AgentService {
     return s
   }
 
-  send(id: string, text: string) {
-    this.get(id).send(text)
+  send(id: string, text: string, images?: ImageAttachment[]) {
+    this.get(id).send(text, images)
   }
 
   interrupt(id: string) {

@@ -1,7 +1,9 @@
 import type { HackforgeMode } from '@shared/hackforge'
 import type { UsageSaverSettings } from '@shared/usageSaver'
-import { Leaf, SquareTerminal, X } from 'lucide-react'
-import { useEffect, useState } from 'react'
+import { newAlertTopic, subscribeUrl, type PhoneAlertSettings } from '@shared/alerts'
+import { AlarmClock, Leaf, Smartphone, SquareTerminal, X } from 'lucide-react'
+import { useEffect, useMemo, useState } from 'react'
+import qrcode from 'qrcode-generator'
 import type { ObserveStatus } from '@shared/ipc'
 import { ipcErrorMessage } from '@/lib/time'
 import type { PermissionMode } from '@shared/events'
@@ -92,6 +94,28 @@ export function SettingsDialog() {
           </select>
         </Field>
 
+        <PhoneSection s={settings.phoneAlerts} onChange={(patch) => void updateSettings({ phoneAlerts: { ...settings.phoneAlerts, ...patch } })} />
+
+        <div className="mb-4 rounded-xl border border-line p-3">
+          <label className="flex items-start gap-2.5">
+            <input type="checkbox" className="mt-0.5" checked={settings.resetQueue.enabled} onChange={(e) => void updateSettings({ resetQueue: { ...settings.resetQueue, enabled: e.target.checked } })} />
+            <span>
+              <span className="flex items-center gap-1.5 font-medium">
+                <AlarmClock className="size-3.5" /> Run queued messages when my usage limit resets
+              </span>
+              <span className="mt-0.5 block text-[11px] text-muted">
+                At the limit, messages you send wait and go out at the reset (also the ⏰ button by Send). Turn off to keep them waiting.
+              </span>
+            </span>
+          </label>
+          <label className="mt-2 flex items-start gap-2.5 pl-6">
+            <input type="checkbox" className="mt-0.5" checked={settings.resetQueue.keepAwake} onChange={(e) => void updateSettings({ resetQueue: { ...settings.resetQueue, keepAwake: e.target.checked } })} />
+            <span className="text-[11.5px]">
+              Keep this computer awake while messages wait <span className="text-muted">(closing a laptop’s lid still puts it to sleep; it catches up on wake)</span>
+            </span>
+          </label>
+        </div>
+
         <label className="mb-4 flex items-start gap-2.5">
           <input type="checkbox" className="mt-0.5" checked={settings.notifications} onChange={(e) => void updateSettings({ notifications: e.target.checked })} />
           <span>
@@ -173,6 +197,94 @@ function SaverSection({ saver, onChange }: { saver: UsageSaverSettings; onChange
             </label>
           ))}
           <p className="text-[11px] text-muted">Applies to new sessions. Any session can switch between Auto and one model in its model menu.</p>
+        </div>
+      )}
+    </div>
+  )
+}
+
+const PHONE_KINDS: { key: 'approvals' | 'finished' | 'limits' | 'team'; label: string }[] = [
+  { key: 'approvals', label: 'Claude needs approval' },
+  { key: 'finished', label: 'Long tasks and HackForge loops finish' },
+  { key: 'limits', label: 'Usage limit hit, queued messages ran' },
+  { key: 'team', label: 'Teammate handoffs and file conflicts' },
+]
+
+/** Phone alerts through ntfy: scan, subscribe, done. */
+function PhoneSection({ s, onChange }: { s: PhoneAlertSettings; onChange: (patch: Partial<PhoneAlertSettings>) => void }) {
+  const [test, setTest] = useState<string | null>(null)
+  const url = subscribeUrl(s)
+  const qr = useMemo(() => {
+    const q = qrcode(0, 'M')
+    q.addData(url)
+    q.make()
+    return q.createSvgTag({ cellSize: 3, margin: 2, scalable: true })
+  }, [url])
+  return (
+    <div className="mb-4 rounded-xl border border-line p-3">
+      <label className="flex items-start gap-2.5">
+        <input type="checkbox" className="mt-0.5" checked={s.enabled} onChange={(e) => onChange({ enabled: e.target.checked })} />
+        <span>
+          <span className="flex items-center gap-1.5 font-medium">
+            <Smartphone className="size-3.5" /> Phone alerts
+          </span>
+          <span className="mt-0.5 block text-[11px] text-muted">A push on your phone when Claude needs you or finishes while you’re away from the laptop. Free, through the ntfy app; no account.</span>
+        </span>
+      </label>
+      {s.enabled && (
+        <div className="mt-3 border-t border-line pt-3">
+          <div className="flex gap-3">
+            <div className="size-[116px] shrink-0 rounded-lg bg-white p-1" dangerouslySetInnerHTML={{ __html: qr }} title={url} />
+            <ol className="list-decimal space-y-1 pl-4 text-[11.5px] text-muted">
+              <li>
+                Install <b className="text-fg">ntfy</b> on your phone (App Store or Google Play).
+              </li>
+              <li>Scan the code (or open the link below on the phone) and subscribe.</li>
+              <li>
+                <button
+                  onClick={() => {
+                    setTest('Sending…')
+                    window.harness.phoneTest().then(
+                      () => setTest('Sent. Check your phone.'),
+                      (e: unknown) => setTest(ipcErrorMessage(e)),
+                    )
+                  }}
+                  className="rounded-md border border-line px-2 py-0.5 text-[11.5px] text-fg hover:bg-surface-2"
+                >
+                  Send a test
+                </button>
+                {test && <span className="ml-2">{test}</span>}
+              </li>
+            </ol>
+          </div>
+          <div className="mt-2 flex items-center gap-2 text-[11px]">
+            <code className="selectable min-w-0 flex-1 truncate rounded bg-surface-2 px-1.5 py-0.5">{url}</code>
+            <button
+              onClick={() => window.confirm('Make a new private topic? Your phone needs to subscribe to the new one.') && onChange({ topic: newAlertTopic((n) => crypto.getRandomValues(new Uint8Array(n))) })}
+              className="shrink-0 text-muted hover:text-fg"
+            >
+              New topic
+            </button>
+          </div>
+          <p className="mt-1 text-[10.5px] text-muted">Anyone who knows the topic can read the alerts, so it’s long and random, and alerts never contain code or keys.</p>
+          <div className="mt-2.5 grid grid-cols-2 gap-x-3 gap-y-1 text-[11.5px]">
+            {PHONE_KINDS.map((k) => (
+              <label key={k.key} className="flex items-center gap-1.5">
+                <input type="checkbox" checked={s[k.key]} onChange={(e) => onChange({ [k.key]: e.target.checked })} /> {k.label}
+              </label>
+            ))}
+          </div>
+          <label className="mt-2 flex items-center gap-1.5 text-[11.5px]">
+            <input type="checkbox" checked={s.onlyWhenAway} onChange={(e) => onChange({ onlyWhenAway: e.target.checked })} /> Only when I’m away (screen locked or idle 90 s)
+          </label>
+          <label className="mt-2 block text-[11px] text-muted">
+            Server
+            <input
+              defaultValue={s.server}
+              onBlur={(e) => /^https?:\/\//.test(e.target.value.trim()) && e.target.value.trim() !== s.server && onChange({ server: e.target.value.trim() })}
+              className="selectable mt-0.5 w-full rounded-md border border-line bg-surface-2 px-2 py-1 text-[11.5px] text-fg outline-none"
+            />
+          </label>
         </div>
       )}
     </div>

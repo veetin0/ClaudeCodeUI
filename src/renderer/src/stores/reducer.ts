@@ -46,6 +46,7 @@ export type Item =
   | { kind: 'error'; id: string; message: string }
   /** The Usage saver switched models, compacted, skipped a file… `saving` (green), `power` (Opus) or `info`. */
   | { kind: 'saver'; id: string; tone: 'saving' | 'power' | 'info'; text: string }
+  | { kind: 'notice'; id: string; tone: 'info' | 'warn'; text: string; source: 'team' | 'harness' }
 
 /** What the Usage saver is doing in this session (from its `saver` events). */
 export interface SaverView {
@@ -423,6 +424,10 @@ export function applyEvent(s: SessionState, e: HarnessEvent): void {
 
     case 'saver':
       applySaver(s, e)
+      break
+
+    case 'notice':
+      s.items.push({ kind: 'notice', id: `notice-${e.ts}-${s.items.length}`, tone: e.tone, text: e.text, source: e.source })
       break
   }
 }

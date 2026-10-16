@@ -13,6 +13,8 @@ interface Deps {
   /** Title/project for a session id (from the store). */
   describe: (sessionId: string) => { title: string; project: string } | null
   notificationsEnabled: () => boolean
+  /** Also tell your phone (it decides whether you're away). */
+  onAlert?: (kind: 'approvals' | 'finished', title: string, body: string) => void
 }
 
 const STATUS_TEXT: Partial<Record<SessionStatus, string>> = { running: 'working', waiting: 'needs you', compacting: 'compacting' }
@@ -73,10 +75,25 @@ export class Presence {
         if (e.status === 'waiting' && e.sessionId.startsWith('obs-')) this.notify(e.sessionId, 'Claude needs your approval', 'In your terminal session')
       }
     } else if (e.type === 'permission.request') {
-      this.notify(e.sessionId, 'Claude needs your approval', `${e.toolName}${e.agentId ? ' (subagent)' : ''}`)
+      const body = `${e.toolName}${e.agentId ? ' (subagent)' : ''}`
+      this.notify(e.sessionId, 'Claude needs your approval', body)
+      this.deps.onAlert?.('approvals', 'Claude needs your approval', `${body} · ${this.label(e.sessionId)}`)
     } else if (e.type === 'turn.end' && !e.internal && e.durationMs > NOTIFY_TURNS_LONGER_THAN_MS) {
-      this.notify(e.sessionId, e.isError ? 'Claude stopped' : 'Claude finished', e.result ? e.result.replace(/\s+/g, ' ').slice(0, 140) : `after ${Math.round(e.durationMs / 1000)}s`)
+      const title = e.isError ? 'Claude stopped' : 'Claude finished'
+      this.notify(e.sessionId, title, e.result ? e.result.replace(/\s+/g, ' ').slice(0, 140) : `after ${Math.round(e.durationMs / 1000)}s`)
+      this.deps.onAlert?.('finished', title, `${this.label(e.sessionId)} · after ${Math.round(e.durationMs / 60_000) || 1} min`)
     }
+  }
+
+  private label(sessionId: string) {
+    const d = this.deps.describe(sessionId)
+    return d ? `${d.title || 'Session'} (${d.project})` : 'a session'
+  }
+
+  /** A notification that isn't about one session (team news, limits). */
+  notifyApp(title: string, body: string) {
+    if (!this.deps.notificationsEnabled() || !Notification.isSupported()) return
+    new Notification({ title, body, silent: false }).show()
   }
 
   private notify(sessionId: string, title: string, body: string) {

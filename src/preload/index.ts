@@ -5,7 +5,7 @@ import { IPC, type HarnessApi } from '../shared/ipc'
 const api: HarnessApi = {
   platform: process.platform,
   startSession: (opts) => ipcRenderer.invoke(IPC.startSession, opts),
-  sendMessage: (id, text) => ipcRenderer.invoke(IPC.sendMessage, id, text),
+  sendMessage: (id, text, images) => ipcRenderer.invoke(IPC.sendMessage, id, text, images),
   interrupt: (id) => ipcRenderer.invoke(IPC.interrupt, id),
   closeSession: (id) => ipcRenderer.invoke(IPC.closeSession, id),
   listHistory: () => ipcRenderer.invoke(IPC.listHistory),
@@ -107,6 +107,37 @@ const api: HarnessApi = {
     const l = (_: unknown, s: import('../shared/team').TeamState) => cb(s)
     ipcRenderer.on(IPC.teamPush, l)
     return () => ipcRenderer.removeListener(IPC.teamPush, l)
+  },
+  handoffPlan: (sessionId) => ipcRenderer.invoke(IPC.handoffPlan, sessionId),
+  handoffOffer: (opts) => ipcRenderer.invoke(IPC.handoffOffer, opts),
+  handoffWithdraw: (id) => ipcRenderer.invoke(IPC.handoffWithdraw, id),
+  handoffTake: (id) => ipcRenderer.invoke(IPC.handoffTake, id),
+  resetQueueState: () => ipcRenderer.invoke(IPC.resetQueueState),
+  resetQueueAdd: (item) => ipcRenderer.invoke(IPC.resetQueueAdd, item),
+  resetQueueRemove: (id) => ipcRenderer.invoke(IPC.resetQueueRemove, id),
+  resetQueueDone: (id) => ipcRenderer.send(IPC.resetQueueDone, id),
+  onResetQueue: (cb) => {
+    const l = (_: unknown, s: import('../shared/resetQueue').ResetQueueState) => cb(s)
+    ipcRenderer.on(IPC.resetQueuePush, l)
+    return () => ipcRenderer.removeListener(IPC.resetQueuePush, l)
+  },
+  onResetQueueFire: (cb) => {
+    const l = (_: unknown, items: import('../shared/resetQueue').QueuedPrompt[]) => cb(items)
+    ipcRenderer.on(IPC.resetQueueFire, l)
+    return () => ipcRenderer.removeListener(IPC.resetQueueFire, l)
+  },
+  phoneTest: () => ipcRenderer.invoke(IPC.phoneTest),
+  partnersState: () => ipcRenderer.invoke(IPC.partnersState),
+  partnerSetKey: (env, value, share) => ipcRenderer.invoke(IPC.partnerSetKey, env, value, share),
+  partnerSetShare: (env, share) => ipcRenderer.invoke(IPC.partnerSetShare, env, share),
+  partnerSetDocs: (kitId, url) => ipcRenderer.invoke(IPC.partnerSetDocs, kitId, url),
+  partnerAddCustom: (opts) => ipcRenderer.invoke(IPC.partnerAddCustom, opts),
+  partnerRemoveCustom: (id) => ipcRenderer.invoke(IPC.partnerRemoveCustom, id),
+  partnerTest: (kitId) => ipcRenderer.invoke(IPC.partnerTest, kitId),
+  onPartners: (cb) => {
+    const l = (_: unknown, s: import('../shared/partners').PartnersState) => cb(s)
+    ipcRenderer.on(IPC.partnersPush, l)
+    return () => ipcRenderer.removeListener(IPC.partnersPush, l)
   },
   onEvents: (cb) => {
     const listener = (_: unknown, events: HarnessEvent[]) => cb(events)

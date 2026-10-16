@@ -1,9 +1,10 @@
-import { AlertTriangle, Check, Copy, GitBranch, LogOut, Radio, Server, Sparkles, Users, Wifi, WifiOff } from 'lucide-react'
+import { AlertTriangle, Check, ChevronDown, ChevronRight, Copy, GitBranch, GitMerge, Handshake, LogOut, Radio, Server, Sparkles, Users, Wifi, WifiOff } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { formatInZone } from '@shared/event'
-import { isOnline, makeJoinCode, usageAdvice, type MemberStatus, type PlanUsage, type UsageWindow } from '@shared/team'
+import { describeRanges, isOnline, makeJoinCode, usageAdvice, type Conflict, type MemberStatus, type OpenHandoff, type PlanUsage, type UsageWindow } from '@shared/team'
 import { cn } from '@/lib/format'
-import { relativeTime } from '@/lib/time'
+import { ipcErrorMessage, relativeTime } from '@/lib/time'
+import { useApp } from '@/stores/app'
 import { StatusDot } from '@/layout/StatusDot'
 import { useTeam, useTeamState } from '@/stores/team'
 
@@ -160,12 +161,122 @@ function Board({ timezone, now }: { timezone: string; now: number }) {
           ))}
         </div>
       )}
+      <Handoffs handoffs={state.handoffs} meId={config.memberId} />
+      <Conflicts conflicts={state.conflicts} />
       <div className="grid gap-3 md:grid-cols-2">
         {state.members.map((m) => (
           <MemberCard key={m.id} m={m} me={m.id === config.memberId} now={now} fmt={time(timezone)} />
         ))}
       </div>
     </section>
+  )
+}
+
+/** Conflict radar: files two teammates are both changing, before it turns into a merge conflict. */
+function Conflicts({ conflicts }: { conflicts: Conflict[] }) {
+  if (!conflicts.length) return null
+  return (
+    <div className="mb-3 rounded-xl border border-amber-500/40 bg-amber-500/[0.05] p-3">
+      <div className="mb-1.5 flex items-center gap-2 text-[12.5px] font-semibold">
+        <GitMerge className="size-3.5 text-amber-600" /> Conflict radar
+        <span className="text-[11px] font-normal text-muted">
+          {conflicts.length} file{conflicts.length === 1 ? '' : 's'} changed by more than one person
+        </span>
+      </div>
+      <div className="space-y-1">
+        {conflicts.slice(0, 12).map((c) => (
+          <div key={c.path} data-conflict={c.overlap} className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[12px]">
+            <span
+              className={cn('rounded px-1.5 py-px text-[10.5px] font-medium', c.overlap === 'lines' ? 'bg-red-500/15 text-red-700 dark:text-red-300' : 'bg-amber-500/15 text-amber-700 dark:text-amber-300')}
+              title={c.overlap === 'lines' ? 'The same lines (or both created the file): merging will conflict' : 'Different parts of the same file: usually merges cleanly'}
+            >
+              {c.overlap === 'lines' ? 'same lines' : 'same file'}
+            </span>
+            <code className={cn('selectable font-mono text-[11.5px]', c.involvesMe && 'font-semibold')}>{c.path}</code>
+            <span className="text-muted">
+              {c.members.map((m) => `${m.name} (${m.uncommitted ? 'uncommitted' : 'on branch'}, ${describeRanges(m.ranges)})`).join(' · ')}
+            </span>
+          </div>
+        ))}
+      </div>
+      <p className="mt-2 text-[11px] text-muted">Agree who merges first, keep edits there small, and commit and push often. Claude gets the same heads-up before it edits one of these files.</p>
+    </div>
+  )
+}
+
+/** Work teammates handed to the team (e.g. at a usage limit), with Take over. */
+function Handoffs({ handoffs, meId }: { handoffs: OpenHandoff[]; meId: string }) {
+  const activeId = useApp((s) => s.activeId)
+  const active = useApp((s) => (s.activeId ? s.sessions[s.activeId] : undefined))
+  const [open, setOpen] = useState<string | null>(null)
+  const [busy, setBusy] = useState<string | null>(null)
+  const [error, setError] = useState<string | null>(null)
+  const take = async (h: OpenHandoff) => {
+    setBusy(h.id)
+    setError(null)
+    try {
+      const { dir, prompt } = await window.harness.handoffTake(h.id)
+      await useApp.getState().takeOver(dir, prompt)
+    } catch (err) {
+      setError(ipcErrorMessage(err))
+    } finally {
+      setBusy(null)
+    }
+  }
+  return (
+    <div className="mb-3">
+      <div className="mb-1.5 flex items-center gap-2 text-[12.5px] font-semibold">
+        <Handshake className="size-3.5 text-[var(--accent)]" /> Handoffs
+        {handoffs.length === 0 && <span className="text-[11px] font-normal text-muted">Nothing handed off. When someone hits their limit, their work shows up here.</span>}
+        {activeId && active?.live && !active.observed && (
+          <button onClick={() => useApp.getState().openHandoff(activeId)} className="ml-auto rounded-md border border-line px-2 py-0.5 text-[11.5px] font-normal hover:bg-surface-2">
+            Hand off my current session…
+          </button>
+        )}
+      </div>
+      {handoffs.map((h) => {
+        const mine = h.fromId === meId
+        const expanded = open === h.id
+        return (
+          <div key={h.id} data-handoff={h.id} className="mb-1.5 rounded-xl border border-line p-2.5 text-[12px]">
+            <div className="flex flex-wrap items-center gap-2">
+              <button onClick={() => setOpen(expanded ? null : h.id)} className="text-muted hover:text-fg">
+                {expanded ? <ChevronDown className="size-3.5" /> : <ChevronRight className="size-3.5" />}
+              </button>
+              <span className="font-medium">{h.title}</span>
+              <span className="text-muted">
+                from {mine ? 'you' : h.fromName} · {relativeTime(h.createdAt)}
+                {h.reason === 'limit' && ' · hit the limit'}
+              </span>
+              {h.branch && (
+                <span className="flex items-center gap-1 rounded bg-surface-2 px-1.5 py-0.5 font-mono text-[10.5px] text-muted">
+                  <GitBranch className="size-3" /> {h.branch}
+                </span>
+              )}
+              <div className="ml-auto flex items-center gap-1.5">
+                {h.takenBy ? (
+                  <span className="rounded-full bg-emerald-500/10 px-2 py-0.5 text-[11px] text-emerald-700 dark:text-emerald-300">Taken by {h.takenBy}</span>
+                ) : mine ? (
+                  <button onClick={() => void window.harness.handoffWithdraw(h.id).then((s) => useTeam.setState({ state: s }))} className="rounded-md border border-line px-2 py-0.5 text-[11.5px] hover:bg-surface-2">
+                    Withdraw
+                  </button>
+                ) : (
+                  <button
+                    disabled={busy === h.id}
+                    onClick={() => void take(h)}
+                    className="rounded-md bg-[var(--accent)] px-2.5 py-0.5 text-[11.5px] font-medium text-white hover:brightness-110 disabled:opacity-50"
+                  >
+                    {busy === h.id ? 'Checking out…' : 'Take over'}
+                  </button>
+                )}
+              </div>
+            </div>
+            {expanded && <pre className="selectable mt-2 max-h-64 overflow-auto whitespace-pre-wrap rounded-lg bg-surface-2 p-2 font-mono text-[11px] leading-relaxed">{h.note}</pre>}
+          </div>
+        )
+      })}
+      {error && <div className="selectable text-[12px] text-red-500">{error}</div>}
+    </div>
   )
 }
 

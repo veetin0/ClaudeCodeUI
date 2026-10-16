@@ -15,6 +15,12 @@ export type SessionStatus = 'starting' | 'idle' | 'running' | 'waiting' | 'compa
 /** `null` means the main agent; otherwise the tool_use id of the Task/Agent call that spawned the subagent. */
 export type AgentId = string | null
 
+/** A picture attached to a message: base64 data, PNG or JPEG. */
+export interface ImageAttachment {
+  mediaType: 'image/png' | 'image/jpeg'
+  data: string
+}
+
 export interface Usage {
   inputTokens: number
   outputTokens: number
@@ -57,7 +63,8 @@ export type HarnessEvent =
   /** A saved session was reopened and its Claude conversation resumed in a fresh process. */
   | E<'session.resumed', { claudeSessionId: string }>
   | E<'status', { status: SessionStatus }>
-  | E<'user.message', { id: string; text: string }>
+  /** `images`: pictures sent with the message (e.g. a screenshot from Click to change). */
+  | E<'user.message', { id: string; text: string; images?: ImageAttachment[] }>
   | E<'text.delta', { agentId: AgentId; text: string }>
   | E<'thinking.delta', { agentId: AgentId; text: string }>
   | E<'assistant.text', { id: string; agentId: AgentId; text: string }>
@@ -118,6 +125,8 @@ export type HarnessEvent =
     }>
   /** What the Usage saver did: the model it picked for a turn, a compaction, a skipped file… */
   | E<'saver', { note: SaverNote }>
+  /** Something Harness wants you to know in this session, e.g. the team radar spotting a shared file. */
+  | E<'notice', { tone: 'info' | 'warn'; text: string; source: 'team' | 'harness' }>
   | E<'error', { message: string }>
 
 export type HarnessEventType = HarnessEvent['type']

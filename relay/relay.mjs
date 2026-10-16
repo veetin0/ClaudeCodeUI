@@ -3,7 +3,7 @@
 // by server.mjs for running it anywhere (a VPS, Fly, Render, a Raspberry Pi…).
 import { createHash } from 'node:crypto'
 
-const MAX_BODY = 64 * 1024
+const MAX_BODY = 256 * 1024
 const MAX_TEAMS = 500
 const MAX_MEMBERS = 12
 const EXPIRE_MS = 12 * 3600_000

@@ -7,6 +7,11 @@ export type { PitchState, Voice, PitchJob } from './pitch'
 import type { MemberSession, TeamConfig, TeamState } from './team'
 import type { Composition, PreviewServer, PreviewState, ProjectInfo, RenderJob } from './preview'
 import type { UsageSaverSettings } from './usageSaver'
+import type { PhoneAlertSettings } from './alerts'
+import type { QueuedPrompt, ResetQueueState } from './resetQueue'
+import type { HandoffPlan } from './handoff'
+import type { PartnersState } from './partners'
+import type { TeamState as TeamStateT } from './team'
 
 export interface StartSessionOptions {
   cwd: string
@@ -87,6 +92,12 @@ export interface AppSettings {
   hasElevenLabsKey: boolean
   /** Auto model, compaction between tasks, skipping generated files, lean output. */
   usageSaver: UsageSaverSettings
+  /** Pushes to your phone (ntfy) when you're away. */
+  phoneAlerts: PhoneAlertSettings
+  /** Run queued messages when the usage limit resets. */
+  resetQueue: { enabled: boolean; keepAwake: boolean }
+  /** Folders created for handoffs you took (they get the partner keys too). */
+  handoffDirs: string[]
 }
 
 export type EventProgressPatch = { done?: Record<string, boolean>; partner?: { name: string; keys?: boolean; kit?: boolean } }
@@ -95,7 +106,7 @@ export type EventProgressPatch = { done?: Record<string, boolean>; partner?: { n
 export interface HarnessApi {
   platform: string
   startSession(opts: StartSessionOptions): Promise<SessionSummary>
-  sendMessage(sessionId: string, text: string): Promise<void>
+  sendMessage(sessionId: string, text: string, images?: import('./events').ImageAttachment[]): Promise<void>
   interrupt(sessionId: string): Promise<void>
   closeSession(sessionId: string): Promise<void>
   /** Saved sessions, most recently active first. */
@@ -187,6 +198,30 @@ export interface HarnessApi {
   /** This machine's open sessions, for the team board. */
   teamSetLocal(local: { sessions: MemberSession[]; cwd?: string }): void
   onTeam(cb: (state: TeamState) => void): () => void
+  /** What handing this session off would do (branch, files, remote). */
+  handoffPlan(sessionId: string): Promise<HandoffPlan & { member: string | null }>
+  /** Pushes a snapshot of the folder (when asked and possible) and puts the handoff on the team board. */
+  handoffOffer(opts: { sessionId: string; title: string; note: string; reason: 'limit' | 'manual'; push: boolean }): Promise<{ state: TeamStateT; pushError?: string }>
+  handoffWithdraw(id: string): Promise<TeamStateT>
+  /** Checks the work out next to the project and returns the folder and the first message. */
+  handoffTake(id: string): Promise<{ dir: string; prompt: string }>
+  resetQueueState(): Promise<ResetQueueState>
+  resetQueueAdd(item: { sessionId: string; cwd: string; title: string; text: string }): Promise<ResetQueueState>
+  resetQueueRemove(id: string): Promise<ResetQueueState>
+  /** The window sent a queued message. */
+  resetQueueDone(id: string): void
+  onResetQueue(cb: (state: ResetQueueState) => void): () => void
+  /** Queued messages are due: send them. */
+  onResetQueueFire(cb: (items: QueuedPrompt[]) => void): () => void
+  phoneTest(): Promise<void>
+  partnersState(): Promise<PartnersState>
+  partnerSetKey(env: string, value: string | null, share?: boolean): Promise<PartnersState>
+  partnerSetShare(env: string, share: boolean): Promise<PartnersState>
+  partnerSetDocs(kitId: string, url: string): Promise<PartnersState>
+  partnerAddCustom(opts: { name: string; env: string; docs?: string }): Promise<PartnersState>
+  partnerRemoveCustom(id: string): Promise<PartnersState>
+  partnerTest(kitId: string): Promise<PartnersState>
+  onPartners(cb: (state: PartnersState) => void): () => void
   /** Events arrive batched (~30fps) to keep the renderer smooth during heavy streaming. */
   onEvents(cb: (events: HarnessEvent[]) => void): () => void
 }
@@ -264,5 +299,24 @@ export const IPC = {
   pitchNarrate: 'pitch:narrate',
   pitchVoices: 'pitch:voices',
   pitchPush: 'pitch:push',
+  handoffPlan: 'handoff:plan',
+  handoffOffer: 'handoff:offer',
+  handoffWithdraw: 'handoff:withdraw',
+  handoffTake: 'handoff:take',
+  resetQueueState: 'reset-queue:state',
+  resetQueueAdd: 'reset-queue:add',
+  resetQueueRemove: 'reset-queue:remove',
+  resetQueueDone: 'reset-queue:done',
+  resetQueuePush: 'reset-queue:push',
+  resetQueueFire: 'reset-queue:fire',
+  phoneTest: 'phone:test',
+  partnersState: 'partners:state',
+  partnerSetKey: 'partners:set-key',
+  partnerSetShare: 'partners:set-share',
+  partnerSetDocs: 'partners:set-docs',
+  partnerAddCustom: 'partners:add-custom',
+  partnerRemoveCustom: 'partners:remove-custom',
+  partnerTest: 'partners:test',
+  partnersPush: 'partners:push',
   events: 'events',
 } as const

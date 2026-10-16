@@ -4,7 +4,28 @@ import { createServer, type Server } from 'node:http'
 import { networkInterfaces } from 'node:os'
 import { promisify } from 'node:util'
 import type { SDKRateLimitInfo } from '@anthropic-ai/claude-agent-sdk'
-import { makeJoinCode, parseJoinCode, pickMember, type MemberSession, type MemberStatus, type PlanUsage, type TeamConfig, type TeamState } from '@shared/team'
+import {
+  describeRanges,
+  findConflicts,
+  HANDOFF_TTL_MS,
+  listHandoffs,
+  makeJoinCode,
+  MAX_HANDOFFS,
+  parseJoinCode,
+  pickMember,
+  type ChangeScan,
+  type Conflict,
+  type Handoff,
+  type MemberSession,
+  type MemberStatus,
+  type OpenHandoff,
+  type PlanUsage,
+  type TeamConfig,
+  type TeamState,
+} from '@shared/team'
+import { relTo } from '@shared/paths'
+import { scanChanges } from './changes'
+import { openSecrets, sealSecrets } from './secrets'
 import { createRelay } from '../../../relay/relay.mjs'
 import type { PlanUsageReading } from '../agent/AgentService'
 
@@ -12,6 +33,11 @@ const run = promisify(execFile)
 export const RELAY_PORT = 47830
 const SYNC_MS = 5000
 const USAGE_POLL_MS = 120_000
+/** How often the project's changed files are rescanned for the conflict radar. */
+const SCAN_MS = 10_000
+
+/** Teammates' shared partner keys: env name → value and who shared it. */
+export type TeamKeys = Record<string, { value: string; from: string }>
 
 export interface TeamDeps {
   getConfig(): TeamConfig | null
@@ -26,6 +52,18 @@ export interface TeamDeps {
   push(state: TeamState): void
   fetch?: typeof fetch
   port?: number
+  /** Partner keys this laptop shares with the team (env name → value). */
+  sharedSecrets?(): Record<string, string>
+  /** Teammates' shared keys changed. */
+  onTeamKeys?(keys: TeamKeys): void
+  /** Conflicts involving this laptop that weren't there before. */
+  onConflicts?(conflicts: Conflict[]): void
+  /** A teammate handed work to the team. */
+  onHandoff?(handoff: OpenHandoff): void
+  /** Tokens used today on this laptop. */
+  today?(): MemberStatus['today']
+  /** This laptop just hit its usage limit. */
+  onLimitReached?(resetsAt?: number): void
 }
 
 /**
@@ -55,6 +93,11 @@ export class TeamService {
   private server: Server | null = null
   /** The sync in flight, if any (leave waits for it so its PUT can't land after the DELETE). */
   private inflight?: Promise<void>
+  private scan?: { at: number; dir: string; result?: ChangeScan & { root: string } }
+  private knownConflicts = new Set<string>()
+  private seenHandoffs = new Set<string>()
+  private synced = false
+  private teamKeysJson = '{}'
 
   constructor(private readonly deps: TeamDeps) {}
 
@@ -76,6 +119,8 @@ export class TeamService {
       members: this.members,
       hostUrls: c?.hosting ? lanUrls(this.port) : undefined,
       myUsage: this.myUsage(),
+      conflicts: c ? findConflicts(this.members, c.memberId) : [],
+      handoffs: c ? listHandoffs(this.members, Date.now()) : [],
     }
   }
 
@@ -124,6 +169,10 @@ export class TeamService {
     this.members = []
     this.connected = false
     this.error = undefined
+    this.synced = false
+    this.knownConflicts.clear()
+    this.seenHandoffs.clear()
+    this.publishTeamKeys({})
     this.deps.push(this.state())
     return this.state()
   }
@@ -136,6 +185,110 @@ export class TeamService {
     return this.state()
   }
 
+  // ---------- handoffs ----------
+
+  /** Puts work on the team board (kept across restarts until it expires or is withdrawn). */
+  offerHandoff(h: Handoff): TeamState {
+    const c = this.deps.getConfig()
+    if (!c) throw new Error('Join a team first: handoffs go through the team board.')
+    const now = Date.now()
+    const kept = (c.handoffs ?? []).filter((x) => now - x.createdAt < HANDOFF_TTL_MS)
+    this.deps.setConfig({ ...c, handoffs: [h, ...kept].slice(0, MAX_HANDOFFS) })
+    this.soon()
+    return this.state()
+  }
+
+  withdrawHandoff(id: string): TeamState {
+    const c = this.deps.getConfig()
+    if (c) this.deps.setConfig({ ...c, handoffs: (c.handoffs ?? []).filter((h) => h.id !== id) })
+    this.soon()
+    return this.state()
+  }
+
+  markTaken(id: string) {
+    const c = this.deps.getConfig()
+    if (c && !(c.took ?? []).includes(id)) this.deps.setConfig({ ...c, took: [id, ...(c.took ?? [])].slice(0, 50) })
+    this.soon()
+  }
+
+  findHandoff(id: string): OpenHandoff | undefined {
+    return listHandoffs(this.members, Date.now()).find((h) => h.id === id)
+  }
+
+  // ---------- conflict radar ----------
+
+  /** The project the radar watches: the event project, else the folder in front. */
+  private radarDir() {
+    return this.deps.projectDir() ?? this.local.cwd
+  }
+
+  private async changes(): Promise<ChangeScan | undefined> {
+    const dir = this.radarDir()
+    if (!dir) return undefined
+    const now = Date.now()
+    if (!this.scan || this.scan.dir !== dir || now - this.scan.at >= SCAN_MS) {
+      this.scan = { at: now, dir, result: await scanChanges(dir).catch(() => undefined) }
+    }
+    const r = this.scan.result
+    return r ? { repo: r.repo, base: r.base, files: r.files } : undefined
+  }
+
+  /**
+   * A heads-up for Claude when it's about to edit a file teammates have also changed, or undefined.
+   * Uses the latest scans, so it costs nothing per edit.
+   */
+  radarFor(absPath: string): { text: string; names: string[] } | undefined {
+    const c = this.deps.getConfig()
+    const mine = this.scan?.result
+    if (!c || !mine) return undefined
+    const rel = relTo(absPath, mine.root)
+    if (!rel) return undefined
+    const hits = this.members.flatMap((m) => {
+      if (m.id === c.memberId || m.changes?.repo !== mine.repo) return []
+      const f = m.changes.files.find((x) => x.path === rel)
+      return f ? [{ m, f }] : []
+    })
+    if (!hits.length) return undefined
+    const names = hits.map((h) => h.m.name)
+    const who = hits.map(({ m, f }) => `${m.name} (${f.uncommitted ? 'uncommitted' : 'committed on their branch'}, ${describeRanges(f.ranges)})`).join('; ')
+    return {
+      names,
+      text:
+        `Heads-up from Harness's team radar: ${rel} is also being changed by ${who}. ` +
+        `Keep your edit to this file small and focused (no reformatting, reordering or renaming there) so merging stays easy, and tell the user that ${names.join(' and ')} ${names.length > 1 ? 'are' : 'is'} working in it too.`,
+    }
+  }
+
+  private afterSync(c: TeamConfig) {
+    const conflicts = findConflicts(this.members, c.memberId).filter((x) => x.involvesMe)
+    const keys = new Set(conflicts.map((x) => `${x.path}|${x.members.map((m) => m.id).join(',')}`))
+    const fresh = conflicts.filter((x) => !this.knownConflicts.has(`${x.path}|${x.members.map((m) => m.id).join(',')}`))
+    this.knownConflicts = keys
+    if (fresh.length) this.deps.onConflicts?.(fresh)
+
+    for (const h of listHandoffs(this.members, Date.now())) {
+      if (this.seenHandoffs.has(h.id)) continue
+      this.seenHandoffs.add(h.id)
+      // Only news from after we joined; not what was already on the board.
+      if (this.synced && h.fromId !== c.memberId && !h.takenBy) this.deps.onHandoff?.(h)
+    }
+    this.synced = true
+
+    const team: TeamKeys = {}
+    for (const m of this.members) {
+      if (m.id === c.memberId || !m.secrets) continue
+      for (const [k, v] of Object.entries(openSecrets(c.token, m.secrets) ?? {})) team[k] ??= { value: v, from: m.name }
+    }
+    this.publishTeamKeys(team)
+  }
+
+  private publishTeamKeys(keys: TeamKeys) {
+    const json = JSON.stringify(keys)
+    if (json === this.teamKeysJson) return
+    this.teamKeysJson = json
+    this.deps.onTeamKeys?.(keys)
+  }
+
   /** The renderer reports this machine's open sessions (it already has them all). */
   setLocal(local: { sessions: MemberSession[]; cwd?: string }) {
     const changed = JSON.stringify(local.sessions.map((s) => [s.status, s.activity, s.subagents])) !== JSON.stringify(this.local.sessions.map((s) => [s.status, s.activity, s.subagents]))
@@ -146,6 +299,7 @@ export class TeamService {
   // ---------- usage ----------
 
   onRateLimit(info: SDKRateLimitInfo) {
+    const was = this.usage.status
     const resetsAt = toMs(info.resetsAt)
     const pct = toPct(info.utilization)
     const u: PlanUsage = { ...this.usage, source: 'plan', status: info.status, resetsAt, at: Date.now() }
@@ -154,6 +308,7 @@ export class TeamService {
     this.usage = u
     this.soon()
     if (!this.deps.getConfig()) this.deps.push(this.state())
+    if (info.status === 'rejected' && was !== 'rejected') this.deps.onLimitReached?.(resetsAt)
   }
 
   private async pollUsage() {
@@ -195,6 +350,8 @@ export class TeamService {
         )
       : undefined
     const project = this.deps.projectDir()
+    const now = Date.now()
+    const secrets = this.deps.sharedSecrets?.() ?? {}
     return {
       id: c.memberId,
       name: c.memberName,
@@ -203,7 +360,12 @@ export class TeamService {
       sessions: this.local.sessions,
       usage: this.myUsage(),
       hackforge: project ? await this.deps.hackforge(project).catch(() => undefined) : undefined,
-      updatedAt: Date.now(),
+      changes: await this.changes(),
+      handoffs: (c.handoffs ?? []).filter((h) => now - h.createdAt < HANDOFF_TTL_MS),
+      took: c.took,
+      secrets: Object.keys(secrets).length ? sealSecrets(c.token, secrets) : undefined,
+      today: this.deps.today?.(),
+      updatedAt: now,
     }
   }
 
@@ -230,6 +392,7 @@ export class TeamService {
       this.connected = true
       this.error = undefined
       this.lastSync = Date.now()
+      this.afterSync(c)
     } catch (err) {
       if (!current()) return
       this.connected = false

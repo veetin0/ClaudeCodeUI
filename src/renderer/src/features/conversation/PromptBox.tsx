@@ -1,4 +1,4 @@
-import { ArrowUp, Square } from 'lucide-react'
+import { AlarmClock, ArrowUp, Square } from 'lucide-react'
 import { useEffect, useRef } from 'react'
 import type { PermissionMode } from '@shared/events'
 import { cn } from '@/lib/format'
@@ -6,6 +6,8 @@ import { useApp } from '@/stores/app'
 import type { SessionState } from '@/stores/reducer'
 import { AUTO_MODEL } from '@shared/usageSaver'
 import { SaverChip } from './SaverChip'
+import { useLimit } from '../team/LimitBanner'
+import { useResetQueue } from '@/stores/resetQueue'
 
 export const PERMISSION_MODES: { value: PermissionMode; label: string }[] = [
   { value: 'default', label: 'Ask before acting' },
@@ -31,6 +33,19 @@ export function PromptBox({ session }: { session: SessionState }) {
   const ref = useRef<HTMLTextAreaElement>(null)
   const { send, interrupt, setPermissionMode, setModel } = useApp()
   const saverOn = useApp((s) => session.saver?.enabled ?? s.settings?.usageSaver?.enabled ?? false)
+  const limit = useLimit()
+  const queueOn = useResetQueue((s) => s.state?.enabled ?? true)
+  const queued = useResetQueue((s) => s.state?.items.some((i) => i.sessionId === session.id) ?? false)
+  // At the limit (with run-at-reset on), Enter queues the message instead of sending it.
+  const queueing = limit.limited && queueOn
+  const offerQueue = !session.observed && (limit.limited || (limit.nearPct ?? 0) >= 80 || queued)
+  const resetLabel = limit.resetsAt ? new Date(limit.resetsAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : undefined
+  const queue = () => {
+    const t = text.trim()
+    if (!t) return
+    void useResetQueue.getState().add({ sessionId: session.id, cwd: session.cwd, title: session.title, text: t })
+    setText('')
+  }
   const busy = session.status === 'running' || session.status === 'waiting' || session.status === 'compacting'
   // A saved (not live) session accepts input: sending resumes it.
   const saved = !session.live
@@ -49,6 +64,7 @@ export function PromptBox({ session }: { session: SessionState }) {
   const submit = () => {
     const t = text.trim()
     if (!t || watching) return
+    if (queueing) return queue()
     // Messages sent while the agent is working are queued by the SDK and picked up next.
     void send(t)
     setText('')
@@ -73,7 +89,9 @@ export function PromptBox({ session }: { session: SessionState }) {
           placeholder={
             watching
               ? 'Watching a session running in your terminal. Reply there.'
-              : saved
+              : queueing
+                ? `Usage limit reached: this message runs when it resets${resetLabel ? ` at ${resetLabel}` : ''}…`
+                : saved
                 ? 'Send a message to resume this session…'
                 : busy
                   ? 'Queue a follow-up…'
@@ -98,10 +116,20 @@ export function PromptBox({ session }: { session: SessionState }) {
                 <Square className="size-3 fill-current" />
               </button>
             )}
+            {offerQueue && !queueing && (
+              <button
+                onClick={queue}
+                disabled={!text.trim()}
+                title={`Run this when your usage limit resets${resetLabel ? ` (${resetLabel})` : ''}`}
+                className="flex size-7 items-center justify-center rounded-full text-muted hover:bg-black/5 hover:text-fg disabled:opacity-40 dark:hover:bg-white/10"
+              >
+                <AlarmClock className="size-4" />
+              </button>
+            )}
             <button
               onClick={submit}
               disabled={!text.trim()}
-              title="Send (⏎)"
+              title={queueing ? 'Queue for the reset (⏎)' : 'Send (⏎)'}
               className={cn(
                 'flex size-7 items-center justify-center rounded-full text-white transition-opacity',
                 text.trim() ? 'bg-[var(--accent)] hover:brightness-110' : 'bg-zinc-400/40',

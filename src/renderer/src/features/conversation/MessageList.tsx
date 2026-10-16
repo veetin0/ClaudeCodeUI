@@ -1,4 +1,4 @@
-import { AlertTriangle, Archive, Info, Leaf, Zap } from 'lucide-react'
+import { AlertTriangle, Archive, Info, Leaf, Users, Zap } from 'lucide-react'
 import { useEffect, useLayoutEffect, useRef } from 'react'
 import { cn, formatCost, formatDuration } from '@/lib/format'
 import type { Item, SessionState } from '@/stores/reducer'
@@ -117,6 +117,21 @@ function BlockView({ block, session }: { block: Block; session: SessionState }) 
           <span>
             <span className="font-medium">Usage saver</span> · {block.text}
           </span>
+        </div>
+      )
+    }
+    case 'notice': {
+      const Icon = block.source === 'team' ? Users : Info
+      return (
+        <div
+          data-notice={block.tone}
+          className={cn(
+            'flex items-start gap-2 rounded-lg px-3 py-2 text-[12px] leading-relaxed',
+            block.tone === 'warn' ? 'border border-amber-500/30 bg-amber-500/[0.06] text-amber-800 dark:text-amber-200' : 'text-muted',
+          )}
+        >
+          <Icon className="mt-[3px] size-3.5 shrink-0" />
+          <span className="selectable">{block.text}</span>
         </div>
       )
     }

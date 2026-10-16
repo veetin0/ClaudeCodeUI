@@ -3,6 +3,8 @@ import { existsSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import type { AppSettings } from '@shared/ipc'
 import { DEFAULT_USAGE_SAVER } from '@shared/usageSaver'
+import { DEFAULT_PHONE_ALERTS, newAlertTopic } from '@shared/alerts'
+import { randomBytes } from 'node:crypto'
 
 interface StoredSettings extends Omit<AppSettings, 'hasApiKey' | 'hasElevenLabsKey'> {
   /** API key encrypted with the macOS Keychain-backed safeStorage, base64. */
@@ -22,6 +24,9 @@ const DEFAULTS: StoredSettings = {
   team: null,
   teamMemberId: '',
   usageSaver: DEFAULT_USAGE_SAVER,
+  phoneAlerts: DEFAULT_PHONE_ALERTS,
+  resetQueue: { enabled: true, keepAwake: true },
+  handoffDirs: [],
 }
 
 export class SettingsStore {
@@ -34,14 +39,26 @@ export class SettingsStore {
       try {
         const stored = JSON.parse(readFileSync(this.file, 'utf8')) as Partial<StoredSettings>
         // Settings added in later versions get their defaults (the Usage saver starts on).
-        this.data = { ...DEFAULTS, ...stored, usageSaver: { ...DEFAULT_USAGE_SAVER, ...stored.usageSaver } }
+        this.data = {
+          ...DEFAULTS,
+          ...stored,
+          usageSaver: { ...DEFAULT_USAGE_SAVER, ...stored.usageSaver },
+          phoneAlerts: { ...DEFAULT_PHONE_ALERTS, ...stored.phoneAlerts },
+          resetQueue: { ...DEFAULTS.resetQueue, ...stored.resetQueue },
+        }
       } catch {
         // Corrupt settings: fall back to defaults rather than refusing to start.
       }
     }
   }
 
+  private ensureTopic() {
+    // Each install gets its own unguessable ntfy topic up front, so the QR code is ready to scan.
+    if (!this.data.phoneAlerts.topic) this.data.phoneAlerts = { ...this.data.phoneAlerts, topic: newAlertTopic((n) => randomBytes(n)) }
+  }
+
   get(): AppSettings {
+    this.ensureTopic()
     const { apiKeyEnc, elevenLabsKeyEnc, ...rest } = this.data
     return { ...rest, hasApiKey: Boolean(apiKeyEnc), hasElevenLabsKey: Boolean(elevenLabsKeyEnc) }
   }

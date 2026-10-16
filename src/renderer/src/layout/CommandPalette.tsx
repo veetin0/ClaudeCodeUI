@@ -1,6 +1,9 @@
 import { Command } from 'cmdk'
 import {
+  BarChart3,
   CalendarClock,
+  Handshake,
+  MousePointerClick,
   Flame,
   FolderOpen,
   History,
@@ -38,6 +41,9 @@ const COMMANDS: { id: CommandId; label: string; icon: LucideIcon; keys?: string 
   { id: 'replay', label: 'Replay this session', icon: Play, keys: shortcut('⇧⌘R') },
   { id: 'interrupt', label: 'Stop the agent', icon: Square, keys: shortcut('⌘.') },
   { id: 'focus-mode', label: 'Toggle focus mode', icon: PanelLeft, keys: shortcut('⌘\\') },
+  { id: 'handoff', label: 'Hand off this session to the team', icon: Handshake },
+  { id: 'usage', label: 'Usage history: tokens per day and model, plan usage, the team', icon: BarChart3, keys: shortcut('⌘7') },
+  { id: 'pick-element', label: 'Click to change: pick an element in the preview', icon: MousePointerClick },
   { id: 'settings', label: 'Settings', icon: Settings, keys: shortcut('⌘,') },
 ]
 

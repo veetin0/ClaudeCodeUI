@@ -5,6 +5,7 @@ import type { AppSettings, PermissionDecision, SessionSummary } from '@shared/ip
 import type { Composition, PreviewState, ProjectInfo } from '@shared/preview'
 import { ipcErrorMessage } from '@/lib/time'
 import { AUTO_MODEL } from '@shared/usageSaver'
+import type { ImageAttachment } from '@shared/events'
 import { applyEvent, createSession, finalizeLoaded, type SessionState } from './reducer'
 import { appendEvents, dropLog, getLog, seedLog } from './eventLog'
 
@@ -65,6 +66,10 @@ interface AppState {
   startError: string | null
   /** Event mode (the hackathon war room) fills the main area. */
   eventOpen: boolean
+  /** Usage history fills the main area. */
+  usageOpen: boolean
+  /** Session whose handoff dialog is open. */
+  handoffFor: string | null
 
   init(): Promise<void>
   applyEvents(events: HarnessEvent[]): void
@@ -75,7 +80,13 @@ interface AppState {
   openProject(): Promise<void>
   select(id: string): void
   closeSession(id: string): Promise<void>
-  send(text: string): Promise<void>
+  send(text: string, images?: ImageAttachment[]): Promise<void>
+  /** Sends to a given session (resuming it if it's saved), e.g. a queued message at the reset. */
+  sendTo(id: string, text: string, images?: ImageAttachment[]): Promise<void>
+  openHandoff(sessionId: string | null): void
+  /** Opens a teammate's handed-off work: a session in its folder with the first message ready. */
+  takeOver(dir: string, prompt: string): Promise<void>
+  setUsageOpen(open: boolean): void
   interrupt(): Promise<void>
   setPermissionMode(mode: PermissionMode): Promise<void>
   setModel(model: string): Promise<void>
@@ -143,6 +154,8 @@ export const useApp = create<AppState>((set, get) => ({
   terminalHeight: 260,
   startError: null,
   eventOpen: false,
+  usageOpen: false,
+  handoffFor: null,
 
   async init() {
     set({ settings: await api().getSettings() })
@@ -281,10 +294,15 @@ export const useApp = create<AppState>((set, get) => ({
     await get().refreshHistory()
   },
 
-  async send(text) {
+  async send(text, images) {
     const id = get().activeId
-    if (!id) return
+    if (id) await get().sendTo(id, text, images)
+  },
+
+  async sendTo(id, text, images) {
+    if (!get().sessions[id]) await get().openSaved(id)
     const s = get().sessions[id]
+    if (!s) throw new Error('That session no longer exists.')
     if (s && !s.live) {
       // Sending to a saved session resumes its Claude conversation first.
       try {
@@ -298,8 +316,17 @@ export const useApp = create<AppState>((set, get) => ({
         return
       }
     }
-    await api().sendMessage(id, text)
+    await api().sendMessage(id, text, images)
   },
+
+  openHandoff: (handoffFor) => set({ handoffFor }),
+
+  async takeOver(dir, prompt) {
+    await get().startSession(dir)
+    get().setDraft(prompt)
+  },
+
+  setUsageOpen: (usageOpen) => set({ usageOpen, ...(usageOpen ? { eventOpen: false } : {}) }),
 
   async interrupt() {
     const id = get().activeId
@@ -336,8 +363,8 @@ export const useApp = create<AppState>((set, get) => ({
   },
 
   setInspectorTab: (inspectorTab) => set({ inspectorTab }),
-  setView: (view) => set({ view, eventOpen: false }),
-  setEventOpen: (eventOpen) => set({ eventOpen }),
+  setView: (view) => set({ view, eventOpen: false, usageOpen: false }),
+  setEventOpen: (eventOpen) => set({ eventOpen, ...(eventOpen ? { usageOpen: false } : {}) }),
   openAgent: (detailAgent, toolId) => set({ detailAgent, detailTool: toolId ?? null }),
   closeAgent: () => set({ detailAgent: null, detailTool: null }),
   openDiff: (diffPath) => set({ diffPath, detailAgent: null }),

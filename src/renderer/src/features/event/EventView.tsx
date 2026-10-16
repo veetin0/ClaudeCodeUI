@@ -18,6 +18,8 @@ import { useEvent, useEventState, useNow } from '@/stores/event'
 import { TeamPanel } from './TeamPanel'
 import { ChallengeBoard, Notice } from './ChallengeBoard'
 import { PitchStudio } from './PitchStudio'
+import { PartnerKits } from './PartnerKits'
+import { usePartnersState } from '@/stores/partners'
 import type { EventTab } from '@/stores/event'
 
 /** The hackathon war room: clock, weekend timeline, agenda, project setup, checklists, partners. */
@@ -73,6 +75,8 @@ export function EventView() {
           <ChallengeBoard state={state} />
         ) : tab === 'pitch' ? (
           <PitchStudio event={state} />
+        ) : tab === 'partners' ? (
+          <PartnerKits />
         ) : (
           <>
             <Countdown state={state} now={now} />
@@ -98,10 +102,13 @@ export function EventView() {
 
 function Tabs({ state }: { state: EventState }) {
   const { tab, setTab } = useEvent()
+  const partners = usePartnersState()
   const chosen = state.challenges.find((c) => c.status === 'chosen')
+  const keyed = partners ? partners.kits.filter((k) => k.keys.some((x) => partners.keys[x.env])).length : 0
   const tabs: { id: EventTab; label: string; badge?: string }[] = [
     { id: 'overview', label: 'Overview' },
     { id: 'challenges', label: 'Challenges', badge: chosen ? '★' : state.challenges.length ? String(state.challenges.length) : undefined },
+    { id: 'partners', label: 'Partner APIs', badge: keyed ? String(keyed) : undefined },
     { id: 'pitch', label: 'Pitch' },
   ]
   return (
@@ -470,6 +477,9 @@ function Partners({ state }: { state: EventState }) {
         <span className="text-[11px] text-muted">
           {ready} / {state.config.partners.length} ready (keys + tested starter kit)
         </span>
+        <button onClick={() => useEvent.getState().setTab('partners')} className="ml-auto text-[11.5px] font-medium text-[var(--accent)] hover:underline">
+          Paste API keys in Partner APIs →
+        </button>
       </div>
       <div className="grid gap-x-6 gap-y-3 md:grid-cols-2">
         {[...groups].map(([cat, ps]) => (
