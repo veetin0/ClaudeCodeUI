@@ -75,6 +75,9 @@ function BlockView({ block, session }: { block: Block; session: SessionState }) 
       return (
         <div className="flex justify-end">
           <div className="selectable max-w-[85%] whitespace-pre-wrap rounded-2xl rounded-br-md bg-surface-2 px-4 py-2.5 leading-relaxed shadow-[inset_0_0_0_1px_var(--line)]">
+            {block.images?.map((im, i) => (
+              <img key={i} src={`data:${im.mediaType};base64,${im.data}`} alt="Attached screenshot" className="mb-2 max-h-40 rounded-lg border border-line" />
+            ))}
             {block.text}
           </div>
         </div>

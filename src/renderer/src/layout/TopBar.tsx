@@ -123,11 +123,12 @@ function PlanUsageChip() {
   const hot = usage.status === 'rejected' || (pct ?? 0) >= 90
   const warm = usage.status === 'allowed_warning' || (pct ?? 0) >= 70
   return (
-    <span
-      className={cn('tabular-nums', hot ? 'font-medium text-red-500' : warm ? 'text-amber-600 dark:text-amber-400' : '')}
+    <button
+      onClick={() => useApp.getState().setUsageOpen(true)}
+      className={cn('no-drag tabular-nums hover:text-fg', hot ? 'font-medium text-red-500' : warm ? 'text-amber-600 dark:text-amber-400' : '')}
       title={`Claude plan usage, 5-hour window${w?.resetsAt ? ` (resets ${new Date(w.resetsAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })})` : ''}${usage.sevenDay ? ` · week ${Math.round(usage.sevenDay.pct)}%` : ''}`}
     >
       {usage.status === 'rejected' ? 'limit reached' : pct !== undefined ? `5h ${pct}%` : 'near limit'}
-    </span>
+    </button>
   )
 }

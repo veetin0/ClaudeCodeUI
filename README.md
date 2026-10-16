@@ -63,6 +63,11 @@ For instant "needs approval", "done" and "ended" status, **Settings → Install 
 
 Remotion downloads its own headless Chrome the first time you render. Set `HARNESS_REMOTION_BROWSER` to use an existing one instead.
 
+**Click to change.** Press **Click to change** above the preview (or use ⌘K), click any element in the running app, and type what should change.
+- **What Claude gets:** the element (tag, text, a CSS selector, its classes and current style) plus a screenshot of it. In React, Vue or Svelte dev builds, it also gets the component name and, where the build records it, the source file.
+- **Watching it happen:** the preview hot-reloads, so you see the change land.
+- **Usage saver:** it judges these messages by what you typed, so a small visual tweak runs on Sonnet.
+
 ![Remotion Studio with a finished render](docs/screenshots/remotion.png)
 
 ## Usage saver
@@ -82,6 +87,15 @@ Claude plan limits are mostly spent on Claude re-reading the conversation at eve
 - **Lean output.** Session instructions to run tests and builds quietly, read large files by range, and lead replies with the answer. Code, errors and warnings stay complete.
 
 **Is it saving right now?** The chip next to the model menu says **Saving · Sonnet** (green) or **Not saving · Opus** (amber), with the reason. Click it for this session's numbers: turns per model, Opus takeovers, compactions and skipped files. The chat also notes every switch, compaction and skipped file as it happens.
+
+## Usage history
+
+**⌘7**, **Usage** in the sidebar, or clicking the 5-hour figure in the top bar opens usage history for this laptop:
+- **Per day:** new tokens by model (Sonnet, Opus, Haiku, other) for the last 7, 14 or 30 days, with hover details and a table view.
+- **Plan usage:** the 5-hour window over the last 48 hours, so you see how fast it's going, plus the weekly figure.
+- **The Usage saver:** turns on Sonnet vs Opus, mid-task Opus takeovers, compactions and skipped files.
+- **Where it went:** the heaviest sessions (click to open), cache re-reads, and Claude Code's API-equivalent cost estimate.
+- **The team:** with a team, each teammate's tokens today and current 5-hour figure.
 
 ## HackForge
 
@@ -152,6 +166,41 @@ Harness suggests who should take the next milestone (the person with the most us
 - Plan usage comes from what Claude Code reports while a session runs, so a teammate's numbers appear after their first session. With an API key set in Settings, the board shows "API key" instead.
 
 ![Team board](docs/screenshots/team-board.png)
+
+**Conflict radar.** Every laptop scans the event project (files changed since its branch left main, committed or not, with the changed line ranges) and shares the list through the relay.
+- The Team board lists files two people are changing, marked **same lines** (merging will conflict) or **same file** (different parts).
+- A new conflict sends a notification to both laptops (and their phones, with phone alerts on).
+- Before Claude edits one of those files, it gets a heads-up to keep the edit small, and the chat shows a note. Lockfiles and build output are left out.
+
+**Handoff when the limit runs out.** When your usage limit is reached, a banner above the prompt offers **Hand off to the team**. It's also on the Team board and in ⌘K.
+- **The note:** Harness writes it from the session itself (what was asked, the task list, changed files, where it stopped), so it works even with no usage left. You can edit it before sending.
+- **The work:** your folder, uncommitted work included, is pushed as a `handoff/<name>-<time>` branch. The commit is built in a temporary git index, so your own branch, staging area and files stay exactly as they were.
+- **Taking it over:** teammates get a notification. **Take over** checks the branch out as a git worktree next to their project (their own folder untouched), copies `.env`, and opens a session with the first message ready.
+
+**Run when the limit resets.** At the limit, pressing Enter queues the message instead of sending it. Near the limit, the ⏰ button by Send does the same.
+- **When it runs:** queued messages are saved and sent when the limit resets, one at a time per session. A laptop that slept through the reset catches up when it wakes.
+- **Switching it off:** use **Run at reset** in the banner, the queue list or Settings; messages then just wait.
+- **Keeping the laptop awake** is optional. Closing a laptop's lid still puts it to sleep.
+
+**Phone alerts.** Settings → Phone alerts: install the free [ntfy](https://ntfy.sh) app, scan the QR code, and press **Send a test**. You get a push when:
+- Claude needs approval
+- a long task or a HackForge loop finishes
+- your limit is hit, or queued messages run
+- a teammate hands off work, or a file conflict appears
+
+By default it only pushes when you're away (screen locked or idle). Each laptop gets its own long random topic, and alerts never contain code or keys.
+
+### Partner APIs
+
+Event mode → **Partner APIs** has a kit for each Junction partner with an API: Exa, OpenAI, Featherless, Cloudinary, Modal, Aiven, Hostinger, Arduino, Verda and Cala. Paste a key and it works:
+- **`.env`:** it goes into Harness's own block in the event project's `.env`. `.env` is added to `.gitignore`, and nothing else in the file changes.
+- **Sessions:** every Claude session in the project (and in handoff folders) gets it as an environment variable.
+- **Teammates:** with **share with team** on, they get it too, encrypted with your team code so the relay only sees ciphertext.
+- **Kit notes for Claude:** `challenge/partners/` gets one note per partner with the variable names, install command and a minimal working example, plus an index of which keys are ready. HackForge's kickoff reads them.
+- **Check key** tries the key with a cheap request where the API has one.
+- **Unconfirmed details:** some partners had no public API documentation before the event (marked "check at the event"). Their cards take a docs link. **Add another API** covers anything new that turns up at the venue.
+
+Keys are stored in the macOS Keychain or Windows' DPAPI (an owner-only file where neither exists).
 
 ### Challenge board
 

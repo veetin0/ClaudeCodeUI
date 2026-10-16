@@ -135,6 +135,23 @@ describe('Harness (real Electron app)', () => {
     await page.keyboard.press('Escape')
   })
 
+  it('shows partner kits and writes their notes into the event project', async () => {
+    await page.getByText('Spends your Claude plan where it buys quality').waitFor({ state: 'detached' })
+    await page.getByRole('button', { name: /^Partner APIs/ }).click()
+    await page.locator('[data-kit="exa"]').waitFor()
+    expect(await page.locator('[data-kit]').count()).toBeGreaterThanOrEqual(10)
+    await expect.poll(() => existsSync(join(eventDir, 'challenge', 'partners', 'README.md')), { timeout: 5000 }).toBe(true)
+    expect(readFileSync(join(eventDir, 'challenge', 'partners', 'exa.md'), 'utf8')).toMatch(/EXA_API_KEY/)
+    await shot('08-partner-apis')
+  })
+
+  it('opens usage history with ⌘7 / Ctrl+7', async () => {
+    await page.keyboard.press(process.platform === 'darwin' ? 'Meta+7' : 'Control+7')
+    await page.getByText('Tokens per day, by model').waitFor()
+    await shot('09-usage')
+    await page.keyboard.press('Escape')
+  })
+
   it('never started a Claude session', async () => {
     const history = await page.evaluate(() => window.harness.listHistory())
     expect(history).toEqual([])

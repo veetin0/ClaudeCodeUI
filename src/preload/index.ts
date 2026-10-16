@@ -139,6 +139,9 @@ const api: HarnessApi = {
     ipcRenderer.on(IPC.partnersPush, l)
     return () => ipcRenderer.removeListener(IPC.partnersPush, l)
   },
+  previewPick: (url, frame) => ipcRenderer.invoke(IPC.previewPick, url, frame),
+  previewPickCancel: (url) => ipcRenderer.invoke(IPC.previewPickCancel, url),
+  usageHistory: (days) => ipcRenderer.invoke(IPC.usageHistory, days),
   onEvents: (cb) => {
     const listener = (_: unknown, events: HarnessEvent[]) => cb(events)
     ipcRenderer.on(IPC.events, listener)

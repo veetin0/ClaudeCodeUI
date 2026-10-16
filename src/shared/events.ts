@@ -122,6 +122,8 @@ export type HarnessEvent =
       contextWindow?: number
       /** A turn Harness ran itself (the Usage saver's compaction): no divider, no "finished" notification. */
       internal?: boolean
+      /** Tokens per model so far in this agent process (cumulative), for usage history. */
+      modelUsage?: Record<string, import('./usageHistory').ModelTokens>
     }>
   /** What the Usage saver did: the model it picked for a turn, a compaction, a skipped file… */
   | E<'saver', { note: SaverNote }>

@@ -264,8 +264,15 @@ export class EventNormalizer {
   }
 
   private result(m: Record<string, unknown>, out: Draft[]) {
-    const modelUsage = (m.modelUsage as Record<string, { contextWindow?: number }>) ?? {}
+    const modelUsage = (m.modelUsage as Record<string, { contextWindow?: number; inputTokens?: number; outputTokens?: number; cacheReadInputTokens?: number; cacheCreationInputTokens?: number; costUSD?: number }>) ?? {}
     const windows = Object.values(modelUsage).map((u) => u.contextWindow ?? 0)
+    const n = (v: unknown) => (typeof v === 'number' && Number.isFinite(v) ? v : 0)
+    const usage = Object.fromEntries(
+      Object.entries(modelUsage).map(([model, u]) => [
+        model,
+        { input: n(u.inputTokens), output: n(u.outputTokens), cacheRead: n(u.cacheReadInputTokens), cacheWrite: n(u.cacheCreationInputTokens), costUsd: n(u.costUSD) },
+      ]),
+    )
     const errors = (m.errors as string[] | undefined) ?? []
     out.push({
       type: 'turn.end',
@@ -276,6 +283,7 @@ export class EventNormalizer {
       numTurns: Number(m.num_turns ?? 0),
       outputTokens: Number((m.usage as { output_tokens?: number } | undefined)?.output_tokens ?? 0),
       contextWindow: windows.length ? Math.max(...windows) : undefined,
+      ...(Object.keys(usage).length ? { modelUsage: usage } : {}),
     })
   }
 }

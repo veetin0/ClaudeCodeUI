@@ -33,6 +33,7 @@ import { PhoneAlerts } from './system/phone'
 import { ResetQueue } from './system/resetQueue'
 import { PartnerService } from './event/PartnerService'
 import { checkoutHandoff, planHandoff, pushSnapshot } from './team/handoff'
+import { cancelPick, pickElement, type Rect } from './preview/pick'
 
 // Tests (and a second, throwaway profile) can keep everything out of the real profile folder.
 if (process.env.HARNESS_USER_DATA) app.setPath('userData', process.env.HARNESS_USER_DATA)
@@ -334,6 +335,9 @@ function registerIpc() {
   ipcMain.on(IPC.resetQueueDone, (_e, id: string) => resetQueue.done(id))
 
   ipcMain.handle(IPC.phoneTest, () => phone.test())
+  ipcMain.handle(IPC.previewPick, (e, url: string, frame: Rect) => pickElement(e.sender, url, frame))
+  ipcMain.handle(IPC.previewPickCancel, (e, url: string) => cancelPick(e.sender, url))
+  ipcMain.handle(IPC.usageHistory, (_e, days: number) => store.usageHistory(Math.max(1, Math.min(90, Math.round(days) || 14))))
 
   // Partner API keys.
   ipcMain.handle(IPC.partnersState, () => partners.state())
@@ -361,13 +365,13 @@ async function start() {
   store = new SessionStore(join(app.getPath('userData'), 'harness.db'))
   partners = new PartnerService({
     file: join(app.getPath('userData'), 'partner-keys.json'),
-    encrypt: (v) => {
-      if (!safeStorage.isEncryptionAvailable()) throw new Error('Secure storage is unavailable on this computer, so keys can’t be saved safely.')
-      return safeStorage.encryptString(v).toString('base64')
-    },
-    decrypt: (enc) => {
+    // Keychain (macOS) / DPAPI (Windows) when available. Without one (some Linux setups) the key is
+    // kept in an owner-only file instead: it goes into the project's .env in plain text anyway.
+    encrypt: (v) => (safeStorage.isEncryptionAvailable() ? `enc:${safeStorage.encryptString(v).toString('base64')}` : `plain:${Buffer.from(v).toString('base64')}`),
+    decrypt: (stored) => {
       try {
-        return safeStorage.decryptString(Buffer.from(enc, 'base64'))
+        if (stored.startsWith('plain:')) return Buffer.from(stored.slice(6), 'base64').toString('utf8')
+        return safeStorage.decryptString(Buffer.from(stored.replace(/^enc:/, ''), 'base64'))
       } catch {
         return undefined
       }
@@ -450,7 +454,11 @@ async function start() {
       for (const w of BrowserWindow.getAllWindows()) w.webContents.send(IPC.teamPush, state)
       // New usage readings can move (or reveal) the reset time.
       resetQueue?.refresh()
+      const u = state.myUsage
+      const live = (w?: { pct: number; resetsAt?: number }) => (w && (!w.resetsAt || w.resetsAt > Date.now()) ? w.pct : w ? 0 : undefined)
+      if (u.source === 'plan') store.recordPlanSample(live(u.fiveHour), live(u.sevenDay))
     },
+    today: () => store.usageToday(),
     sharedSecrets: () => partners.sharedSecrets(),
     onTeamKeys: (keys) => partners.setTeamKeys(keys),
     onConflicts: (list) => {

@@ -1,4 +1,5 @@
 import type { PermissionMode } from './events'
+import { pickRequest } from './pick'
 
 /**
  * Usage saver: spend Claude plan usage where it buys quality, and cut what buys nothing.
@@ -150,6 +151,12 @@ const SMALL_EDIT = new RegExp(
 
 /** What kind of turn a message asks for, before considering the session's state. */
 export function classifyPrompt(text: string, o: { firstTurn: boolean; permissionMode: PermissionMode; hackforgeLean: boolean }): Classified {
+  // Click to change: judge what you asked for, not the element details Harness added around it.
+  const picked = pickRequest(text.trim())
+  if (picked !== undefined) {
+    const c = classifyPrompt(picked, { ...o, firstTurn: false })
+    return c.kind === 'think' ? c : { kind: 'build', reason: 'a change to one element on the page' }
+  }
   // macOS turns ' into ’ as you type.
   const p = text.trim().replace(/[\u2018\u2019]/g, "'")
   const hf = /^\/hackforge:([\w-]+)/i.exec(p)

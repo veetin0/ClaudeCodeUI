@@ -1,5 +1,5 @@
 import { normPath } from '@shared/paths'
-import type { AgentId, EventOf, FileChange, HarnessEvent, PermissionMode, SessionStatus, TodoItem } from '@shared/events'
+import type { AgentId, EventOf, FileChange, HarnessEvent, ImageAttachment, PermissionMode, SessionStatus, TodoItem } from '@shared/events'
 import { HARNESS_TOOL_PREFIX, SUBAGENT_TOOLS } from '@shared/events'
 import type { ShowUpdate, VisualSource } from '@shared/visuals'
 import type { SessionSummary } from '@shared/ipc'
@@ -37,7 +37,7 @@ export interface Subagent {
 }
 
 export type Item =
-  | { kind: 'user'; id: string; text: string; ts: number }
+  | { kind: 'user'; id: string; text: string; ts: number; images?: ImageAttachment[] }
   | { kind: 'text'; id: string; text: string }
   | { kind: 'thinking'; id: string; text: string }
   | { kind: 'tool'; id: string }
@@ -218,7 +218,7 @@ export function applyEvent(s: SessionState, e: HarnessEvent): void {
 
     case 'user.message':
       if (!s.title) s.title = e.text.replace(/\s+/g, ' ').trim().slice(0, 80)
-      s.items.push({ kind: 'user', id: e.id, text: e.text, ts: e.ts })
+      s.items.push({ kind: 'user', id: e.id, text: e.text, ts: e.ts, ...(e.images?.length ? { images: e.images } : {}) })
       break
 
     case 'text.delta':

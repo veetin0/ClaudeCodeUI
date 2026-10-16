@@ -1,6 +1,8 @@
 import { DatabaseSync } from 'node:sqlite'
 import { EPHEMERAL_EVENTS, type HarnessEvent } from '@shared/events'
 import type { LoadedSession, SessionSummary } from '@shared/ipc'
+import { approxTokens } from '@shared/usageSaver'
+import { emptyFamilies, familyOf, freshTokens, localDay, sumFamilies, usageDelta, type ModelTokens, type UsageHistory } from '@shared/usageHistory'
 
 const FLUSH_MS = 250
 const TITLE_MAX = 80
@@ -28,6 +30,9 @@ export class SessionStore {
   private nextSeq = new Map<string, number>()
   /** Cost already accrued before the current CLI process; total_cost_usd restarts at 0 on resume. */
   private costOffset = new Map<string, number>()
+  /** Each session's latest cumulative per-model usage, so each turn's share can be recorded. */
+  private lastUsage = new Map<string, Record<string, ModelTokens>>()
+  private lastSample: { ts: number; key: string } | null = null
   private closed = false
 
   constructor(path: string) {
@@ -60,6 +65,32 @@ export class SessionStore {
         path TEXT NOT NULL,
         original TEXT,
         PRIMARY KEY (session_id, path)
+      );
+      -- Usage history: what each turn used per model (kept when a session is deleted: it was still used).
+      CREATE TABLE IF NOT EXISTS usage_turns (
+        session_id TEXT NOT NULL,
+        ts INTEGER NOT NULL,
+        day TEXT NOT NULL,
+        model TEXT NOT NULL,
+        input INTEGER NOT NULL,
+        output INTEGER NOT NULL,
+        cache_read INTEGER NOT NULL,
+        cache_write INTEGER NOT NULL,
+        cost REAL NOT NULL
+      );
+      CREATE INDEX IF NOT EXISTS usage_turns_ts ON usage_turns(ts);
+      CREATE TABLE IF NOT EXISTS saver_log (
+        session_id TEXT NOT NULL,
+        ts INTEGER NOT NULL,
+        kind TEXT NOT NULL,
+        model TEXT,
+        tokens INTEGER NOT NULL DEFAULT 0
+      );
+      CREATE INDEX IF NOT EXISTS saver_log_ts ON saver_log(ts);
+      CREATE TABLE IF NOT EXISTS plan_samples (
+        ts INTEGER PRIMARY KEY,
+        five_pct REAL,
+        seven_pct REAL
       );
     `)
     this.migrate()
@@ -144,6 +175,84 @@ export class SessionStore {
     this.costOffset.delete(id)
   }
 
+  /** A plan usage reading (5-hour and weekly percent), for the usage chart. Unchanged readings are skipped. */
+  recordPlanSample(fivePct: number | undefined, sevenPct: number | undefined, ts = Date.now()) {
+    if (this.closed || (fivePct === undefined && sevenPct === undefined)) return
+    const key = `${fivePct?.toFixed(1)}|${sevenPct?.toFixed(1)}`
+    if (this.lastSample && this.lastSample.key === key && ts - this.lastSample.ts < 10 * 60_000) return
+    this.lastSample = { ts, key }
+    this.db.prepare('INSERT OR REPLACE INTO plan_samples (ts, five_pct, seven_pct) VALUES (?, ?, ?)').run(ts, fivePct ?? null, sevenPct ?? null)
+  }
+
+  /** Tokens per day and model family, the heaviest sessions, the saver's work and plan readings. */
+  usageHistory(days = 14, now = Date.now()): UsageHistory {
+    this.flush()
+    const start = new Date(now)
+    start.setHours(0, 0, 0, 0)
+    start.setDate(start.getDate() - (days - 1))
+    const since = start.getTime()
+    const list = Array.from({ length: days }, (_, i) => {
+      const d = new Date(since)
+      d.setDate(d.getDate() + i)
+      return { day: localDay(d.getTime()), tokens: emptyFamilies(), cacheRead: 0, costUsd: 0 }
+    })
+    const byDay = new Map(list.map((d) => [d.day, d]))
+    const totals = { tokens: emptyFamilies(), cacheRead: 0, costUsd: 0 }
+    const rows = this.db
+      .prepare('SELECT day, model, SUM(input) AS input, SUM(output) AS output, SUM(cache_read) AS cache_read, SUM(cache_write) AS cache_write, SUM(cost) AS cost FROM usage_turns WHERE ts >= ? GROUP BY day, model')
+      .all(since) as { day: string; model: string; input: number; output: number; cache_read: number; cache_write: number; cost: number }[]
+    for (const r of rows) {
+      const fam = familyOf(r.model)
+      const fresh = freshTokens({ input: r.input, output: r.output, cacheWrite: r.cache_write })
+      const d = byDay.get(r.day)
+      if (d) {
+        d.tokens[fam] += fresh
+        d.cacheRead += r.cache_read
+        d.costUsd += r.cost
+      }
+      totals.tokens[fam] += fresh
+      totals.cacheRead += r.cache_read
+      totals.costUsd += r.cost
+    }
+    const topSessions = (
+      this.db
+        .prepare(
+          `SELECT u.session_id AS id, s.title AS title, s.cwd AS cwd, SUM(u.input + u.output + u.cache_write) AS tokens, SUM(u.cost) AS cost, MAX(u.ts) AS last
+           FROM usage_turns u JOIN sessions s ON s.id = u.session_id WHERE u.ts >= ? GROUP BY u.session_id ORDER BY tokens DESC LIMIT 6`,
+        )
+        .all(since) as { id: string; title: string; cwd: string; tokens: number; cost: number; last: number }[]
+    ).map((r) => ({ id: r.id, title: r.title, cwd: r.cwd, tokens: r.tokens, costUsd: r.cost, lastTs: r.last }))
+    const saver = { sonnetTurns: 0, opusTurns: 0, takeovers: 0, compactions: 0, compactedTokens: 0, skipped: 0, skippedTokens: 0 }
+    for (const r of this.db.prepare('SELECT kind, model, COUNT(*) AS n, SUM(tokens) AS tokens FROM saver_log WHERE ts >= ? GROUP BY kind, model').all(since) as {
+      kind: string
+      model: string | null
+      n: number
+      tokens: number
+    }[]) {
+      if (r.kind === 'turn' && r.model === 'sonnet') saver.sonnetTurns += r.n
+      else if (r.kind === 'turn' && r.model === 'opus') saver.opusTurns += r.n
+      else if (r.kind === 'takeover') saver.takeovers += r.n
+      else if (r.kind === 'compact') {
+        saver.compactions += r.n
+        saver.compactedTokens += r.tokens
+      } else if (r.kind === 'skip') {
+        saver.skipped += r.n
+        saver.skippedTokens += r.tokens
+      }
+    }
+    const samples = (this.db.prepare('SELECT ts, five_pct, seven_pct FROM plan_samples WHERE ts >= ? ORDER BY ts').all(now - 48 * 3600_000) as { ts: number; five_pct: number | null; seven_pct: number | null }[]).map(
+      (r) => ({ ts: r.ts, fivePct: r.five_pct ?? undefined, sevenPct: r.seven_pct ?? undefined }),
+    )
+    return { days: list, totals, topSessions, saver, samples }
+  }
+
+  /** Today's tokens, for the team board. */
+  usageToday(now = Date.now()): { tokens: number; costUsd: number; byModel: Record<string, number> } {
+    const h = this.usageHistory(1, now)
+    const t = h.totals.tokens
+    return { tokens: sumFamilies(t), costUsd: h.totals.costUsd, byModel: { Sonnet: t.sonnet, Opus: t.opus, Haiku: t.haiku, Other: t.other } }
+  }
+
   close() {
     if (this.closed) return
     this.flush()
@@ -189,6 +298,8 @@ export class SessionStore {
         this.db.prepare('UPDATE sessions SET claude_session_id = ?, model = ? WHERE id = ?').run(e.claudeSessionId, e.model, e.sessionId)
         break
       case 'session.resumed': {
+        // A new agent process: its usage counts from zero again.
+        this.lastUsage.delete(e.sessionId)
         const row = this.db.prepare('SELECT cost_usd FROM sessions WHERE id = ?').get(e.sessionId) as { cost_usd: number }
         this.costOffset.set(e.sessionId, row.cost_usd)
         break
@@ -205,6 +316,20 @@ export class SessionStore {
       case 'turn.end': {
         const cost = (this.costOffset.get(e.sessionId) ?? 0) + e.costUsd
         this.db.prepare('UPDATE sessions SET cost_usd = MAX(cost_usd, ?), updated_at = ? WHERE id = ?').run(cost, e.ts, e.sessionId)
+        if (e.modelUsage) {
+          const delta = usageDelta(this.lastUsage.get(e.sessionId), e.modelUsage)
+          this.lastUsage.set(e.sessionId, e.modelUsage)
+          const ins = this.db.prepare('INSERT INTO usage_turns (session_id, ts, day, model, input, output, cache_read, cache_write, cost) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)')
+          for (const [model, d] of Object.entries(delta)) ins.run(e.sessionId, e.ts, localDay(e.ts), model, d.input, d.output, d.cacheRead, d.cacheWrite, d.costUsd)
+        }
+        break
+      }
+      case 'saver': {
+        const n = e.note
+        const ins = this.db.prepare('INSERT INTO saver_log (session_id, ts, kind, model, tokens) VALUES (?, ?, ?, ?, ?)')
+        if (n.kind === 'route') ins.run(e.sessionId, e.ts, n.midTurn ? (n.model === 'opus' ? 'takeover' : 'handback') : 'turn', n.model, 0)
+        else if (n.kind === 'compact') ins.run(e.sessionId, e.ts, 'compact', null, Math.max(0, n.preTokens - (n.postTokens ?? 0)))
+        else if (n.kind === 'skip') ins.run(e.sessionId, e.ts, 'skip', null, approxTokens(n.bytes))
         break
       }
     }

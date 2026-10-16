@@ -1,6 +1,9 @@
-import { Clapperboard, ExternalLink, FileVideo, FolderOpen, Globe, Loader2, Play, RefreshCw, ScrollText, Square, X } from 'lucide-react'
-import { useEffect, useMemo, useState } from 'react'
+import { Clapperboard, ExternalLink, FileVideo, FolderOpen, Globe, Loader2, MousePointerClick, Play, RefreshCw, ScrollText, Send, Square, X } from 'lucide-react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import type { PreviewServer, RenderJob } from '@shared/preview'
+import { changePrompt, type PickedElement } from '@shared/pick'
+import type { ImageAttachment } from '@shared/events'
+import { ipcErrorMessage } from '@/lib/time'
 import { fileUrl } from '@shared/visuals'
 import { basename, cn, formatDuration } from '@/lib/format'
 import { relativeTime } from '@/lib/time'
@@ -19,6 +22,10 @@ export function PreviewView({ session }: { session: SessionState }) {
   const [reloadKey, setReloadKey] = useState(0)
   const [showLog, setShowLog] = useState(false)
   const [customUrl, setCustomUrl] = useState('')
+  const frameRef = useRef<HTMLIFrameElement>(null)
+  const [picking, setPicking] = useState(false)
+  const [picked, setPicked] = useState<{ element: PickedElement; image?: ImageAttachment } | null>(null)
+  const [pickError, setPickError] = useState<string | null>(null)
 
   useEffect(() => {
     void detectProject(cwd)
@@ -37,6 +44,30 @@ export function PreviewView({ session }: { session: SessionState }) {
     const s = await fn()
     setPreviewTarget(cwd, { kind: 'server', id: s.id })
   }
+
+  // Click to change: pick an element in the page, say what should change, Claude does it.
+  const pick = async () => {
+    const el = frameRef.current
+    if (!url || !el || picking) return
+    const r = el.getBoundingClientRect()
+    setPicking(true)
+    setPicked(null)
+    setPickError(null)
+    try {
+      setPicked(await window.harness.previewPick(url, { x: r.left, y: r.top, width: r.width, height: r.height }))
+    } catch (err) {
+      setPickError(ipcErrorMessage(err))
+    } finally {
+      setPicking(false)
+    }
+  }
+  const pickRef = useRef(pick)
+  pickRef.current = pick
+  useEffect(() => {
+    const onPick = () => void pickRef.current()
+    window.addEventListener('harness:pick-element', onPick)
+    return () => window.removeEventListener('harness:pick-element', onPick)
+  }, [])
 
   return (
     <div className="flex min-h-0 flex-1">
@@ -101,6 +132,16 @@ export function PreviewView({ session }: { session: SessionState }) {
             <span className="truncate font-mono">{url}</span>
             {lastWrite > 0 && server?.kind !== 'remotion' && <span className="shrink-0">· files changed {relativeTime(lastWrite)}</span>}
             <div className="ml-auto flex items-center gap-1">
+              <button
+                onClick={() => (picking ? void window.harness.previewPickCancel(url) : void pick())}
+                title="Click an element in the page and tell Claude what to change"
+                className={cn(
+                  'flex items-center gap-1 rounded-md px-2 py-0.5 text-[11.5px]',
+                  picking ? 'bg-[var(--accent)] text-white' : 'text-fg hover:bg-black/5 dark:hover:bg-white/10',
+                )}
+              >
+                <MousePointerClick className="size-3.5" /> {picking ? 'Cancel' : 'Click to change'}
+              </button>
               <IconButton title="Reload" onClick={() => setReloadKey((k) => k + 1)}>
                 <RefreshCw className="size-3.5" />
               </IconButton>
@@ -129,17 +170,108 @@ export function PreviewView({ session }: { session: SessionState }) {
 
         <div className="relative min-h-0 flex-1 bg-surface-2">
           {url ? (
-            <iframe key={`${url}-${reloadKey}`} src={url} title="Preview" className="h-full w-full border-0 bg-white" allow="autoplay; clipboard-read; clipboard-write; fullscreen" />
+            <iframe ref={frameRef} key={`${url}-${reloadKey}`} src={url} title="Preview" className="h-full w-full border-0 bg-white" allow="autoplay; clipboard-read; clipboard-write; fullscreen" />
           ) : server ? (
             <Starting server={server} />
           ) : (
             <EmptyState session={session} hasRemotion={!!project?.remotion} onStudio={() => void start(() => window.harness.startStudio(cwd))} />
           )}
           {showLog && server && <LogDrawer server={server} onClose={() => setShowLog(false)} />}
+          {picking && (
+            <div className="pointer-events-none absolute inset-x-0 top-2 flex justify-center">
+              <div className="rounded-full bg-[var(--accent)] px-3 py-1 text-[11.5px] font-medium text-white shadow-lg">Click the element to change · Esc cancels</div>
+            </div>
+          )}
+          {pickError && (
+            <div className="absolute inset-x-0 top-2 flex justify-center">
+              <div className="flex items-center gap-2 rounded-lg bg-red-500 px-3 py-1 text-[11.5px] text-white shadow-lg">
+                {pickError}
+                <button onClick={() => setPickError(null)}>
+                  <X className="size-3" />
+                </button>
+              </div>
+            </div>
+          )}
+          {picked && <ChangeBox picked={picked} session={session} onClose={() => setPicked(null)} onAgain={() => void pick()} />}
         </div>
       </div>
 
       {project?.remotion && <RenderPanel cwd={cwd} renders={preview.renders.filter((r) => r.cwd === cwd)} />}
+    </div>
+  )
+}
+
+/** Next to the picked element: what should change? Sends it to Claude with a screenshot. */
+function ChangeBox({ picked, session, onClose, onAgain }: { picked: { element: PickedElement; image?: ImageAttachment }; session: SessionState; onClose: () => void; onAgain: () => void }) {
+  const [text, setText] = useState('')
+  const [sent, setSent] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const ref = useRef<HTMLTextAreaElement>(null)
+  useEffect(() => ref.current?.focus(), [])
+  const { element: el, image } = picked
+  // Below the element when there's room, else above; never off the edges.
+  const top = el.rect.y + el.rect.height + 10
+  const style: React.CSSProperties = { left: Math.max(8, Math.min(el.rect.x, 9999)), ...(top + 220 > window.innerHeight - 120 ? { bottom: 8 } : { top }) }
+  const label = [el.components?.[0], `<${el.tag}${el.id ? `#${el.id}` : ''}>`, el.text && `“${el.text.slice(0, 40)}${el.text.length > 40 ? '…' : ''}”`].filter(Boolean).join(' ')
+  const send = async () => {
+    if (!text.trim()) return
+    try {
+      await useApp.getState().sendTo(session.id, changePrompt(el, text), image ? [image] : undefined)
+      setSent(true)
+      setTimeout(onClose, 1800)
+    } catch (err) {
+      setError(ipcErrorMessage(err))
+    }
+  }
+  return (
+    <div data-change-box className="absolute z-20 w-[340px] max-w-[calc(100%-16px)] rounded-xl border border-line bg-surface p-3 text-[12px] shadow-2xl" style={style}>
+      <div className="mb-2 flex items-start gap-2">
+        {image && <img src={`data:${image.mediaType};base64,${image.data}`} alt="" className="max-h-14 max-w-24 shrink-0 rounded border border-line object-contain" />}
+        <div className="min-w-0 flex-1">
+          <div className="truncate font-medium" title={el.selector}>
+            {label}
+          </div>
+          <div className="truncate text-[11px] text-muted">{el.source ?? el.selector}</div>
+        </div>
+        <button onClick={onClose} className="rounded p-0.5 text-muted hover:bg-black/5 hover:text-fg dark:hover:bg-white/10">
+          <X className="size-3.5" />
+        </button>
+      </div>
+      {sent ? (
+        <div className="rounded-lg bg-emerald-500/10 px-2.5 py-2 text-emerald-700 dark:text-emerald-300">Sent to Claude. Watch it change here.</div>
+      ) : (
+        <>
+          <textarea
+            ref={ref}
+            value={text}
+            onChange={(e) => setText(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) {
+                e.preventDefault()
+                void send()
+              }
+              if (e.key === 'Escape') onClose()
+            }}
+            rows={2}
+            placeholder="What should change? e.g. make it bigger and green"
+            className="selectable w-full resize-none rounded-lg border border-line bg-surface-2 px-2.5 py-1.5 outline-none focus:border-[var(--accent)]/60"
+          />
+          <div className="mt-2 flex items-center gap-2">
+            <button onClick={onAgain} className="text-[11.5px] text-muted hover:text-fg">
+              Pick another
+            </button>
+            <span className="ml-auto text-[10.5px] text-muted">to {session.title || 'this session'}</span>
+            <button
+              disabled={!text.trim()}
+              onClick={() => void send()}
+              className="flex items-center gap-1 rounded-md bg-[var(--accent)] px-2.5 py-1 text-[11.5px] font-medium text-white hover:brightness-110 disabled:opacity-40"
+            >
+              <Send className="size-3" /> Send
+            </button>
+          </div>
+          {error && <div className="mt-1 text-[11px] text-red-500">{error}</div>}
+        </>
+      )}
     </div>
   )
 }

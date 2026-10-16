@@ -15,6 +15,7 @@ import { EventView } from './features/event/EventView'
 import { useTeamReporter } from './stores/team'
 import { useResetQueueRunner } from './stores/resetQueue'
 import { HandoffDialog } from './features/team/HandoffDialog'
+import { UsageView } from './features/usage/UsageView'
 
 const VIEW_KEYS: Record<string, CommandId> = { '1': 'view-chat', '2': 'view-board', '3': 'view-mission', '4': 'view-preview', '5': 'view-hackforge', '6': 'event-mode', '7': 'usage' }
 
@@ -22,6 +23,7 @@ export function App() {
   const session = useDisplaySession()
   const focusMode = useApp((s) => s.focusMode)
   const eventOpen = useApp((s) => s.eventOpen)
+  const usageOpen = useApp((s) => s.usageOpen)
   useTeamReporter()
   useResetQueueRunner()
 
@@ -38,7 +40,10 @@ export function App() {
       }
       const app = useApp.getState()
       if (e.key !== 'Escape' || app.detailAgent || app.diffPath || app.paletteOpen) return
-      if (app.eventOpen) app.setEventOpen(false)
+      if (app.settingsOpen) app.setSettingsOpen(false)
+      else if (app.handoffFor) app.openHandoff(null)
+      else if (app.usageOpen) app.setUsageOpen(false)
+      else if (app.eventOpen) app.setEventOpen(false)
       else if (app.replay) app.setReplay(null)
       else if (app.activeId && app.sessions[app.activeId]?.status === 'running') void app.interrupt()
     }
@@ -59,8 +64,8 @@ export function App() {
       <main className="flex min-w-0 flex-1 flex-col bg-surface shadow-[-1px_0_0_var(--line)]">
         <TopBar />
         <div className="flex min-h-0 flex-1">
-          <div className="flex min-w-0 flex-1 flex-col">{eventOpen ? <EventView /> : session ? <Conversation session={session} /> : <Welcome />}</div>
-          {session && !focusMode && !eventOpen && <Inspector session={session} />}
+          <div className="flex min-w-0 flex-1 flex-col">{usageOpen ? <UsageView /> : eventOpen ? <EventView /> : session ? <Conversation session={session} /> : <Welcome />}</div>
+          {session && !focusMode && !eventOpen && !usageOpen && <Inspector session={session} />}
         </div>
         <TerminalPanel />
       </main>

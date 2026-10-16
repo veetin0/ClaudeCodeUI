@@ -1,4 +1,4 @@
-import { CalendarClock, FolderOpen, History, Plus, Search, Settings, SquareTerminal, Trash2, X } from 'lucide-react'
+import { BarChart3, CalendarClock, FolderOpen, History, Plus, Search, Settings, SquareTerminal, Trash2, X } from 'lucide-react'
 import { eventClock, formatSpan } from '@shared/event'
 import { useEventState, useNow } from '@/stores/event'
 import { useMemo, useState } from 'react'
@@ -110,6 +110,14 @@ export function Sidebar() {
       </div>
 
       <div className="p-3 pt-0">
+        <button
+          onClick={() => useApp.getState().setUsageOpen(!useApp.getState().usageOpen)}
+          title={shortcut('Usage history (⌘7)')}
+          className="flex w-full items-center gap-2 rounded-lg px-2.5 py-1.5 text-muted hover:bg-black/5 hover:text-fg dark:hover:bg-white/5"
+        >
+          <BarChart3 className="size-4" />
+          Usage
+        </button>
         <button
           onClick={() => setSettingsOpen(true)}
           className="flex w-full items-center gap-2 rounded-lg px-2.5 py-1.5 text-muted hover:bg-black/5 hover:text-fg dark:hover:bg-white/5"
