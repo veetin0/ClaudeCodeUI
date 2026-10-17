@@ -142,6 +142,13 @@ const api: HarnessApi = {
   previewPick: (url, frame) => ipcRenderer.invoke(IPC.previewPick, url, frame),
   previewPickCancel: (url) => ipcRenderer.invoke(IPC.previewPickCancel, url),
   usageHistory: (days) => ipcRenderer.invoke(IPC.usageHistory, days),
+  designState: () => ipcRenderer.invoke(IPC.designState),
+  designPrepare: () => ipcRenderer.invoke(IPC.designPrepare),
+  onDesign: (cb) => {
+    const l = (_: unknown, s: import('../shared/design').DesignState) => cb(s)
+    ipcRenderer.on(IPC.designPush, l)
+    return () => ipcRenderer.removeListener(IPC.designPush, l)
+  },
   onEvents: (cb) => {
     const listener = (_: unknown, events: HarnessEvent[]) => cb(events)
     ipcRenderer.on(IPC.events, listener)

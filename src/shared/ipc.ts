@@ -11,6 +11,7 @@ import type { PhoneAlertSettings } from './alerts'
 import type { QueuedPrompt, ResetQueueState } from './resetQueue'
 import type { HandoffPlan } from './handoff'
 import type { PartnersState } from './partners'
+import type { DesignSkillsSettings, DesignState } from './design'
 import type { TeamState as TeamStateT } from './team'
 
 export interface StartSessionOptions {
@@ -98,6 +99,8 @@ export interface AppSettings {
   resetQueue: { enabled: boolean; keepAwake: boolean }
   /** Folders created for handoffs you took (they get the partner keys too). */
   handoffDirs: string[]
+  /** impeccable and UI/UX Pro Max, loaded into every session. */
+  designSkills: DesignSkillsSettings
 }
 
 export type EventProgressPatch = { done?: Record<string, boolean>; partner?: { name: string; keys?: boolean; kit?: boolean } }
@@ -225,6 +228,11 @@ export interface HarnessApi {
   /** Click to change: lets you click an element in the preview; its description and a screenshot, or null. */
   previewPick(url: string, frame: { x: number; y: number; width: number; height: number }): Promise<{ element: import('./pick').PickedElement; image?: import('./events').ImageAttachment } | null>
   previewPickCancel(url: string): Promise<void>
+  /** Which design plugins sessions get, and whether impeccable's engine is ready. */
+  designState(): Promise<DesignState>
+  /** Downloads impeccable's engine if it isn't on this computer yet. */
+  designPrepare(): Promise<DesignState>
+  onDesign(cb: (state: DesignState) => void): () => void
   /** Tokens per day and model, top sessions, the saver's work and plan readings. */
   usageHistory(days: number): Promise<import('./usageHistory').UsageHistory>
   /** Events arrive batched (~30fps) to keep the renderer smooth during heavy streaming. */
@@ -326,5 +334,8 @@ export const IPC = {
   previewPick: 'preview:pick',
   previewPickCancel: 'preview:pick-cancel',
   usageHistory: 'usage:history',
+  designState: 'design:state',
+  designPrepare: 'design:prepare',
+  designPush: 'design:push',
   events: 'events',
 } as const

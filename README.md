@@ -97,6 +97,26 @@ Claude plan limits are mostly spent on Claude re-reading the conversation at eve
 - **Where it went:** the heaviest sessions (click to open), cache re-reads, and Claude Code's API-equivalent cost estimate.
 - **The team:** with a team, each teammate's tokens today and current 5-hour figure.
 
+## Design skills
+
+Harness ships two design skills and loads them into every session, so UI work comes out looking designed instead of generic. There's nothing to install. Claude uses them by itself when a task is frontend work; on other work only their short descriptions sit in context.
+
+- **[ui-ux-pro-max](https://github.com/nextlevelbuilder/ui-ux-pro-max-skill)** (MIT) picks the design system once, at the start of a new product or a redesign: style, palette, fonts and spacing, from a searchable database. Claude records the choice in `DESIGN.md` at the project root. Harness bundles only its core UI skill; the slide, logo and banner parts are left out because HackForge's pitch tools cover them.
+- **[impeccable](https://github.com/pbakaus/impeccable)** (Apache-2.0) builds, polishes, critiques and audits UI against `DESIGN.md`. Its detector checks every UI edit and does a deeper pass when Claude finishes, so things like low contrast, gradient text, glow shadows, nested cards and overused fonts come back as findings Claude fixes. Where the two disagree, `DESIGN.md` and impeccable's rules win.
+- **Click to change** requests are treated as polish work under impeccable's rules.
+
+**Settings → Design skills** switches each one off. **Quiet detector** (on by default) reports only problems, not "this file is clean", to save tokens. If you've installed either plugin yourself and your copy is newer, Harness uses yours.
+
+**Before the event:** impeccable's detector downloads a small engine once per computer (to `~/.impeccable`). Harness fetches it in the background at startup. Check that Settings shows **Detector engine: ready**; if it doesn't, press **Get it now** (or **Retry**) while you're on good wifi. ui-ux-pro-max's search needs Python 3, the same as HackForge.
+
+To update the bundled copies from fresh clones of both repositories:
+
+```bash
+npm run design:sync -- --impeccable ~/src/impeccable --uipro ~/src/ui-ux-pro-max-skill   # then rebuild Harness
+```
+
+Their licences are kept next to them in `resources/design/`.
+
 ## HackForge
 
 Harness is built to drive **HackForge**, the Claude Code plugin for hackathons and coding challenges. **HackForge is built in:** Harness ships a copy in `resources/hackforge` (currently 2.1.1) and loads it into every session through the Agent SDK, so there's nothing to install. If you've also installed HackForge yourself (`claude plugin install hackforge@veeti-tools`) and that copy is newer, Harness uses yours instead. It never loads both. The dashboard shows which one is in use.
@@ -130,6 +150,7 @@ HackForge's hooks run Python 3 (macOS has it with the Xcode command-line tools; 
 - HackForge's subagents show up by role (Rules Lawyer, Judge, Builder…) on the Board and in the graph.
 - A hint suggests **Accept edits** while the loop runs, because every permission prompt pauses it.
 - The pitch studio's **3D / animated clips** button runs `/hackforge:video`, which adds clips to `pitch/public/` as screen scenes.
+- **Design skills inside HackForge:** HackForge's builder agents can't load skills in 2.1.1, so the design skills reach them only through impeccable's edit checks. [docs/hackforge-design-skills.patch](docs/hackforge-design-skills.patch) is a drafted HackForge 2.2.0 change: one frozen `DESIGN.md` per project before frontend work, frontend builders that load impeccable, and a `tools design-scan` step whose findings become evidence for the verifier, the judges and the fix order. Apply it in your HackForge repo with `git apply --3way`, then run `npm run hackforge:sync`.
 
 ![HackForge dashboard with a running improvement loop](docs/screenshots/hackforge.png)
 

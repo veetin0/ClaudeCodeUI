@@ -50,6 +50,8 @@ beforeAll(async () => {
     ANTHROPIC_API_KEY: 'e2e-no-real-calls',
     ANTHROPIC_BASE_URL: 'http://127.0.0.1:9',
     ELEVENLABS_API_KEY: '',
+    // impeccable's engine cache: a temp folder, never the real ~/.impeccable.
+    IMPECCABLE_HOME: join(tmp, 'impeccable'),
   })
 
   app = await electron.launch({ executablePath: electronPath as unknown as string, args: [ROOT], cwd: ROOT, env })
@@ -132,6 +134,21 @@ describe('Harness (real Electron app)', () => {
     const saved = await page.evaluate(() => window.harness.getSettings())
     expect(saved.usageSaver).toEqual({ enabled: true, autoModel: true, compact: true, skipGenerated: true, leanOutput: true })
     await shot('07-usage-saver-settings')
+  })
+
+  it('shows the built-in design skills in Settings, on by default', async () => {
+    const impeccable = page.getByRole('checkbox', { name: /^impeccable/ })
+    await impeccable.scrollIntoViewIfNeeded()
+    expect(await impeccable.isChecked()).toBe(true)
+    await page.getByText(/4\.6\.0 built in/).waitFor()
+    await page.getByText(/2\.15\.0 built in/).waitFor()
+    const uipro = page.getByRole('checkbox', { name: /^UI\/UX Pro Max/ })
+    await uipro.uncheck()
+    await expect.poll(async () => (await page.evaluate(() => window.harness.getSettings())).designSkills.uiUxProMax).toBe(false)
+    await uipro.check()
+    const saved = await page.evaluate(() => window.harness.getSettings())
+    expect(saved.designSkills).toEqual({ impeccable: true, uiUxProMax: true, quietDetector: true })
+    await shot('07b-design-skills')
     await page.keyboard.press('Escape')
   })
 

@@ -1,7 +1,8 @@
 import type { HackforgeMode } from '@shared/hackforge'
 import type { UsageSaverSettings } from '@shared/usageSaver'
 import { newAlertTopic, subscribeUrl, type PhoneAlertSettings } from '@shared/alerts'
-import { AlarmClock, Leaf, Smartphone, SquareTerminal, X } from 'lucide-react'
+import { AlarmClock, Leaf, Palette, Smartphone, SquareTerminal, X } from 'lucide-react'
+import type { DesignSkillsSettings, DesignState } from '@shared/design'
 import { useEffect, useMemo, useState } from 'react'
 import qrcode from 'qrcode-generator'
 import type { ObserveStatus } from '@shared/ipc'
@@ -61,6 +62,8 @@ export function SettingsDialog() {
         </Field>
 
         <SaverSection saver={settings.usageSaver} onChange={(patch) => void updateSettings({ usageSaver: { ...settings.usageSaver, ...patch } })} />
+
+        <DesignSection s={settings.designSkills} onChange={(patch) => void updateSettings({ designSkills: { ...settings.designSkills, ...patch } })} />
 
         <Field
           label="Default model for new sessions"
@@ -199,6 +202,82 @@ function SaverSection({ saver, onChange }: { saver: UsageSaverSettings; onChange
           <p className="text-[11px] text-muted">Applies to new sessions. Any session can switch between Auto and one model in its model menu.</p>
         </div>
       )}
+    </div>
+  )
+}
+
+/** impeccable and UI/UX Pro Max: on by default, used by Claude on its own for UI work. */
+function DesignSection({ s, onChange }: { s: DesignSkillsSettings; onChange: (patch: Partial<DesignSkillsSettings>) => void }) {
+  const [state, setState] = useState<DesignState | null>(null)
+  useEffect(() => {
+    void window.harness.designState().then(setState)
+    return window.harness.onDesign(setState)
+  }, [])
+  const info = (key: 'impeccable' | 'uiUxProMax') => {
+    const p = state?.plugins.find((x) => x.key === key)
+    if (!p || p.source === 'off') return ''
+    return p.source === 'missing' ? ' · not bundled' : ` · ${p.version ?? ''} ${p.source === 'installed' ? '(your install)' : 'built in'}`
+  }
+  const engine = state?.engine
+  return (
+    <div className="mb-4 rounded-xl border border-line p-3">
+      <div className="flex items-center gap-1.5 font-medium">
+        <Palette className="size-3.5 text-[var(--accent)]" /> Design skills
+      </div>
+      <p className="mt-0.5 text-[11px] text-muted">
+        Claude uses them by itself for UI work: UI/UX Pro Max picks the design system once and writes DESIGN.md, and impeccable builds, polishes and audits against it. Applies to new
+        sessions.
+      </p>
+      <div className="mt-3 space-y-2.5 border-t border-line pt-3">
+        <label className="flex items-start gap-2.5">
+          <input type="checkbox" className="mt-0.5" checked={s.impeccable} onChange={(e) => onChange({ impeccable: e.target.checked })} />
+          <span>
+            <span className="font-medium">impeccable</span>
+            <span className="text-[11px] text-muted">{info('impeccable')}</span>
+            <span className="mt-0.5 block text-[11px] text-muted">
+              Builds, polishes, critiques and audits UI. Its detector checks every UI edit for “AI slop” (cramped spacing, gradient text, low contrast…) and does a deeper pass when Claude
+              finishes.
+            </span>
+          </span>
+        </label>
+        {s.impeccable && (
+          <div className="pl-6 text-[11.5px]">
+            <label className="flex items-center gap-1.5">
+              <input type="checkbox" checked={s.quietDetector} onChange={(e) => onChange({ quietDetector: e.target.checked })} /> Quiet detector: report only problems (saves tokens)
+            </label>
+            <div className="mt-1 flex items-center gap-2 text-[11px] text-muted">
+              Detector engine:{' '}
+              {engine?.status === 'ready' ? (
+                <span className="text-emerald-600 dark:text-emerald-400">ready ({engine.version})</span>
+              ) : engine?.status === 'checking' ? (
+                'downloading / checking…'
+              ) : engine?.status === 'failed' ? (
+                <span className="text-amber-700 dark:text-amber-300" title={engine.error}>
+                  not ready: {engine.error}
+                </span>
+              ) : (
+                'not checked yet'
+              )}
+              {engine?.status !== 'ready' && engine?.status !== 'checking' && (
+                <button onClick={() => void window.harness.designPrepare().then(setState)} className="rounded border border-line px-1.5 py-px text-fg hover:bg-surface-2">
+                  {engine?.status === 'failed' ? 'Retry' : 'Get it now'}
+                </button>
+              )}
+            </div>
+            <div className="text-[10.5px] text-muted">Downloaded once per computer from impeccable’s GitHub releases; do it before the event, not on venue wifi.</div>
+          </div>
+        )}
+        <label className="flex items-start gap-2.5">
+          <input type="checkbox" className="mt-0.5" checked={s.uiUxProMax} onChange={(e) => onChange({ uiUxProMax: e.target.checked })} />
+          <span>
+            <span className="font-medium">UI/UX Pro Max</span>
+            <span className="text-[11px] text-muted">{info('uiUxProMax')}</span>
+            <span className="mt-0.5 block text-[11px] text-muted">
+              Picks a design system for the product (style, palette, fonts) from a searchable database, plus UX and accessibility rules. Needs Python 3 (HackForge does too).
+            </span>
+          </span>
+        </label>
+      </div>
     </div>
   )
 }

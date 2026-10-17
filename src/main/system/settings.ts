@@ -4,6 +4,7 @@ import { join } from 'node:path'
 import type { AppSettings } from '@shared/ipc'
 import { DEFAULT_USAGE_SAVER } from '@shared/usageSaver'
 import { DEFAULT_PHONE_ALERTS, newAlertTopic } from '@shared/alerts'
+import { DEFAULT_DESIGN_SKILLS } from '@shared/design'
 import { randomBytes } from 'node:crypto'
 
 interface StoredSettings extends Omit<AppSettings, 'hasApiKey' | 'hasElevenLabsKey'> {
@@ -27,6 +28,7 @@ const DEFAULTS: StoredSettings = {
   phoneAlerts: DEFAULT_PHONE_ALERTS,
   resetQueue: { enabled: true, keepAwake: true },
   handoffDirs: [],
+  designSkills: DEFAULT_DESIGN_SKILLS,
 }
 
 export class SettingsStore {
@@ -45,6 +47,7 @@ export class SettingsStore {
           usageSaver: { ...DEFAULT_USAGE_SAVER, ...stored.usageSaver },
           phoneAlerts: { ...DEFAULT_PHONE_ALERTS, ...stored.phoneAlerts },
           resetQueue: { ...DEFAULTS.resetQueue, ...stored.resetQueue },
+          designSkills: { ...DEFAULT_DESIGN_SKILLS, ...stored.designSkills },
         }
       } catch {
         // Corrupt settings: fall back to defaults rather than refusing to start.

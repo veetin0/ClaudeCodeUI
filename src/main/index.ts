@@ -34,6 +34,8 @@ import { ResetQueue } from './system/resetQueue'
 import { PartnerService } from './event/PartnerService'
 import { checkoutHandoff, planHandoff, pushSnapshot } from './team/handoff'
 import { cancelPick, pickElement, type Rect } from './preview/pick'
+import { DesignService } from './design/DesignService'
+import { designGuide } from '@shared/design'
 
 // Tests (and a second, throwaway profile) can keep everything out of the real profile folder.
 if (process.env.HARNESS_USER_DATA) app.setPath('userData', process.env.HARNESS_USER_DATA)
@@ -61,6 +63,12 @@ let team: TeamService
 let pitch: PitchService
 let partners: PartnerService
 let resetQueue: ResetQueue
+const design = new DesignService({
+  appPath: app.getAppPath(),
+  claudeDir,
+  settings: () => settings.get().designSkills,
+  push: (state) => broadcast(IPC.designPush, state),
+})
 /** Sends to every window (there's normally one). */
 const broadcast = (channel: string, payload: unknown) => {
   for (const w of BrowserWindow.getAllWindows()) w.webContents.send(channel, payload)
@@ -279,10 +287,18 @@ function registerIpc() {
   ipcMain.handle(IPC.getSettings, () => settings.get())
   ipcMain.handle(IPC.setApiKey, (_e, key: string | null) => settings.setApiKey(key))
   ipcMain.handle(IPC.updateSettings, (_e, patch) => {
+    const before = settings.get().designSkills
     const next = settings.update(patch)
     if ('resetQueue' in patch) resetQueue.refresh()
+    if ('designSkills' in patch) {
+      // Switched impeccable on: fetch its engine now rather than in the first session.
+      if (next.designSkills.impeccable && !before.impeccable) void design.prepare()
+      else broadcast(IPC.designPush, design.state())
+    }
     return next
   })
+  ipcMain.handle(IPC.designState, () => design.state())
+  ipcMain.handle(IPC.designPrepare, () => design.prepare())
 
   // Handoffs: put work on the team board, or take a teammate's.
   ipcMain.handle(IPC.handoffPlan, async (_e, sessionId: string) => {
@@ -393,23 +409,25 @@ async function start() {
     snapshots: store,
     promptAppend: (cwd) => {
       const mode = settings.get().hackforgeMode
-      if (mode === 'off') return undefined
-      const present = hackforge.isProject(cwd)
-      return present || mode === 'always' ? hackforgeGuide(present) : undefined
+      const present = mode !== 'off' && hackforge.isProject(cwd)
+      const hf = mode !== 'off' && (present || mode === 'always') ? hackforgeGuide(present) : undefined
+      const loaded = design.plugins().filter((p) => p.source === 'builtin' || p.source === 'installed')
+      const ds = designGuide({ impeccable: loaded.some((p) => p.key === 'impeccable'), uiUxProMax: loaded.some((p) => p.key === 'uiUxProMax') })
+      return [hf, ds].filter(Boolean).join('\n\n') || undefined
     },
     // Every session (unless HackForge is off) gets the plugin, so /hackforge:init works in a new folder too.
-    // Its hooks do nothing outside HackForge projects.
+    // Its hooks do nothing outside HackForge projects. The design skills (impeccable, UI/UX Pro Max) come too.
     plugins: () => {
-      if (settings.get().hackforgeMode === 'off') return []
       const p = hackforgePlugin()
-      return p.source === 'builtin' && p.path ? [{ type: 'local' as const, path: p.path }] : []
+      const hf = settings.get().hackforgeMode !== 'off' && p.source === 'builtin' && p.path ? [{ type: 'local' as const, path: p.path }] : []
+      return [...hf, ...design.sdkPlugins()]
     },
     claudeExecutablePath: resolveClaudeExecutable(),
     onRateLimit: (info) => team?.onRateLimit(info),
     usageSaver: () => settings.get().usageSaver,
     hackforgeLean,
     teamRadar: (abs) => team?.radarFor(abs),
-    extraEnv: (cwd) => partners.envFor(cwd),
+    extraEnv: (cwd) => ({ ...design.env(), ...partners.envFor(cwd) }),
     getEnv: () => {
       const key = settings.getApiKey()
       return agentEnv(key ? { ANTHROPIC_API_KEY: key } : {})
@@ -511,6 +529,8 @@ async function start() {
   })
   registerIpc()
   createWindow()
+  // impeccable's detector engine: fetched once per computer, in the background.
+  if (settings.get().designSkills.impeccable) setTimeout(() => void design.prepare(), 8000)
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow()

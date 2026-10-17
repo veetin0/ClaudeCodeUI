@@ -25,17 +25,30 @@ export function compareVersions(a: string, b: string): number {
   return 0
 }
 
-/** The built-in copy, from inside app.asar.unpacked when packaged (hooks run its scripts from disk). */
-export function builtinPlugin(appPath: string): { path: string; version: string } | null {
-  const path = join(appPath, 'resources', 'hackforge').replace(/app\.asar([\\/])/, 'app.asar.unpacked$1')
+/**
+ * A plugin bundled with Harness, from inside app.asar.unpacked when packaged (hooks and skills run
+ * its scripts from disk). `marker` is a file that must exist for the copy to count as complete.
+ */
+export function bundledPlugin(dir: string, name: string, marker?: string): { path: string; version: string } | null {
+  const path = dir.replace(/app\.asar([\\/])/, 'app.asar.unpacked$1')
   const manifest = readJson(join(path, '.claude-plugin', 'plugin.json')) as { name?: string; version?: string } | undefined
-  return manifest?.name === 'hackforge' && existsSync(join(path, 'hooks', 'hooks.json')) ? { path, version: manifest.version ?? '0.0.0' } : null
+  return manifest?.name === name && (!marker || existsSync(join(path, marker))) ? { path, version: manifest.version ?? '0.0.0' } : null
+}
+
+/** The built-in HackForge copy. */
+export function builtinPlugin(appPath: string): { path: string; version: string } | null {
+  return bundledPlugin(join(appPath, 'resources', 'hackforge'), 'hackforge', join('hooks', 'hooks.json'))
 }
 
 /** An installed, enabled hackforge@<marketplace> from Claude Code's own records. */
 export function installedPlugin(claudeDir: string): { version: string; path?: string } | null {
+  return installedNamed(claudeDir, 'hackforge')
+}
+
+/** An installed, enabled <name>@<marketplace> plugin from Claude Code's own records. */
+export function installedNamed(claudeDir: string, name: string): { version: string; path?: string } | null {
   const settings = readJson(join(claudeDir, 'settings.json')) as { enabledPlugins?: Record<string, unknown> } | undefined
-  const enabled = Object.entries(settings?.enabledPlugins ?? {}).filter(([k, v]) => k.startsWith('hackforge@') && v !== false)
+  const enabled = Object.entries(settings?.enabledPlugins ?? {}).filter(([k, v]) => k.startsWith(`${name}@`) && v !== false)
   if (!enabled.length) return null
   const records = readJson(join(claudeDir, 'plugins', 'installed_plugins.json')) as
     | { plugins?: Record<string, { version?: string; installPath?: string }[] | { version?: string; installPath?: string }> }
