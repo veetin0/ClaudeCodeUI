@@ -37,6 +37,7 @@ Schema `hackforge-verify.v1` (example: `${CLAUDE_PLUGIN_ROOT}/reference/schemas/
 - `compliance_items`: the auditor's items.
 - `findings`: merged and de-duplicated across judges; severity critical / major / minor; ranked by gain per hour; integrity violations and failed rules are critical.
 - `blind_judge`: impression, vote, and **divergence** — where the blind take disagrees with the rubric judges. It never changes `mock_score`; it's a signal for the pitch.
+- `design_scan` (when `.hackforge/evidence/design-scan.json` exists and says `available`): `{"available": true, "total": n, "by_category": {...}, "top_rules": [...]}` copied from it. Its `quality` findings (contrast, accessibility) become **major** findings, and repeated `slop` findings (the same rule in 3+ places) become **minor** ones, each with the file and a concrete fix. It never changes `mock_score` directly; the experience judge weighs it.
 - `unverified`: everything not observed.
 
 Then render `.hackforge/VERIFY.md` from it — never write VERIFY.md by hand: `bash "${CLAUDE_PLUGIN_ROOT}/scripts/hf-run.sh" tools verify-md` (the stable format people, the Harness dashboard and older tools read), and regenerate the pages: `bash "${CLAUDE_PLUGIN_ROOT}/scripts/hf-run.sh" tools views all`.

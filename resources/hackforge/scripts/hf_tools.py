@@ -9,10 +9,11 @@
   lessons-propose                propose cross-hackathon lessons from this project's ledger (proposal only)
   lessons-add "<lesson>"         append an approved lesson to ~/.hackforge/lessons.md (only after the user approved it)
   lessons-show                   print saved lessons (kickoff loads them as advisory directives)
+  design-scan [paths…]           run impeccable's UI anti-pattern detector (when installed) → .hackforge/evidence/design-scan.json
 Ideas adapted from Claude Code Harness (MIT): resume packs, sprint-contract scope leash, plan-time
 pre-approval, Plan Brief / Progress / Acceptance surfaces, and the human-approved failure codifier.
 """
-import fnmatch, html, json, os, re, sys
+import fnmatch, glob, html, json, os, re, shutil, subprocess, sys
 from collections import Counter
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -240,6 +241,10 @@ def write_verify_md(root):
     if v.get("blind_judge"):
         b = v["blind_judge"]
         lines += ["", "## Blind first impression", "", f"{b.get('impression', '')} (vote: {b.get('vote', '—')})", f"Divergence: {b.get('divergence', '—')}"]
+    ds = v.get("design_scan")
+    if isinstance(ds, dict) and ds.get("available"):
+        by = ", ".join(f"{k} {n}" for k, n in (ds.get("by_category") or {}).items())
+        lines += ["", "## Design scan (impeccable)", "", f"{ds.get('total', 0)} finding(s){f' — {by}' if by else ''}" + (f"; top: {', '.join(ds.get('top_rules', [])[:5])}" if ds.get("top_rules") else "")]
     if v.get("unverified"):
         lines += ["", "## Not observed", ""] + [f"- {x}" for x in v["unverified"]]
     C.write_text(os.path.join(hf, "VERIFY.md"), "\n".join(lines) + "\n")
@@ -304,6 +309,80 @@ def permissions(root, apply=False):
     cur["permissions"]["allow"] = sorted(allow | rules)
     C.write_json(path, cur)
     print(f"Merged {len(rules)} rule(s) into .claude/settings.local.json")
+    return 0
+
+
+# ------------------------------------------------------------------ design scan (impeccable's detector)
+
+
+def _impeccable():
+    """impeccable's launcher (or its engine binary), or None when it isn't on this machine. The Harness app
+    passes the copy it loads in HARNESS_IMPECCABLE; otherwise a Claude Code plugin install, impeccable's
+    own home, or PATH."""
+    for env in ("HARNESS_IMPECCABLE", "IMPECCABLE_BIN"):
+        p = os.environ.get(env)
+        if p and os.path.isfile(p):
+            return p
+    home = os.path.expanduser("~")
+    # ~/.claude/plugins/cache/<marketplace>/impeccable/<version>/skills/impeccable/scripts/impeccable
+    installed = glob.glob(os.path.join(home, ".claude", "plugins", "cache", "*", "impeccable", "*", "skills", "impeccable", "scripts", "impeccable"))
+    ver = lambda p: tuple(int(x) if x.isdigit() else 0 for x in re.split(r"[.+-]", p.split(os.sep)[-5])[:3])  # noqa: E731
+    if installed:
+        return max(installed, key=ver)
+    for p in (os.path.join(home, ".impeccable", "bin", "impeccable"), shutil.which("impeccable")):
+        if p and os.path.isfile(p):
+            return p
+    return None
+
+
+def _impeccable_cmd(path):
+    with open(path, "rb") as f:
+        script = f.read(2) == b"#!"
+    if not script:
+        return [path]
+    if os.name == "nt" and os.path.isfile(path + ".cmd"):
+        return ["cmd.exe", "/d", "/c", path + ".cmd"]
+    return [shutil.which("sh") or "sh", path]
+
+
+def design_scan(root, targets):
+    """Deterministic UI evidence for the verifier and judges: impeccable's detector (contrast, overused
+    fonts, gradient text, glow, nested cards…). Findings are evidence, not a failed check, so this exits 0."""
+    out_path = os.path.join(C.hf_dir(root), "evidence", "design-scan.json")
+    tool = _impeccable()
+    targets = targets or ["."]
+    if not tool:
+        C.write_json(out_path, {"schema_version": "hackforge-design-scan.v1", "generated_at": C.now_iso(), "available": False})
+        print("design-scan: impeccable is not installed on this machine, so the design scan was not observed "
+              "(the Harness app ships it; or install the impeccable plugin from github.com/pbakaus/impeccable).")
+        return 0
+    try:
+        # The first run may download impeccable's engine (one small binary, once per machine).
+        r = subprocess.run(_impeccable_cmd(tool) + ["detect", "--json", *targets], cwd=root, capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=240)
+        raw = json.loads(r.stdout or "[]")
+        code, err = r.returncode, None
+    except (OSError, subprocess.TimeoutExpired, ValueError) as e:
+        raw, code, err = [], None, (str(e) or type(e).__name__)
+    if err is None and code not in (0, 2):
+        err = _tail_lines(r.stderr or r.stdout, 3) or f"exit {code}"
+    seen, findings = set(), []
+    for f in raw if isinstance(raw, list) else []:
+        item = {"rule": f.get("antipattern"), "name": f.get("name"), "severity": f.get("severity"), "category": f.get("category"),
+                "file": C.rel(root, f.get("file") or ""), "line": f.get("line"), "snippet": (f.get("snippet") or "")[:200]}
+        key = json.dumps(item, sort_keys=True)
+        if key not in seen:
+            seen.add(key); findings.append(item)
+    report = {"schema_version": "hackforge-design-scan.v1", "generated_at": C.now_iso(), "available": True, "tool": tool, "targets": targets,
+              "exit": code, "error": err, "findings": findings,
+              "counts": {"total": len(findings), "by_category": dict(Counter(f["category"] for f in findings)), "by_rule": dict(Counter(f["rule"] for f in findings).most_common())}}
+    C.write_json(out_path, report)
+    if err:
+        print(f"design-scan: impeccable did not finish ({err}); recorded as not observed in .hackforge/evidence/design-scan.json")
+        return 0
+    cats = ", ".join(f"{k} {v}" for k, v in report["counts"]["by_category"].items())
+    print(f"design-scan: {len(findings)} finding(s){f' ({cats})' if cats else ''} → .hackforge/evidence/design-scan.json")
+    for f in findings[:15]:
+        print(f"  [{f['category']}] {f['rule']}: {f['file']}{':' + str(f['line']) if f.get('line') else ''} — {f['snippet']}")
     return 0
 
 
@@ -383,6 +462,8 @@ def main(argv):
         return lessons_add(" ".join(argv[1:]))
     if cmd == "lessons-show":
         print(C.read_text(lessons_file(), "No saved lessons yet.")); return 0
+    if cmd == "design-scan":
+        return design_scan(root, argv[1:])
     print(__doc__); return 2
 
 

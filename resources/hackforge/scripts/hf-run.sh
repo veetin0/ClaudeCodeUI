@@ -12,7 +12,7 @@
 #   bash hf-run.sh precompact  PreCompact hook: write .hackforge/RESUME.md before context is compacted
 #   bash hf-run.sh loopstatus  evaluate the loop once and print JSON (wake mode; never blocks)
 #   bash hf-run.sh integrity <lock|check|status>   integrity lock (approve is operator-only: .hackforge/approve.sh)
-#   bash hf-run.sh tools <resume|views|scope|permissions|lessons-*>
+#   bash hf-run.sh tools <resume|views|scope|permissions|lessons-*|design-scan>
 #
 # Hooks call it as:  bash -c 'eval "$(tr -d "\r" < "$0")"' "<path>/hf-run.sh" <mode>
 # so it still runs if Git on Windows converted it to CRLF line endings.

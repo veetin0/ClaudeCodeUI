@@ -38,7 +38,7 @@ If `$ARGUMENTS` contains `--continue`, skip setup and go straight to **Each iter
    3. a failing hard rule or missing deliverable;
    4. a red check in gate.sh;
    5. the highest gain-per-hour finding in verify.json.
-   When everything is green, rotate the lens so the loop doesn't polish one corner forever: correctness and edge cases → robustness (bad input, empty data, offline) → measured accuracy/performance → demo flow and UX (`reference/ui-rubric.md`) → pitch clarity (blind-judge divergence) → README and one-command setup.
+   When everything is green, rotate the lens so the loop doesn't polish one corner forever: correctness and edge cases → robustness (bad input, empty data, offline) → measured accuracy/performance → demo flow and UX (`reference/ui-rubric.md`, plus `tools design-scan` findings) → pitch clarity (blind-judge divergence) → README and one-command setup.
 2. **Hand the fix to a fresh agent** — `hackforge:builder` (code) or `hackforge:craftsman` (assets) in its worktree, with RESUME.md, the item, the milestone contract, and the yes/no DoD for this fix. Only trivial one-line fixes are done directly. Merge its branch after `tools scope` passes.
 3. Run `bash .hackforge/gate.sh`. If something that was green broke, fix or revert.
 4. Run `hackforge:verify quick` — or `full` when the profile's schedule says so (`reference/profiles.md`: e.g. every 4th iteration on standard) or when a quick verify reached the target (the gate asks for it). The gate rejects a verify.json older than your code.

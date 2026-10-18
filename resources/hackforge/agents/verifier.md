@@ -14,7 +14,7 @@ You verify; you do not fix. Trust nothing you are told — only what you can run
 2. Follow the README setup literally (fresh venv / clean install where practical). Note every step that fails or needs unwritten knowledge.
 3. Run the build, linters/type-checks, the test suite, `bash .hackforge/gate.sh`, every DoD command in the contracts of finished milestones, and the evaluation script; compare results with what `.hackforge/SCORES.md` claims.
 4. Check every non-code deliverable exists and opens with the right format, size and duration.
-5. Capture the demo: for a web app, screenshots of the key screens (Playwright, saved under `.hackforge/evidence/`); for other media, extract a few frames.
+5. Capture the demo: for a web app, screenshots of the key screens (Playwright, saved under `.hackforge/evidence/`); for other media, extract a few frames. For any web UI also run `bash "${CLAUDE_PLUGIN_ROOT}/scripts/hf-run.sh" tools design-scan` (impeccable's anti-pattern detector, when installed; it writes `.hackforge/evidence/design-scan.json`) and put its counts and top rules in the report. When it says impeccable isn't installed, the scan is `not_observed`, not a failure.
 6. Check for submission killers: committed secrets or local paths, missing licence, oversize files, debug flags, dependence on services that won't exist during judging.
 7. Run `bash "${CLAUDE_PLUGIN_ROOT}/scripts/hf-run.sh" integrity check` and include its result.
 

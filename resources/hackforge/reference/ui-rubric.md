@@ -13,3 +13,5 @@ Rules
 - Score each axis with one line of evidence (screenshot path or element).
 - Any axis below 6 is a **major** finding with a concrete fix.
 - Judge at the actual demo resolution and on the actual demo machine where possible.
+- `DESIGN.md` at the project root is the intended system: Craft means the screens follow it consistently.
+- When impeccable is installed (the Harness app ships it), `tools design-scan` gives deterministic evidence: `quality` findings (contrast, accessibility) count against Craft and Functionality; `slop` findings (gradient text, glow, overused fonts, nested cards, generic hero layouts) count against Originality. Check each finding in context; detectors have false positives.

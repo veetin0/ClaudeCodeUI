@@ -1,5 +1,11 @@
 # Changelog
 
+## 2.2.0 — 2026-10-17
+Design skills (impeccable and ui-ux-pro-max), which the Harness app loads into every session. Everything is optional: without them HackForge works as before.
+- **One design system per project:** build writes `DESIGN.md` (palette, type, spacing, components, what to avoid) before frontend work, picking the style with ui-ux-pro-max when it's available, and freezes it with the contracts so parallel frontend builders share one look.
+- **Frontend builders use impeccable:** the builder can load skills (`Skill` tool) and works by impeccable's rules when it's available; its detector hook checks every UI edit inside the worktree.
+- **`tools design-scan`:** runs impeccable's anti-pattern detector (contrast, overused fonts, gradient text, glow, nested cards…) and records `.hackforge/evidence/design-scan.json`. The verifier captures it; verify turns `quality` findings into major and repeated `slop` into minor findings; the experience judge and the UI rubric use it as evidence; VERIFY.md gets a short design-scan section. Not installed → `not_observed`, never a failure.
+
 ## 2.1.1 — 2026-10-14
 Compatibility with the Harness app (ClaudeCodeUI):
 - `tools verify-md` renders VERIFY.md from verify.json in the stable format the Harness dashboard parses (COMPLIANCE/MOCK_SCORE/GATE lines, compliance and score tables, fix order); verify never hand-writes it.

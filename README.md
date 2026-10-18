@@ -119,13 +119,15 @@ Their licences are kept next to them in `resources/design/`.
 
 ## HackForge
 
-Harness is built to drive **HackForge**, the Claude Code plugin for hackathons and coding challenges. **HackForge is built in:** Harness ships a copy in `resources/hackforge` (currently 2.1.1) and loads it into every session through the Agent SDK, so there's nothing to install. If you've also installed HackForge yourself (`claude plugin install hackforge@veeti-tools`) and that copy is newer, Harness uses yours instead. It never loads both. The dashboard shows which one is in use.
+Harness is built to drive **HackForge**, the Claude Code plugin for hackathons and coding challenges. **HackForge is built in:** Harness ships a copy in `resources/hackforge` (currently 2.2.0) and loads it into every session through the Agent SDK, so there's nothing to install. If you've also installed HackForge yourself (`claude plugin install hackforge@veeti-tools`) and that copy is newer, Harness uses yours instead. It never loads both. The dashboard shows which one is in use.
 
 To update the built-in copy from your HackForge repository:
 
 ```bash
 npm run hackforge:sync -- ~/Desktop/hackforge-marketplace   # then rebuild Harness
 ```
+
+The sync refuses to replace the built-in copy with an older version, so an out-of-date folder can't downgrade Harness by accident (add `--force` if you really mean it).
 
 HackForge's hooks run Python 3 (macOS has it with the Xcode command-line tools; Windows: see docs/WINDOWS.md).
 
@@ -150,7 +152,7 @@ HackForge's hooks run Python 3 (macOS has it with the Xcode command-line tools; 
 - HackForge's subagents show up by role (Rules Lawyer, Judge, Builder…) on the Board and in the graph.
 - A hint suggests **Accept edits** while the loop runs, because every permission prompt pauses it.
 - The pitch studio's **3D / animated clips** button runs `/hackforge:video`, which adds clips to `pitch/public/` as screen scenes.
-- **Design skills inside HackForge:** HackForge's builder agents can't load skills in 2.1.1, so the design skills reach them only through impeccable's edit checks. [docs/hackforge-design-skills.patch](docs/hackforge-design-skills.patch) is a drafted HackForge 2.2.0 change: one frozen `DESIGN.md` per project before frontend work, frontend builders that load impeccable, and a `tools design-scan` step whose findings become evidence for the verifier, the judges and the fix order. Apply it in your HackForge repo with `git apply --3way`, then run `npm run hackforge:sync`.
+- **Design skills inside HackForge** (2.2.0): build writes one `DESIGN.md` design system before frontend work and freezes it with the contracts, frontend builders load impeccable, and `tools design-scan` records impeccable's findings as evidence for the verifier, the judges and the fix order.
 
 ![HackForge dashboard with a running improvement loop](docs/screenshots/hackforge.png)
 

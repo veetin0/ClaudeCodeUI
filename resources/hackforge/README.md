@@ -74,6 +74,10 @@ Set `plan:` (pro / team / max / api) and `profile:` (`lean`, `sprint`, `standard
 
 rules-lawyer · researcher · possibilities-scout · solution-architect · judge (technical / business / experience) · compliance-auditor · blind-judge · advisor · builder (backend / frontend / data-ml, worktrees) · craftsman (3D / audio / video / CAD / hardware, worktrees) · integrator · verifier
 
+## Design skills (optional)
+
+When [impeccable](https://github.com/pbakaus/impeccable) and [ui-ux-pro-max](https://github.com/nextlevelbuilder/ui-ux-pro-max-skill) are available (the Harness app loads both into every session; or install them as plugins), build writes one `DESIGN.md` design system before frontend work (style picked with ui-ux-pro-max), frontend builders work by impeccable's rules, and `tools design-scan` records impeccable's anti-pattern findings as evidence for the verifier, the judges and the UI rubric. Without them, nothing changes.
+
 ## Stopping the loop
 
 `touch .hackforge/STOP_LOOP` (PowerShell: `New-Item .hackforge/STOP_LOOP`) — only you can do this; agents are blocked from it.
