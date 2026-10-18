@@ -117,9 +117,19 @@ npm run design:sync -- --impeccable ~/src/impeccable --uipro ~/src/ui-ux-pro-max
 
 Their licences are kept next to them in `resources/design/`.
 
+## Dev tools
+
+Sessions get three kinds of tools Claude reaches for by itself. Claude Code loads a tool's definition only when it's needed, so tools you don't use cost little context. **Settings → Dev tools** switches each one.
+
+- **Browser** (Playwright, built in). Claude opens the running app, clicks through the demo, reads console errors and saves screenshots. HackForge's verifier walks the demo path this way and keeps the screenshots as evidence. It uses your Google Chrome or Microsoft Edge; on a computer with neither, **Get Chromium** downloads one (about 150 MB, once). It runs in the background unless you tick **Show the browser window**, with a fresh profile every session.
+- **Library docs** (Context7, hosted). Current, version-specific docs for any library or SDK, so Claude looks up a partner's SDK instead of guessing its API. It works without a key; a free key from context7.com raises the limits.
+- **Partner servers.** A partner's own MCP server, in sessions in the event project once its key is set on the Partners tab: Exa's hosted server (works without a key, rate-limited), and Cloudinary's and Hostinger's servers, bundled with Harness so nothing downloads at the event. When a partner announces an MCP server at the event, paste its URL into that partner's card. The partner's secret key goes along as a Bearer token.
+
+The browser and the docs run without permission prompts, so the improvement loop doesn't stall on them. Partner servers can change real accounts (deploys, DNS, uploads), so their tools still ask first.
+
 ## HackForge
 
-Harness is built to drive **HackForge**, the Claude Code plugin for hackathons and coding challenges. **HackForge is built in:** Harness ships a copy in `resources/hackforge` (currently 2.2.0) and loads it into every session through the Agent SDK, so there's nothing to install. If you've also installed HackForge yourself (`claude plugin install hackforge@veeti-tools`) and that copy is newer, Harness uses yours instead. It never loads both. The dashboard shows which one is in use.
+Harness is built to drive **HackForge**, the Claude Code plugin for hackathons and coding challenges. **HackForge is built in:** Harness ships a copy in `resources/hackforge` (currently 2.3.0) and loads it into every session through the Agent SDK, so there's nothing to install. If you've also installed HackForge yourself (`claude plugin install hackforge@veeti-tools`) and that copy is newer, Harness uses yours instead. It never loads both. The dashboard shows which one is in use.
 
 To update the built-in copy from your HackForge repository:
 
@@ -153,6 +163,7 @@ HackForge's hooks run Python 3 (macOS has it with the Xcode command-line tools; 
 - A hint suggests **Accept edits** while the loop runs, because every permission prompt pauses it.
 - The pitch studio's **3D / animated clips** button runs `/hackforge:video`, which adds clips to `pitch/public/` as screen scenes.
 - **Design skills inside HackForge** (2.2.0): build writes one `DESIGN.md` design system before frontend work and freezes it with the contracts, frontend builders load impeccable, and `tools design-scan` records impeccable's findings as evidence for the verifier, the judges and the fix order.
+- **Dev tools inside HackForge** (2.3.0): the verifier walks the demo path in the browser and saves named screenshots to `.hackforge/evidence/` (a step that fails is a major finding), frontend builders check their screens in the browser, and builders look APIs up with Context7 instead of guessing.
 
 ![HackForge dashboard with a running improvement loop](docs/screenshots/hackforge.png)
 

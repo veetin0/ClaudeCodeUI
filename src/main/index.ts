@@ -36,6 +36,7 @@ import { checkoutHandoff, planHandoff, pushSnapshot } from './team/handoff'
 import { cancelPick, pickElement, type Rect } from './preview/pick'
 import { DesignService } from './design/DesignService'
 import { designGuide } from '@shared/design'
+import { DevToolsService } from './devtools/DevToolsService'
 
 // Tests (and a second, throwaway profile) can keep everything out of the real profile folder.
 if (process.env.HARNESS_USER_DATA) app.setPath('userData', process.env.HARNESS_USER_DATA)
@@ -69,6 +70,15 @@ const design = new DesignService({
   settings: () => settings.get().designSkills,
   push: (state) => broadcast(IPC.designPush, state),
 })
+const devTools = new DevToolsService({
+  appPath: app.getAppPath(),
+  dataDir: app.getPath('userData'),
+  settings: () => settings.get().devTools,
+  context7Key: () => settings.getContext7Key(),
+  partnerServers: (cwd) => partners?.mcpServers(cwd) ?? [],
+  eventProject: () => settings.get().eventProject ?? undefined,
+  push: (state) => broadcast(IPC.devToolsPush, state),
+})
 /** Sends to every window (there's normally one). */
 const broadcast = (channel: string, payload: unknown) => {
   for (const w of BrowserWindow.getAllWindows()) w.webContents.send(channel, payload)
@@ -94,14 +104,22 @@ const hackforge = new HackforgeService(hackforgePlugin, (snap) => {
   if (snap.loop?.active) loopsRunning.add(snap.cwd)
   else if (loopsRunning.delete(snap.cwd)) {
     const best = snap.loop?.bestScore
-    void phone.alert('finished', 'HackForge loop finished', `${basename(snap.cwd)}${best !== undefined ? ` · best score ${best.toFixed(1)}` : ''}`, { tags: ['checkered_flag'] })
+    void phone.alert('finished', 'HackForge loop finished', `${basename(snap.cwd)}${best !== undefined ? ` · best score ${best.toFixed(1)}` : ''}`, {
+      tags: ['checkered_flag'],
+    })
   }
 })
 
 /** macOS: inset traffic lights over a translucent sidebar. Windows/Linux: the standard frame and menu bar. */
 function windowChrome(): Electron.BrowserWindowConstructorOptions {
   if (process.platform === 'darwin') {
-    return { titleBarStyle: 'hiddenInset', trafficLightPosition: { x: 16, y: 16 }, vibrancy: 'sidebar', visualEffectState: 'followWindow', backgroundColor: '#00000000' }
+    return {
+      titleBarStyle: 'hiddenInset',
+      trafficLightPosition: { x: 16, y: 16 },
+      vibrancy: 'sidebar',
+      visualEffectState: 'followWindow',
+      backgroundColor: '#00000000',
+    }
   }
   return { backgroundColor: nativeTheme.shouldUseDarkColors ? '#1c1c1e' : '#f4f3f1', autoHideMenuBar: false }
 }
@@ -238,9 +256,7 @@ function registerIpc() {
   ipcMain.handle(IPC.closeSession, (_e, id: string) => agents.close(id))
   ipcMain.handle(IPC.setPermissionMode, (_e, id: string, mode: PermissionMode) => agents.setPermissionMode(id, mode))
   ipcMain.handle(IPC.setModel, (_e, id: string, model: string) => agents.setModel(id, model))
-  ipcMain.handle(IPC.respondPermission, (_e, id: string, requestId: string, d: PermissionDecision) =>
-    agents.respondPermission(id, requestId, d),
-  )
+  ipcMain.handle(IPC.respondPermission, (_e, id: string, requestId: string, d: PermissionDecision) => agents.respondPermission(id, requestId, d))
   ipcMain.handle(IPC.pickDirectory, async () => {
     const r = await dialog.showOpenDialog({ properties: ['openDirectory', 'createDirectory'] })
     return r.canceled ? null : r.filePaths[0]
@@ -272,6 +288,11 @@ function registerIpc() {
     settings.setElevenLabsKey(key)
     return settings.get()
   })
+  ipcMain.handle(IPC.setContext7Key, (_e, key: string | null) => {
+    settings.setContext7Key(key)
+    devTools.publish()
+    return settings.get()
+  })
   ipcMain.handle(IPC.pitchState, () => pitch.state())
   ipcMain.handle(IPC.pitchScaffold, (_e, name: string) => pitch.scaffold(name))
   ipcMain.handle(IPC.pitchSave, (_e, script) => pitch.saveScript(script))
@@ -295,10 +316,13 @@ function registerIpc() {
       if (next.designSkills.impeccable && !before.impeccable) void design.prepare()
       else broadcast(IPC.designPush, design.state())
     }
+    if ('devTools' in patch || 'eventProject' in patch) devTools.publish()
     return next
   })
   ipcMain.handle(IPC.designState, () => design.state())
   ipcMain.handle(IPC.designPrepare, () => design.prepare())
+  ipcMain.handle(IPC.devToolsState, () => devTools.state())
+  ipcMain.handle(IPC.devToolsInstallBrowser, () => devTools.installBrowser())
 
   // Handoffs: put work on the team board, or take a teammate's.
   ipcMain.handle(IPC.handoffPlan, async (_e, sessionId: string) => {
@@ -322,7 +346,16 @@ function registerIpc() {
         pushError = err instanceof Error ? err.message : String(err)
       }
     }
-    const state = team.offerHandoff({ id: randomUUID(), title: o.title.slice(0, 160), note: o.note, branch, repo: plan.repo, project: basename(s.cwd), reason: o.reason, createdAt: Date.now() })
+    const state = team.offerHandoff({
+      id: randomUUID(),
+      title: o.title.slice(0, 160),
+      note: o.note,
+      branch,
+      repo: plan.repo,
+      project: basename(s.cwd),
+      reason: o.reason,
+      createdAt: Date.now(),
+    })
     return { state, pushError }
   })
   ipcMain.handle(IPC.handoffWithdraw, (_e, id: string) => team.withdrawHandoff(id))
@@ -360,17 +393,21 @@ function registerIpc() {
   ipcMain.handle(IPC.partnerSetKey, (_e, env: string, value: string | null, share?: boolean) => partners.setKey(env, value, share))
   ipcMain.handle(IPC.partnerSetShare, (_e, env: string, share: boolean) => partners.setShare(env, share))
   ipcMain.handle(IPC.partnerSetDocs, (_e, kitId: string, url: string) => partners.setDocs(kitId, url))
+  ipcMain.handle(IPC.partnerSetMcp, (_e, kitId: string, url: string) => partners.setMcp(kitId, url))
   ipcMain.handle(IPC.partnerAddCustom, (_e, opts) => partners.addCustom(opts))
   ipcMain.handle(IPC.partnerRemoveCustom, (_e, id: string) => partners.removeCustom(id))
   ipcMain.handle(IPC.partnerTest, (_e, kitId: string) => partners.test(kitId))
 }
 
-app.whenReady().then(start).catch((err: unknown) => {
-  // Fail loudly rather than run with no window.
-  console.error(err)
-  dialog.showErrorBox('Harness could not start', err instanceof Error ? (err.stack ?? err.message) : String(err))
-  app.exit(1)
-})
+app
+  .whenReady()
+  .then(start)
+  .catch((err: unknown) => {
+    // Fail loudly rather than run with no window.
+    console.error(err)
+    dialog.showErrorBox('Harness could not start', err instanceof Error ? (err.stack ?? err.message) : String(err))
+    app.exit(1)
+  })
 
 async function start() {
   // Windows only shows notifications for apps with an AppUserModelID (matches appId in electron-builder.yml).
@@ -383,7 +420,8 @@ async function start() {
     file: join(app.getPath('userData'), 'partner-keys.json'),
     // Keychain (macOS) / DPAPI (Windows) when available. Without one (some Linux setups) the key is
     // kept in an owner-only file instead: it goes into the project's .env in plain text anyway.
-    encrypt: (v) => (safeStorage.isEncryptionAvailable() ? `enc:${safeStorage.encryptString(v).toString('base64')}` : `plain:${Buffer.from(v).toString('base64')}`),
+    encrypt: (v) =>
+      safeStorage.isEncryptionAvailable() ? `enc:${safeStorage.encryptString(v).toString('base64')}` : `plain:${Buffer.from(v).toString('base64')}`,
     decrypt: (stored) => {
       try {
         if (stored.startsWith('plain:')) return Buffer.from(stored.slice(6), 'base64').toString('utf8')
@@ -394,7 +432,11 @@ async function start() {
     },
     projectDir: () => settings.get().eventProject ?? undefined,
     extraDirs: () => settings.get().handoffDirs,
-    push: (state) => broadcast(IPC.partnersPush, state),
+    push: (state) => {
+      broadcast(IPC.partnersPush, state)
+      // A key set or removed changes which partner servers sessions get.
+      devTools.publish()
+    },
   })
   bus.subscribe((e) => store.record(e))
   // Dev servers an agent starts announce their URL in command output; offer them in Preview.
@@ -413,7 +455,7 @@ async function start() {
       const hf = mode !== 'off' && (present || mode === 'always') ? hackforgeGuide(present) : undefined
       const loaded = design.plugins().filter((p) => p.source === 'builtin' || p.source === 'installed')
       const ds = designGuide({ impeccable: loaded.some((p) => p.key === 'impeccable'), uiUxProMax: loaded.some((p) => p.key === 'uiUxProMax') })
-      return [hf, ds].filter(Boolean).join('\n\n') || undefined
+      return [hf, ds, devTools.guide(cwd)].filter(Boolean).join('\n\n') || undefined
     },
     // Every session (unless HackForge is off) gets the plugin, so /hackforge:init works in a new folder too.
     // Its hooks do nothing outside HackForge projects. The design skills (impeccable, UI/UX Pro Max) come too.
@@ -428,6 +470,7 @@ async function start() {
     hackforgeLean,
     teamRadar: (abs) => team?.radarFor(abs),
     extraEnv: (cwd) => ({ ...design.env(), ...partners.envFor(cwd) }),
+    mcp: (cwd) => ({ servers: devTools.mcpServers(cwd), allow: devTools.allowedTools() }),
     getEnv: () => {
       const key = settings.getApiKey()
       return agentEnv(key ? { ANTHROPIC_API_KEY: key } : {})
@@ -449,7 +492,8 @@ async function start() {
       return s ? { title: s.title, project: projectName(s.cwd) } : null
     },
     notificationsEnabled: () => settings.get().notifications,
-    onAlert: (kind, title, body) => void phone.alert(kind, title, body, { tags: [kind === 'approvals' ? 'raised_hand' : 'white_check_mark'], priority: kind === 'approvals' ? 4 : 3 }),
+    onAlert: (kind, title, body) =>
+      void phone.alert(kind, title, body, { tags: [kind === 'approvals' ? 'raised_hand' : 'white_check_mark'], priority: kind === 'approvals' ? 4 : 3 }),
   })
   presence.createTray()
   installMenu()
@@ -466,7 +510,13 @@ async function start() {
     hackforge: async (dir) => {
       const s = await readHackforge(dir, hackforgePlugin)
       if (!s.present) return undefined
-      return { phase: s.state.phase, milestone: s.state.milestone, mockScore: s.verify?.mockScore ?? s.state.latestMockScore, loopIteration: s.loop?.iteration, loopActive: s.loop?.active }
+      return {
+        phase: s.state.phase,
+        milestone: s.state.milestone,
+        mockScore: s.verify?.mockScore ?? s.state.latestMockScore,
+        loopIteration: s.loop?.iteration,
+        loopActive: s.loop?.active,
+      }
     },
     push: (state) => {
       for (const w of BrowserWindow.getAllWindows()) w.webContents.send(IPC.teamPush, state)
@@ -482,10 +532,14 @@ async function start() {
     onConflicts: (list) => {
       const c = list[0]
       const others = c.members.filter((m) => m.id !== settings.get().teamMemberId).map((m) => m.name)
-      const title = list.length > 1 ? `${list.length} files are being changed by two people` : `${others.join(' and ')} is also changing ${c.path.split('/').pop()}`
+      const title =
+        list.length > 1 ? `${list.length} files are being changed by two people` : `${others.join(' and ')} is also changing ${c.path.split('/').pop()}`
       const body =
         list.length > 1
-          ? list.slice(0, 3).map((x) => x.path).join(', ')
+          ? list
+              .slice(0, 3)
+              .map((x) => x.path)
+              .join(', ')
           : `${c.overlap === 'lines' ? 'Same lines: merging will conflict.' : 'Different parts of the file.'} Agree who merges first.`
       presence.notifyApp(title, body)
       void phone.alert('team', title, body, { tags: ['warning'] })
@@ -496,7 +550,10 @@ async function start() {
     },
     onLimitReached: (resetsAt) => {
       const at = resetsAt ? new Date(resetsAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : undefined
-      void phone.alert('limits', 'Claude usage limit reached', `${at ? `Resets ${at}. ` : ''}Hand off to a teammate, or queue messages to run at the reset.`, { tags: ['hourglass'], priority: 4 })
+      void phone.alert('limits', 'Claude usage limit reached', `${at ? `Resets ${at}. ` : ''}Hand off to a teammate, or queue messages to run at the reset.`, {
+        tags: ['hourglass'],
+        priority: 4,
+      })
     },
   })
   team.start()

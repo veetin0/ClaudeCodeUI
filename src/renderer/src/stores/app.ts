@@ -1,7 +1,7 @@
 import { create } from 'zustand'
 import { produce } from 'immer'
 import type { HarnessEvent, PermissionMode } from '@shared/events'
-import type { AppSettings, PermissionDecision, SessionSummary } from '@shared/ipc'
+import type { AppSettings, PermissionDecision, SessionSummary, SettingsPatch } from '@shared/ipc'
 import type { Composition, PreviewState, ProjectInfo } from '@shared/preview'
 import { ipcErrorMessage } from '@/lib/time'
 import { AUTO_MODEL } from '@shared/usageSaver'
@@ -114,7 +114,7 @@ interface AppState {
   toggleTerminalPanel(): void
   setTerminalHeight(h: number): void
   saveApiKey(key: string | null): Promise<void>
-  updateSettings(patch: Partial<Omit<AppSettings, 'hasApiKey' | 'hasElevenLabsKey'>>): Promise<void>
+  updateSettings(patch: SettingsPatch): Promise<void>
 }
 
 const api = () => window.harness

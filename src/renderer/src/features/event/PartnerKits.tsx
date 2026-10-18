@@ -38,8 +38,8 @@ export function PartnerKits() {
           ) : (
             'the event project’s .env once you link one'
           )}{' '}
-          and every Claude session in the project, and Claude gets a kit note per partner in <code>challenge/partners/</code> with the variable names, install command and a working
-          example. Share a key and teammates get it too, encrypted with your team code.
+          and every Claude session in the project, and Claude gets a kit note per partner in <code>challenge/partners/</code> with the variable names, install
+          command and a working example. Share a key and teammates get it too, encrypted with your team code.
         </p>
         {state.writeError && <div className="selectable mt-2 text-[12px] text-red-500">{state.writeError}</div>}
         {error && <div className="selectable mt-2 text-[12px] text-red-500">{error}</div>}
@@ -79,12 +79,19 @@ function KitCard({ kit, state }: { kit: PartnerKit; state: PartnersState }) {
           {kit.name}
         </button>
         {kit.unverified && (
-          <span className="rounded-full bg-amber-500/10 px-1.5 text-[10.5px] text-amber-700 dark:text-amber-300" title="Some details weren’t publicly confirmed before the event">
+          <span
+            className="rounded-full bg-amber-500/10 px-1.5 text-[10.5px] text-amber-700 dark:text-amber-300"
+            title="Some details weren’t publicly confirmed before the event"
+          >
             check at the event
           </span>
         )}
         {kit.custom && (
-          <button onClick={() => void run(() => window.harness.partnerRemoveCustom(kit.id))} title="Remove this API" className="ml-auto text-muted hover:text-red-500">
+          <button
+            onClick={() => void run(() => window.harness.partnerRemoveCustom(kit.id))}
+            title="Remove this API"
+            className="ml-auto text-muted hover:text-red-500"
+          >
             <Trash2 className="size-3.5" />
           </button>
         )}
@@ -96,6 +103,18 @@ function KitCard({ kit, state }: { kit: PartnerKit; state: PartnersState }) {
         ))}
       </div>
       {(kit.unverified || kit.custom) && <DocsField kitId={kit.id} value={state.docs[kit.id] ?? kit.docs ?? ''} />}
+      {(kit.unverified || kit.custom) && <McpField kitId={kit.id} value={state.mcp[kit.id] ?? ''} />}
+      {kit.mcp && !state.mcp[kit.id] && (
+        <div className="mt-1.5 text-[11px] text-muted">
+          <span className="font-medium text-fg">MCP server</span> {kit.mcp.kind === 'http' ? `hosted by ${kit.name}` : 'bundled with Harness'}: sessions in this
+          project get its <code>mcp__{kit.id}__*</code> tools
+          {kit.keys.every((k) => state.keys[k.env])
+            ? '.'
+            : kit.mcp.kind === 'http' && kit.mcp.keyless
+              ? ' (rate-limited until the key is set).'
+              : ' once the keys are set.'}
+        </div>
+      )}
       <div className="mt-2 flex flex-wrap items-center gap-2 text-[11.5px]">
         {kit.checkable && (
           <button
@@ -107,7 +126,10 @@ function KitCard({ kit, state }: { kit: PartnerKit; state: PartnersState }) {
           </button>
         )}
         {check && (
-          <span className={cn('flex items-center gap-1', check.ok ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-500')} title={new Date(check.at).toLocaleString()}>
+          <span
+            className={cn('flex items-center gap-1', check.ok ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-500')}
+            title={new Date(check.at).toLocaleString()}
+          >
             {check.ok ? <Check className="size-3" /> : <X className="size-3" />} {check.message}
           </span>
         )}
@@ -135,7 +157,21 @@ function KitCard({ kit, state }: { kit: PartnerKit; state: PartnersState }) {
   )
 }
 
-function KeyField({ env, label, secret, placeholder, state, inTeam }: { env: string; label: string; secret: boolean; placeholder?: string; state: PartnersState; inTeam: boolean }) {
+function KeyField({
+  env,
+  label,
+  secret,
+  placeholder,
+  state,
+  inTeam,
+}: {
+  env: string
+  label: string
+  secret: boolean
+  placeholder?: string
+  state: PartnersState
+  inTeam: boolean
+}) {
   const run = usePartners((s) => s.run)
   const info = state.keys[env]
   const [value, setValue] = useState('')
@@ -150,7 +186,8 @@ function KeyField({ env, label, secret, placeholder, state, inTeam }: { env: str
         {info?.source === 'team' && <span className="text-emerald-600 dark:text-emerald-400">from {info.from}</span>}
         {info?.source === 'me' && inTeam && (
           <label className="ml-auto flex items-center gap-1 text-muted" title="Teammates get this key too (encrypted with your team code)">
-            <input type="checkbox" checked={info.share} onChange={(e) => void run(() => window.harness.partnerSetShare(env, e.target.checked))} /> share with team
+            <input type="checkbox" checked={info.share} onChange={(e) => void run(() => window.harness.partnerSetShare(env, e.target.checked))} /> share with
+            team
           </label>
         )}
       </div>
@@ -169,7 +206,11 @@ function KeyField({ env, label, secret, placeholder, state, inTeam }: { env: str
           </button>
         ) : (
           info?.source === 'me' && (
-            <button onClick={() => void run(() => window.harness.partnerSetKey(env, null))} title="Remove this key" className="rounded-md px-1.5 text-muted hover:bg-black/5 hover:text-red-500 dark:hover:bg-white/10">
+            <button
+              onClick={() => void run(() => window.harness.partnerSetKey(env, null))}
+              title="Remove this key"
+              className="rounded-md px-1.5 text-muted hover:bg-black/5 hover:text-red-500 dark:hover:bg-white/10"
+            >
               <X className="size-3.5" />
             </button>
           )
@@ -190,6 +231,26 @@ function DocsField({ kitId, value }: { kitId: string; value: string }) {
         onChange={(e) => setV(e.target.value)}
         onBlur={() => v.trim() !== value && void run(() => window.harness.partnerSetDocs(kitId, v))}
         placeholder="https://… (from their booth or Discord)"
+        className="selectable mt-0.5 w-full rounded-md border border-line bg-surface-2 px-2 py-1 text-[11.5px] outline-none focus:border-[var(--accent)]/60"
+      />
+    </label>
+  )
+}
+
+function McpField({ kitId, value }: { kitId: string; value: string }) {
+  const run = usePartners((s) => s.run)
+  const [v, setV] = useState(value)
+  return (
+    <label className="mt-1.5 block text-[11px]">
+      <span className="font-medium">MCP server URL</span>{' '}
+      <span className="text-muted">
+        (sessions get its <code>mcp__{kitId}__*</code> tools; a secret key above is sent as a Bearer token)
+      </span>
+      <input
+        value={v}
+        onChange={(e) => setV(e.target.value)}
+        onBlur={() => v.trim() !== value && void run(() => window.harness.partnerSetMcp(kitId, v))}
+        placeholder="https://… (if they announce one)"
         className="selectable mt-0.5 w-full rounded-md border border-line bg-surface-2 px-2 py-1 text-[11.5px] outline-none focus:border-[var(--accent)]/60"
       />
     </label>
@@ -222,7 +283,10 @@ function AddCustom() {
   const field = 'selectable rounded-md border border-line bg-surface-2 px-2 py-1 text-[12px] outline-none focus:border-[var(--accent)]/60'
   if (!openForm)
     return (
-      <button onClick={() => setOpenForm(true)} className="flex items-center gap-1.5 rounded-lg border border-dashed border-line px-3 py-2 text-[12px] text-muted hover:text-fg">
+      <button
+        onClick={() => setOpenForm(true)}
+        className="flex items-center gap-1.5 rounded-lg border border-dashed border-line px-3 py-2 text-[12px] text-muted hover:text-fg"
+      >
         <Plus className="size-3.5" /> Add another API (one that turned up at the event)
       </button>
     )
@@ -239,14 +303,16 @@ function AddCustom() {
       <button
         disabled={!name.trim()}
         onClick={() =>
-          void run(() => window.harness.partnerAddCustom({ name, env: env || `${name.toUpperCase().replace(/[^A-Z0-9]+/g, '_')}_API_KEY`, docs })).then((ok) => {
-            if (ok) {
-              setOpenForm(false)
-              setName('')
-              setEnv('')
-              setDocs('')
-            }
-          })
+          void run(() => window.harness.partnerAddCustom({ name, env: env || `${name.toUpperCase().replace(/[^A-Z0-9]+/g, '_')}_API_KEY`, docs })).then(
+            (ok) => {
+              if (ok) {
+                setOpenForm(false)
+                setName('')
+                setEnv('')
+                setDocs('')
+              }
+            },
+          )
         }
         className="rounded-md bg-[var(--accent)] px-3 py-1 text-[12px] font-medium text-white hover:brightness-110 disabled:opacity-40"
       >

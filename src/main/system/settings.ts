@@ -1,17 +1,20 @@
 import { app, safeStorage } from 'electron'
 import { existsSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
-import type { AppSettings } from '@shared/ipc'
+import type { AppSettings, SettingsPatch } from '@shared/ipc'
 import { DEFAULT_USAGE_SAVER } from '@shared/usageSaver'
 import { DEFAULT_PHONE_ALERTS, newAlertTopic } from '@shared/alerts'
 import { DEFAULT_DESIGN_SKILLS } from '@shared/design'
+import { DEFAULT_DEV_TOOLS } from '@shared/devtools'
 import { randomBytes } from 'node:crypto'
 
-interface StoredSettings extends Omit<AppSettings, 'hasApiKey' | 'hasElevenLabsKey'> {
+interface StoredSettings extends Omit<AppSettings, 'hasApiKey' | 'hasElevenLabsKey' | 'hasContext7Key'> {
   /** API key encrypted with the macOS Keychain-backed safeStorage, base64. */
   apiKeyEnc?: string
   /** ElevenLabs key for pitch narration, encrypted the same way. */
   elevenLabsKeyEnc?: string
+  /** Context7 key (library docs), encrypted the same way. */
+  context7KeyEnc?: string
 }
 
 const DEFAULTS: StoredSettings = {
@@ -29,6 +32,7 @@ const DEFAULTS: StoredSettings = {
   resetQueue: { enabled: true, keepAwake: true },
   handoffDirs: [],
   designSkills: DEFAULT_DESIGN_SKILLS,
+  devTools: DEFAULT_DEV_TOOLS,
 }
 
 export class SettingsStore {
@@ -48,6 +52,7 @@ export class SettingsStore {
           phoneAlerts: { ...DEFAULT_PHONE_ALERTS, ...stored.phoneAlerts },
           resetQueue: { ...DEFAULTS.resetQueue, ...stored.resetQueue },
           designSkills: { ...DEFAULT_DESIGN_SKILLS, ...stored.designSkills },
+          devTools: { ...DEFAULT_DEV_TOOLS, ...stored.devTools },
         }
       } catch {
         // Corrupt settings: fall back to defaults rather than refusing to start.
@@ -62,11 +67,16 @@ export class SettingsStore {
 
   get(): AppSettings {
     this.ensureTopic()
-    const { apiKeyEnc, elevenLabsKeyEnc, ...rest } = this.data
-    return { ...rest, hasApiKey: Boolean(apiKeyEnc), hasElevenLabsKey: Boolean(elevenLabsKeyEnc) }
+    const { apiKeyEnc, elevenLabsKeyEnc, context7KeyEnc, ...rest } = this.data
+    return {
+      ...rest,
+      hasApiKey: Boolean(apiKeyEnc),
+      hasElevenLabsKey: Boolean(elevenLabsKeyEnc),
+      hasContext7Key: Boolean(context7KeyEnc || process.env.CONTEXT7_API_KEY),
+    }
   }
 
-  update(patch: Partial<Omit<AppSettings, 'hasApiKey' | 'hasElevenLabsKey'>>): AppSettings {
+  update(patch: SettingsPatch): AppSettings {
     this.data = { ...this.data, ...patch }
     this.save()
     return this.get()
@@ -109,6 +119,24 @@ export class SettingsStore {
       }
     }
     return process.env.ELEVENLABS_API_KEY || undefined
+  }
+
+  setContext7Key(key: string | null) {
+    if (!key?.trim()) delete this.data.context7KeyEnc
+    else if (safeStorage.isEncryptionAvailable()) this.data.context7KeyEnc = safeStorage.encryptString(key.trim()).toString('base64')
+    else throw new Error('Secure storage is unavailable; set CONTEXT7_API_KEY in your shell instead.')
+    this.save()
+  }
+
+  getContext7Key(): string | undefined {
+    if (this.data.context7KeyEnc) {
+      try {
+        return safeStorage.decryptString(Buffer.from(this.data.context7KeyEnc, 'base64'))
+      } catch {
+        // Fall through to the environment.
+      }
+    }
+    return process.env.CONTEXT7_API_KEY || undefined
   }
 
   private save() {

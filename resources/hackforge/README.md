@@ -78,6 +78,10 @@ rules-lawyer · researcher · possibilities-scout · solution-architect · judge
 
 When [impeccable](https://github.com/pbakaus/impeccable) and [ui-ux-pro-max](https://github.com/nextlevelbuilder/ui-ux-pro-max-skill) are available (the Harness app loads both into every session; or install them as plugins), build writes one `DESIGN.md` design system before frontend work (style picked with ui-ux-pro-max), frontend builders work by impeccable's rules, and `tools design-scan` records impeccable's anti-pattern findings as evidence for the verifier, the judges and the UI rubric. Without them, nothing changes.
 
+## Dev tools (optional)
+
+With browser tools (the Harness app's built-in Playwright, `mcp__browser__*`, or your own Playwright MCP) the verifier walks the demo path click by click and saves screenshots as evidence, and frontend builders check their screens in a real browser. With Context7 (`mcp__context7__*`) builders look up current library and SDK docs instead of guessing APIs.
+
 ## Stopping the loop
 
 `touch .hackforge/STOP_LOOP` (PowerShell: `New-Item .hackforge/STOP_LOOP`) — only you can do this; agents are blocked from it.

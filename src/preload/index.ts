@@ -86,6 +86,7 @@ const api: HarnessApi = {
   challengeDelete: (id) => ipcRenderer.invoke(IPC.challengeDelete, id),
   challengeChoose: (id) => ipcRenderer.invoke(IPC.challengeChoose, id),
   setElevenLabsKey: (key) => ipcRenderer.invoke(IPC.setElevenLabsKey, key),
+  setContext7Key: (key) => ipcRenderer.invoke(IPC.setContext7Key, key),
   pitchState: () => ipcRenderer.invoke(IPC.pitchState),
   pitchScaffold: (name) => ipcRenderer.invoke(IPC.pitchScaffold, name),
   pitchSave: (script) => ipcRenderer.invoke(IPC.pitchSave, script),
@@ -131,6 +132,7 @@ const api: HarnessApi = {
   partnerSetKey: (env, value, share) => ipcRenderer.invoke(IPC.partnerSetKey, env, value, share),
   partnerSetShare: (env, share) => ipcRenderer.invoke(IPC.partnerSetShare, env, share),
   partnerSetDocs: (kitId, url) => ipcRenderer.invoke(IPC.partnerSetDocs, kitId, url),
+  partnerSetMcp: (kitId, url) => ipcRenderer.invoke(IPC.partnerSetMcp, kitId, url),
   partnerAddCustom: (opts) => ipcRenderer.invoke(IPC.partnerAddCustom, opts),
   partnerRemoveCustom: (id) => ipcRenderer.invoke(IPC.partnerRemoveCustom, id),
   partnerTest: (kitId) => ipcRenderer.invoke(IPC.partnerTest, kitId),
@@ -148,6 +150,13 @@ const api: HarnessApi = {
     const l = (_: unknown, s: import('../shared/design').DesignState) => cb(s)
     ipcRenderer.on(IPC.designPush, l)
     return () => ipcRenderer.removeListener(IPC.designPush, l)
+  },
+  devToolsState: () => ipcRenderer.invoke(IPC.devToolsState),
+  devToolsInstallBrowser: () => ipcRenderer.invoke(IPC.devToolsInstallBrowser),
+  onDevTools: (cb) => {
+    const l = (_: unknown, s: import('../shared/devtools').DevToolsState) => cb(s)
+    ipcRenderer.on(IPC.devToolsPush, l)
+    return () => ipcRenderer.removeListener(IPC.devToolsPush, l)
   },
   onEvents: (cb) => {
     const listener = (_: unknown, events: HarnessEvent[]) => cb(events)

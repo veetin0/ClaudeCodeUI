@@ -9,7 +9,9 @@ import {
   kitNote,
   mergeEnvFile,
   PARTNER_KITS,
+  resolvePartnerMcp,
   type PartnerKeyInfo,
+  type ResolvedPartnerMcp,
   type PartnerKit,
   type PartnersState,
 } from '@shared/partners'
@@ -19,6 +21,7 @@ interface Stored {
   custom: PartnerKit[]
   checks: PartnersState['checks']
   docs: Record<string, string>
+  mcp: Record<string, string>
 }
 
 export interface PartnerDeps {
@@ -46,7 +49,7 @@ const mask = (env: string, v: string, kits: PartnerKit[]) => {
  * session in that project. Kit notes for Claude go to challenge/partners/.
  */
 export class PartnerService {
-  private data: Stored = { keys: {}, custom: [], checks: {}, docs: {} }
+  private data: Stored = { keys: {}, custom: [], checks: {}, docs: {}, mcp: {} }
   private team: Record<string, { value: string; from: string }> = {}
   private timer?: NodeJS.Timeout
   private writeError?: string
@@ -71,7 +74,7 @@ export class PartnerService {
       const value = this.deps.decrypt(s.enc)
       if (value !== undefined) keys[env] = { source: 'me', share: s.share, preview: mask(env, value, kits) }
     }
-    return { kits, keys, checks: this.data.checks, docs: this.data.docs, project: this.deps.projectDir(), writeError: this.writeError }
+    return { kits, keys, checks: this.data.checks, docs: this.data.docs, mcp: this.data.mcp, project: this.deps.projectDir(), writeError: this.writeError }
   }
 
   /** Every key in effect: yours, then teammates' for the rest. */
@@ -89,9 +92,27 @@ export class PartnerService {
 
   /** Keys for a session in this folder: the event project and handoff folders get them all. */
   envFor(cwd: string): Record<string, string> {
+    return this.inEvent(cwd) ? this.values() : {}
+  }
+
+  private inEvent(cwd: string): boolean {
     const dirs = [this.deps.projectDir(), ...this.deps.extraDirs()].filter((d): d is string => !!d)
     const c = normPath(cwd)
-    return dirs.some((d) => normPath(d) === c || relTo(c, d) !== null) ? this.values() : {}
+    return dirs.some((d) => normPath(d) === c || relTo(c, d) !== null)
+  }
+
+  /**
+   * Partner MCP servers: for a session in this folder (only the event project gets them, like the
+   * keys), or with no folder every kit that has one, ready or still missing keys (for Settings).
+   */
+  mcpServers(cwd?: string): { id: string; name: string; server: ResolvedPartnerMcp | { missing: string[] } }[] {
+    if (cwd !== undefined && !this.inEvent(cwd)) return []
+    const values = this.values()
+    return this.kits().flatMap((kit) => {
+      const server = resolvePartnerMcp(kit, values, this.data.mcp[kit.id])
+      if (!server || (cwd !== undefined && 'missing' in server)) return []
+      return [{ id: kit.id, name: kit.name, server }]
+    })
   }
 
   /** The keys you chose to share, for the team relay (sealed there). */
@@ -140,15 +161,39 @@ export class PartnerService {
     return this.state()
   }
 
+  /** An MCP server URL a partner gave out at the event (empty clears it). */
+  setMcp(kitId: string, url: string): PartnersState {
+    const u = url.trim()
+    if (u && !/^https:\/\//.test(u)) throw new Error('MCP server URL must start with https://')
+    if (u) this.data.mcp[kitId] = u
+    else delete this.data.mcp[kitId]
+    this.save()
+    this.changed()
+    return this.state()
+  }
+
   addCustom(opts: { name: string; env: string; docs?: string }): PartnersState {
     const name = opts.name.trim().slice(0, 60)
     const env = opts.env.trim().toUpperCase()
     if (!name) throw new Error('Give the API a name.')
     if (!ENV_NAME_RE.test(env)) throw new Error('The variable name needs capital letters, digits and _, like ACME_API_KEY.')
-    const id = `custom-${name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'api'}`
+    const id = `custom-${
+      name
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/^-|-$/g, '') || 'api'
+    }`
     if (this.kits().some((k) => k.id === id)) throw new Error(`${name} is already in the list.`)
     const docs = opts.docs?.trim()
-    this.data.custom.push({ id, name, site: docs ?? '', what: 'Added by your team at the event.', keys: [{ env, label: 'API key', secret: true }], docs: docs || undefined, custom: true })
+    this.data.custom.push({
+      id,
+      name,
+      site: docs ?? '',
+      what: 'Added by your team at the event.',
+      keys: [{ env, label: 'API key', secret: true }],
+      docs: docs || undefined,
+      custom: true,
+    })
     this.save()
     this.changed()
     return this.state()
@@ -156,6 +201,7 @@ export class PartnerService {
 
   removeCustom(id: string): PartnersState {
     this.data.custom = this.data.custom.filter((k) => k.id !== id)
+    delete this.data.mcp[id]
     this.save()
     this.changed()
     return this.state()
@@ -202,7 +248,10 @@ export class PartnerService {
       const notes = join(project, 'challenge', 'partners')
       mkdirSync(notes, { recursive: true })
       const kits = this.kits()
-      const files: [string, string][] = [['README.md', kitIndex(kits, ready)], ...kits.filter((k) => k.keys.length).map((k): [string, string] => [`${k.id}.md`, kitNote(k, ready, this.data.docs[k.id])])]
+      const files: [string, string][] = [
+        ['README.md', kitIndex(kits, ready)],
+        ...kits.filter((k) => k.keys.length).map((k): [string, string] => [`${k.id}.md`, kitNote(k, ready, this.data.docs[k.id], this.data.mcp[k.id])]),
+      ]
       for (const [name, content] of files) {
         const p = join(notes, name)
         if (!existsSync(p) || readFileSync(p, 'utf8') !== content) writeFileSync(p, content)
@@ -250,22 +299,47 @@ export async function checkKit(kit: PartnerKit, v: Record<string, string>, f: ty
         return verdict((await req('https://api.openai.com/v1/models', { headers: { authorization: `Bearer ${v.OPENAI_API_KEY}` } })).status)
       case 'featherless':
         if (!v.FEATHERLESS_API_KEY) break
-        return verdict((await req('https://api.featherless.ai/v1/models', { headers: { authorization: `Bearer ${v.FEATHERLESS_API_KEY}` } })).status, 'The API answered with your key')
+        return verdict(
+          (await req('https://api.featherless.ai/v1/models', { headers: { authorization: `Bearer ${v.FEATHERLESS_API_KEY}` } })).status,
+          'The API answered with your key',
+        )
       case 'cloudinary': {
         if (missing.length) break
         const auth = Buffer.from(`${v.CLOUDINARY_API_KEY}:${v.CLOUDINARY_API_SECRET}`).toString('base64')
-        return verdict((await req(`https://api.cloudinary.com/v1_1/${encodeURIComponent(v.CLOUDINARY_CLOUD_NAME)}/ping`, { headers: { authorization: `Basic ${auth}` } })).status)
+        return verdict(
+          (await req(`https://api.cloudinary.com/v1_1/${encodeURIComponent(v.CLOUDINARY_CLOUD_NAME)}/ping`, { headers: { authorization: `Basic ${auth}` } }))
+            .status,
+        )
       }
       case 'aiven':
-        if (!v.AIVEN_TOKEN) return v.DATABASE_URL ? { ok: true, message: 'Service URI saved (database URIs aren’t checked online; your app will connect with it).' } : { ok: false, message: 'Paste the service URI first.' }
+        if (!v.AIVEN_TOKEN)
+          return v.DATABASE_URL
+            ? { ok: true, message: 'Service URI saved (database URIs aren’t checked online; your app will connect with it).' }
+            : { ok: false, message: 'Paste the service URI first.' }
         return verdict((await req('https://api.aiven.io/v1/me', { headers: { authorization: `aivenv1 ${v.AIVEN_TOKEN}` } })).status)
       case 'hostinger':
         if (!v.HOSTINGER_API_TOKEN) break
-        return verdict((await req('https://developers.hostinger.com/api/hosting/v1/websites', { headers: { authorization: `Bearer ${v.HOSTINGER_API_TOKEN}` } })).status)
+        return verdict(
+          (await req('https://developers.hostinger.com/api/hosting/v1/websites', { headers: { authorization: `Bearer ${v.HOSTINGER_API_TOKEN}` } })).status,
+        )
       case 'arduino': {
-        if (!v.ARDUINO_CLIENT_ID || !v.ARDUINO_CLIENT_SECRET) return { ok: false, message: 'Paste the Cloud API client ID and secret first (boards on the table need no key).' }
-        const body = new URLSearchParams({ grant_type: 'client_credentials', client_id: v.ARDUINO_CLIENT_ID, client_secret: v.ARDUINO_CLIENT_SECRET, audience: 'https://api2.arduino.cc/iot' })
-        return verdict((await req('https://api2.arduino.cc/iot/v1/clients/token', { method: 'POST', headers: { 'content-type': 'application/x-www-form-urlencoded' }, body })).status)
+        if (!v.ARDUINO_CLIENT_ID || !v.ARDUINO_CLIENT_SECRET)
+          return { ok: false, message: 'Paste the Cloud API client ID and secret first (boards on the table need no key).' }
+        const body = new URLSearchParams({
+          grant_type: 'client_credentials',
+          client_id: v.ARDUINO_CLIENT_ID,
+          client_secret: v.ARDUINO_CLIENT_SECRET,
+          audience: 'https://api2.arduino.cc/iot',
+        })
+        return verdict(
+          (
+            await req('https://api2.arduino.cc/iot/v1/clients/token', {
+              method: 'POST',
+              headers: { 'content-type': 'application/x-www-form-urlencoded' },
+              body,
+            })
+          ).status,
+        )
       }
       case 'verda': {
         if (missing.length) break

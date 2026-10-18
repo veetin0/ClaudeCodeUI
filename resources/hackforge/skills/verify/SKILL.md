@@ -14,7 +14,7 @@ Launch every agent with its role's model from STATE.md (`${CLAUDE_PLUGIN_ROOT}/r
 - **full**: everything below. Write `"mode": "full"`. The loop can only end as *done* on a full verify.
 
 ## 1. Evidence first
-Run `hackforge:verifier`. Save its report verbatim to `.hackforge/evidence/verifier-latest.md` (and a timestamped copy). Screenshots/frames it captured stay in `.hackforge/evidence/`.
+Run `hackforge:verifier`. Save its report verbatim to `.hackforge/evidence/verifier-latest.md` (and a timestamped copy). Screenshots/frames it captured stay in `.hackforge/evidence/`. With browser tools (the Harness app provides them) the verifier walks the demo path click by click; a step that fails there is a **major** finding, and a demo path nobody could walk is `not_observed`, never a pass.
 
 ## 2. Graders in parallel (read-only, fresh context)
 - `hackforge:compliance-auditor` → every R and D: pass / fail / not_observed.

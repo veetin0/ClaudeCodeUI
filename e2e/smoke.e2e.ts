@@ -149,6 +149,22 @@ describe('Harness (real Electron app)', () => {
     const saved = await page.evaluate(() => window.harness.getSettings())
     expect(saved.designSkills).toEqual({ impeccable: true, uiUxProMax: true, quietDetector: true })
     await shot('07b-design-skills')
+  })
+
+  it('shows the dev tools in Settings: browser and library docs on, partner servers listed', async () => {
+    const browser = page.getByRole('checkbox', { name: /^Browser/ })
+    await browser.scrollIntoViewIfNeeded()
+    expect(await browser.isChecked()).toBe(true)
+    expect(await page.getByRole('checkbox', { name: /^Library docs/ }).isChecked()).toBe(true)
+    expect(await page.getByRole('checkbox', { name: /^Partner servers/ }).isChecked()).toBe(true)
+    // Exa's hosted server works without a key, so it is ready straight away.
+    await page.getByText('Exa · ready').waitFor()
+    const state = await page.evaluate(() => window.harness.devToolsState())
+    expect(state.docs).toEqual({ status: 'ready', keyed: false })
+    expect(state.partners.map((p) => p.id)).toEqual(expect.arrayContaining(['exa', 'cloudinary', 'hostinger']))
+    const saved = await page.evaluate(() => window.harness.getSettings())
+    expect(saved.devTools).toEqual({ browser: true, showBrowser: false, docs: true, partnerServers: true })
+    await shot('07c-dev-tools')
     await page.keyboard.press('Escape')
   })
 

@@ -36,6 +36,62 @@ export interface PartnerKit {
   unverified?: boolean
   /** Added by the team (an API that turned up at the event). */
   custom?: boolean
+  /** The partner's own MCP server, added to sessions in the event project once its keys are set. */
+  mcp?: PartnerMcp
+}
+
+/**
+ * How Harness runs a partner's MCP server. `${ENV}` in headers, args or env is replaced with that key's
+ * value; the server is added only when every referenced key is set (`keyless`: without the key too,
+ * dropping what needs it).
+ */
+export type PartnerMcp =
+  | { kind: 'http'; url: string; headers?: Record<string, string>; keyless?: boolean }
+  /** A server bundled with Harness, run from its node_modules: `module` is the script path inside it. */
+  | { kind: 'bundled'; module: string; args?: string[]; env?: Record<string, string> }
+
+/** A partner server ready to add to a session, with keys filled in. */
+export type ResolvedPartnerMcp =
+  | { kind: 'http'; url: string; headers: Record<string, string>; hosting: 'hosted' | 'event-url' }
+  | { kind: 'bundled'; module: string; args: string[]; env: Record<string, string>; hosting: 'bundled' }
+
+const PLACEHOLDER = /\$\{([A-Z][A-Z0-9_]*)\}/g
+const fill = (v: string, values: Record<string, string>) => v.replace(PLACEHOLDER, (_, env: string) => values[env] ?? '')
+const needs = (v: string) => [...v.matchAll(PLACEHOLDER)].map((m) => m[1])
+
+/**
+ * The MCP server a kit gives sessions, or the keys it still needs. An MCP URL the team pasted at the
+ * event wins over the built-in spec; it gets `Authorization: Bearer <the kit's secret key>` when one is set.
+ */
+export function resolvePartnerMcp(kit: PartnerKit, values: Record<string, string>, eventUrl?: string): ResolvedPartnerMcp | { missing: string[] } | null {
+  if (eventUrl) {
+    const secret = kit.keys.find((k) => k.secret && values[k.env])
+    return { kind: 'http', url: eventUrl, headers: secret ? { Authorization: `Bearer ${values[secret.env]}` } : {}, hosting: 'event-url' }
+  }
+  const m = kit.mcp
+  if (!m) return null
+  if (m.kind === 'http') {
+    const headers: Record<string, string> = {}
+    const missing: string[] = []
+    for (const [h, v] of Object.entries(m.headers ?? {})) {
+      const lack = needs(v).filter((env) => !values[env])
+      if (lack.length) missing.push(...lack)
+      else headers[h] = fill(v, values)
+    }
+    const urlLack = needs(m.url).filter((env) => !values[env])
+    if (urlLack.length || (missing.length && !m.keyless)) return { missing: [...new Set([...urlLack, ...missing])] }
+    return { kind: 'http', url: fill(m.url, values), headers, hosting: 'hosted' }
+  }
+  const all = [...(m.args ?? []), ...Object.values(m.env ?? {})]
+  const missing = [...new Set(all.flatMap(needs).filter((env) => !values[env]))]
+  if (missing.length) return { missing }
+  return {
+    kind: 'bundled',
+    module: m.module,
+    args: (m.args ?? []).map((a) => fill(a, values)),
+    env: Object.fromEntries(Object.entries(m.env ?? {}).map(([k, v]) => [k, fill(v, values)])),
+    hosting: 'bundled',
+  }
 }
 
 export interface PartnerKeyInfo {
@@ -55,6 +111,8 @@ export interface PartnersState {
   checks: Record<string, { ok: boolean; message: string; at: number }>
   /** Docs links the team added (e.g. for a partner whose API turned up at the event). */
   docs: Record<string, string>
+  /** MCP server URLs the team added at the event (e.g. a partner announcing one at the opening). */
+  mcp: Record<string, string>
   /** The event project the keys are written to. */
   project?: string
   writeError?: string
@@ -81,6 +139,8 @@ const { results } = await res.json()`,
     },
     checkable: true,
     notes: ['The key goes in the `x-api-key` header.', '401 means a wrong key, 402 means the account is out of credits.'],
+    // Exa's hosted server works without a key too (rate-limited).
+    mcp: { kind: 'http', url: 'https://mcp.exa.ai/mcp', headers: { 'x-api-key': '${EXA_API_KEY}' }, keyless: true },
   },
   {
     id: 'openai',
@@ -141,7 +201,20 @@ const uploaded = await cloudinary.uploader.upload('demo.jpg', { folder: 'junctio
 console.log(uploaded.secure_url)`,
     },
     checkable: true,
-    notes: ['Harness also writes CLOUDINARY_URL (cloudinary://key:secret@cloud), which the SDKs read by themselves.', 'All three values are on the dashboard under API Keys.'],
+    notes: [
+      'Harness also writes CLOUDINARY_URL (cloudinary://key:secret@cloud), which the SDKs read by themselves.',
+      'All three values are on the dashboard under API Keys.',
+    ],
+    mcp: {
+      kind: 'bundled',
+      module: '@cloudinary/asset-management-mcp/bin/mcp-server.js',
+      args: ['start'],
+      env: {
+        CLOUDINARY_CLOUD_NAME: '${CLOUDINARY_CLOUD_NAME}',
+        CLOUDINARY_API_KEY: '${CLOUDINARY_API_KEY}',
+        CLOUDINARY_API_SECRET: '${CLOUDINARY_API_SECRET}',
+      },
+    },
   },
   {
     id: 'modal',
@@ -171,7 +244,10 @@ def main():
 
 # run it: modal run app.py`,
     },
-    notes: ['The SDK and the `modal` CLI read MODAL_TOKEN_ID and MODAL_TOKEN_SECRET from the environment, so no `modal token set` is needed.', 'There is no quick key check from Harness: `modal run` tells you straight away.'],
+    notes: [
+      'The SDK and the `modal` CLI read MODAL_TOKEN_ID and MODAL_TOKEN_SECRET from the environment, so no `modal token set` is needed.',
+      'There is no quick key check from Harness: `modal run` tells you straight away.',
+    ],
   },
   {
     id: 'aiven',
@@ -179,7 +255,12 @@ def main():
     site: 'https://aiven.io',
     what: 'Managed open-source data services: PostgreSQL, MySQL, Valkey (Redis), Kafka, OpenSearch, ClickHouse.',
     keys: [
-      { env: 'DATABASE_URL', label: 'Service URI (e.g. PostgreSQL)', secret: true, placeholder: 'postgres://avnadmin:…@….aivencloud.com:12345/defaultdb?sslmode=require' },
+      {
+        env: 'DATABASE_URL',
+        label: 'Service URI (e.g. PostgreSQL)',
+        secret: true,
+        placeholder: 'postgres://avnadmin:…@….aivencloud.com:12345/defaultdb?sslmode=require',
+      },
       { env: 'AIVEN_TOKEN', label: 'API token (optional)', secret: true },
     ],
     signup: 'https://console.aiven.io/signup',
@@ -212,6 +293,8 @@ with psycopg.connect(os.environ["DATABASE_URL"]) as conn:
     },
     checkable: true,
     notes: ['Create the token in hPanel → Dev Tools → API. It is shown only once.'],
+    // The npm server takes the API token; the hosted one (mcp.hostinger.com) needs a browser sign-in sessions can't do.
+    mcp: { kind: 'bundled', module: 'hostinger-api-mcp/src/servers/all.js', env: { HOSTINGER_API_TOKEN: '${HOSTINGER_API_TOKEN}' } },
   },
   {
     id: 'arduino',
@@ -256,7 +339,10 @@ arduino-cli upload  --fqbn arduino:avr:uno -p /dev/cu.usbmodem* sketch/`,
     },
     checkable: true,
     unverified: true,
-    notes: ['Credentials come from the console’s Credentials page; the secret is shown once.', 'The token request Harness uses for the check isn’t confirmed; if the check fails, try the key with the SDK before assuming it’s wrong.'],
+    notes: [
+      'Credentials come from the console’s Credentials page; the secret is shown once.',
+      'The token request Harness uses for the check isn’t confirmed; if the check fails, try the key with the SDK before assuming it’s wrong.',
+    ],
   },
   {
     id: 'cala',
@@ -267,7 +353,10 @@ arduino-cli upload  --fqbn arduino:avr:uno -p /dev/cu.usbmodem* sketch/`,
     signup: 'https://console.cala.ai',
     snippet: { lang: 'bash', code: `# Endpoints (from the LangChain integration): POST /v1/knowledge/search, POST /v1/knowledge/query, GET /v1/entities` },
     unverified: true,
-    notes: ['Get the key at console.cala.ai. The base URL and auth header weren’t public before the event: ask at their booth, then tell Claude.', 'LangChain has a Cala retriever that reads CALA_API_KEY.'],
+    notes: [
+      'Get the key at console.cala.ai. The base URL and auth header weren’t public before the event: ask at their booth, then tell Claude.',
+      'LangChain has a Cala retriever that reads CALA_API_KEY.',
+    ],
   },
   ...['ironshard.ai|IRONSHARD', 'atach.dev|ATACH', 'craci.com|CRACI', 'qualiastudios.dev|QUALIA'].map((s): PartnerKit => {
     const [domain, env] = s.split('|')
@@ -305,7 +394,7 @@ export function allPartnerEnvs(kits: PartnerKit[]): string[] {
 export const ENV_NAME_RE = /^[A-Z][A-Z0-9_]{1,63}$/
 
 /** The kit note Claude reads (challenge/partners/<id>.md). Never contains key values. */
-export function kitNote(kit: PartnerKit, ready: string[], docs?: string): string {
+export function kitNote(kit: PartnerKit, ready: string[], docs?: string, mcpUrl?: string): string {
   const lines = [`# ${kit.name}`, '', kit.what, '']
   if (kit.keys.length) {
     lines.push('## Keys (in the project’s .env and every Harness session’s environment)')
@@ -320,8 +409,20 @@ export function kitNote(kit: PartnerKit, ready: string[], docs?: string): string
     lines.push('')
   }
   if (kit.snippet) lines.push('## Minimal example', '', '```' + kit.snippet.lang, kit.snippet.code, '```', '')
+  if (kit.mcp || mcpUrl) {
+    lines.push(
+      '## MCP server',
+      `- Harness sessions in this project get the \`mcp__${kit.id}__*\` tools (${mcpUrl ? 'the MCP URL your team added' : kit.mcp?.kind === 'http' ? 'hosted by the partner' : 'bundled with Harness'}) once the keys above are set and Settings → Dev tools → Partner servers is on.`,
+      '',
+    )
+  }
   if (kit.notes?.length) lines.push('## Notes', ...kit.notes.map((n) => `- ${n}`), '')
-  const links = [docs && `Docs: ${docs}`, kit.docs && kit.docs !== docs && `Docs: ${kit.docs}`, kit.signup && `Keys: ${kit.signup}`, `Site: ${kit.site}`].filter(Boolean)
+  const links = [
+    docs && `Docs: ${docs}`,
+    kit.docs && kit.docs !== docs && `Docs: ${kit.docs}`,
+    kit.signup && `Keys: ${kit.signup}`,
+    `Site: ${kit.site}`,
+  ].filter(Boolean)
   lines.push('## Links', ...links.map((l) => `- ${l}`))
   if (kit.unverified) lines.push('', '_Some details weren’t publicly confirmed before the event; check the docs before relying on them._')
   return lines.join('\n') + '\n'
@@ -358,7 +459,12 @@ export function mergeEnvFile(existing: string, values: Record<string, string>, o
   const start = existing.indexOf(ENV_BLOCK_START)
   const end = existing.indexOf(ENV_BLOCK_END)
   const outside = start >= 0 && end > start ? existing.slice(0, start) + existing.slice(end + ENV_BLOCK_END.length).replace(/^\r?\n/, '') : existing
-  const names = [...order.filter((n) => n in values), ...Object.keys(values).filter((n) => !order.includes(n)).sort()]
+  const names = [
+    ...order.filter((n) => n in values),
+    ...Object.keys(values)
+      .filter((n) => !order.includes(n))
+      .sort(),
+  ]
   if (!names.length) {
     if (outside === existing) return existing
     const rest = outside.replace(/\s*$/, '')

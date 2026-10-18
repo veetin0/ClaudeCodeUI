@@ -1,5 +1,10 @@
 # Changelog
 
+## 2.3.0 — 2026-10-18
+Dev tools from the Harness app (or your own MCP servers). Optional: without them HackForge works as before.
+- **The verifier walks the demo in a real browser:** with browser tools (`mcp__browser__*` from Harness, or `mcp__playwright__*`) it starts the app, clicks through the flow that carries the top criteria, reads console errors and saves named screenshots under `.hackforge/evidence/`. Each step is a check; a failing step is a major finding in verify.
+- **Builders check their screens in a browser** before returning (frontend), and **look APIs up instead of guessing** them with Context7 (`mcp__context7__*`), the partner kit's docs link, or WebFetch.
+
 ## 2.2.0 — 2026-10-17
 Design skills (impeccable and ui-ux-pro-max), which the Harness app loads into every session. Everything is optional: without them HackForge works as before.
 - **One design system per project:** build writes `DESIGN.md` (palette, type, spacing, components, what to avoid) before frontend work, picking the style with ui-ux-pro-max when it's available, and freezes it with the contracts so parallel frontend builders share one look.

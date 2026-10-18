@@ -12,6 +12,7 @@ import type { QueuedPrompt, ResetQueueState } from './resetQueue'
 import type { HandoffPlan } from './handoff'
 import type { PartnersState } from './partners'
 import type { DesignSkillsSettings, DesignState } from './design'
+import type { DevToolsSettings, DevToolsState } from './devtools'
 import type { TeamState as TeamStateT } from './team'
 
 export interface StartSessionOptions {
@@ -51,9 +52,7 @@ export interface FileDiff {
   hasBaseline: boolean
 }
 
-export type PermissionDecision =
-  | { behavior: 'allow'; always?: boolean; updatedInput?: Record<string, unknown> }
-  | { behavior: 'deny'; message?: string }
+export type PermissionDecision = { behavior: 'allow'; always?: boolean; updatedInput?: Record<string, unknown> } | { behavior: 'deny'; message?: string }
 
 export interface ObserveStatus {
   /** Watching ~/.claude/projects for sessions started outside Harness. */
@@ -101,7 +100,14 @@ export interface AppSettings {
   handoffDirs: string[]
   /** impeccable and UI/UX Pro Max, loaded into every session. */
   designSkills: DesignSkillsSettings
+  /** Browser (Playwright), library docs (Context7) and partner MCP servers in sessions. */
+  devTools: DevToolsSettings
+  /** A Context7 key is stored (higher rate limits for library docs). */
+  hasContext7Key: boolean
 }
+
+/** Settings the renderer may change directly (stored keys have their own setters). */
+export type SettingsPatch = Partial<Omit<AppSettings, 'hasApiKey' | 'hasElevenLabsKey' | 'hasContext7Key'>>
 
 export type EventProgressPatch = { done?: Record<string, boolean>; partner?: { name: string; keys?: boolean; kit?: boolean } }
 
@@ -131,8 +137,9 @@ export interface HarnessApi {
   pickDirectory(): Promise<string | null>
   getSettings(): Promise<AppSettings>
   setApiKey(key: string | null): Promise<void>
-  updateSettings(patch: Partial<Omit<AppSettings, 'hasApiKey' | 'hasElevenLabsKey'>>): Promise<AppSettings>
+  updateSettings(patch: SettingsPatch): Promise<AppSettings>
   setElevenLabsKey(key: string | null): Promise<AppSettings>
+  setContext7Key(key: string | null): Promise<AppSettings>
   getObserveStatus(): Promise<ObserveStatus>
   setObserveEnabled(enabled: boolean): Promise<ObserveStatus>
   /** Adds status hooks to ~/.claude/settings.json (after backing it up). */
@@ -204,7 +211,13 @@ export interface HarnessApi {
   /** What handing this session off would do (branch, files, remote). */
   handoffPlan(sessionId: string): Promise<HandoffPlan & { member: string | null }>
   /** Pushes a snapshot of the folder (when asked and possible) and puts the handoff on the team board. */
-  handoffOffer(opts: { sessionId: string; title: string; note: string; reason: 'limit' | 'manual'; push: boolean }): Promise<{ state: TeamStateT; pushError?: string }>
+  handoffOffer(opts: {
+    sessionId: string
+    title: string
+    note: string
+    reason: 'limit' | 'manual'
+    push: boolean
+  }): Promise<{ state: TeamStateT; pushError?: string }>
   handoffWithdraw(id: string): Promise<TeamStateT>
   /** Checks the work out next to the project and returns the folder and the first message. */
   handoffTake(id: string): Promise<{ dir: string; prompt: string }>
@@ -221,18 +234,28 @@ export interface HarnessApi {
   partnerSetKey(env: string, value: string | null, share?: boolean): Promise<PartnersState>
   partnerSetShare(env: string, share: boolean): Promise<PartnersState>
   partnerSetDocs(kitId: string, url: string): Promise<PartnersState>
+  /** An MCP server URL a partner gave out at the event (empty clears it). */
+  partnerSetMcp(kitId: string, url: string): Promise<PartnersState>
   partnerAddCustom(opts: { name: string; env: string; docs?: string }): Promise<PartnersState>
   partnerRemoveCustom(id: string): Promise<PartnersState>
   partnerTest(kitId: string): Promise<PartnersState>
   onPartners(cb: (state: PartnersState) => void): () => void
   /** Click to change: lets you click an element in the preview; its description and a screenshot, or null. */
-  previewPick(url: string, frame: { x: number; y: number; width: number; height: number }): Promise<{ element: import('./pick').PickedElement; image?: import('./events').ImageAttachment } | null>
+  previewPick(
+    url: string,
+    frame: { x: number; y: number; width: number; height: number },
+  ): Promise<{ element: import('./pick').PickedElement; image?: import('./events').ImageAttachment } | null>
   previewPickCancel(url: string): Promise<void>
   /** Which design plugins sessions get, and whether impeccable's engine is ready. */
   designState(): Promise<DesignState>
   /** Downloads impeccable's engine if it isn't on this computer yet. */
   designPrepare(): Promise<DesignState>
   onDesign(cb: (state: DesignState) => void): () => void
+  /** Browser, library docs and partner servers sessions get. */
+  devToolsState(): Promise<DevToolsState>
+  /** Downloads Chromium for the browser tools when there's no Chrome or Edge. */
+  devToolsInstallBrowser(): Promise<DevToolsState>
+  onDevTools(cb: (state: DevToolsState) => void): () => void
   /** Tokens per day and model, top sessions, the saver's work and plan readings. */
   usageHistory(days: number): Promise<import('./usageHistory').UsageHistory>
   /** Events arrive batched (~30fps) to keep the renderer smooth during heavy streaming. */
@@ -305,6 +328,7 @@ export const IPC = {
   teamSetLocal: 'team:set-local',
   teamPush: 'team:push',
   setElevenLabsKey: 'settings:elevenlabs-key',
+  setContext7Key: 'settings:context7-key',
   pitchState: 'pitch:state',
   pitchScaffold: 'pitch:scaffold',
   pitchSave: 'pitch:save',
@@ -327,6 +351,7 @@ export const IPC = {
   partnerSetKey: 'partners:set-key',
   partnerSetShare: 'partners:set-share',
   partnerSetDocs: 'partners:set-docs',
+  partnerSetMcp: 'partners:set-mcp',
   partnerAddCustom: 'partners:add-custom',
   partnerRemoveCustom: 'partners:remove-custom',
   partnerTest: 'partners:test',
@@ -337,5 +362,8 @@ export const IPC = {
   designState: 'design:state',
   designPrepare: 'design:prepare',
   designPush: 'design:push',
+  devToolsState: 'devtools:state',
+  devToolsInstallBrowser: 'devtools:install-browser',
+  devToolsPush: 'devtools:push',
   events: 'events',
 } as const

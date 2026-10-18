@@ -1,7 +1,16 @@
 import { randomUUID } from 'node:crypto'
 import { statSync, type FSWatcher } from 'node:fs'
 import { isAbsolute, join } from 'node:path'
-import { query, type CanUseTool, type HookCallbackMatcher, type Query, type SDKRateLimitInfo, type SDKUserMessage, type SdkPluginConfig } from '@anthropic-ai/claude-agent-sdk'
+import {
+  query,
+  type CanUseTool,
+  type HookCallbackMatcher,
+  type McpServerConfig,
+  type Query,
+  type SDKRateLimitInfo,
+  type SDKUserMessage,
+  type SdkPluginConfig,
+} from '@anthropic-ai/claude-agent-sdk'
 import { EXEC_TOOLS, type AgentId, type HarnessEvent, type ImageAttachment, type PermissionMode, type SessionStatus, type TodoItem } from '@shared/events'
 import { toVisual } from '@shared/visuals'
 import { normPath } from '@shared/paths'
@@ -43,6 +52,8 @@ export interface AgentServiceDeps {
   teamRadar?: (absPath: string) => { text: string; names: string[] } | undefined
   /** Extra environment for sessions in this folder (partner API keys in the event project). */
   extraEnv?: (cwd: string) => Record<string, string>
+  /** Extra MCP servers for sessions in this folder (dev tools, partner servers) and the ones allowed without asking. */
+  mcp?: (cwd: string) => { servers: Record<string, McpServerConfig>; allow: string[] }
 }
 
 /** Plan usage windows, as reported by the CLI's usage call (null fields when unknown). */
@@ -101,9 +112,7 @@ class AgentSession {
     resume?: ResumeInfo,
   ) {
     const now = Date.now()
-    this.summary = resume
-      ? { ...resume.summary, updatedAt: now }
-      : { id: randomUUID(), cwd: opts.cwd, title: '', createdAt: now, updatedAt: now, costUsd: 0 }
+    this.summary = resume ? { ...resume.summary, updatedAt: now } : { id: randomUUID(), cwd: opts.cwd, title: '', createdAt: now, updatedAt: now, costUsd: 0 }
     const id = this.summary.id
     this.normalizer = new EventNormalizer(id, Date.now, this.summary.cwd)
     this.permissions = new PermissionBroker((e) => this.emit(e), id)
@@ -180,6 +189,7 @@ class AgentSession {
     }
     const factory = this.deps.queryFactory ?? query
     const harnessUrl = this.deps.telemetry?.register(this.telemetryToken, (p) => this.onTelemetry(p))
+    const mcp = this.deps.mcp?.(opts.cwd)
 
     this.q = factory({
       prompt: this.input,
@@ -196,8 +206,8 @@ class AgentSession {
             .join('\n\n'),
         },
         plugins: this.deps.plugins?.(opts.cwd),
-        mcpServers: { harness: createHarnessServer() },
-        allowedTools: ['mcp__harness'],
+        mcpServers: { ...mcp?.servers, harness: createHarnessServer() },
+        allowedTools: ['mcp__harness', ...(mcp?.allow ?? [])],
         // Same CLAUDE.md, settings, MCP servers and skills as the terminal CLI.
         settingSources: ['user', 'project', 'local'],
         includePartialMessages: true,
@@ -326,7 +336,10 @@ class AgentSession {
       const r = (await fn.call(q, { skipBehaviors: true })) as {
         subscription_type?: string | null
         rate_limits_available?: boolean
-        rate_limits?: { five_hour?: { utilization: number | null; resets_at: string | null } | null; seven_day?: { utilization: number | null; resets_at: string | null } | null } | null
+        rate_limits?: {
+          five_hour?: { utilization: number | null; resets_at: string | null } | null
+          seven_day?: { utilization: number | null; resets_at: string | null } | null
+        } | null
       }
       const w = (x?: { utilization: number | null; resets_at: string | null } | null) => (x ? { utilization: x.utilization, resetsAt: x.resets_at } : x)
       return {
@@ -388,7 +401,14 @@ class AgentSession {
     this.setStatus('running')
     this.delivery = this.delivery
       .then(() => this.deliver(text, id, fresh, images))
-      .catch((err: unknown) => this.emit({ type: 'error', message: `Couldn’t send the message: ${err instanceof Error ? err.message : String(err)}`, sessionId: this.id, ts: Date.now() }))
+      .catch((err: unknown) =>
+        this.emit({
+          type: 'error',
+          message: `Couldn’t send the message: ${err instanceof Error ? err.message : String(err)}`,
+          sessionId: this.id,
+          ts: Date.now(),
+        }),
+      )
   }
 
   private async deliver(text: string, id: ReturnType<typeof randomUUID>, fresh: boolean, images?: ImageAttachment[]) {
@@ -401,7 +421,10 @@ class AgentSession {
     }
     if (this.disposed || this.status === 'closed') return
     const content = images?.length
-      ? [...images.map((im) => ({ type: 'image' as const, source: { type: 'base64' as const, media_type: im.mediaType, data: im.data } })), { type: 'text' as const, text }]
+      ? [
+          ...images.map((im) => ({ type: 'image' as const, source: { type: 'base64' as const, media_type: im.mediaType, data: im.data } })),
+          { type: 'text' as const, text },
+        ]
       : text
     this.input.push({
       type: 'user',

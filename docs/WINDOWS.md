@@ -63,7 +63,7 @@ clones the repo.
 
 ## 5. HackForge on Windows
 
-HackForge is built into Harness (2.2.0), and HackForge 1.1 and later handle Windows themselves:
+HackForge is built into Harness (2.3.0), and HackForge 1.1 and later handle Windows themselves:
 - a launcher finds a working Python and skips the Microsoft Store stub
 - hooks still run if Git converted scripts to CRLF
 - Git Bash is used instead of WSL's bash
