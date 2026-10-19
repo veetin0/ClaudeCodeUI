@@ -123,7 +123,7 @@ describe('Harness (real Electron app)', () => {
   })
 
   it('shows the Crew card, and a teammate joins it from a terminal with harness-crew', async () => {
-    const command = await page.locator('code', { hasText: 'npx harness-crew HT1.' }).first().innerText()
+    const command = await page.locator('code', { hasText: 'npx -y harness-crew HT1.' }).first().innerText()
     const code = /HT1\.[\w-]+/.exec(command)![0]
     // The real CLI (crew/dist, built by test:e2e), with the same throwaway Claude config and fake key.
     crewProc = spawn(

@@ -230,7 +230,7 @@ By default it only pushes when you're away (screen locked or idle). Each laptop 
 Only the driver runs Harness. Teammates lend their Claude from a terminal, with no app to install:
 
 ```bash
-npx harness-crew HT1.xxxxxxxx      # the command on the Team board's Crew card, with your join code
+npx -y harness-crew HT1.xxxxxxxx      # the command on the Team board's Crew card, with your join code
 ```
 
 From then on nobody else types anything. You start the project and run HackForge as usual; your Claude splits the work and hands missions to the crew, and their Claudes work in parallel on their own laptops and Claude plans.

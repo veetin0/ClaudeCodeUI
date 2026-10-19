@@ -262,7 +262,7 @@ export class CrewWorker {
       const pushError = await this.git.checkPush(dir, crewBranch(me.name, 'access-check'))
       this.repo = { url, base: repo.base, name: repo.name, dir, canPush: !pushError, checkedAt: this.now() }
       this.repoProblem = pushError
-        ? `Can't push to ${repo.url} (${pushError}). Accept the GitHub invite, then sign git in on this laptop (gh auth login, or GitHub Desktop).`
+        ? `Can't push to ${repo.url} (${pushError}). Accept the GitHub invite, then sign git in on this laptop: gh auth login (HTTPS, log in with a web browser).`
         : undefined
       this.emit(pushError ? { kind: 'repo', state: 'problem', text: this.repoProblem! } : { kind: 'repo', state: 'ready', text: dir })
     } catch (err) {

@@ -5,7 +5,7 @@ Lend your Claude to your team's project, from a terminal. No app to install.
 Your team lead runs [Harness](https://github.com/veetin0/ClaudeCodeUI) and starts the project. Their Claude splits the work into missions and hands them to the crew: each teammate's Claude, running on their own laptop and their own Claude plan. Missions go to whoever has the most usage left. You run one command and leave the window open. That's all.
 
 ```bash
-npx harness-crew HT1.xxxxxxxx      # the join code from the lead's Team board
+npx -y harness-crew HT1.xxxxxxxx      # the command from the lead's Crew card
 ```
 
 ```
@@ -28,7 +28,7 @@ harness-crew 0.1.0  lend your Claude to the team
 ## What you need (once)
 
 - **Node 20 or newer** ([nodejs.org](https://nodejs.org)).
-- **git with access to the team's repository.** Accept the lead's GitHub invite, then sign git in: `gh auth login`, or GitHub Desktop. harness-crew checks it can push before it takes missions and tells the lead if it can't.
+- **git with access to the team's repository.** Accept the lead's GitHub invite, then sign git in with the GitHub CLI: `gh auth login` (choose HTTPS and log in with a web browser). harness-crew checks it can push before it takes missions and tells the lead if it can't.
 - **A Claude account** (Pro or Max). The first run asks you to sign in; a browser window opens. Missions use your plan's usage, not the lead's.
 
 The first `npx` run downloads about 80 MB (it includes Claude Code, so you don't have to install it separately).

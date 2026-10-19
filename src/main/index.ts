@@ -536,7 +536,7 @@ async function start() {
       const st = team.state()
       const c = st.config
       // Hosting: the address teammates reach now (the laptop's IP can change), as the board shows it.
-      return c ? `npx harness-crew ${makeJoinCode(c.hosting && st.hostUrls?.[0] ? st.hostUrls[0] : c.relayUrl, c.token)}` : undefined
+      return c ? `npx -y harness-crew ${makeJoinCode(c.hosting && st.hostUrls?.[0] ? st.hostUrls[0] : c.relayUrl, c.token)}` : undefined
     },
     notify: (title, body, kind) => {
       presence.notifyApp(title, body)

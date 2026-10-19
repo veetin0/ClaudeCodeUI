@@ -35,7 +35,8 @@ export function CrewPanel({ joinCode, now }: { joinCode: string; now: number }) 
   const settings = useApp((s) => s.settings)
   const updateSettings = useApp((s) => s.updateSettings)
   if (!crew.available) return null
-  const command = `npx harness-crew ${joinCode}`
+  // -y: no "Ok to proceed?" question on the first run.
+  const command = `npx -y harness-crew ${joinCode}`
   const active = crew.missions.filter((m) => !isFinal(m.state))
   return (
     <div className="mb-3 rounded-xl border border-line p-3">
