@@ -1,4 +1,4 @@
-import { createSdkMcpServer, tool } from '@anthropic-ai/claude-agent-sdk'
+import { createSdkMcpServer, tool, type SdkMcpToolDefinition } from '@anthropic-ai/claude-agent-sdk'
 import { z } from 'zod'
 
 const ok = (text = 'Shown in Harness.') => ({ content: [{ type: 'text' as const, text }] })
@@ -8,9 +8,11 @@ const ok = (text = 'Shown in Harness.') => ({ content: [{ type: 'text' as const,
  * charts, images, tables and status lines on their cards in the Harness UI.
  *
  * The handlers do nothing but acknowledge: the UI reads the tool *inputs* from the SDK message
- * stream, where each call already carries the calling agent's id.
+ * stream, where each call already carries the calling agent's id. `extra` adds session-specific
+ * tools (the driver's crew tools).
  */
-export function createHarnessServer() {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export function createHarnessServer(extra: SdkMcpToolDefinition<any>[] = []) {
   return createSdkMcpServer({
     name: 'harness',
     version: '1.0.0',
@@ -68,6 +70,7 @@ export function createHarnessServer() {
         },
         { alwaysLoad: true },
       ),
+      ...extra,
     ],
   })
 }

@@ -104,6 +104,8 @@ export interface AppSettings {
   devTools: DevToolsSettings
   /** A Context7 key is stored (higher rate limits for library docs). */
   hasContext7Key: boolean
+  /** Crew reports and messages start a turn in the session that sent the mission. */
+  crewAutoReports: boolean
 }
 
 /** Settings the renderer may change directly (stored keys have their own setters). */
@@ -256,6 +258,12 @@ export interface HarnessApi {
   /** Downloads Chromium for the browser tools when there's no Chrome or Edge. */
   devToolsInstallBrowser(): Promise<DevToolsState>
   onDevTools(cb: (state: DevToolsState) => void): () => void
+  /** Crew mode: teammates' Claudes (harness-crew), their missions and questions. */
+  crewState(): Promise<import('./crew').CrewState>
+  /** Answers a crew Claude's permission question. */
+  crewAnswer(askId: string, allow: boolean, always?: boolean): Promise<void>
+  crewCancel(missionId: string): Promise<void>
+  onCrew(cb: (state: import('./crew').CrewState) => void): () => void
   /** Tokens per day and model, top sessions, the saver's work and plan readings. */
   usageHistory(days: number): Promise<import('./usageHistory').UsageHistory>
   /** Events arrive batched (~30fps) to keep the renderer smooth during heavy streaming. */
@@ -365,5 +373,9 @@ export const IPC = {
   devToolsState: 'devtools:state',
   devToolsInstallBrowser: 'devtools:install-browser',
   devToolsPush: 'devtools:push',
+  crewState: 'crew:state',
+  crewAnswer: 'crew:answer',
+  crewCancel: 'crew:cancel',
+  crewPush: 'crew:push',
   events: 'events',
 } as const

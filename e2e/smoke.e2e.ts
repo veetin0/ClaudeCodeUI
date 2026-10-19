@@ -7,6 +7,7 @@
  * profile or ~/.claude), ports are random, and Claude is pointed at a dead endpoint with a fake key,
  * so even an accidental session couldn't reach the API. The test also checks that no session ran.
  */
+import { spawn, type ChildProcess } from 'node:child_process'
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync } from 'node:fs'
 import { homedir, tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
@@ -24,6 +25,9 @@ let tmp: string
 let userData: string
 let claudeDir: string
 let eventDir: string
+let env: Record<string, string>
+let crewProc: ChildProcess | undefined
+let crewOut = ''
 
 const shot = (name: string) => page.screenshot({ path: join(SHOTS, `${name}.png`) })
 
@@ -36,7 +40,7 @@ beforeAll(async () => {
   eventDir = join(tmp, 'junction-project')
   for (const d of [userData, claudeDir]) mkdirSync(d)
 
-  const env: Record<string, string> = {}
+  env = {}
   for (const [k, v] of Object.entries(process.env)) if (v !== undefined) env[k] = v
   // Load the built renderer, not a dev server; run as a real app, not as Node.
   delete env.ELECTRON_RENDERER_URL
@@ -61,6 +65,7 @@ beforeAll(async () => {
 }, 60_000)
 
 afterAll(async () => {
+  crewProc?.kill('SIGKILL')
   await app?.close()
   if (tmp) rmSync(tmp, { recursive: true, force: true })
 })
@@ -115,6 +120,26 @@ describe('Harness (real Electron app)', () => {
     await page.getByText('hosting the relay').waitFor()
     await page.getByRole('button', { name: /Copy join code/ }).waitFor()
     await shot('05-team-hosted')
+  })
+
+  it('shows the Crew card, and a teammate joins it from a terminal with harness-crew', async () => {
+    const command = await page.locator('code', { hasText: 'npx harness-crew HT1.' }).first().innerText()
+    const code = /HT1\.[\w-]+/.exec(command)![0]
+    // The real CLI (crew/dist, built by test:e2e), with the same throwaway Claude config and fake key.
+    crewProc = spawn(
+      process.execPath,
+      [join(ROOT, 'crew', 'dist', 'cli.mjs'), code, '--name', 'Bea', '--home', join(tmp, 'crew-home'), '--dir', join(tmp, 'crew-projects')],
+      {
+        env,
+        stdio: ['ignore', 'pipe', 'pipe'],
+      },
+    )
+    crewProc.stdout?.on('data', (d) => (crewOut += d))
+    crewProc.stderr?.on('data', (d) => (crewOut += d))
+    await page.getByText('Waiting for your project · terminal').waitFor({ timeout: 30_000 })
+    expect(crewOut).toMatch(/Joined the team as Bea/)
+    await shot('05b-crew-joined')
+    crewProc.kill('SIGINT')
   })
 
   it('creates pitch/ and shows the script editor', async () => {

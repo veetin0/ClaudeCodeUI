@@ -1,5 +1,12 @@
 # Changelog
 
+## 2.4.0 — 2026-10-19
+Crew mode with the Harness app: teammates lend their Claude from a terminal (`npx harness-crew <join code>`), and the driver's Claude hands them missions. Optional: without a crew HackForge works as before.
+- **Build hands tasks to the crew** (`mcp__harness__crew_dispatch`): a builder brief per task, one mission per crew member, never two on the same owned paths, bigger tasks to whoever has more usage left; local builders take the rest. `mcp__harness__crew_wait` collects the reports; contracts record `owner: crew:<name>`.
+- **The loop runs fixes in parallel** on crew members, merging each `origin/crew/...` branch after the scope check.
+- **The integrator fetches crew branches** from the remote; **builders running as crew missions** report through `mcp__crew__report` and ask the lead through `mcp__crew__message`.
+- `/hackforge:team` explains crew mode as the zero-setup option for teammates.
+
 ## 2.3.0 — 2026-10-18
 Dev tools from the Harness app (or your own MCP servers). Optional: without them HackForge works as before.
 - **The verifier walks the demo in a real browser:** with browser tools (`mcp__browser__*` from Harness, or `mcp__playwright__*`) it starts the app, clicks through the flow that carries the top criteria, reads console errors and saves named screenshots under `.hackforge/evidence/`. Each step is a check; a failing step is a major finding in verify.

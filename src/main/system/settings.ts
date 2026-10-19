@@ -33,6 +33,7 @@ const DEFAULTS: StoredSettings = {
   handoffDirs: [],
   designSkills: DEFAULT_DESIGN_SKILLS,
   devTools: DEFAULT_DEV_TOOLS,
+  crewAutoReports: true,
 }
 
 export class SettingsStore {

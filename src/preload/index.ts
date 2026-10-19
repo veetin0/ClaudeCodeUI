@@ -158,6 +158,14 @@ const api: HarnessApi = {
     ipcRenderer.on(IPC.devToolsPush, l)
     return () => ipcRenderer.removeListener(IPC.devToolsPush, l)
   },
+  crewState: () => ipcRenderer.invoke(IPC.crewState),
+  crewAnswer: (askId, allow, always) => ipcRenderer.invoke(IPC.crewAnswer, askId, allow, always),
+  crewCancel: (missionId) => ipcRenderer.invoke(IPC.crewCancel, missionId),
+  onCrew: (cb) => {
+    const l = (_: unknown, s: import('../shared/crew').CrewState) => cb(s)
+    ipcRenderer.on(IPC.crewPush, l)
+    return () => ipcRenderer.removeListener(IPC.crewPush, l)
+  },
   onEvents: (cb) => {
     const listener = (_: unknown, events: HarnessEvent[]) => cb(events)
     ipcRenderer.on(IPC.events, listener)

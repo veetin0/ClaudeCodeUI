@@ -82,6 +82,10 @@ When [impeccable](https://github.com/pbakaus/impeccable) and [ui-ux-pro-max](htt
 
 With browser tools (the Harness app's built-in Playwright, `mcp__browser__*`, or your own Playwright MCP) the verifier walks the demo path click by click and saves screenshots as evidence, and frontend builders check their screens in a real browser. With Context7 (`mcp__context7__*`) builders look up current library and SDK docs instead of guessing APIs.
 
+## Crew mode (Harness)
+
+Only the driver runs the Harness app. Teammates run `npx harness-crew <join code>` in a terminal and leave it open. Build and the improvement loop then hand tasks to their Claudes as missions: each runs on that teammate's Claude plan, on its own branch, with the builder rules, and the integrator merges the pushed branches. Missions go to whoever has the most usage left; a mission whose plan runs out moves to someone else.
+
 ## Stopping the loop
 
 `touch .hackforge/STOP_LOOP` (PowerShell: `New-Item .hackforge/STOP_LOOP`) — only you can do this; agents are blocked from it.

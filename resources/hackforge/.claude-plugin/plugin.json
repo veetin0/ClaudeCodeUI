@@ -1,7 +1,7 @@
 {
   "name": "hackforge",
   "displayName": "HackForge",
-  "version": "2.3.0",
+  "version": "2.4.0",
   "description": "Hackathon and coding-challenge harness: reads a challenge/ folder, researches, scouts every kind of deliverable (code, 3D, audio, video, hardware), designs and judges options, builds in parallel worktrees under per-milestone contracts, and runs a locked-checks improvement loop with guardrails, a read-only advisor and independent graders. Integrity, guardrails and review ideas adapted from Claude Code Harness (MIT).",
   "author": {
     "name": "Veeti Nurmikoski",

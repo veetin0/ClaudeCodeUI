@@ -25,19 +25,31 @@ import {
 } from '@shared/team'
 import { relTo } from '@shared/paths'
 import { scanChanges } from './changes'
-import { openSecrets, sealSecrets } from './secrets'
+import { openCrew, openSecrets, sealCrew, sealSecrets } from './secrets'
 import { createRelay } from '../../../relay/relay.mjs'
 import type { PlanUsageReading } from '../agent/AgentService'
 
 const run = promisify(execFile)
 export const RELAY_PORT = 47830
 const SYNC_MS = 5000
+/** While crew missions run: messages and permission questions shouldn't wait 5 s per hop. */
+const FAST_SYNC_MS = 2000
 const USAGE_POLL_MS = 120_000
 /** How often the project's changed files are rescanned for the conflict radar. */
 const SCAN_MS = 10_000
 
 /** Teammates' shared partner keys: env name → value and who shared it. */
 export type TeamKeys = Record<string, { value: string; from: string }>
+
+/** Crew mode rides on the team sync: a payload out, teammates' payloads in. */
+export interface CrewHook {
+  /** What this laptop adds to its status (sealed with the team key before it leaves). */
+  payload(): unknown
+  /** Teammates' crew payloads after each sync (opened; not yet sanitised). */
+  received(entries: { member: MemberStatus; payload: unknown }[]): void
+  /** Sync faster (missions are running or waiting). */
+  fast(): boolean
+}
 
 export interface TeamDeps {
   getConfig(): TeamConfig | null
@@ -64,6 +76,7 @@ export interface TeamDeps {
   today?(): MemberStatus['today']
   /** This laptop just hit its usage limit. */
   onLimitReached?(resetsAt?: number): void
+  crew?: CrewHook
 }
 
 /**
@@ -98,13 +111,15 @@ export class TeamService {
   private seenHandoffs = new Set<string>()
   private synced = false
   private teamKeysJson = '{}'
+  private lastAttempt = 0
 
   constructor(private readonly deps: TeamDeps) {}
 
   start() {
-    const c = this.deps.getConfig()
     // Hosting (re)starts inside sync(), so a port that was busy at launch is retried every round.
-    this.timer = setInterval(() => void this.sync(), SYNC_MS)
+    this.timer = setInterval(() => {
+      if (Date.now() - this.lastAttempt >= (this.deps.crew?.fast() ? FAST_SYNC_MS : SYNC_MS)) void this.sync()
+    }, 1000)
     this.usageTimer = setInterval(() => void this.pollUsage(), USAGE_POLL_MS)
     void this.sync()
   }
@@ -116,7 +131,8 @@ export class TeamService {
       connected: this.connected,
       error: this.error,
       lastSync: this.lastSync,
-      members: this.members,
+      // Crew payloads are sealed and large; the board reads crew state from its own channel.
+      members: this.members.map(({ crew: _crew, ...m }) => m),
       hostUrls: c?.hosting ? lanUrls(this.port) : undefined,
       myUsage: this.myUsage(),
       conflicts: c ? findConflicts(this.members, c.memberId) : [],
@@ -173,6 +189,7 @@ export class TeamService {
     this.knownConflicts.clear()
     this.seenHandoffs.clear()
     this.publishTeamKeys({})
+    this.deps.crew?.received([])
     this.deps.push(this.state())
     return this.state()
   }
@@ -280,6 +297,15 @@ export class TeamService {
       for (const [k, v] of Object.entries(openSecrets(c.token, m.secrets) ?? {})) team[k] ??= { value: v, from: m.name }
     }
     this.publishTeamKeys(team)
+
+    if (this.deps.crew) {
+      const entries = this.members.flatMap((m) => {
+        if (m.id === c.memberId || !m.crew) return []
+        const payload = openCrew(c.token, m.crew)
+        return payload ? [{ member: m, payload }] : []
+      })
+      this.deps.crew.received(entries)
+    }
   }
 
   private publishTeamKeys(keys: TeamKeys) {
@@ -332,6 +358,11 @@ export class TeamService {
 
   // ---------- sync ----------
 
+  /** Something to tell the team: sync in a moment rather than at the next round. */
+  nudge() {
+    this.soon()
+  }
+
   private soon() {
     clearTimeout(this.kick)
     this.kick = setTimeout(() => void this.sync(), 800)
@@ -352,6 +383,7 @@ export class TeamService {
     const project = this.deps.projectDir()
     const now = Date.now()
     const secrets = this.deps.sharedSecrets?.() ?? {}
+    const crew = this.deps.crew?.payload()
     return {
       id: c.memberId,
       name: c.memberName,
@@ -365,6 +397,7 @@ export class TeamService {
       took: c.took,
       secrets: Object.keys(secrets).length ? sealSecrets(c.token, secrets) : undefined,
       today: this.deps.today?.(),
+      crew: crew ? sealCrew(c.token, crew) : undefined,
       updatedAt: now,
     }
   }
@@ -373,6 +406,7 @@ export class TeamService {
     if (this.inflight) return this.inflight
     const c = this.deps.getConfig()
     if (!c) return Promise.resolve()
+    this.lastAttempt = Date.now()
     this.inflight = this.syncWith(c).finally(() => (this.inflight = undefined))
     return this.inflight
   }

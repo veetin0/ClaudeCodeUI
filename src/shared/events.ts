@@ -64,7 +64,8 @@ export type HarnessEvent =
   | E<'session.resumed', { claudeSessionId: string }>
   | E<'status', { status: SessionStatus }>
   /** `images`: pictures sent with the message (e.g. a screenshot from Click to change). */
-  | E<'user.message', { id: string; text: string; images?: ImageAttachment[] }>
+  /** `via: 'crew'`: a crew report or teammate's message Harness delivered, not something you typed. */
+  | E<'user.message', { id: string; text: string; images?: ImageAttachment[]; via?: 'crew' }>
   | E<'text.delta', { agentId: AgentId; text: string }>
   | E<'thinking.delta', { agentId: AgentId; text: string }>
   | E<'assistant.text', { id: string; agentId: AgentId; text: string }>

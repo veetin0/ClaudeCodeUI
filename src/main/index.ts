@@ -37,6 +37,10 @@ import { cancelPick, pickElement, type Rect } from './preview/pick'
 import { DesignService } from './design/DesignService'
 import { designGuide } from '@shared/design'
 import { DevToolsService } from './devtools/DevToolsService'
+import { CrewDriver } from './crew/CrewDriver'
+import { driverCrewTools } from './crew/crewTools'
+import { CREW_GUIDE } from '@shared/crew'
+import { makeJoinCode } from '@shared/team'
 
 // Tests (and a second, throwaway profile) can keep everything out of the real profile folder.
 if (process.env.HARNESS_USER_DATA) app.setPath('userData', process.env.HARNESS_USER_DATA)
@@ -64,6 +68,7 @@ let team: TeamService
 let pitch: PitchService
 let partners: PartnerService
 let resetQueue: ResetQueue
+let crew: CrewDriver
 const design = new DesignService({
   appPath: app.getAppPath(),
   claudeDir,
@@ -270,11 +275,13 @@ function registerIpc() {
   ipcMain.handle(IPC.eventLink, (_e, dir: string | null) => {
     settings.update({ eventProject: dir })
     partners.changed()
+    void crew.setProject(dir ?? undefined)
     return eventService.state()
   })
   ipcMain.handle(IPC.eventSetup, async (_e, dir: string) => {
     settings.update({ eventProject: dir })
     settings.addRecentProject(dir)
+    void crew.setProject(dir)
     const state = await eventService.setup(dir)
     partners.changed()
     return state
@@ -302,7 +309,11 @@ function registerIpc() {
   ipcMain.handle(IPC.teamState, () => team.state())
   ipcMain.handle(IPC.teamCreate, (_e, opts: { name: string; host: boolean; relayUrl?: string }) => team.create(opts))
   ipcMain.handle(IPC.teamJoin, (_e, code: string, name: string) => team.join(code, name))
-  ipcMain.handle(IPC.teamLeave, () => team.leave())
+  ipcMain.handle(IPC.teamLeave, async () => {
+    const s = await team.leave()
+    crew.reset()
+    return s
+  })
   ipcMain.handle(IPC.teamUpdate, (_e, patch: { name?: string; focus?: string }) => team.update(patch))
   ipcMain.on(IPC.teamSetLocal, (_e, local) => team.setLocal(local))
   ipcMain.handle(IPC.getSettings, () => settings.get())
@@ -317,8 +328,12 @@ function registerIpc() {
       else broadcast(IPC.designPush, design.state())
     }
     if ('devTools' in patch || 'eventProject' in patch) devTools.publish()
+    if ('crewAutoReports' in patch) crew.publish()
     return next
   })
+  ipcMain.handle(IPC.crewState, () => crew.state())
+  ipcMain.handle(IPC.crewAnswer, (_e, askId: string, allow: boolean, always?: boolean) => crew.answer(askId, allow, always))
+  ipcMain.handle(IPC.crewCancel, (_e, missionId: string) => void crew.stop(missionId, 'Stopped from the Team board.'))
   ipcMain.handle(IPC.designState, () => design.state())
   ipcMain.handle(IPC.designPrepare, () => design.prepare())
   ipcMain.handle(IPC.devToolsState, () => devTools.state())
@@ -455,7 +470,8 @@ async function start() {
       const hf = mode !== 'off' && (present || mode === 'always') ? hackforgeGuide(present) : undefined
       const loaded = design.plugins().filter((p) => p.source === 'builtin' || p.source === 'installed')
       const ds = designGuide({ impeccable: loaded.some((p) => p.key === 'impeccable'), uiUxProMax: loaded.some((p) => p.key === 'uiUxProMax') })
-      return [hf, ds, devTools.guide(cwd)].filter(Boolean).join('\n\n') || undefined
+      const cg = settings.get().team ? CREW_GUIDE : undefined
+      return [hf, ds, devTools.guide(cwd), cg].filter(Boolean).join('\n\n') || undefined
     },
     // Every session (unless HackForge is off) gets the plugin, so /hackforge:init works in a new folder too.
     // Its hooks do nothing outside HackForge projects. The design skills (impeccable, UI/UX Pro Max) come too.
@@ -471,6 +487,8 @@ async function start() {
     teamRadar: (abs) => team?.radarFor(abs),
     extraEnv: (cwd) => ({ ...design.env(), ...partners.envFor(cwd) }),
     mcp: (cwd) => ({ servers: devTools.mcpServers(cwd), allow: devTools.allowedTools() }),
+    // Crew tools for every session: they explain how to get a team when there's none.
+    harnessTools: (s) => driverCrewTools(crew.toolsFor(s.id, s.cwd)),
     getEnv: () => {
       const key = settings.getApiKey()
       return agentEnv(key ? { ANTHROPIC_API_KEY: key } : {})
@@ -499,6 +517,32 @@ async function start() {
   installMenu()
   if (process.platform === 'darwin' && !app.isPackaged) app.dock?.setIcon(appIcon)
   if (!settings.get().teamMemberId) settings.update({ teamMemberId: newMemberId() })
+  crew = new CrewDriver({
+    me: () => {
+      const c = settings.get().team
+      return c ? { id: c.memberId, name: c.memberName } : null
+    },
+    myUsage: () => team.state().myUsage,
+    file: join(app.getPath('userData'), 'crew-missions.json'),
+    nudge: () => team.nudge(),
+    push: (state) => broadcast(IPC.crewPush, state),
+    deliver: (sessionId, text) => {
+      if (!agents.status(sessionId)) return false
+      agents.send(sessionId, text, undefined, 'crew')
+      return true
+    },
+    autoReports: () => settings.get().crewAutoReports,
+    joinCommand: () => {
+      const st = team.state()
+      const c = st.config
+      // Hosting: the address teammates reach now (the laptop's IP can change), as the board shows it.
+      return c ? `npx harness-crew ${makeJoinCode(c.hosting && st.hostUrls?.[0] ? st.hostUrls[0] : c.relayUrl, c.token)}` : undefined
+    },
+    notify: (title, body, kind) => {
+      presence.notifyApp(title, body)
+      if (kind !== 'done') void phone.alert('team', title, body, { tags: [kind === 'ask' ? 'speech_balloon' : 'warning'], priority: kind === 'ask' ? 4 : 3 })
+    },
+  })
   team = new TeamService({
     port: envPort('HARNESS_RELAY_PORT'),
     getConfig: () => settings.get().team,
@@ -548,6 +592,7 @@ async function start() {
       presence.notifyApp(`${h.fromName} handed off work`, `${h.title} · open the Team board to take it over`)
       void phone.alert('team', `${h.fromName} handed off work`, h.title, { tags: ['handshake'], priority: 4 })
     },
+    crew: { payload: () => crew.payload(), received: (entries) => crew.received(entries), fast: () => crew.fast() },
     onLimitReached: (resetsAt) => {
       const at = resetsAt ? new Date(resetsAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : undefined
       void phone.alert('limits', 'Claude usage limit reached', `${at ? `Resets ${at}. ` : ''}Hand off to a teammate, or queue messages to run at the reset.`, {
@@ -557,6 +602,7 @@ async function start() {
     },
   })
   team.start()
+  void crew.setProject(settings.get().eventProject ?? undefined)
   resetQueue = new ResetQueue({
     file: join(app.getPath('userData'), 'reset-queue.json'),
     settings: () => settings.get().resetQueue,

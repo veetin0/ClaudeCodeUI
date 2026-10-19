@@ -10,6 +10,8 @@ Everyone runs their own Claude Code with HackForge installed, on their own machi
 
 **Using the Harness app?** Its event-mode Team board already shares each laptop's branch, sessions, HackForge phase, loop status and remaining Claude usage through a relay — use it to see who has usage left before claiming. This skill handles the git side (claims, handoffs, driver), which the board doesn't.
 
+**Crew mode (Harness).** The simplest way to team up: only the driver runs Harness and HackForge. Teammates run `npx harness-crew <join code>` in a terminal and leave it open; build and the loop then hand tasks to their Claudes as missions (on their own Claude plans and branches), and the integrator merges the pushed branches. Nobody else types anything. The rest of this skill is for teams where everyone drives their own Claude.
+
 **One driver.** Only the driver runs `/hackforge:perfect` or `/hackforge:run`; two loops on one repo fight each other. Everyone else works on claimed tasks on their own branch, and the driver merges them.
 
 ## join

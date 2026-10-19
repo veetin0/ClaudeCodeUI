@@ -9,6 +9,7 @@ import {
   type Query,
   type SDKRateLimitInfo,
   type SDKUserMessage,
+  type SdkMcpToolDefinition,
   type SdkPluginConfig,
 } from '@anthropic-ai/claude-agent-sdk'
 import { EXEC_TOOLS, type AgentId, type HarnessEvent, type ImageAttachment, type PermissionMode, type SessionStatus, type TodoItem } from '@shared/events'
@@ -54,6 +55,16 @@ export interface AgentServiceDeps {
   extraEnv?: (cwd: string) => Record<string, string>
   /** Extra MCP servers for sessions in this folder (dev tools, partner servers) and the ones allowed without asking. */
   mcp?: (cwd: string) => { servers: Record<string, McpServerConfig>; allow: string[] }
+  /** More tools on the `harness` server for this session (crew tools for the driver). */
+  harnessTools?: (session: { id: string; cwd: string }) => SdkMcpToolDefinition<any>[] // eslint-disable-line @typescript-eslint/no-explicit-any
+}
+
+/** Per-session additions on top of the per-folder ones (a crew mission's prompt, tools and allowlist). */
+export interface SessionExtras {
+  append?: string
+  mcpServers?: Record<string, McpServerConfig>
+  allow?: string[]
+  env?: Record<string, string>
 }
 
 /** Plan usage windows, as reported by the CLI's usage call (null fields when unknown). */
@@ -110,6 +121,7 @@ class AgentSession {
     private readonly deps: AgentServiceDeps,
     opts: StartSessionOptions,
     resume?: ResumeInfo,
+    private readonly extras: SessionExtras = {},
   ) {
     const now = Date.now()
     this.summary = resume ? { ...resume.summary, updatedAt: now } : { id: randomUUID(), cwd: opts.cwd, title: '', createdAt: now, updatedAt: now, costUsd: 0 }
@@ -154,6 +166,10 @@ class AgentSession {
 
   get isRunning() {
     return this.status !== 'closed'
+  }
+
+  get currentStatus(): SessionStatus {
+    return this.status
   }
 
   private emit(e: HarnessEvent | HarnessEvent[]) {
@@ -201,13 +217,18 @@ class AgentSession {
         systemPrompt: {
           type: 'preset',
           preset: 'claude_code',
-          append: [HARNESS_TOOL_GUIDE, this.deps.promptAppend?.(opts.cwd), saverCfg?.enabled && saverCfg.leanOutput ? LEAN_OUTPUT_PROMPT : undefined]
+          append: [
+            HARNESS_TOOL_GUIDE,
+            this.deps.promptAppend?.(opts.cwd),
+            this.extras.append,
+            saverCfg?.enabled && saverCfg.leanOutput ? LEAN_OUTPUT_PROMPT : undefined,
+          ]
             .filter(Boolean)
             .join('\n\n'),
         },
         plugins: this.deps.plugins?.(opts.cwd),
-        mcpServers: { ...mcp?.servers, harness: createHarnessServer() },
-        allowedTools: ['mcp__harness', ...(mcp?.allow ?? [])],
+        mcpServers: { ...mcp?.servers, ...this.extras.mcpServers, harness: createHarnessServer(this.deps.harnessTools?.({ id: this.id, cwd: opts.cwd })) },
+        allowedTools: ['mcp__harness', ...(mcp?.allow ?? []), ...(this.extras.allow ?? [])],
         // Same CLAUDE.md, settings, MCP servers and skills as the terminal CLI.
         settingSources: ['user', 'project', 'local'],
         includePartialMessages: true,
@@ -217,7 +238,7 @@ class AgentSession {
         canUseTool,
         hooks: this.hooks(),
         abortController: this.abort,
-        env: { ...this.deps.getEnv(), ...this.deps.extraEnv?.(opts.cwd), ...(harnessUrl ? { HARNESS_URL: harnessUrl } : {}) },
+        env: { ...this.deps.getEnv(), ...this.deps.extraEnv?.(opts.cwd), ...this.extras.env, ...(harnessUrl ? { HARNESS_URL: harnessUrl } : {}) },
         pathToClaudeCodeExecutable: this.deps.claudeExecutablePath,
         stderr: (data) => {
           this.stderrTail.push(data)
@@ -392,12 +413,12 @@ class AgentSession {
     })
   }
 
-  send(text: string, images?: ImageAttachment[]) {
+  send(text: string, images?: ImageAttachment[], via?: 'crew') {
     if (this.status === 'closed') throw new Error('Session is closed')
     const id = randomUUID()
     // A message sent while Claude is working joins that turn; the saver only prepares fresh turns.
     const fresh = this.status === 'idle'
-    this.emit({ type: 'user.message', id, text, ...(images?.length ? { images } : {}), sessionId: this.id, ts: Date.now() })
+    this.emit({ type: 'user.message', id, text, ...(images?.length ? { images } : {}), ...(via ? { via } : {}), sessionId: this.id, ts: Date.now() })
     this.setStatus('running')
     this.delivery = this.delivery
       .then(() => this.deliver(text, id, fresh, images))
@@ -472,9 +493,9 @@ export class AgentService {
 
   constructor(private readonly deps: AgentServiceDeps) {}
 
-  start(opts: StartSessionOptions, resume?: ResumeInfo): SessionSummary {
+  start(opts: StartSessionOptions, resume?: ResumeInfo, extras?: SessionExtras): SessionSummary {
     if (resume) this.close(resume.summary.id)
-    const s = new AgentSession(this.deps, opts, resume)
+    const s = new AgentSession(this.deps, opts, resume, extras)
     this.sessions.set(s.id, s)
     return s.summary
   }
@@ -508,8 +529,14 @@ export class AgentService {
     return s
   }
 
-  send(id: string, text: string, images?: ImageAttachment[]) {
-    this.get(id).send(text, images)
+  send(id: string, text: string, images?: ImageAttachment[], via?: 'crew') {
+    this.get(id).send(text, images, via)
+  }
+
+  /** The session's status, or undefined when it isn't running here. */
+  status(id: string): SessionStatus | undefined {
+    const s = this.sessions.get(id)
+    return s?.isRunning ? s.currentStatus : undefined
   }
 
   interrupt(id: string) {

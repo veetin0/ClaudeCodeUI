@@ -35,15 +35,18 @@ Use `npm run …` / `npx …` rather than shell-specific paths, and forward slas
 
 **Permissions up front.** Run `bash "${CLAUDE_PLUGIN_ROOT}/scripts/hf-run.sh" tools permissions` and show the user the proposed allowlist for the commands the plan needs. Merge it (`--apply`) only if they agree — then the long run doesn't stall on prompts.
 
-Commit both to `main` before dispatching — worktree agents branch from the default branch, so they only see what's committed there.
+Commit both to `main` before dispatching — worktree agents branch from the default branch, so they only see what's committed there. With a crew (below), also push it: crew members clone from the git remote.
+
+**Crew (Harness).** When `mcp__harness__crew_status` exists, call it once here. If teammates have lent their Claude (harness-crew), each ready crew member is an extra builder on another laptop and another Claude plan: it doesn't use your usage and doesn't count toward the profile's parallel limit. Prefer the crew for the bigger tasks when your own usage is lower than theirs (the status shows both).
 
 ## 3. Build in waves
 
 For each milestone:
 0. If the milestone contract has a `needs-spike`, `security-sensitive` or `irreversible` risk tag, consult `hackforge:advisor` (reason_code `needs-spike` / `risky-step`) before starting it and follow its PLAN / CORRECTION / STOP.
 1. Split it into independent tasks along the contracts. Launch them **in parallel** — `hackforge:builder` for code (pass the role), `hackforge:craftsman` for assets — up to the profile's parallel limit, each with the role's model. Give each: its task and owned paths, the milestone contract, CONTRACTS.md, RULES, DIRECTIVES. Builders start fresh — pass everything they need; never "see above".
+   **With a ready crew,** hand tasks to it first: one `mcp__harness__crew_dispatch` call with a mission per task (at most one running per crew member; never two missions on the same owned paths), then local builders for the rest. A mission brief is a builder brief: role, task, owned paths, the paths of the contract, CONTRACTS.md, DESIGN.md and RULES.md to read, the yes/no DoD with its commands, and "return the worker report JSON in mcp__crew__report". Model per the profile's role model (`sonnet` on lean). Set the task's `owner` to `crew:<name>` in the milestone contract. While missions run, do the local tasks; then `mcp__harness__crew_wait` until each mission reports (reports also arrive as "[crew]" messages). Answer crew questions with `mcp__harness__crew_message`. A mission that ends `limited` moves to another crew member by itself; one that ends `blocked` or `failed` gets the same treatment as a failed builder (step 4), locally or as a new mission.
 2. When a measurable target exists, the data-ml task starts with `/hackforge:eval` before any model work.
-3. When the wave returns, run `hackforge:integrator` to merge, run the gate and walk the demo path.
+3. When the wave returns, run `hackforge:integrator` to merge, run the gate and walk the demo path. Crew branches are on the remote (`origin/crew/<name>/<mission>`): give the integrator those names too.
 4. If a task failed its DoD twice with the same error, consult `hackforge:advisor` (reason_code `retry-threshold`) and relaunch with its advice; escalate the model one step only if the advice is to keep the approach. Stop after the contract's `max_iterations` and report it.
 5. Run `hackforge:verify` on the milestone. Fix failing rules and red checks before starting the next milestone.
 6. Update STATE.md, the contract's `status`, and the task list; regenerate `tools views progress`; commit `M<n>: <summary> (J/R/D)`.

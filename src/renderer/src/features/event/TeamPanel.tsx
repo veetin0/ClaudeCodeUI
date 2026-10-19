@@ -7,6 +7,7 @@ import { ipcErrorMessage, relativeTime } from '@/lib/time'
 import { useApp } from '@/stores/app'
 import { StatusDot } from '@/layout/StatusDot'
 import { useTeam, useTeamState } from '@/stores/team'
+import { CrewPanel } from '../team/CrewPanel'
 
 /**
  * The team board: every teammate's Harness reports what they're on, their sessions, plan usage and
@@ -161,6 +162,7 @@ function Board({ timezone, now }: { timezone: string; now: number }) {
           ))}
         </div>
       )}
+      <CrewPanel joinCode={code} now={now} />
       <Handoffs handoffs={state.handoffs} meId={config.memberId} />
       <Conflicts conflicts={state.conflicts} />
       <div className="grid gap-3 md:grid-cols-2">

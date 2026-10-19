@@ -86,6 +86,8 @@ export interface MemberStatus {
   secrets?: string
   /** Tokens used today on this laptop (usage view). */
   today?: { tokens: number; costUsd: number; byModel: Record<string, number> }
+  /** Crew mode (missions, reports, messages), encrypted with the team token. */
+  crew?: string
   updatedAt: number
 }
 
@@ -250,6 +252,7 @@ export function pickMember(x: unknown, now = Date.now()): MemberStatus | null {
     }),
     took: (Array.isArray(o.took) ? o.took : []).slice(0, 50).flatMap((t) => (s(t, 64) ? [s(t, 64)!] : [])),
     secrets: s(o.secrets, 16_000),
+    crew: s(o.crew, 200_000),
     today: pickToday(o.today),
   }
 }

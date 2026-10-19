@@ -37,7 +37,7 @@ export interface Subagent {
 }
 
 export type Item =
-  | { kind: 'user'; id: string; text: string; ts: number; images?: ImageAttachment[] }
+  | { kind: 'user'; id: string; text: string; ts: number; images?: ImageAttachment[]; via?: 'crew' }
   | { kind: 'text'; id: string; text: string }
   | { kind: 'thinking'; id: string; text: string }
   | { kind: 'tool'; id: string }
@@ -217,8 +217,8 @@ export function applyEvent(s: SessionState, e: HarnessEvent): void {
       break
 
     case 'user.message':
-      if (!s.title) s.title = e.text.replace(/\s+/g, ' ').trim().slice(0, 80)
-      s.items.push({ kind: 'user', id: e.id, text: e.text, ts: e.ts, ...(e.images?.length ? { images: e.images } : {}) })
+      if (!s.title && !e.via) s.title = e.text.replace(/\s+/g, ' ').trim().slice(0, 80)
+      s.items.push({ kind: 'user', id: e.id, text: e.text, ts: e.ts, ...(e.images?.length ? { images: e.images } : {}), ...(e.via ? { via: e.via } : {}) })
       break
 
     case 'text.delta':

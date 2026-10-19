@@ -33,3 +33,5 @@ Return a short report:
  "assumptions": ["..."], "not_finished": ["..."], "notes_for_integrator": "..."}
 ```
 Separate what you verified from what you only planned.
+
+Running as a **Harness crew mission** (you have `mcp__crew__report`): you're already on your own branch in your own clone, so commit there and don't push; put this report in `mcp__crew__report`'s summary. Ask the lead with `mcp__crew__message` (and `mcp__crew__wait` for the answer) instead of guessing a contract change.
