@@ -1,4 +1,4 @@
-import { Bot, Check, ChevronDown, ChevronRight, Copy, GitBranch, MessageSquare, ShieldQuestion, Square, Terminal } from 'lucide-react'
+import { AlertTriangle, Bot, Check, ChevronDown, ChevronRight, Copy, GitBranch, MessageSquare, ShieldQuestion, Square, Terminal } from 'lucide-react'
 import { useState } from 'react'
 import { isFinal, type CrewAskView, type CrewMemberView, type MissionView } from '@shared/crew'
 import { cn } from '@/lib/format'
@@ -57,6 +57,7 @@ export function CrewPanel({ joinCode, now }: { joinCode: string; now: number }) 
           Reports go straight to your Claude
         </label>
       </div>
+      <ProjectLine crew={crew} />
       {crew.asks.map((a) => (
         <Ask key={a.id} a={a} />
       ))}
@@ -77,6 +78,29 @@ export function CrewPanel({ joinCode, now }: { joinCode: string; now: number }) 
       )}
       {crew.missions.length > 0 && <Missions missions={crew.missions} now={now} />}
       {crew.messages.length > 0 && <Messages crew={crew} />}
+    </div>
+  )
+}
+
+/** What crew members will work on, or what's stopping that. */
+function ProjectLine({ crew }: { crew: ReturnType<typeof useCrew> }) {
+  const note = crew.projectNote
+  return (
+    <div className="mb-2 space-y-1 text-[11.5px]">
+      {crew.project && (
+        <div className="flex items-center gap-1.5 text-muted">
+          <Check className="size-3.5 text-emerald-600" />
+          <span className="selectable truncate">
+            Project for the crew: <span className="font-mono">{crew.project.url}</span> · from {crew.project.base}
+          </span>
+        </div>
+      )}
+      {note && (
+        <div className={cn('selectable flex items-start gap-1.5', note.tone === 'warn' ? 'text-amber-700 dark:text-amber-300' : 'text-muted')}>
+          <AlertTriangle className="mt-0.5 size-3.5 shrink-0" />
+          <span>{note.text}</span>
+        </div>
+      )}
     </div>
   )
 }

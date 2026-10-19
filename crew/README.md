@@ -31,13 +31,13 @@ harness-crew 0.1.0  lend your Claude to the team
 - **git with access to the team's repository.** Accept the lead's GitHub invite, then sign git in with the GitHub CLI: `gh auth login` (choose HTTPS and log in with a web browser). harness-crew checks it can push before it takes missions and tells the lead if it can't.
 - **A Claude account** (Pro or Max). The first run asks you to sign in; a browser window opens. Missions use your plan's usage, not the lead's.
 
-The first `npx` run downloads about 80 MB (it includes Claude Code, so you don't have to install it separately).
+The first `npx` run downloads about 90 MB (it includes Claude Code, so you don't have to install it separately). For browser checks it uses your Chrome or Edge; without either, run `npx -y harness-crew get-browser` once (about 150 MB).
 
 ## What happens
 
 1. harness-crew joins the team through the team's relay. Everything it sends (missions, reports, messages) is encrypted with the team key, so the relay can't read it.
 2. It clones the lead's project into `~/harness-crew/<project>`.
-3. For each mission it starts a fresh Claude Code session on a new branch (`crew/<your name>/<mission>`), with HackForge's builder rules and the design skills loaded. Claude edits files, runs the project's commands and tests, and commits.
+3. For each mission it starts a fresh Claude Code session on a new branch (`crew/<your name>/<mission>`), with HackForge's builder rules, the design skills, library docs and a browser loaded. Claude edits files, runs the project's commands and tests, opens frontend work in the browser to check it, and commits.
 4. When Claude reports done (or blocked), harness-crew pushes the branch and the lead's Claude merges it.
 5. If your plan's usage runs out mid-mission, it pushes what's done and the mission moves to a teammate who has usage left.
 

@@ -34,11 +34,12 @@ chmodSync(join(dist, 'cli.mjs'), 0o755)
 cpSync(join(root, 'resources', 'hackforge'), join(dist, 'resources', 'hackforge'), { recursive: true })
 cpSync(join(root, 'resources', 'design'), join(dist, 'resources', 'design'), { recursive: true })
 
-// Keep the package's Agent SDK in step with the app's.
+// Keep the package's Agent SDK and browser tools in step with the app's.
 const pkgPath = join(crew, 'package.json')
 const pkg = JSON.parse(readFileSync(pkgPath, 'utf8'))
 const app = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8'))
 pkg.dependencies['@anthropic-ai/claude-agent-sdk'] = app.dependencies['@anthropic-ai/claude-agent-sdk']
 pkg.dependencies.zod = app.dependencies.zod
+pkg.dependencies['@playwright/mcp'] = app.dependencies['@playwright/mcp']
 writeFileSync(pkgPath, `${JSON.stringify(pkg, null, 2)}\n`)
 console.log(`harness-crew ${pkg.version} built in crew/dist`)

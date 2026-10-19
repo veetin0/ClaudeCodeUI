@@ -1,0 +1,11 @@
+# The Harness team relay on Render's free plan, deployed from this repository in one click:
+#   https://render.com/deploy?repo=https://github.com/veetin0/ClaudeCodeUI
+# Only relay/ is built (its Dockerfile); nothing else from the repository runs there.
+services:
+  - type: web
+    name: harness-relay
+    runtime: docker
+    plan: free
+    dockerfilePath: ./relay/Dockerfile
+    dockerContext: ./relay
+    healthCheckPath: /health

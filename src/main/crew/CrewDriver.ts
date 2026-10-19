@@ -87,6 +87,8 @@ export class CrewDriver {
   private pending = new Map<string, string[]>()
   /** The last session that used the crew (crew messages without a mission go there). */
   private lastSession?: string
+  /** What's in the way of sharing the project, or what crew can't see yet. */
+  private projectNote?: CrewState['projectNote']
   /** Updates gathered during one sync, handed to each session together. */
   private batch?: Map<string, { text: string; mission?: string }[]>
 
@@ -277,10 +279,25 @@ export class CrewDriver {
 
   /** The project crew members clone ahead of the first mission (the event project). */
   async setProject(dir: string | undefined) {
-    if (!dir) return
-    const r = await (this.deps.repoOf ?? driverRepo)(dir).catch(() => ({}) as DriverRepo)
-    if (r.repo && JSON.stringify(r.repo) !== JSON.stringify(this.repo)) {
-      this.repo = r.repo
+    const before = JSON.stringify([this.repo, this.projectNote])
+    if (!dir) {
+      if (!this.repo)
+        this.projectNote = { tone: 'info', text: 'Link the event project (Set up or Link on this page) so crew members can get it before the first mission.' }
+    } else {
+      const r = await (this.deps.repoOf ?? driverRepo)(dir).catch(() => ({ problem: 'Not a git repository.' }) as DriverRepo)
+      if (r.repo) this.repo = r.repo
+      this.projectNote = r.problem
+        ? { tone: 'warn', text: r.problem }
+        : r.ahead === -1
+          ? { tone: 'warn', text: `Branch ${r.repo!.base} isn't on GitHub yet: git push -u origin ${r.repo!.base}` }
+          : r.ahead
+            ? {
+                tone: 'info',
+                text: `${r.ahead} commit${r.ahead === 1 ? '' : 's'} on ${r.repo!.base} not pushed yet; crew only sees what's pushed (your Claude pushes before handing out work).`,
+              }
+            : undefined
+    }
+    if (JSON.stringify([this.repo, this.projectNote]) !== before) {
       this.deps.nudge()
       this.publish()
     }
@@ -515,6 +532,8 @@ export class CrewDriver {
       messages: this.log.slice(-40),
       joinCommand: this.deps.joinCommand(),
       autoReports: this.deps.autoReports(),
+      project: this.repo,
+      projectNote: this.projectNote,
     }
   }
 

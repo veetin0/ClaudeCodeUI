@@ -17,11 +17,11 @@ import { emitKeypressEvents } from 'node:readline'
 import { fileURLToPath } from 'node:url'
 import { designGuide } from '@shared/design'
 import { DEFAULT_DESIGN_SKILLS } from '@shared/design'
-import { devToolsGuide } from '@shared/devtools'
 import { parseJoinCode, type TeamConfig } from '@shared/team'
 import { AgentService } from '../../src/main/agent/AgentService'
 import { CrewWorker } from '../../src/main/crew/CrewWorker'
 import { DesignService } from '../../src/main/design/DesignService'
+import { DevToolsService, PLAYWRIGHT_CLI, PLAYWRIGHT_MCP } from '../../src/main/devtools/DevToolsService'
 import { EventBus } from '../../src/main/events/bus'
 import { builtinPlugin, choosePlugin, installedPlugin } from '../../src/main/hackforge/plugin'
 import { agentEnv } from '../../src/main/system/agentEnv'
@@ -44,11 +44,13 @@ const HELP = `harness-crew ${VERSION}: lend your Claude to your team's project
   npx harness-crew <join code>     join the team and start taking missions
   npx harness-crew                 rejoin the last team
   npx harness-crew leave           leave the team and forget it
+  npx harness-crew get-browser     download Chromium for browser checks (no Chrome/Edge here)
 
 Options
   --name <name>     your name on the team board (default: git user.name)
   --dir <folder>    where the project is cloned (default: ~/harness-crew)
   --home <folder>   where harness-crew keeps its settings (default: ~/.harness-crew)
+  --no-browser      don't let Claude open the app in a browser
 
 What it needs: Node 20+, git with access to the team's repository, and a Claude
 login (it asks you to sign in the first time). Missions run on your own Claude
@@ -61,7 +63,7 @@ interface Saved {
 }
 
 function args(argv: string[]) {
-  const out: { code?: string; name?: string; dir?: string; home?: string; command?: string; help?: boolean; version?: boolean } = {}
+  const out: { code?: string; name?: string; dir?: string; home?: string; command?: string; help?: boolean; version?: boolean; noBrowser?: boolean } = {}
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i]
     if (a === '--help' || a === '-h') out.help = true
@@ -69,6 +71,7 @@ function args(argv: string[]) {
     else if (a === '--name') out.name = argv[++i]
     else if (a === '--dir') out.dir = argv[++i]
     else if (a === '--home') out.home = argv[++i]
+    else if (a === '--no-browser') out.noBrowser = true
     else if (a.startsWith('HT1.') || a.includes('HT1.')) out.code = a
     else if (!a.startsWith('-')) out.command = a
   }
@@ -141,6 +144,33 @@ async function main() {
 
   say(`${c.bold('harness-crew')} ${c.dim(VERSION)}  ${c.dim('lend your Claude to the team')}`)
 
+  // The browser Claude checks frontend work in: the teammate's Chrome or Edge, else a Chromium
+  // downloaded once into the settings folder. Same Playwright tools as in Harness.
+  const devTools = new DevToolsService({
+    appPath: here,
+    dataDir: home,
+    settings: () => ({ browser: !a.noBrowser, showBrowser: false, docs: true, partnerServers: false }),
+    context7Key: () => process.env.CONTEXT7_API_KEY,
+    partnerServers: () => [],
+    eventProject: () => undefined,
+    push: () => {},
+    node: { command: process.execPath, env: {} },
+    appName: 'harness-crew',
+    resolveModule: (rel) => {
+      const mcpDir = dirname(nodeRequire.resolve('@playwright/mcp/package.json'))
+      if (rel === PLAYWRIGHT_MCP) return join(mcpDir, 'cli.js')
+      if (rel === PLAYWRIGHT_CLI) return join(dirname(createRequire(join(mcpDir, 'package.json')).resolve('playwright-core/package.json')), 'cli.js')
+      return join(here, '..', 'node_modules', rel)
+    },
+  })
+
+  if (a.command === 'get-browser') {
+    if (devTools.browser().status === 'ready') return ok(`Browser: ${devTools.browser().via} is already here, nothing to download.`)
+    info('Downloading Chromium for browser checks (about 150 MB, once)…')
+    const b = (await devTools.installBrowser()).browser
+    return b.status === 'ready' ? ok(`Browser ready: ${b.via}`) : fail(`Couldn't download Chromium: ${b.error ?? 'unknown error'}`)
+  }
+
   if (a.command === 'leave') {
     if (!saved.team) return say('Not in a team.')
     const team = new TeamService(teamDeps())
@@ -167,6 +197,10 @@ async function main() {
     if (!auth.loggedIn) return fail('Still not signed in. Start harness-crew again to retry.')
   }
   ok(`Claude: signed in${auth.method === 'api_key' ? ' (API key: billed per token)' : ''}`)
+  const browser = devTools.browser()
+  if (browser.status === 'ready') ok(`Browser: ${browser.via} (Claude opens the app in it to check frontend work)`)
+  else if (browser.status === 'missing')
+    warn('No Chrome or Edge found, so frontend work isn’t checked in a browser here. Fix it once with: npx -y harness-crew get-browser')
 
   // ---------- the team ----------
   const name = (a.name ?? saved.name ?? (gitName().split(/\s+/)[0] || userInfo().username || 'Crew')).slice(0, 40)
@@ -218,11 +252,11 @@ async function main() {
     bus,
     getEnv: () => agentEnv(),
     claudeExecutablePath: claude,
-    promptAppend: () => {
+    promptAppend: (cwd) => {
       const loaded = design.plugins().filter((p) => p.source === 'builtin' || p.source === 'installed')
       return [
         designGuide({ impeccable: loaded.some((p) => p.key === 'impeccable'), uiUxProMax: loaded.some((p) => p.key === 'uiUxProMax') }),
-        devToolsGuide({ browser: false, docs: true, partners: [] }),
+        devTools.guide(cwd),
       ]
         .filter(Boolean)
         .join('\n\n')
@@ -231,7 +265,7 @@ async function main() {
       const p = hackforge()
       return [...(p.source === 'builtin' && p.path ? [{ type: 'local' as const, path: p.path }] : []), ...design.sdkPlugins()]
     },
-    mcp: () => ({ servers: { context7: { type: 'http', url: 'https://mcp.context7.com/mcp' } }, allow: ['mcp__context7'] }),
+    mcp: (cwd) => ({ servers: devTools.mcpServers(cwd), allow: devTools.allowedTools() }),
     extraEnv: () => ({ ...design.env(), ...teamKeys }),
     onRateLimit: (info) => {
       team?.onRateLimit(info)

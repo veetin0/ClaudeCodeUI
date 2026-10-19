@@ -603,6 +603,10 @@ async function start() {
   })
   team.start()
   void crew.setProject(settings.get().eventProject ?? undefined)
+  // The Crew card's "project for the crew" line follows pushes and new remotes.
+  setInterval(() => {
+    if (settings.get().team) void crew.setProject(settings.get().eventProject ?? undefined)
+  }, 30_000).unref()
   resetQueue = new ResetQueue({
     file: join(app.getPath('userData'), 'reset-queue.json'),
     settings: () => settings.get().resetQueue,

@@ -8,7 +8,15 @@ keyed by a hash of the team token. No database, no dependencies.
 Teammates on the same network join with the join code. Venue wifi often blocks laptop-to-laptop
 traffic; if teammates can't connect, use a phone hotspot or option 2.
 
-**Option 2: run it anywhere with Node 18+**
+**Option 2 (recommended for the venue): one click on Render, free.** Open
+[render.com/deploy?repo=https://github.com/veetin0/ClaudeCodeUI](https://render.com/deploy?repo=https://github.com/veetin0/ClaudeCodeUI),
+sign in with GitHub and press *Deploy*. It builds only `relay/` (see `render.yaml`) and gives you an
+HTTPS address like `https://harness-relay-xxxx.onrender.com`. Use that in *Create team* → *Use a
+relay server*. The free plan sleeps after 15 minutes without traffic and takes about a minute to
+wake up (Harness waits for it); while the team is connected it stays awake. Deploy and test it
+before the event: open `<address>/health` in a browser and you should see `{"ok":true,…}`.
+
+**Option 3: run it anywhere with Node 18+**
 
 ```bash
 node relay/server.mjs          # PORT=8787 by default

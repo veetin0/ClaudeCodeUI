@@ -457,7 +457,8 @@ export class TeamService {
 
   private async checkRelay(url: string) {
     const f = this.deps.fetch ?? fetch
-    const r = await f(`${url}/health`, { signal: AbortSignal.timeout(6000) }).catch(() => null)
+    // Free hosting (Render) puts an idle relay to sleep and takes up to a minute to wake it; a wrong address fails at once anyway.
+    const r = await f(`${url}/health`, { signal: AbortSignal.timeout(75_000) }).catch(() => null)
     const body = r?.ok ? ((await r.json().catch(() => ({}))) as { service?: string }) : null
     if (body?.service !== 'harness-team-relay') throw new Error(`No Harness team relay answers at ${url}`)
   }

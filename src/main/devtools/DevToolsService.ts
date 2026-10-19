@@ -21,11 +21,15 @@ export interface DevToolsDeps {
   node?: { command: string; env: Record<string, string> }
   findBrowser?(): { path: string; via: string } | null
   runInstall?(script: string, env: Record<string, string>): Promise<{ code: number; out: string }>
+  /** Where a bundled module's file is (harness-crew installs them next to itself, not under appPath). */
+  resolveModule?(rel: string): string
+  /** Who downloaded Chromium, for the browser's label (default Harness). */
+  appName?: string
 }
 
-const PLAYWRIGHT_MCP = join('@playwright', 'mcp', 'cli.js')
+export const PLAYWRIGHT_MCP = join('@playwright', 'mcp', 'cli.js')
 // The Playwright build @playwright/mcp pins, so a downloaded Chromium matches it.
-const PLAYWRIGHT_CLI = join('@playwright', 'mcp', 'node_modules', 'playwright-core', 'cli.js')
+export const PLAYWRIGHT_CLI = join('@playwright', 'mcp', 'node_modules', 'playwright-core', 'cli.js')
 
 /** Google Chrome or Microsoft Edge where they're normally installed. */
 export function systemBrowsers(platform = process.platform, env = process.env): { path: string; via: string }[] {
@@ -116,7 +120,7 @@ export class DevToolsService {
   }
 
   private module(rel: string) {
-    return join(this.deps.appPath, 'node_modules', rel)
+    return this.deps.resolveModule?.(rel) ?? join(this.deps.appPath, 'node_modules', rel)
   }
 
   browser(): BrowserInfo {
@@ -125,7 +129,7 @@ export class DevToolsService {
     const sys = this.deps.findBrowser ? this.deps.findBrowser() : (systemBrowsers().find((b) => existsSync(b.path)) ?? null)
     if (sys) return { status: 'ready', via: sys.via, path: sys.path }
     const own = downloadedChromium(this.browsersDir)
-    if (own) return { status: 'ready', via: 'Chromium (downloaded by Harness)', path: own }
+    if (own) return { status: 'ready', via: `Chromium (downloaded by ${this.deps.appName ?? 'Harness'})`, path: own }
     return this.installError ? { status: 'failed', error: this.installError } : { status: 'missing' }
   }
 

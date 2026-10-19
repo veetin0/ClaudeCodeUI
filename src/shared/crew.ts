@@ -386,6 +386,10 @@ export interface CrewState {
   joinCommand?: string
   /** Crew reports start a turn in the session that sent the mission. */
   autoReports: boolean
+  /** The project crew members clone, once there's one to share. */
+  project?: CrewRepo
+  /** Why there's nothing to share yet, or what crew can't see (unpushed commits). */
+  projectNote?: { tone: 'warn' | 'info'; text: string }
 }
 
 export const EMPTY_CREW: CrewState = { available: false, members: [], missions: [], asks: [], messages: [], autoReports: true }

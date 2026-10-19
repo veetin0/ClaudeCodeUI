@@ -201,6 +201,36 @@ describe('crew driver bookkeeping', () => {
     expect(driver.payload()!.cancel).toEqual([])
   })
 
+  it('tells the Crew card what crew members will get, or what is in the way', async () => {
+    let r: Awaited<ReturnType<NonNullable<ConstructorParameters<typeof CrewDriver>[0]['repoOf']>>> = { problem: 'This project has no git remote (origin).' }
+    const driver = new CrewDriver({
+      me: () => ({ id: 'me', name: 'Veeti' }),
+      myUsage: () => ({ source: 'unknown' }),
+      nudge: () => {},
+      push: () => {},
+      deliver: () => false,
+      autoReports: () => true,
+      joinCommand: () => undefined,
+      repoOf: async () => r,
+    })
+    await driver.setProject(undefined)
+    expect(driver.state().projectNote).toMatchObject({ tone: 'info', text: expect.stringMatching(/Link the event project/) })
+    await driver.setProject('/p')
+    expect(driver.state()).toMatchObject({ project: undefined, projectNote: { tone: 'warn', text: expect.stringMatching(/no git remote/) } })
+    const repo = { url: 'https://github.com/t/app.git', base: 'main', name: 'app' }
+    r = { repo, ahead: -1 }
+    await driver.setProject('/p')
+    expect(driver.state()).toMatchObject({ project: repo, projectNote: { tone: 'warn', text: "Branch main isn't on GitHub yet: git push -u origin main" } })
+    r = { repo, ahead: 2 }
+    await driver.setProject('/p')
+    expect(driver.state().projectNote).toMatchObject({ tone: 'info', text: expect.stringMatching(/^2 commits on main not pushed yet/) })
+    r = { repo, ahead: 0 }
+    await driver.setProject('/p')
+    expect(driver.state()).toMatchObject({ project: repo, projectNote: undefined })
+    // The repo is what crew members clone, so it goes out in the driver's status right away.
+    expect(driver.payload()?.repo).toEqual(repo)
+  })
+
   it('explains what to do when there is no team or no crew yet', async () => {
     const lonely = new CrewDriver({
       me: () => null,
