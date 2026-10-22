@@ -8,12 +8,14 @@
  * so even an accidental session couldn't reach the API. The test also checks that no session ran.
  */
 import { spawn, type ChildProcess } from 'node:child_process'
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync } from 'node:fs'
+import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { homedir, tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import electronPath from 'electron'
 import { _electron as electron, type ElectronApplication, type Page } from 'playwright-core'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+import type { CrewState } from '../src/shared/crew'
+import type { RunState } from '../src/shared/run'
 
 const ROOT = resolve(import.meta.dirname, '..')
 const SHOTS = join(ROOT, 'test-results')
@@ -77,8 +79,9 @@ describe('Harness (real Electron app)', () => {
     expect(paths.userData.startsWith(join(homedir(), 'Library', 'Application Support'))).toBe(false)
   })
 
-  it('loads the start screen', async () => {
-    await expect(page.getByRole('heading', { name: 'Run Claude Code. Watch it work.' }).waitFor()).resolves.toBeUndefined()
+  it('opens on the team run: Start your team', async () => {
+    await expect(page.getByRole('heading', { name: 'Start your team' }).waitFor()).resolves.toBeUndefined()
+    await page.getByText('Hosted on this laptop').waitFor()
     await shot('01-start-screen')
   })
 
@@ -208,6 +211,194 @@ describe('Harness (real Electron app)', () => {
     await page.getByText('Tokens per day, by model').waitFor()
     await shot('09-usage')
     await page.keyboard.press('Escape')
+  })
+
+  it('team run: a teammate joins from a terminal, then the project gets its challenge, files and private files', async () => {
+    await page
+      .getByRole('button', { name: /Team run|Start the team/ })
+      .first()
+      .click()
+    await page.getByRole('heading', { name: 'Get everyone in' }).waitFor()
+    const command = await page.locator('code', { hasText: 'npx -y harness-crew HT1.' }).first().innerText()
+    const code = /HT1\.[\w-]+/.exec(command)![0]
+    crewOut = ''
+    crewProc = spawn(
+      process.execPath,
+      [join(ROOT, 'crew', 'dist', 'cli.mjs'), code, '--name', 'Cy', '--home', join(tmp, 'crew-home-2'), '--dir', join(tmp, 'crew-projects-2')],
+      { env, stdio: ['ignore', 'pipe', 'pipe'] },
+    )
+    crewProc.stdout?.on('data', (d) => (crewOut += d))
+    crewProc.stderr?.on('data', (d) => (crewOut += d))
+    await page.getByText('Cy', { exact: true }).waitFor({ timeout: 30_000 })
+    await shot('10-team-run-joined')
+
+    await page.getByRole('button', { name: /^Continue with/ }).click()
+    await page.getByRole('heading', { name: 'Create the project' }).waitFor()
+    const parent = join(tmp, 'hackathons')
+    mkdirSync(parent)
+    await page.getByPlaceholder('e.g. Grid Pulse').fill('Grid Pulse')
+    await page.getByPlaceholder('Choose a folder…').fill(parent)
+    await page.getByRole('button', { name: 'Create project' }).click()
+    await page.getByRole('heading', { name: 'Grid Pulse' }).waitFor()
+    const dir = join(parent, 'grid-pulse')
+    expect(readFileSync(join(dir, 'challenge', 'hackforge.yaml'), 'utf8')).toMatch(/checkpoints: \[plan\]/)
+    expect(await page.getByRole('button', { name: /Continue: plan it/ }).isDisabled()).toBe(true)
+
+    await page.getByPlaceholder(/Paste the challenge here/).fill('# Smart grids\n\nBalance the Espoo grid with real data. Judged on impact and demo.')
+    await page.getByRole('heading', { name: 'Grid Pulse' }).click()
+    await expect.poll(() => readFileSync(join(dir, 'challenge', 'brief', 'CHALLENGE.md'), 'utf8')).toMatch(/Balance the Espoo grid/)
+
+    const data = join(tmp, 'prices.csv')
+    const secret = join(tmp, 'matches.csv')
+    writeFileSync(data, 'hour,price\n1,3.2\n')
+    writeFileSync(secret, 'player,x,y\n')
+    const pick = (file: string) =>
+      app.evaluate(({ dialog }, f) => {
+        dialog.showOpenDialog = (async () => ({ canceled: false, filePaths: [f] })) as typeof dialog.showOpenDialog
+      }, file)
+    await pick(data)
+    await page.getByRole('button', { name: 'Add…' }).nth(1).click()
+    await page.getByText('prices.csv').waitFor()
+    await pick(secret)
+    await page.getByRole('button', { name: 'Add…' }).nth(2).click()
+    await page.getByText('Guard on: blocked for Claude, kept out of git').waitFor()
+    expect(existsSync(join(dir, 'challenge', 'assets', 'prices.csv'))).toBe(true)
+    expect(JSON.parse(readFileSync(join(dir, '.claude', 'settings.json'), 'utf8')).permissions.deny).toContain('Read(./private/**)')
+    expect(await page.getByRole('button', { name: /Continue: plan it/ }).isEnabled()).toBe(true)
+    // The crew gets the project through the team server (the event project is now this one).
+    const crew = await page.evaluate(() => window.harness.crewState())
+    expect(crew.members.map((m) => m.name)).toContain('Cy')
+    await shot('11-team-run-setup')
+    crewProc.kill('SIGINT')
+  })
+
+  it('renders the plan, the run board and the end (states pushed as the run would)', async () => {
+    const dir = join(tmp, 'hackathons', 'grid-pulse')
+    // A plan as HackForge writes it.
+    for (const f of ['DECISION.md', 'PLAN.md']) cpSync(join(ROOT, 'test', 'fixtures', 'hackforge-project', '.hackforge', f), join(dir, '.hackforge', f))
+    const base = await page.evaluate(() => window.harness.runState())
+    const now = Date.now()
+    const push = (channel: string, state: unknown) =>
+      app.evaluate(({ BrowserWindow }, [c, s]) => BrowserWindow.getAllWindows()[0].webContents.send(c as string, s), [channel, state])
+    const plan: RunState = {
+      ...base,
+      stage: 'plan',
+      step: 'plan-ready',
+      sessionId: 'lead',
+      sessionLive: true,
+      lead: { status: 'idle', lastText: 'The plan is ready: 3 milestones.' },
+    }
+    await push('run:push', plan)
+    await page.getByRole('button', { name: /Accept and run/ }).waitFor()
+    await page.getByText('Milestones', { exact: true }).waitFor()
+    await shot('12-team-run-plan')
+
+    const member = (id: string, name: string, headroom: number, current?: { id: string; title: string; activity: string }) => ({
+      id,
+      name,
+      online: true,
+      app: 'cli' as const,
+      version: '0.2.0',
+      accepting: true,
+      headroom,
+      usage: { source: 'plan' as const },
+      queued: 0,
+      waiting: false,
+      current: current && { ...current, since: now - 12 * 60_000 },
+    })
+    const crew: CrewState = {
+      available: true,
+      members: [
+        member('a', 'Anna', 78, { id: 'm-1', title: 'M2 M2.1 (backend)', activity: 'Bash: npm test' }),
+        member('b', 'Ben', 54, { id: 'm-2', title: 'M2 M2.2 (frontend)', activity: 'Edit: src/app/page.tsx' }),
+        member('c', 'Cy', 31),
+      ],
+      missions: [],
+      asks: [{ id: 'q1', mission: 'm-2', tool: 'Bash', summary: 'docker compose up -d', at: now - 60_000, fromId: 'b', fromName: 'Ben' }],
+      messages: [],
+      autoReports: true,
+    } as unknown as CrewState
+    await push('crew:push', crew)
+    const running: RunState = {
+      ...plan,
+      stage: 'run',
+      step: 'building',
+      startedAt: now - 3 * 3600_000,
+      current: 'M2',
+      lead: { status: 'running', activity: 'Task: build M2.3 (data pipeline)' },
+      milestones: [
+        {
+          id: 'M1',
+          goal: 'Walking skeleton: request → forecast → chart',
+          status: 'done',
+          startedAt: now - 3 * 3600_000,
+          endedAt: now - 3600_000,
+          budgetMs: 7 * 3600_000,
+          fixRounds: 0,
+        },
+        { id: 'M2', goal: 'Live prices and the balancing suggestion', status: 'building', startedAt: now - 40 * 60_000, budgetMs: 7 * 3600_000, fixRounds: 0 },
+        { id: 'M3', goal: 'Demo polish and the pitch path', status: 'todo', budgetMs: 7 * 3600_000, fixRounds: 0 },
+      ],
+      tasks: [
+        { id: 'M1.1', milestone: 'M1', owned: ['api/**'], assignee: { kind: 'crew', id: 'a', name: 'Anna', mission: 'm-0' }, state: 'done', attempts: 0 },
+        {
+          id: 'M2.1',
+          milestone: 'M2',
+          role: 'backend',
+          owned: ['api/prices/**'],
+          assignee: { kind: 'crew', id: 'a', name: 'Anna', mission: 'm-1' },
+          state: 'working',
+          attempts: 0,
+        },
+        {
+          id: 'M2.2',
+          milestone: 'M2',
+          role: 'frontend',
+          owned: ['src/app/**'],
+          assignee: { kind: 'crew', id: 'b', name: 'Ben', mission: 'm-2' },
+          state: 'working',
+          attempts: 0,
+        },
+        {
+          id: 'M2.3',
+          milestone: 'M2',
+          role: 'data',
+          owned: ['pipeline/**'],
+          assignee: { kind: 'lead' },
+          state: 'working',
+          attempts: 1,
+          note: "Cy's Claude failed; given to your Claude.",
+        },
+      ],
+      inbox: [
+        {
+          id: 'd1',
+          kind: 'decision',
+          from: 'Your Claude',
+          title: 'Fingrid’s live API needs a key we don’t have. Use the hourly CSV export instead?',
+          suggestion: 'Yes: the CSV is updated hourly, which is enough for the demo, and needs no key.',
+          options: ['Use the CSV', 'Wait for a key'],
+          at: now - 120_000,
+        },
+      ],
+      log: [
+        { at: now - 3 * 3600_000, text: 'Run started: 3 milestones, about 7 h each, 3 crew ready.', tone: 'good' },
+        { at: now - 3600_000, text: 'M1 is done (2 h).', tone: 'good' },
+        { at: now - 40 * 60_000, text: 'M2 started: M2.1 → Anna, M2.2 → Ben, M2.3 → Cy.' },
+        { at: now - 10 * 60_000, text: "M2.3 goes to your Claude: Cy's Claude failed.", tone: 'warn' },
+      ],
+    }
+    await push('run:push', running)
+    await page.getByText('Fingrid’s live API needs a key').waitFor()
+    await page.getByText('docker compose up -d').waitFor()
+    await shot('13-team-run-board')
+
+    await push('run:push', { ...running, stage: 'done', step: 'idle', inbox: [], done: { at: now, reason: 'Loop ended: plateau' } })
+    await page.getByRole('heading', { name: 'Done' }).waitFor()
+    await shot('14-team-run-done')
+    // Back to the real state.
+    await push('run:push', base)
+    await push('crew:push', await page.evaluate(() => window.harness.crewState()))
   })
 
   it('never started a Claude session', async () => {

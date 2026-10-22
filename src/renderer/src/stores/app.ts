@@ -68,6 +68,8 @@ interface AppState {
   eventOpen: boolean
   /** Usage history fills the main area. */
   usageOpen: boolean
+  /** The team run (Team → Setup → Plan → Run → Done) fills the main area: Harness's home. */
+  teamOpen: boolean
   /** Session whose handoff dialog is open. */
   handoffFor: string | null
 
@@ -87,6 +89,11 @@ interface AppState {
   /** Opens a teammate's handed-off work: a session in its folder with the first message ready. */
   takeOver(dir: string, prompt: string): Promise<void>
   setUsageOpen(open: boolean): void
+  setTeamOpen(open: boolean): void
+  /** Starts a session in the background (the team run's lead): it opens in the sidebar, the view stays. */
+  startQuiet(cwd: string, permissionMode: PermissionMode): Promise<string>
+  /** Brings a saved session back to life in the background (the team run's lead after a restart). */
+  resumeQuiet(id: string, permissionMode: PermissionMode): Promise<void>
   interrupt(): Promise<void>
   setPermissionMode(mode: PermissionMode): Promise<void>
   setModel(model: string): Promise<void>
@@ -155,6 +162,7 @@ export const useApp = create<AppState>((set, get) => ({
   startError: null,
   eventOpen: false,
   usageOpen: false,
+  teamOpen: true,
   handoffFor: null,
 
   async init() {
@@ -192,6 +200,7 @@ export const useApp = create<AppState>((set, get) => ({
       order: [id, ...st.order.filter((x) => x !== id)],
       activeId: id,
       detailAgent: null,
+      teamOpen: false,
     }))
     void get().detectProject(loaded.summary.cwd)
   },
@@ -242,6 +251,7 @@ export const useApp = create<AppState>((set, get) => ({
         activeId: summary.id,
         startError: null,
         eventOpen: false,
+        teamOpen: false,
       }))
       set({ settings: await api().getSettings() })
       void get().detectProject(cwd)
@@ -257,7 +267,7 @@ export const useApp = create<AppState>((set, get) => ({
   },
 
   select(id) {
-    set({ activeId: id, detailAgent: null, diffPath: null, replay: null, eventOpen: false })
+    set({ activeId: id, detailAgent: null, diffPath: null, replay: null, eventOpen: false, teamOpen: false, usageOpen: false })
     const cwd = get().sessions[id]?.cwd
     if (cwd) void get().detectProject(cwd)
   },
@@ -326,7 +336,37 @@ export const useApp = create<AppState>((set, get) => ({
     get().setDraft(prompt)
   },
 
-  setUsageOpen: (usageOpen) => set({ usageOpen, ...(usageOpen ? { eventOpen: false } : {}) }),
+  setUsageOpen: (usageOpen) => set({ usageOpen, ...(usageOpen ? { eventOpen: false, teamOpen: false } : {}) }),
+  setTeamOpen: (teamOpen) => set({ teamOpen, ...(teamOpen ? { eventOpen: false, usageOpen: false } : {}) }),
+
+  async startQuiet(cwd, permissionMode) {
+    const saver = get().settings?.usageSaver
+    const model = saver?.enabled && saver.autoModel ? AUTO_MODEL : get().settings?.defaultModel || undefined
+    const summary = await api().startSession({ cwd, permissionMode, model })
+    set((st) => ({
+      sessions: { ...st.sessions, [summary.id]: createSession(summary, permissionMode, true) },
+      order: [summary.id, ...st.order],
+      activeId: st.activeId ?? summary.id,
+    }))
+    void get().detectProject(cwd)
+    void get().refreshHistory()
+    return summary.id
+  },
+
+  async resumeQuiet(id, permissionMode) {
+    if (!get().sessions[id]) {
+      const loaded = await api().loadSession(id)
+      if (!loaded) throw new Error('Your Claude’s session is no longer in history.')
+      seedLog(id, loaded.events)
+      const session = produce(createSession(loaded.summary, permissionMode, false), (draft) => {
+        for (const e of loaded.events) applyEvent(draft, e)
+        finalizeLoaded(draft)
+      })
+      set((st) => ({ sessions: { ...st.sessions, [id]: session }, order: [id, ...st.order.filter((x) => x !== id)] }))
+    }
+    const s = get().sessions[id]
+    if (!s.live) await api().resumeSession(id, { permissionMode, model: s.saver?.auto ? AUTO_MODEL : s.model })
+  },
 
   async interrupt() {
     const id = get().activeId
@@ -363,8 +403,8 @@ export const useApp = create<AppState>((set, get) => ({
   },
 
   setInspectorTab: (inspectorTab) => set({ inspectorTab }),
-  setView: (view) => set({ view, eventOpen: false, usageOpen: false }),
-  setEventOpen: (eventOpen) => set({ eventOpen, ...(eventOpen ? { usageOpen: false } : {}) }),
+  setView: (view) => set({ view, eventOpen: false, usageOpen: false, teamOpen: false }),
+  setEventOpen: (eventOpen) => set({ eventOpen, ...(eventOpen ? { usageOpen: false, teamOpen: false } : {}) }),
   openAgent: (detailAgent, toolId) => set({ detailAgent, detailTool: toolId ?? null }),
   closeAgent: () => set({ detailAgent: null, detailTool: null }),
   openDiff: (diffPath) => set({ diffPath, detailAgent: null }),

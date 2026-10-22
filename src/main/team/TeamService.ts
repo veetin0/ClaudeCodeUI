@@ -475,7 +475,7 @@ export class TeamService {
     }).catch(() => null)
     if (!res) throw new Error("Can't reach the team server.")
     if (res.status === 404) throw new Error('This team server is too old for crew mode: redeploy it (Settings → Team server).')
-    if (res.status === 413) throw new Error(`Too large for the team server (${Math.round(data.length / 1e6)} MB; the limit is 40 MB). Keep big files out of git.`)
+    if (res.status === 413) throw new Error(`Too large for the team server (${Math.round(data.length / 1e6)} MB; the limit is 40 MB). Move big files (videos, datasets) to Private files or out of the project.`)
     if (!res.ok) throw new Error(`Team server answered ${res.status}`)
   }
 
@@ -487,6 +487,17 @@ export class TeamService {
     const res = await f(this.fileUrl(c, id), { headers: { authorization: `Bearer ${c.token}` }, signal: AbortSignal.timeout(180_000) }).catch(() => null)
     if (!res?.ok) return null
     return openBytes(c.token, Buffer.from(await res.arrayBuffer()))
+  }
+
+  /** Settings → Team server: does this URL answer, and does it take crew files? */
+  async testServer(raw: string): Promise<{ ok: boolean; files?: boolean; error?: string }> {
+    const url = raw.trim().replace(/\/+$/, '')
+    if (!/^https?:\/\//.test(url)) return { ok: false, error: 'Enter the full address, e.g. https://harness-team.onrender.com' }
+    const f = this.deps.fetch ?? fetch
+    const r = await f(`${url}/health`, { signal: AbortSignal.timeout(75_000) }).catch(() => null)
+    const body = r?.ok ? ((await r.json().catch(() => ({}))) as { service?: string; blobs?: boolean }) : null
+    if (body?.service !== 'harness-team-relay') return { ok: false, error: `No Harness team server answers at ${url}` }
+    return body.blobs ? { ok: true, files: true } : { ok: true, files: false, error: 'This team server is too old for crew mode: redeploy it.' }
   }
 
   private async checkRelay(url: string) {

@@ -1,4 +1,5 @@
-import { BarChart3, CalendarClock, FolderOpen, History, Plus, Search, Settings, SquareTerminal, Trash2, X } from 'lucide-react'
+import { BarChart3, CalendarClock, FolderOpen, History, Plus, Rocket, Search, Settings, SquareTerminal, Trash2, X } from 'lucide-react'
+import { useRun } from '@/stores/run'
 import { eventClock, formatSpan } from '@shared/event'
 import { useEventState, useNow } from '@/stores/event'
 import { useMemo, useState } from 'react'
@@ -39,15 +40,15 @@ export function Sidebar() {
       {/* Room for the macOS traffic lights; Windows has a normal title bar above. */}
       <div className={isMac ? 'drag h-12 shrink-0' : 'h-3 shrink-0'} />
       <div className="px-3">
+        <TeamRunEntry />
         <button
           onClick={() => void openProject()}
           className="no-drag flex w-full items-center gap-2 rounded-lg px-2.5 py-1.5 text-left font-medium hover:bg-black/5 dark:hover:bg-white/5"
         >
-          <Plus className="size-4 text-[var(--accent)]" />
+          <Plus className="size-4 text-muted" />
           New session
           <kbd className="ml-auto text-[11px] text-muted">{shortcut('⌘O')}</kbd>
         </button>
-        <EventEntry />
       </div>
 
       <div className="mt-3 min-h-0 flex-1 overflow-y-auto px-3 pb-3">
@@ -110,6 +111,7 @@ export function Sidebar() {
       </div>
 
       <div className="p-3 pt-0">
+        <EventEntry />
         <button
           onClick={() => useApp.getState().setUsageOpen(!useApp.getState().usageOpen)}
           title={shortcut('Usage history (⌘7)')}
@@ -193,6 +195,33 @@ function HistoryRow({ h, onOpen, onDelete }: { h: SessionSummary; onOpen: () => 
 
 function SectionLabel({ children, className }: { children: React.ReactNode; className?: string }) {
   return <div className={cn('mb-1 px-2.5 text-[11px] font-semibold uppercase tracking-wide text-muted', className)}>{children}</div>
+}
+
+const STAGE_LABEL = { team: 'Start the team', setup: 'Setup', plan: 'Planning', run: 'Running', done: 'Done' } as const
+
+/** Harness's home: the team run, with the step it's on. */
+function TeamRunEntry() {
+  const run = useRun()
+  const open = useApp((s) => s.teamOpen)
+  const waiting = run.inbox.length
+  const sub =
+    run.stage === 'run' ? (run.pausedReason ? 'Paused' : run.current ? `Building ${run.current}` : 'Finishing') : run.stage === 'plan' && run.step === 'plan-ready' ? 'Plan ready' : STAGE_LABEL[run.stage]
+  return (
+    <button
+      onClick={() => useApp.getState().setTeamOpen(true)}
+      className={cn(
+        'no-drag mb-1 flex w-full items-center gap-2 rounded-lg px-2.5 py-1.5 text-left hover:bg-black/5 dark:hover:bg-white/5',
+        open && 'bg-black/[0.07] dark:bg-white/10',
+      )}
+    >
+      <Rocket className="size-4 shrink-0 text-[var(--accent)]" />
+      <span className="min-w-0 flex-1">
+        <span className="block truncate font-medium">{run.project?.name ?? 'Team run'}</span>
+        <span className="block truncate text-[11px] text-muted">{sub}</span>
+      </span>
+      {waiting > 0 && <span className="rounded-full bg-[var(--accent)] px-1.5 text-[10.5px] font-semibold text-white">{waiting}</span>}
+    </button>
+  )
 }
 
 /** Event mode entry with a live countdown to the next thing that matters. */

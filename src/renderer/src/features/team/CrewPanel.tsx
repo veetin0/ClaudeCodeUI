@@ -91,7 +91,8 @@ function ProjectLine({ crew }: { crew: ReturnType<typeof useCrew> }) {
         <div className="flex items-center gap-1.5 text-muted">
           <Check className="size-3.5 text-emerald-600" />
           <span className="selectable truncate">
-            Project for the crew: <span className="font-mono">{crew.project.url}</span> · from {crew.project.base}
+            Project for the crew: <span className="font-mono">{crew.project.name}</span> · {crew.project.base} at{' '}
+            <span className="font-mono">{crew.project.head.slice(0, 7)}</span> (shared through the team server)
           </span>
         </div>
       )}
@@ -132,8 +133,8 @@ function Invite({ command, compact }: { command: string; compact?: boolean }) {
         </button>
       </div>
       <p className="mt-2 text-[11px] text-muted">
-        They need Node 20 or newer, git with access to your GitHub repo (accept the invite, then <code>gh auth login</code>), and to sign in to Claude when it
-        asks. Missions run on their own Claude plan, on their own branch.
+        They need Node 20 or newer, git, and to sign in to Claude when it asks. No GitHub access: the project and their work travel through the team server,
+        encrypted with your team’s key. Missions run on their own Claude plan, on their own branch.
       </p>
     </div>
   )
@@ -173,7 +174,7 @@ function Member({ m, now }: { m: CrewMemberView; now: number }) {
       {m.problem && <div className="selectable mt-1.5 text-[11.5px] text-amber-700 dark:text-amber-300">{m.problem}</div>}
       {m.waiting && m.online && (
         <div className="mt-1.5 text-[11.5px] text-muted">
-          They clone your project from its git remote once you link the event project (with a GitHub remote) or your Claude checks the crew.
+          They get a copy of your project through the team server once the event project is linked (and committed) or your Claude checks the crew.
         </div>
       )}
       {m.current && (

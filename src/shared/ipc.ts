@@ -106,6 +106,8 @@ export interface AppSettings {
   hasContext7Key: boolean
   /** Crew reports and messages start a turn in the session that sent the mission. */
   crewAutoReports: boolean
+  /** The team server teams start on (e.g. a Render URL); empty: host it on this laptop. */
+  teamServer: string
 }
 
 /** Settings the renderer may change directly (stored keys have their own setters). */
@@ -264,6 +266,34 @@ export interface HarnessApi {
   crewAnswer(askId: string, allow: boolean, always?: boolean): Promise<void>
   crewCancel(missionId: string): Promise<void>
   onCrew(cb: (state: import('./crew').CrewState) => void): () => void
+  /** Team run: Team → Setup → Plan → Run → Done. */
+  runState(): Promise<import('./run').RunState>
+  onRun(cb: (state: import('./run').RunState) => void): () => void
+  /** Starts the team on the team server from Settings (or hosted here). */
+  runStartTeam(name: string): Promise<void>
+  runGoTo(stage: import('./run').RunStage): Promise<void>
+  runCreateProject(o: { name: string; parent: string; deadline?: string; plan: import('./run').ClaudePlan }): Promise<void>
+  runUseFolder(o: { dir: string; name: string; deadline?: string; plan: import('./run').ClaudePlan }): Promise<void>
+  runSetupInfo(): Promise<import('./run').SetupInfo | null>
+  runSetChallenge(text: string): Promise<import('./run').SetupInfo | null>
+  runAddFiles(kind: import('./run').FileKind, paths: string[]): Promise<import('./run').SetupInfo | null>
+  /** File picker for a drop zone; the chosen paths (empty when cancelled). */
+  runPickFiles(): Promise<string[]>
+  runGithub(): Promise<void>
+  /** The lead's session is started: HackForge plans in it. */
+  runPlan(sessionId: string): Promise<void>
+  runAccept(): Promise<void>
+  runRevise(change: string): Promise<void>
+  runAnswer(itemId: string, a: { allow?: boolean; always?: boolean; answers?: Record<string, string>; text?: string }): Promise<void>
+  runPause(): Promise<void>
+  runResume(): Promise<void>
+  runStop(): Promise<void>
+  runReset(): Promise<void>
+  runReconnect(sessionId: string): Promise<void>
+  /** Checks a team server URL: reachable, and new enough for crew mode. */
+  teamTestServer(url: string): Promise<{ ok: boolean; files?: boolean; error?: string }>
+  /** The path of a file dropped on the window. */
+  pathForFile(file: File): string
   /** Tokens per day and model, top sessions, the saver's work and plan readings. */
   usageHistory(days: number): Promise<import('./usageHistory').UsageHistory>
   /** Events arrive batched (~30fps) to keep the renderer smooth during heavy streaming. */
@@ -377,5 +407,26 @@ export const IPC = {
   crewAnswer: 'crew:answer',
   crewCancel: 'crew:cancel',
   crewPush: 'crew:push',
+  runState: 'run:state',
+  runPush: 'run:push',
+  runStartTeam: 'run:start-team',
+  runGoTo: 'run:go-to',
+  runCreateProject: 'run:create-project',
+  runUseFolder: 'run:use-folder',
+  runSetupInfo: 'run:setup-info',
+  runSetChallenge: 'run:set-challenge',
+  runAddFiles: 'run:add-files',
+  runPickFiles: 'run:pick-files',
+  runGithub: 'run:github',
+  runPlan: 'run:plan',
+  runAccept: 'run:accept',
+  runRevise: 'run:revise',
+  runAnswer: 'run:answer',
+  runPause: 'run:pause',
+  runResume: 'run:resume',
+  runStop: 'run:stop',
+  runReset: 'run:reset',
+  runReconnect: 'run:reconnect',
+  teamTestServer: 'team:test-server',
   events: 'events',
 } as const

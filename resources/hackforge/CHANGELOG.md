@@ -1,5 +1,12 @@
 # Changelog
 
+## 2.5.0 — 2026-10-22
+Team runs with the Harness app: the app drives the build across the crew, and teammates need no GitHub access.
+- **Team run protocol:** when Harness runs the build ("Harness team run" in the system prompt), build follows its "[run]" messages: Harness hands each milestone's tasks to the crew and to the driver's Claude by usage left, and says when to build, integrate, verify and finish. Contracts give every task a unique `id`, a `role` and non-overlapping `owned` paths, so they can be handed out.
+- **Kickoff spreads research and architect work** across ready crew members, keeping the driver's usage for the decision and the integration.
+- **Crew branches arrive locally** (`crew/<name>/<mission>`) through the Harness team server: no push to a remote and no GitHub for teammates. Build, the loop and the integrator merge them from the local repository.
+- Real decisions go to the lead with `mcp__harness__crew_ask_driver` (with a suggested answer); routine crew questions are answered by the driver's Claude.
+
 ## 2.4.0 — 2026-10-19
 Crew mode with the Harness app: teammates lend their Claude from a terminal (`npx harness-crew <join code>`), and the driver's Claude hands them missions. Optional: without a crew HackForge works as before.
 - **Build hands tasks to the crew** (`mcp__harness__crew_dispatch`): a builder brief per task, one mission per crew member, never two on the same owned paths, bigger tasks to whoever has more usage left; local builders take the rest. `mcp__harness__crew_wait` collects the reports; contracts record `owner: crew:<name>`.

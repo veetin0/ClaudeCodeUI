@@ -4,6 +4,18 @@ A Mac app that runs Claude Code and shows what it's doing as it happens: streame
 
 ![Three agents working in parallel on the Board, one streaming live training progress](docs/screenshots/board.png)
 
+## Team run: a hackathon in five steps
+
+Harness opens on the **team run**, one straight line from an empty laptop to a finished entry: **Team → Setup → Plan → Run → Done**. You drive; your teammates' Claudes build alongside yours on their own Claude plans.
+
+1. **Team.** Type your name and press **Start**. Harness shows one command; each teammate pastes it in a terminal (`npx -y harness-crew HT1.…`) and leaves it open. That's their whole setup: Node 20+, git and a Claude login. No GitHub, no Harness. You see each teammate appear with whether they're ready and how much plan usage they have left.
+2. **Setup.** Name the project, pick a folder and the deadline, and Harness creates it: git, HackForge's settings and two drop zones, **the challenge** (paste the text, drop the PDFs) and **files** (data, docs, brand kits). **Private files** are for data the rules say must not go to an AI: Claude can't read or show them (permission rules plus a hook), they stay out of git and on your laptop, and Claude only runs scripts on them that print totals. A public GitHub repository for the submission is one optional click (GitHub CLI).
+3. **Plan.** **Continue** starts your Claude on HackForge: it reads the challenge, researches (handing research and architect work to ready teammates' Claudes), weighs options and stops with a plan. You read the decision and the milestones and press **Accept and run**, or **Ask for changes**.
+4. **Run.** Your Claude freezes the interfaces and writes a contract per milestone; then Harness runs the build milestone by milestone. It gives each task to a teammate's Claude (one each, whoever has the most usage left) and the rest to yours, keeps your own usage for integrating when it runs low, and tells your Claude in "[run]" messages when to build its part, when to merge the crew's branches and verify, and when to move on. Work that fails moves to someone else or back to your Claude; a teammate whose plan runs out hands over to another, from their branch. When your own limit runs out, the run waits for the reset while the crew keeps going. Overruns and the deadline are watched: a milestone over its time-box by half gets cut down, and when time is short the remaining milestones are cut so the pitch, verification and improvement loop still happen.
+5. **Done.** What got built, the mock judges' score and what they'd still fix. Harness never submits for you.
+
+Only your screen shows everything: who's doing what, each task, the timeline, and an **Inbox** for everything that needs you: your Claude's permission prompts and questions, crew Claudes' prompts (**Allow / Always / Deny**), and decisions your Claude escalates with its suggested answer (routine crew questions it answers itself). Teammates' terminals show their own Claude working. The Claudes message each other about interface changes. Code moves between laptops through the **team server** as git bundles encrypted with the team's key: deploy one once for free (Settings → **Team server** → *Deploy on Render*, then paste its address), or let your laptop host it on the same network. The rest of Harness (sessions, the Board, event mode) stays available from the sidebar.
+
 ## Watching agents work
 
 **Board** (⌘2) shows every agent as a live card. Each card shows:
@@ -164,7 +176,8 @@ HackForge's hooks run Python 3 (macOS has it with the Xcode command-line tools; 
 - The pitch studio's **3D / animated clips** button runs `/hackforge:video`, which adds clips to `pitch/public/` as screen scenes.
 - **Design skills inside HackForge** (2.2.0): build writes one `DESIGN.md` design system before frontend work and freezes it with the contracts, frontend builders load impeccable, and `tools design-scan` records impeccable's findings as evidence for the verifier, the judges and the fix order.
 - **Dev tools inside HackForge** (2.3.0): the verifier walks the demo path in the browser and saves named screenshots to `.hackforge/evidence/` (a step that fails is a major finding), frontend builders check their screens in the browser, and builders look APIs up with Context7 instead of guessing.
-- **Crew inside HackForge** (2.4.0): with a [crew](#crew-mode) ready, build hands its tasks to teammates' Claudes as missions (a builder brief each, one per crew member, never two on the same files), the improvement loop runs fixes on them in parallel, and the integrator merges the pushed crew branches.
+- **Crew inside HackForge** (2.4.0): with a [crew](#crew-mode) ready, build hands its tasks to teammates' Claudes as missions (a builder brief each, one per crew member, never two on the same files), the improvement loop runs fixes on them in parallel, and the integrator merges the crew branches.
+- **Team runs** (2.5.0): in a [team run](#team-run-a-hackathon-in-five-steps) build follows Harness's "[run]" messages (Harness hands out each milestone's tasks), contracts give every task an id, a role and its own paths, kickoff spreads research and architect work across the crew, and crew branches arrive locally through the team server.
 
 ![HackForge dashboard with a running improvement loop](docs/screenshots/hackforge.png)
 
@@ -230,19 +243,19 @@ By default it only pushes when you're away (screen locked or idle). Each laptop 
 Only the driver runs Harness. Teammates lend their Claude from a terminal, with no app to install:
 
 ```bash
-npx -y harness-crew HT1.xxxxxxxx      # the command on the Team board's Crew card, with your join code
+npx -y harness-crew HT1.xxxxxxxx      # the command on the Team screen (or the Team board's Crew card)
 ```
 
-From then on nobody else types anything. You start the project and run HackForge as usual; your Claude splits the work and hands missions to the crew, and their Claudes work in parallel on their own laptops and Claude plans.
+From then on nobody else types anything. In a [team run](#team-run-a-hackathon-in-five-steps) Harness hands out the tasks; in any other session in a team, your Claude splits the work and hands missions to the crew itself. Their Claudes work in parallel on their own laptops and Claude plans.
 
-- **Missions:** your Claude calls `crew_dispatch` with a self-contained brief per task. Each mission runs in a fresh Claude Code session on the teammate's laptop, on its own branch (`crew/<name>/<mission>`), with HackForge's builder rules, the design skills, library docs (Context7) and a browser (their Chrome or Edge) to check frontend work. When their Claude reports, harness-crew commits what's left, pushes the branch and tells you.
-- **Usage-aware:** a mission goes to the idle teammate with the most plan usage left (`crew_status` shows everyone's, yours included). If someone's plan runs out mid-mission, the work so far is pushed and the mission moves to whoever has usage left, continuing from that branch.
+- **Missions:** your Claude calls `crew_dispatch` with a self-contained brief per task. Each mission runs in a fresh Claude Code session on the teammate's laptop, on its own branch (`crew/<name>/<mission>`), with HackForge's builder rules, the design skills, library docs (Context7) and a browser (their Chrome or Edge) to check frontend work. When their Claude reports, harness-crew commits what's left and sends the branch back through the team server: it appears in your repository as `crew/<name>/<mission>`, ready to merge.
+- **Usage-aware:** a mission goes to the idle teammate with the most plan usage left (`crew_status` shows everyone's, yours included). If someone's plan runs out mid-mission, the work so far is sent and the mission moves to whoever has usage left, continuing from that branch.
 - **Reports come back by themselves:** your Claude collects them with `crew_wait`, or they arrive in the session that sent the mission as a **Crew** message, so it keeps going: merge, run the checks, dispatch the next wave. Switch that off on the Crew card if you'd rather read them yourself.
 - **The Claudes talk to each other:** a crew Claude can ask yours a question and wait for the answer, tell a teammate's Claude about an interface change, and see who is changing which files. The Crew card shows the messages.
-- **Approvals:** file edits and normal dev commands (npm, node, python, pytest, git add/commit…) run without asking. Anything else shows up on the Crew card as **Allow / Always / Deny** (and on your phone with phone alerts on). Unanswered questions are denied after 10 minutes. Crew Claudes never push or merge; harness-crew pushes their branch.
-- **The Crew card** on the Team board shows the project crew members will get (or what's in the way: no GitHub remote, unpushed commits), each crew member (ready, working on what, usage left, problems like "can't push to the repo"), every mission with its live activity, branch, files and report, and a Stop button.
-- **At the venue,** laptop-to-laptop traffic is often blocked, so host the relay on Render instead of on your laptop: one click, free ([relay/README.md](relay/README.md)). A phone hotspot is the fallback.
-- **What teammates need:** Node 20+, git with access to the repo (accept the GitHub invite, then `gh auth login`), and a Claude login (harness-crew asks them to sign in the first time). Everything travels through the team relay, encrypted with the team key. The package lives in [`crew/`](crew/README.md); publish it with `npm run crew:publish` (needs `npm login` once).
+- **Approvals:** file edits and normal dev commands (npm, node, python, pytest, git add/commit…) run without asking. Anything else shows up on the Crew card as **Allow / Always / Deny** (and on your phone with phone alerts on). Unanswered questions are denied after 10 minutes. Crew Claudes never push or merge; harness-crew sends their branch.
+- **The Crew card** on the Team board shows the project crew members get (or what's in the way: no commits yet, uncommitted changes), each crew member (ready, working on what, usage left, problems), every mission with its live activity, branch, files and report, and a Stop button.
+- **At the venue,** laptop-to-laptop traffic is often blocked, so use a team server on Render instead of your laptop: one click, free (Settings → Team server, or [relay/README.md](relay/README.md)). A phone hotspot is the fallback.
+- **What teammates need:** Node 20+, git and a Claude login (harness-crew asks them to sign in the first time). No GitHub access: the project goes to them and their work comes back through the team server as git bundles (40 MB each at most), encrypted with the team key. The package lives in [`crew/`](crew/README.md); publish it with `npm run crew:publish` (needs `npm login` once).
 
 ### Partner APIs
 

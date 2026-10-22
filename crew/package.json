@@ -1,6 +1,6 @@
 {
   "name": "harness-crew",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Lend your Claude to your team's project: run missions from the team lead's Claude (Harness) in your terminal, on your own Claude plan.",
   "type": "module",
   "bin": {

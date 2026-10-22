@@ -41,6 +41,9 @@ import { CrewDriver } from './crew/CrewDriver'
 import { driverCrewTools } from './crew/crewTools'
 import { CREW_GUIDE } from '@shared/crew'
 import { makeJoinCode } from '@shared/team'
+import { RUN_GUIDE, type ClaudePlan, type FileKind, type RunStage } from '@shared/run'
+import { RunService } from './run/RunService'
+import { ghCli } from './run/project'
 
 // Tests (and a second, throwaway profile) can keep everything out of the real profile folder.
 if (process.env.HARNESS_USER_DATA) app.setPath('userData', process.env.HARNESS_USER_DATA)
@@ -69,6 +72,7 @@ let pitch: PitchService
 let partners: PartnerService
 let resetQueue: ResetQueue
 let crew: CrewDriver
+let run: RunService
 const design = new DesignService({
   appPath: app.getAppPath(),
   claudeDir,
@@ -149,6 +153,10 @@ function createWindow() {
   win.once('ready-to-show', () => win.show())
   bus.attach(win.webContents)
 
+  // A file dropped on the window must not replace the app with it.
+  win.webContents.on('will-navigate', (e, url) => {
+    if (url !== win.webContents.getURL()) e.preventDefault()
+  })
   // Open links in the default browser, never inside the app.
   win.webContents.setWindowOpenHandler(({ url }) => {
     void shell.openExternal(url)
@@ -334,6 +342,31 @@ function registerIpc() {
   ipcMain.handle(IPC.crewState, () => crew.state())
   ipcMain.handle(IPC.crewAnswer, (_e, askId: string, allow: boolean, always?: boolean) => crew.answer(askId, allow, always))
   ipcMain.handle(IPC.crewCancel, (_e, missionId: string) => void crew.stop(missionId, 'Stopped from the Team board.'))
+  ipcMain.handle(IPC.runState, () => run.state())
+  ipcMain.handle(IPC.runStartTeam, (_e, name: string) => run.startTeam(name))
+  ipcMain.handle(IPC.runGoTo, (_e, stage: RunStage) => run.goTo(stage))
+  ipcMain.handle(IPC.runCreateProject, (_e, o: { name: string; parent: string; deadline?: string; plan: ClaudePlan }) => run.createProject(o))
+  ipcMain.handle(IPC.runUseFolder, (_e, o: { dir: string; name: string; deadline?: string; plan: ClaudePlan }) => run.useFolder(o))
+  ipcMain.handle(IPC.runSetupInfo, () => run.setupInfo())
+  ipcMain.handle(IPC.runSetChallenge, (_e, text: string) => run.setChallenge(text))
+  ipcMain.handle(IPC.runAddFiles, (_e, kind: FileKind, paths: string[]) => run.addFiles(kind, paths))
+  ipcMain.handle(IPC.runPickFiles, async () => {
+    const r = await dialog.showOpenDialog({
+      properties: ['openFile', 'multiSelections', ...(process.platform === 'darwin' ? (['openDirectory'] as const) : [])],
+    })
+    return r.canceled ? [] : r.filePaths
+  })
+  ipcMain.handle(IPC.runGithub, () => run.github())
+  ipcMain.handle(IPC.runPlan, (_e, sessionId: string) => run.plan(sessionId))
+  ipcMain.handle(IPC.runAccept, () => run.acceptPlan())
+  ipcMain.handle(IPC.runRevise, (_e, change: string) => run.revisePlan(change))
+  ipcMain.handle(IPC.runAnswer, (_e, id: string, a) => run.answer(id, a))
+  ipcMain.handle(IPC.runPause, () => run.pauseRun())
+  ipcMain.handle(IPC.runResume, () => run.resumeRun())
+  ipcMain.handle(IPC.runStop, () => run.stop())
+  ipcMain.handle(IPC.runReset, () => run.reset())
+  ipcMain.handle(IPC.runReconnect, (_e, sessionId: string) => run.reconnect(sessionId))
+  ipcMain.handle(IPC.teamTestServer, (_e, url: string) => team.testServer(url))
   ipcMain.handle(IPC.designState, () => design.state())
   ipcMain.handle(IPC.designPrepare, () => design.prepare())
   ipcMain.handle(IPC.devToolsState, () => devTools.state())
@@ -470,8 +503,10 @@ async function start() {
       const hf = mode !== 'off' && (present || mode === 'always') ? hackforgeGuide(present) : undefined
       const loaded = design.plugins().filter((p) => p.source === 'builtin' || p.source === 'installed')
       const ds = designGuide({ impeccable: loaded.some((p) => p.key === 'impeccable'), uiUxProMax: loaded.some((p) => p.key === 'uiUxProMax') })
-      const cg = settings.get().team ? CREW_GUIDE : undefined
-      return [hf, ds, devTools.guide(cwd), cg].filter(Boolean).join('\n\n') || undefined
+      // In a team run Harness hands out the crew work, so the lead's Claude gets the run guide instead.
+      const rg = run?.isRunProject(cwd) ? RUN_GUIDE : undefined
+      const cg = settings.get().team && !rg ? CREW_GUIDE : undefined
+      return [hf, ds, devTools.guide(cwd), cg, rg].filter(Boolean).join('\n\n') || undefined
     },
     // Every session (unless HackForge is off) gets the plugin, so /hackforge:init works in a new folder too.
     // Its hooks do nothing outside HackForge projects. The design skills (impeccable, UI/UX Pro Max) come too.
@@ -488,7 +523,7 @@ async function start() {
     extraEnv: (cwd) => ({ ...design.env(), ...partners.envFor(cwd) }),
     mcp: (cwd) => ({ servers: devTools.mcpServers(cwd), allow: devTools.allowedTools() }),
     // Crew tools for every session: they explain how to get a team when there's none.
-    harnessTools: (s) => driverCrewTools(crew.toolsFor(s.id, s.cwd)),
+    harnessTools: (s) => driverCrewTools({ ...crew.toolsFor(s.id, s.cwd), askDriver: run?.isRunProject(s.cwd) ? (q) => run.ask(q) : undefined }),
     getEnv: () => {
       const key = settings.getApiKey()
       return agentEnv(key ? { ANTHROPIC_API_KEY: key } : {})
@@ -527,11 +562,13 @@ async function start() {
     nudge: () => team.nudge(),
     push: (state) => broadcast(IPC.crewPush, state),
     deliver: (sessionId, text) => {
+      // The run's lead takes crew messages between Harness's own turns.
+      if (run?.owns(sessionId)) return run.deliver(text)
       if (!agents.status(sessionId)) return false
       agents.send(sessionId, text, undefined, 'crew')
       return true
     },
-    autoReports: () => settings.get().crewAutoReports,
+    autoReports: (sessionId) => settings.get().crewAutoReports || (!!sessionId && !!run?.owns(sessionId)),
     files: { put: (id, data) => team.putFile(id, data), get: (id) => team.getFile(id) },
     tmpDir: join(app.getPath('userData'), 'crew-bundles'),
     joinCommand: () => {
@@ -604,6 +641,55 @@ async function start() {
     },
   })
   team.start()
+  run = new RunService({
+    file: join(app.getPath('userData'), 'run.json'),
+    push: (state) => broadcast(IPC.runPush, state),
+    notify: (title, body, kind) => {
+      presence.notifyApp(title, body)
+      void phone.alert(kind === 'done' ? 'finished' : 'team', title, body, {
+        tags: [kind === 'ask' ? 'raised_hand' : kind === 'done' ? 'white_check_mark' : 'warning'],
+        priority: kind === 'ask' ? 4 : 3,
+      })
+    },
+    team: {
+      me: () => {
+        const c = settings.get().team
+        return c ? { id: c.memberId, name: c.memberName } : null
+      },
+      start: async (name) => {
+        const url = settings.get().teamServer.trim()
+        await team.create({ name, host: !url, relayUrl: url || undefined })
+      },
+      myUsage: () => team.state().myUsage,
+    },
+    crew: {
+      assign: (sessionId, cwd, specs, o) => crew.assign(sessionId, cwd, specs, o),
+      onMission: (fn) => crew.onMission(fn),
+      mission: (id) => crew.mission(id),
+      members: () => crew.members(),
+      stop: (id, reason) => crew.stop(id, reason),
+    },
+    lead: {
+      send: (id, text) => agents.send(id, text, undefined, 'run'),
+      status: (id) => agents.status(id),
+      respond: (id, requestId, d) => agents.respondPermission(id, requestId, d),
+      interrupt: (id) => agents.interrupt(id),
+    },
+    hackforge: (dir) => readHackforge(dir, hackforgePlugin),
+    gh: ghCli,
+    onProject: (dir) => {
+      if (dir) {
+        settings.update({ eventProject: dir })
+        settings.addRecentProject(dir)
+      }
+      partners.changed()
+      devTools.publish()
+      void crew.setProject(dir)
+    },
+    author: () => settings.get().team?.memberName,
+  })
+  bus.subscribe((e) => run.onEvents([e]))
+  run.start()
   void crew.setProject(settings.get().eventProject ?? undefined)
   // The Crew card's "project for the crew" line follows pushes and new remotes.
   setInterval(() => {
@@ -654,6 +740,7 @@ app.on('before-quit', () => {
   hackforge.dispose()
   eventService.dispose()
   team?.dispose()
+  run?.dispose()
   pitch?.dispose()
   resetQueue?.dispose()
   partners?.dispose()

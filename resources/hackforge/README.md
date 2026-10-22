@@ -84,7 +84,7 @@ With browser tools (the Harness app's built-in Playwright, `mcp__browser__*`, or
 
 ## Crew mode (Harness)
 
-Only the driver runs the Harness app. Teammates run `npx harness-crew <join code>` in a terminal and leave it open. Build and the improvement loop then hand tasks to their Claudes as missions: each runs on that teammate's Claude plan, on its own branch, with the builder rules, and the integrator merges the pushed branches. Missions go to whoever has the most usage left; a mission whose plan runs out moves to someone else.
+Only the driver runs the Harness app. Teammates run `npx harness-crew <join code>` in a terminal and leave it open. Build and the improvement loop then hand tasks to their Claudes as missions: each runs on that teammate's Claude plan, on its own branch, with the builder rules, and the integrator merges their branches, which come back through the Harness team server (teammates need no GitHub access). Kickoff can hand research and architect work to the crew too. In a Harness team run the app drives the build: it hands each milestone's tasks to the crew and the driver's Claude by usage left and tells the driver's Claude when to build, integrate and finish. Missions go to whoever has the most usage left; a mission whose plan runs out moves to someone else.
 
 ## Stopping the loop
 

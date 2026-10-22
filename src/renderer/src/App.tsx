@@ -16,6 +16,7 @@ import { useTeamReporter } from './stores/team'
 import { useResetQueueRunner } from './stores/resetQueue'
 import { HandoffDialog } from './features/team/HandoffDialog'
 import { UsageView } from './features/usage/UsageView'
+import { TeamRunView } from './features/run/TeamRunView'
 
 const VIEW_KEYS: Record<string, CommandId> = { '1': 'view-chat', '2': 'view-board', '3': 'view-mission', '4': 'view-preview', '5': 'view-hackforge', '6': 'event-mode', '7': 'usage' }
 
@@ -24,6 +25,7 @@ export function App() {
   const focusMode = useApp((s) => s.focusMode)
   const eventOpen = useApp((s) => s.eventOpen)
   const usageOpen = useApp((s) => s.usageOpen)
+  const teamOpen = useApp((s) => s.teamOpen)
   useTeamReporter()
   useResetQueueRunner()
 
@@ -43,14 +45,21 @@ export function App() {
       if (app.settingsOpen) app.setSettingsOpen(false)
       else if (app.handoffFor) app.openHandoff(null)
       else if (app.usageOpen) app.setUsageOpen(false)
+      else if (app.teamOpen && app.activeId) app.setTeamOpen(false)
       else if (app.eventOpen) app.setEventOpen(false)
       else if (app.replay) app.setReplay(null)
       else if (app.activeId && app.sessions[app.activeId]?.status === 'running') void app.interrupt()
     }
     window.addEventListener('keydown', onKey)
+    // A file dropped outside a drop zone must not replace the app with that file.
+    const noDrop = (e: DragEvent) => e.preventDefault()
+    window.addEventListener('dragover', noDrop)
+    window.addEventListener('drop', noDrop)
     return () => {
       offCommand()
       window.removeEventListener('keydown', onKey)
+      window.removeEventListener('dragover', noDrop)
+      window.removeEventListener('drop', noDrop)
     }
   }, [])
 
@@ -64,8 +73,10 @@ export function App() {
       <main className="flex min-w-0 flex-1 flex-col bg-surface shadow-[-1px_0_0_var(--line)]">
         <TopBar />
         <div className="flex min-h-0 flex-1">
-          <div className="flex min-w-0 flex-1 flex-col">{usageOpen ? <UsageView /> : eventOpen ? <EventView /> : session ? <Conversation session={session} /> : <Welcome />}</div>
-          {session && !focusMode && !eventOpen && !usageOpen && <Inspector session={session} />}
+          <div className="flex min-w-0 flex-1 flex-col">
+            {usageOpen ? <UsageView /> : eventOpen ? <EventView /> : teamOpen ? <TeamRunView /> : session ? <Conversation session={session} /> : <Welcome />}
+          </div>
+          {session && !focusMode && !eventOpen && !usageOpen && !teamOpen && <Inspector session={session} />}
         </div>
         <TerminalPanel />
       </main>

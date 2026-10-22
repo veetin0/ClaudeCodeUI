@@ -1,4 +1,4 @@
-import { AlertTriangle, Archive, Bot, Info, Leaf, Users, Zap } from 'lucide-react'
+import { AlertTriangle, Archive, Bot, Info, Leaf, Route, Users, Zap } from 'lucide-react'
 import { useEffect, useLayoutEffect, useRef } from 'react'
 import { cn, formatCost, formatDuration } from '@/lib/format'
 import type { Item, SessionState } from '@/stores/reducer'
@@ -72,12 +72,13 @@ export function MessageList({ session }: { session: SessionState }) {
 function BlockView({ block, session }: { block: Block; session: SessionState }) {
   switch (block.kind) {
     case 'user':
-      if (block.via === 'crew') {
-        // A crew report or a teammate's Claude, delivered by Harness: not something you typed.
+      if (block.via) {
+        // A crew report, a teammate's Claude or a team run step, delivered by Harness: not something you typed.
+        const Icon = block.via === 'run' ? Route : Bot
         return (
           <div className="selectable flex gap-2 rounded-xl border border-[var(--accent)]/25 bg-[var(--accent)]/[0.05] px-3 py-2 text-[12.5px] leading-relaxed">
-            <Bot className="mt-0.5 size-4 shrink-0 text-[var(--accent)]" />
-            <div className="min-w-0 whitespace-pre-wrap">{block.text.replace(/^\[crew\] ?/gm, '')}</div>
+            <Icon className="mt-0.5 size-4 shrink-0 text-[var(--accent)]" />
+            <div className="min-w-0 whitespace-pre-wrap">{block.text.replace(/^\[(crew|run)\] ?/gm, '')}</div>
           </div>
         )
       }

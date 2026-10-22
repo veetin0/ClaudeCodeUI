@@ -36,6 +36,8 @@ Run `hackforge:possibilities-scout` with BRIEF, RULES, DIRECTIVES, research and 
 
 ## Phase 3 — Design options
 
+**Crew (Harness).** When `mcp__harness__crew_status` shows ready crew, give the researcher and solution-architect work to them before launching local agents: one `mcp__harness__crew_dispatch` mission per member, each carrying the agent's full brief, the files to read, and "write your result to `.hackforge/research/<focus>.md` (or `.hackforge/options/<stance>.md`) and commit it". Run the rest locally, collect the missions with `mcp__harness__crew_wait`, and merge their branches (`git merge crew/<name>/<mission>`) before the next step. It keeps your own usage for the decision, contracts and integration.
+
 Launch `hackforge:solution-architect` agents **in parallel**, one per stance, as many as the profile says, picking stances in this order: safe winner, ambitious, lateral, sponsor-centric, data-driven, experience, minimal. Give every one BRIEF, RULES, DIRECTIVES, research, POSSIBILITIES, time and team.
 
 ## Phase 4 — Judge and decide

@@ -1,8 +1,12 @@
 # Harness team relay
 
-Shares each teammate's Harness status (what they're working on, sessions, plan usage, HackForge
-state) for the team board in event mode. It holds only the latest status per member, in memory,
-keyed by a hash of the team token. No database, no dependencies.
+Where a Harness team meets: each teammate's status (what they're working on, sessions, plan usage,
+HackForge state, crew missions) and the files crew mode moves between laptops (the project out to
+the crew, each mission's work back, as git bundles). Everything is encrypted with the team key on
+the laptops; the relay holds only the latest status per member and the files (up to 40 MB each,
+200 MB per team, gone after 12 hours), in memory, keyed by a hash of the team token. No database,
+no dependencies. In Harness, put its address in **Settings → Team server**: every team you start
+then uses it.
 
 **Option 1: host it from Harness.** In event mode → Team → *Create team* → *Host on this computer*.
 Teammates on the same network join with the join code. Venue wifi often blocks laptop-to-laptop

@@ -37,7 +37,7 @@ export interface Subagent {
 }
 
 export type Item =
-  | { kind: 'user'; id: string; text: string; ts: number; images?: ImageAttachment[]; via?: 'crew' }
+  | { kind: 'user'; id: string; text: string; ts: number; images?: ImageAttachment[]; via?: 'crew' | 'run' }
   | { kind: 'text'; id: string; text: string }
   | { kind: 'thinking'; id: string; text: string }
   | { kind: 'tool'; id: string }

@@ -413,7 +413,7 @@ class AgentSession {
     })
   }
 
-  send(text: string, images?: ImageAttachment[], via?: 'crew') {
+  send(text: string, images?: ImageAttachment[], via?: 'crew' | 'run') {
     if (this.status === 'closed') throw new Error('Session is closed')
     const id = randomUUID()
     // A message sent while Claude is working joins that turn; the saver only prepares fresh turns.
@@ -529,7 +529,7 @@ export class AgentService {
     return s
   }
 
-  send(id: string, text: string, images?: ImageAttachment[], via?: 'crew') {
+  send(id: string, text: string, images?: ImageAttachment[], via?: 'crew' | 'run') {
     this.get(id).send(text, images, via)
   }
 

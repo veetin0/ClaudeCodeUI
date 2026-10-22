@@ -4,9 +4,9 @@
  *
  *   npx harness-crew <join code>
  *
- * Joins the team's relay, clones the driver's project, and runs the missions the driver's Claude
- * hands out, one at a time, each in a fresh Claude Code session on your own plan and its own branch,
- * then pushes the branch and reports back. Leave it open; Ctrl+C stops it.
+ * Joins the team server, gets a copy of the driver's project through it, and runs the missions the
+ * driver hands out, one at a time, each in a fresh Claude Code session on your own plan and its own
+ * branch, then sends the branch back (no GitHub needed) and reports. Leave it open; Ctrl+C stops it.
  */
 import { execFileSync, spawnSync } from 'node:child_process'
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
@@ -323,7 +323,7 @@ async function main() {
     }
     stopping = true
     say()
-    info('Stopping: pushing any work in progress and telling the lead…')
+    info('Stopping: sending any work in progress and telling the lead…')
     await worker!.shutdown()
     for (let i = 0; i < 3; i++) await team.sync()
     worker!.close()

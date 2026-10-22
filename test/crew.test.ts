@@ -19,7 +19,7 @@ import {
 } from '@shared/crew'
 import type { MemberStatus, TeamConfig } from '@shared/team'
 import { AgentService, type QueryFactory } from '../src/main/agent/AgentService'
-import { CrewDriver } from '../src/main/crew/CrewDriver'
+import { CrewDriver, type MissionEvent } from '../src/main/crew/CrewDriver'
 import { CrewWorker, type CrewWorkerEvent } from '../src/main/crew/CrewWorker'
 import { EventBus } from '../src/main/events/bus'
 import { openCrew, sealCrew } from '../src/main/team/secrets'
@@ -554,6 +554,26 @@ describe('crew mode end to end', () => {
     await until(() => driverState?.missions.find((m) => m.id === id)?.state === 'done', 30_000)
     expect(sh(`git show crew/ben/${id}:later.txt`, driverDir)).toBe('committed after the first share')
     expect(sh(`git show crew/ben/${id}:second-half.txt`, driverDir)).toBe('second half')
+  })
+
+  it('runs a team run’s silent missions: the result goes to the run, not into the lead’s session', async () => {
+    const events: MissionEvent[] = []
+    const off = driver.onMission((e) => events.push(e))
+    const before = delivered.length
+    // Anna is out of usage and Ben is avoided: nobody can take it.
+    const [none] = await driver.assign('lead', driverDir, [{ title: 'M1 M1.2', brief: 'x' }], { silent: true, avoid: ['ben00001'] })
+    expect(none.error).toMatch(/nobody can take it/)
+    const [r] = await driver.assign('lead', driverDir, [{ title: 'M1 M1.1 (backend)', brief: 'Write the second half', to: 'Ben' }], { silent: true })
+    expect(r).toMatchObject({ toName: 'Ben', branch: `crew/ben/${r.id}` })
+    await until(() => events.some((e) => e.id === r.id), 30_000)
+    const e = events.find((x) => x.id === r.id)!
+    expect(e).toMatchObject({ state: 'done', imported: true, silent: true })
+    expect(e.report).toMatch(new RegExp(`Ben's Claude finished ${r.id}`))
+    expect(driver.settled(r.id!)).toBe(true)
+    expect(driver.mission(r.id!)?.progress?.commits).toBe(1)
+    expect(sh(`git show crew/ben/${r.id}:second-half.txt`, driverDir)).toBe('second half')
+    expect(delivered.slice(before)).toEqual([])
+    off()
   })
 
   it('keeps missions and seen messages across a restart of harness-crew', () => {

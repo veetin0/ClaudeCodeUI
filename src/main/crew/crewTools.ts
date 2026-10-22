@@ -72,6 +72,8 @@ export interface CrewDriverTools {
   wait(o: { missions?: string[]; timeoutSec: number }, signal?: AbortSignal): Promise<string>
   message(to: string, text: string, mission?: string): string
   cancel(mission: string, reason?: string): string
+  /** A team run: a decision for the lead (the person), answered later from the Harness inbox. */
+  askDriver?(q: { question: string; options?: string[]; suggestion: string; context?: string }): string
 }
 
 /** Crew tools on the driver's `harness` server (mcp__harness__crew_*). */
@@ -85,7 +87,7 @@ export function driverCrewTools(t: CrewDriverTools) {
     ),
     tool(
       'crew_dispatch',
-      "Give missions to crew members' Claudes. Each runs on its own laptop and Claude plan, on a fresh branch from the base branch (push it first), and starts with no context: the brief must carry the task, owned paths, contracts/files to read, yes/no done criteria and the checks to run. Without `to`, the member with the most usage left and the least work gets it. harness-crew commits and pushes the branch when the crew Claude reports. Returns mission ids and branches.",
+      "Give missions to crew members' Claudes. Each runs on its own laptop and Claude plan, on a fresh branch from your current branch (commit first: crew gets the committed branches through the team server), and starts with no context: the brief must carry the task, owned paths, contracts/files to read, yes/no done criteria and the checks to run. Without `to`, the member with the most usage left and the least work gets it. When the crew Claude reports, its branch appears in this repository as crew/<name>/<mission>. Returns mission ids and branches.",
       {
         missions: z
           .array(
@@ -93,7 +95,7 @@ export function driverCrewTools(t: CrewDriverTools) {
               title: z.string().max(120).describe('Short, e.g. "M2 frontend: request form"'),
               brief: z.string().max(MAX_BRIEF),
               to: z.string().optional().describe("A crew member's name; omit to pick by usage left"),
-              from: z.string().optional().describe('Branch to start from (default: your current branch, as pushed)'),
+              from: z.string().optional().describe('Branch to start from (default: your current branch, as committed)'),
               model: z.string().optional().describe('sonnet (default for routine builds), opus for hard ones, haiku for chores'),
               allow: z.array(z.string()).optional().describe('Extra commands it may run without asking, e.g. "Bash(docker compose *)"'),
             }),
@@ -105,7 +107,7 @@ export function driverCrewTools(t: CrewDriverTools) {
     ),
     tool(
       'crew_wait',
-      'Wait until crew missions finish or a crew Claude messages you. Returns their reports (pushed branch, files, summary) and messages. Keep doing your own work between waits.',
+      'Wait until crew missions finish or a crew Claude messages you. Returns their reports (branch, files, summary) and messages. Keep doing your own work between waits.',
       {
         missions: z.array(z.string()).optional().describe('Mission ids to wait for (default: any)'),
         timeout_seconds: z.number().int().min(10).max(1800).optional(),
@@ -121,9 +123,24 @@ export function driverCrewTools(t: CrewDriverTools) {
     ),
     tool(
       'crew_cancel',
-      'Stop a mission. The crew member pushes what it has so far on the mission branch.',
+      'Stop a mission. The crew member sends what it has so far on the mission branch.',
       { mission: z.string(), reason: z.string().max(500).optional() },
       async (a) => guard(() => t.cancel(a.mission, a.reason)),
     ),
+    ...(t.askDriver
+      ? [
+          tool(
+            'crew_ask_driver',
+            'Ask the lead (the person running Harness) for a real decision: scope or plan changes, rule questions, anything you\'d stop at a checkpoint for. Give your suggested answer. Returns at once: carry on with other work, the lead\'s answer arrives later as a "[run]" message. Answer routine crew questions yourself instead.',
+            {
+              question: z.string().max(600),
+              options: z.array(z.string().max(200)).max(5).optional(),
+              suggestion: z.string().max(600).describe('What you would do, and why, in a sentence or two'),
+              context: z.string().max(2000).optional(),
+            },
+            async (a) => guard(() => t.askDriver!(a)),
+          ),
+        ]
+      : []),
   ]
 }

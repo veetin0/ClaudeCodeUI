@@ -1,4 +1,4 @@
-import { contextBridge, ipcRenderer } from 'electron'
+import { contextBridge, ipcRenderer, webUtils } from 'electron'
 import type { HarnessEvent } from '../shared/events'
 import { IPC, type HarnessApi } from '../shared/ipc'
 
@@ -166,6 +166,32 @@ const api: HarnessApi = {
     ipcRenderer.on(IPC.crewPush, l)
     return () => ipcRenderer.removeListener(IPC.crewPush, l)
   },
+  runState: () => ipcRenderer.invoke(IPC.runState),
+  onRun: (cb) => {
+    const l = (_: unknown, s: import('../shared/run').RunState) => cb(s)
+    ipcRenderer.on(IPC.runPush, l)
+    return () => ipcRenderer.removeListener(IPC.runPush, l)
+  },
+  runStartTeam: (name) => ipcRenderer.invoke(IPC.runStartTeam, name),
+  runGoTo: (stage) => ipcRenderer.invoke(IPC.runGoTo, stage),
+  runCreateProject: (o) => ipcRenderer.invoke(IPC.runCreateProject, o),
+  runUseFolder: (o) => ipcRenderer.invoke(IPC.runUseFolder, o),
+  runSetupInfo: () => ipcRenderer.invoke(IPC.runSetupInfo),
+  runSetChallenge: (text) => ipcRenderer.invoke(IPC.runSetChallenge, text),
+  runAddFiles: (kind, paths) => ipcRenderer.invoke(IPC.runAddFiles, kind, paths),
+  runPickFiles: () => ipcRenderer.invoke(IPC.runPickFiles),
+  runGithub: () => ipcRenderer.invoke(IPC.runGithub),
+  runPlan: (sessionId) => ipcRenderer.invoke(IPC.runPlan, sessionId),
+  runAccept: () => ipcRenderer.invoke(IPC.runAccept),
+  runRevise: (change) => ipcRenderer.invoke(IPC.runRevise, change),
+  runAnswer: (itemId, a) => ipcRenderer.invoke(IPC.runAnswer, itemId, a),
+  runPause: () => ipcRenderer.invoke(IPC.runPause),
+  runResume: () => ipcRenderer.invoke(IPC.runResume),
+  runStop: () => ipcRenderer.invoke(IPC.runStop),
+  runReset: () => ipcRenderer.invoke(IPC.runReset),
+  runReconnect: (sessionId) => ipcRenderer.invoke(IPC.runReconnect, sessionId),
+  teamTestServer: (url) => ipcRenderer.invoke(IPC.teamTestServer, url),
+  pathForFile: (file) => webUtils.getPathForFile(file),
   onEvents: (cb) => {
     const listener = (_: unknown, events: HarnessEvent[]) => cb(events)
     ipcRenderer.on(IPC.events, listener)

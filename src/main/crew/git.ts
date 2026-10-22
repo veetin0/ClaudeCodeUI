@@ -69,10 +69,10 @@ export interface DriverRepo {
 export async function driverRepo(dir: string): Promise<DriverRepo> {
   const top = (await git(['rev-parse', '--show-toplevel'], { cwd: dir })).out
   if (!top) return { problem: 'This folder isn’t a git repository yet.' }
+  const head = (await git(['rev-parse', '--verify', '--quiet', 'HEAD'], { cwd: dir })).out
+  if (!head) return { problem: 'The project has no commits yet.' }
   const base = (await git(['rev-parse', '--abbrev-ref', 'HEAD'], { cwd: dir })).out
   if (!base || base === 'HEAD') return { problem: 'The project is in a detached HEAD state; check out the branch the crew should start from.' }
-  const head = (await git(['rev-parse', 'HEAD'], { cwd: dir })).out
-  if (!head) return { problem: 'The project has no commits yet.' }
   const refs = (await git(['for-each-ref', '--format=%(refname) %(objectname)', 'refs/heads'], { cwd: dir })).out
   const url = (await git(['remote', 'get-url', 'origin'], { cwd: dir })).out || undefined
   const status = await git(['status', '--porcelain', '--untracked-files=no'], { cwd: dir })

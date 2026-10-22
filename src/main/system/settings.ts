@@ -34,6 +34,7 @@ const DEFAULTS: StoredSettings = {
   designSkills: DEFAULT_DESIGN_SKILLS,
   devTools: DEFAULT_DEV_TOOLS,
   crewAutoReports: true,
+  teamServer: '',
 }
 
 export class SettingsStore {

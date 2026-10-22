@@ -65,7 +65,8 @@ export type HarnessEvent =
   | E<'status', { status: SessionStatus }>
   /** `images`: pictures sent with the message (e.g. a screenshot from Click to change). */
   /** `via: 'crew'`: a crew report or teammate's message Harness delivered, not something you typed. */
-  | E<'user.message', { id: string; text: string; images?: ImageAttachment[]; via?: 'crew' }>
+  /** `via`: delivered by Harness (a crew report or message, a team run step), not typed by you. */
+  | E<'user.message', { id: string; text: string; images?: ImageAttachment[]; via?: 'crew' | 'run' }>
   | E<'text.delta', { agentId: AgentId; text: string }>
   | E<'thinking.delta', { agentId: AgentId; text: string }>
   | E<'assistant.text', { id: string; agentId: AgentId; text: string }>

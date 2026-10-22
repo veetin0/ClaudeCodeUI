@@ -182,7 +182,8 @@ export class CrewWorker {
       v: CREW_PROTOCOL,
       app: this.deps.app,
       version: this.deps.version,
-      accepting: this.accepting && !problem && !!this.repo && !(this.limitedUntil && this.limitedUntil > now),
+      // Without the project yet it still takes missions: they wait for the project to arrive.
+      accepting: this.accepting && !problem && !(this.limitedUntil && this.limitedUntil > now),
       problem,
       repo: this.repo ? { dir: this.repo.dir, head: this.repo.head } : undefined,
       missions: [...this.missions.values()].map((r) => r.p).filter((p) => !isFinal(p.state) || now - (p.endedAt ?? now) < FINISHED_TTL_MS),

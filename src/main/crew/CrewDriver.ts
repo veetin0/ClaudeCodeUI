@@ -25,6 +25,7 @@ import {
   type DriverPayload,
   type Mission,
   type MissionProgress,
+  type MissionState,
   type MissionView,
 } from '@shared/crew'
 import { headroom, type MemberStatus, type PlanUsage } from '@shared/team'
@@ -46,6 +47,35 @@ interface DriverMission extends Mission {
   imported?: boolean
   importError?: string
   settling?: boolean
+  /** A team run's mission: its report goes to the run, not into the session. */
+  silent?: boolean
+}
+
+export type MissionSpec = Parameters<CrewDriverTools['dispatch']>[0][number]
+
+export interface AssignResult {
+  title: string
+  id?: string
+  to?: string
+  toName?: string
+  branch?: string
+  headroom?: number
+  /** Queued behind the member's current work. */
+  queued?: boolean
+  error?: string
+}
+
+/** A mission that ended, once its work is in the lead's repository (or didn't arrive). */
+export interface MissionEvent {
+  id: string
+  state: MissionState
+  view: MissionView
+  imported: boolean
+  importError?: string
+  /** The mission that carries on with someone else (usage ran out, or they left). */
+  continuation?: string
+  report: string
+  silent: boolean
 }
 
 export interface CrewDriverDeps {
@@ -58,7 +88,8 @@ export interface CrewDriverDeps {
   push(state: CrewState): void
   /** Hands a "[crew]" update to a session as a turn; false when that session isn't running. */
   deliver(sessionId: string, text: string): boolean
-  autoReports(): boolean
+  /** Reports and messages start a turn in the session (always true for a team run's lead). */
+  autoReports(sessionId?: string): boolean
   joinCommand(): string | undefined
   notify?(title: string, body: string, kind: 'done' | 'problem' | 'ask'): void
   repoOf?(cwd: string): Promise<DriverRepo>
@@ -104,6 +135,7 @@ export class CrewDriver {
   private sharing?: Promise<void>
   /** Updates gathered during one sync, handed to each session together. */
   private batch?: Map<string, { text: string; mission?: string }[]>
+  private listeners = new Set<(e: MissionEvent) => void>()
 
   constructor(private readonly deps: CrewDriverDeps) {
     this.load()
@@ -140,6 +172,7 @@ export class CrewDriver {
             imported: _i,
             importError: _e,
             settling: _g,
+            silent: _q,
             ...m
           }) => m,
         ),
@@ -236,7 +269,7 @@ export class CrewDriver {
   }
 
   private view(m: DriverMission): MissionView {
-    const { acked: _a, local, reported: _r, imported: _i, importError, settling: _g, ...rest } = m
+    const { acked: _a, local, reported: _r, imported: _i, importError, settling: _g, silent: _q, ...rest } = m
     const progress = local ?? (importError && m.progress ? { ...m.progress, sendError: importError } : m.progress)
     return { ...rest, toName: this.nameOf(m.to), state: this.stateOf(m), progress }
   }
@@ -269,6 +302,7 @@ export class CrewDriver {
     m.reported = true
     const state = this.stateOf(m)
     const p = m.local ?? m.progress
+    let continuation: string | undefined
     // Out of usage or gone: give it to someone with usage left, continuing from the work that arrived.
     if ((state === 'limited' || state === 'stopped') && !this.cancel.has(m.id)) {
       const next = pickAssignee(this.crew().filter((c) => c.id !== m.to))
@@ -295,12 +329,26 @@ export class CrewDriver {
           createdAt: this.now(),
           sessionId: m.sessionId,
           continues: m.id,
+          silent: m.silent,
         }
         m.movedTo = next.name
+        continuation = id
         this.missions.push(handed)
       }
     }
     const v = this.view(m)
+    const event: MissionEvent = {
+      id: m.id,
+      state,
+      view: v,
+      imported: !!m.imported,
+      importError: m.importError,
+      continuation,
+      report: missionReportText(v),
+      silent: !!m.silent,
+    }
+    for (const l of this.listeners) l(event)
+    if (m.silent) return
     const hint =
       state === 'done' && p?.branch && p.commits && m.imported
         ? `\nMerge it when it fits your plan: git merge ${p.branch} (then run the checks).`
@@ -330,7 +378,7 @@ export class CrewDriver {
       return
     }
     const texts = items.map((i) => i.text)
-    if (!w && this.deps.autoReports() && this.deps.deliver(sessionId, texts.join('\n\n'))) return
+    if (!w && this.deps.autoReports(sessionId) && this.deps.deliver(sessionId, texts.join('\n\n'))) return
     this.pending.set(sessionId, [...(this.pending.get(sessionId) ?? []), ...texts].slice(-30))
   }
 
@@ -460,37 +508,54 @@ export class CrewDriver {
     return lines.join('\n')
   }
 
-  async dispatch(sessionId: string, cwd: string, specs: Parameters<CrewDriverTools['dispatch']>[0]): Promise<string> {
+  async dispatch(sessionId: string, cwd: string, specs: MissionSpec[]): Promise<string> {
+    const results = await this.assign(sessionId, cwd, specs)
+    const out = results.map((r) =>
+      r.id
+        ? `✓ ${r.id} "${r.title}" → ${r.toName} (${r.headroom}% usage left${r.queued ? ', queued after their current work' : ''}), branch ${r.branch}`
+        : `✗ "${r.title}": ${r.error}`,
+    )
+    const sent = results.filter((r) => r.id).length
+    return `${out.join('\n')}${sent ? `\n${this.projectNote?.text ? `Note: ${this.projectNote.text}\n` : ''}They start within seconds. Carry on with your own part and collect reports with crew_wait (they also arrive as "[crew]" messages).` : ''}`
+  }
+
+  /**
+   * Hands missions out by usage left. Throws when nobody could take any (no team, no project, no
+   * crew); otherwise one result per spec. `silent` missions report to listeners only (a team run),
+   * and `avoid` leaves out members (who already failed the task).
+   */
+  async assign(sessionId: string, cwd: string, specs: MissionSpec[], o: { silent?: boolean; avoid?: string[] } = {}): Promise<AssignResult[]> {
     const me = this.deps.me()
     if (!me) throw new Error('Not in a team yet: create one on the Team board first, then teammates join with npx harness-crew <join code>.')
     // Crew gets the latest committed branches before any mission starts.
     await this.setProject(cwd)
     const repo = this.repo
     if (!repo || this.projectNote?.tone === 'warn') throw new Error(this.projectNote?.text ?? 'There is no project to share yet.')
-    this.lastSession = sessionId
-    const crew = this.crew()
+    if (!o.silent) this.lastSession = sessionId
+    const crew = this.crew().filter((c) => !o.avoid?.includes(c.id))
     if (!crew.length) throw new Error(`No crew members yet. Teammates join from a terminal with: ${this.deps.joinCommand() ?? 'npx harness-crew <join code>'}`)
     const extra = new Map<string, number>()
-    const out: string[] = []
+    const out: AssignResult[] = []
     for (const s of specs) {
+      const title = s.title.slice(0, 120)
       const target = pickAssignee(crew, extra, s.to)
       if (!target) {
         const why = crew
           .map((c) => `${c.name}: ${!c.online ? 'offline' : c.problem ? c.problem : !c.accepting ? 'not taking missions' : `${c.headroom}% usage left`}`)
           .join('; ')
-        out.push(`✗ "${s.title}": ${s.to ? `${s.to} can't take it` : 'nobody can take it'} right now (${why}). Do it yourself or later.`)
+        out.push({ title, error: `${s.to ? `${s.to} can't take it` : 'nobody can take it'} right now (${why}). Do it yourself or later.` })
         continue
       }
       const from = s.from ?? repo.base
       const at = from === repo.base ? repo.head : await branchHead(cwd, from)
       if (!at) {
-        out.push(`✗ "${s.title}": there's no branch ${from} in this repository to start from.`)
+        out.push({ title, error: `there's no branch ${from} in this repository to start from.` })
         continue
       }
       const id = newMissionId()
       const m: DriverMission = {
         id,
-        title: s.title.slice(0, 120),
+        title,
         brief: s.brief,
         to: target.id,
         from,
@@ -500,18 +565,18 @@ export class CrewDriver {
         allow: s.allow,
         createdAt: this.now(),
         sessionId,
+        silent: o.silent || undefined,
       }
       this.missions.push(m)
       extra.set(target.id, (extra.get(target.id) ?? 0) + 1)
-      const busy = target.current || target.queued || (extra.get(target.id) ?? 0) > 1
-      out.push(`✓ ${id} "${m.title}" → ${target.name} (${target.headroom}% usage left${busy ? ', queued after their current work' : ''}), branch ${m.branch}`)
+      const queued = !!(target.current || target.queued || (extra.get(target.id) ?? 0) > 1)
+      out.push({ title, id, to: target.id, toName: target.name, branch: m.branch, headroom: target.headroom, queued })
     }
     this.missions = this.missions.slice(-80)
     this.save()
     this.deps.nudge()
     this.publish()
-    const sent = out.filter((l) => l.startsWith('✓')).length
-    return `${out.join('\n')}${sent ? `\n${this.projectNote?.text ? `Note: ${this.projectNote.text}\n` : ''}They start within seconds. Carry on with your own part and collect reports with crew_wait (they also arrive as "[crew]" messages).` : ''}`
+    return out
   }
 
   wait(sessionId: string, o: { missions?: string[]; timeoutSec: number }, signal?: AbortSignal): Promise<string> {
@@ -631,6 +696,30 @@ export class CrewDriver {
 
   publish() {
     this.deps.push(this.state())
+  }
+
+  // ---------- for the team run ----------
+
+  /** Called whenever a mission ends (after its branch is imported); returns an unsubscribe. */
+  onMission(fn: (e: MissionEvent) => void): () => void {
+    this.listeners.add(fn)
+    return () => this.listeners.delete(fn)
+  }
+
+  mission(id: string): MissionView | undefined {
+    const m = this.missions.find((x) => x.id === id)
+    return m && this.view(m)
+  }
+
+  /** Whether a mission has ended and been dealt with (its work imported, or not arriving). */
+  settled(id: string): boolean {
+    const m = this.missions.find((x) => x.id === id)
+    return !!m && !!m.reported && !m.settling
+  }
+
+  /** The crew members as Harness sees them right now. */
+  members(): CrewMemberView[] {
+    return this.crew()
   }
 
   /** Left the team: forget who the crew was (missions stay for the record). */
