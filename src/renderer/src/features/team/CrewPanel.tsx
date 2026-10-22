@@ -291,7 +291,7 @@ function MissionRow({ m, now }: { m: MissionView; now: number }) {
             {p?.costUsd ? <span>${p.costUsd.toFixed(2)} equivalent</span> : null}
             {m.model && <span>{m.model}</span>}
           </div>
-          {p?.pushError && <div className="text-red-500">Not pushed: {p.pushError}</div>}
+          {p?.sendError && <div className="text-red-500">Didn’t arrive: {p.sendError}</div>}
           {p?.summary && <div className="whitespace-pre-wrap">{p.summary}</div>}
           {p?.files?.length ? <div className="font-mono text-[10.5px] text-muted">{p.files.slice(0, 30).join('  ')}</div> : null}
           <details>

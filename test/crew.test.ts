@@ -1,5 +1,5 @@
 import { execSync } from 'node:child_process'
-import { mkdtempSync, readFileSync, writeFileSync, existsSync } from 'node:fs'
+import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
 import { createServer, type Server } from 'node:http'
 import type { AddressInfo } from 'node:net'
 import { tmpdir } from 'node:os'
@@ -9,7 +9,6 @@ import {
   crewBranch,
   crewMembers,
   fitPayload,
-  httpsVariant,
   MAX_CREW_JSON,
   pickAssignee,
   pickCrewPayload,
@@ -59,7 +58,7 @@ describe('crew protocol', () => {
     const d = pickCrewPayload({
       role: 'driver',
       v: 1,
-      repo: { url: 'https://github.com/team/app.git', base: 'main', name: 'app' },
+      repo: { url: 'https://github.com/team/app.git', base: 'main', name: 'app', head: 'abc1234def', bundle: 'p-abc123' },
       missions: [
         { id: 'm-1', title: 'API', brief: 'do it', to: 'a', branch: 'crew/ada/m-1', createdAt: 1 },
         { id: 'bad id!', title: 'x', to: 'a', branch: 'b', createdAt: 1 },
@@ -70,12 +69,36 @@ describe('crew protocol', () => {
       outbox: [],
     })
     expect(d).toMatchObject({ role: 'driver', repo: { name: 'app' }, missions: [{ id: 'm-1' }], cancel: ['m-9'], answers: [{ id: 'r1', allow: true }] })
-    // A repo name that would escape the crew folder, or a URL git would run as an option, is refused.
+    // A folder name that would escape the crew folder, or a file id that isn't one, is refused.
     expect(
-      pickCrewPayload({ role: 'driver', repo: { url: 'https://x/y', base: 'main', name: '..' }, missions: [], cancel: [], answers: [], outbox: [] }),
+      pickCrewPayload({
+        role: 'driver',
+        repo: { base: 'main', name: '..', head: 'abc1234', bundle: 'p-abc1' },
+        missions: [],
+        cancel: [],
+        answers: [],
+        outbox: [],
+      }),
     ).toMatchObject({ repo: undefined })
     expect(
-      pickCrewPayload({ role: 'driver', repo: { url: '--upload-pack=evil', base: 'main', name: 'app' }, missions: [], cancel: [], answers: [], outbox: [] }),
+      pickCrewPayload({
+        role: 'driver',
+        repo: { base: 'main', name: 'app', head: 'abc1234', bundle: '../../x' },
+        missions: [],
+        cancel: [],
+        answers: [],
+        outbox: [],
+      }),
+    ).toMatchObject({ repo: undefined })
+    expect(
+      pickCrewPayload({
+        role: 'driver',
+        repo: { base: '--upload-pack=evil', name: 'app', head: 'abc1234', bundle: 'p-abc1' },
+        missions: [],
+        cancel: [],
+        answers: [],
+        outbox: [],
+      }),
     ).toMatchObject({ repo: undefined })
     const big = fitPayload(
       crewPayload({ outbox: Array.from({ length: 30 }, (_, i) => ({ id: `c${i}`, from: 'a', fromName: 'A', to: '*', text: 'x'.repeat(4000), at: i })) }),
@@ -88,8 +111,6 @@ describe('crew protocol', () => {
     expect(crewBranch('Åsa Lind', 'm-7f3a2')).toBe('crew/asa-lind/m-7f3a2')
     expect(repoName('git@github.com:team/mini-junction.git')).toBe('mini-junction')
     expect(repoName('https://github.com/team/app/')).toBe('app')
-    expect(httpsVariant('git@github.com:team/app.git')).toBe('https://github.com/team/app.git')
-    expect(httpsVariant('https://github.com/team/app.git')).toBeUndefined()
   })
 
   it('gives the next mission to an idle member with the most usage left', () => {
@@ -137,9 +158,23 @@ describe('crew driver bookkeeping', () => {
     outbox: [],
     ...patch,
   })
+  /** A small committed project, and an in-memory team server. */
+  const project = () => {
+    const dir = mkdtempSync(join(tmpdir(), 'crew-lead-'))
+    sh('git init -q -b main && git config user.name Veeti && git config user.email v@example.com', dir)
+    writeFileSync(join(dir, 'README.md'), '# app\n')
+    sh('git add -A && git commit -q -m init', dir)
+    return dir
+  }
+  const memoryFiles = () => {
+    const stored = new Map<string, Buffer>()
+    return { stored, put: async (id: string, d: Buffer) => void stored.set(id, d), get: async (id: string) => stored.get(id) ?? null }
+  }
   const setup = () => {
     let now = NOW
     const delivered: string[] = []
+    const dir = project()
+    const files = memoryFiles()
     const driver = new CrewDriver({
       me: () => ({ id: 'me', name: 'Veeti' }),
       myUsage: () => ({ source: 'unknown' }),
@@ -148,19 +183,20 @@ describe('crew driver bookkeeping', () => {
       deliver: (_s, text) => (delivered.push(text), true),
       autoReports: () => true,
       joinCommand: () => undefined,
-      repoOf: async () => ({ repo: { url: 'https://github.com/t/app.git', base: 'main', name: 'app' }, ahead: 0, dirty: false }),
+      files,
+      tmpDir: mkdtempSync(join(tmpdir(), 'crew-tmp-')),
       now: () => now,
     })
-    return { driver, delivered, tick: (ms: number) => (now += ms), at: () => now }
+    return { driver, delivered, dir, files, tick: (ms: number) => (now += ms), at: () => now }
   }
 
   it('hands a mission on when its crew member vanishes, and tells them to stop if they come back', async () => {
-    const { driver, delivered, tick, at } = setup()
+    const { driver, delivered, dir, tick, at } = setup()
     driver.received([
       { member: member('a', 'Ada', at()), payload: crewPayload() },
       { member: member('b', 'Ben', at()), payload: crewPayload() },
     ])
-    const out = await driver.dispatch('s1', '/p', [{ title: 'API', brief: 'build it', to: 'Ada' }])
+    const out = await driver.dispatch('s1', dir, [{ title: 'API', brief: 'build it', to: 'Ada' }])
     const id = /✓ (m-[0-9a-f]+)/.exec(out)![1]
     expect(driver.payload()!.missions.map((m) => m.id)).toEqual([id])
     // Ada picks it up (it leaves the driver's payload), then her laptop goes quiet.
@@ -175,6 +211,7 @@ describe('crew driver bookkeeping', () => {
       { member: member('a', 'Ada', adaLastSeen), payload: crewPayload({ missions: [{ id, title: 'API', state: 'working' }] }) },
       { member: member('b', 'Ben', at()), payload: crewPayload() },
     ])
+    await sleep(50)
     const st = driver.state()
     expect(st.missions.find((m) => m.id === id)).toMatchObject({ state: 'stopped', movedTo: 'Ben' })
     expect(st.missions.find((m) => m.continues === id)).toMatchObject({ toName: 'Ben', state: 'queued', from: 'main' })
@@ -189,9 +226,9 @@ describe('crew driver bookkeeping', () => {
   })
 
   it('cancels a mission nobody picked up yet', async () => {
-    const { driver, tick, at } = setup()
+    const { driver, dir, tick, at } = setup()
     driver.received([{ member: member('a', 'Ada', NOW), payload: crewPayload() }])
-    const id = /✓ (m-[0-9a-f]+)/.exec(await driver.dispatch('s1', '/p', [{ title: 'API', brief: 'x' }]))![1]
+    const id = /✓ (m-[0-9a-f]+)/.exec(await driver.dispatch('s1', dir, [{ title: 'API', brief: 'x' }]))![1]
     expect(driver.stop(id)).toBe(`Cancelled ${id} before it started.`)
     // Off the payload at once; the cancel stays a little in case Ada's harness-crew had already seen it.
     expect(driver.payload()).toMatchObject({ missions: [], cancel: [id] })
@@ -201,34 +238,43 @@ describe('crew driver bookkeeping', () => {
     expect(driver.payload()!.cancel).toEqual([])
   })
 
-  it('tells the Crew card what crew members will get, or what is in the way', async () => {
-    let r: Awaited<ReturnType<NonNullable<ConstructorParameters<typeof CrewDriver>[0]['repoOf']>>> = { problem: 'This project has no git remote (origin).' }
+  it('shares the committed project through the team server, and says what is in the way', async () => {
+    const files = memoryFiles()
+    let inTeam = false
     const driver = new CrewDriver({
-      me: () => ({ id: 'me', name: 'Veeti' }),
+      me: () => (inTeam ? { id: 'me', name: 'Veeti' } : null),
       myUsage: () => ({ source: 'unknown' }),
       nudge: () => {},
       push: () => {},
       deliver: () => false,
       autoReports: () => true,
       joinCommand: () => undefined,
-      repoOf: async () => r,
+      files,
+      tmpDir: mkdtempSync(join(tmpdir(), 'crew-tmp-')),
     })
     await driver.setProject(undefined)
-    expect(driver.state().projectNote).toMatchObject({ tone: 'info', text: expect.stringMatching(/Link the event project/) })
-    await driver.setProject('/p')
-    expect(driver.state()).toMatchObject({ project: undefined, projectNote: { tone: 'warn', text: expect.stringMatching(/no git remote/) } })
-    const repo = { url: 'https://github.com/t/app.git', base: 'main', name: 'app' }
-    r = { repo, ahead: -1 }
-    await driver.setProject('/p')
-    expect(driver.state()).toMatchObject({ project: repo, projectNote: { tone: 'warn', text: "Branch main isn't on GitHub yet: git push -u origin main" } })
-    r = { repo, ahead: 2 }
-    await driver.setProject('/p')
-    expect(driver.state().projectNote).toMatchObject({ tone: 'info', text: expect.stringMatching(/^2 commits on main not pushed yet/) })
-    r = { repo, ahead: 0 }
-    await driver.setProject('/p')
-    expect(driver.state()).toMatchObject({ project: repo, projectNote: undefined })
-    // The repo is what crew members clone, so it goes out in the driver's status right away.
-    expect(driver.payload()?.repo).toEqual(repo)
+    expect(driver.state().projectNote).toMatchObject({ tone: 'info', text: expect.stringMatching(/Create the project/) })
+    await driver.setProject(mkdtempSync(join(tmpdir(), 'not-git-')))
+    expect(driver.state()).toMatchObject({ project: undefined, projectNote: { tone: 'warn', text: expect.stringMatching(/isn’t a git repository/) } })
+    const dir = project()
+    await driver.setProject(dir)
+    expect(driver.state().projectNote).toMatchObject({ text: expect.stringMatching(/Start the team/) })
+    inTeam = true
+    await driver.setProject(dir)
+    const shared = driver.state().project!
+    expect(shared).toMatchObject({ base: 'main', name: expect.stringMatching(/^crew-lead-/), head: sh('git rev-parse HEAD', dir) })
+    expect([...files.stored.keys()]).toEqual([shared.bundle])
+    // Crew members get it in the lead's status right away; nothing new is uploaded until a branch moves.
+    expect(driver.payload()?.repo).toEqual(shared)
+    await driver.setProject(dir)
+    expect(files.stored.size).toBe(1)
+    writeFileSync(join(dir, 'README.md'), '# app, edited\n')
+    await driver.setProject(dir)
+    expect(driver.state().projectNote).toMatchObject({ tone: 'info', text: expect.stringMatching(/Uncommitted changes reach the crew once they’re committed/) })
+    sh('git commit -qam edit', dir)
+    await driver.setProject(dir)
+    expect(files.stored.size).toBe(2)
+    expect(driver.state().project!.head).toBe(sh('git rev-parse HEAD', dir))
   })
 
   it('explains what to do when there is no team or no crew yet', async () => {
@@ -237,18 +283,19 @@ describe('crew driver bookkeeping', () => {
       myUsage: () => ({ source: 'unknown' }),
       nudge: () => {},
       push: () => {},
+      files: memoryFiles(),
       deliver: () => false,
       autoReports: () => true,
       joinCommand: () => undefined,
     })
     expect(lonely.statusText()).toMatch(/Not in a team yet/)
     await expect(lonely.dispatch('s1', '/p', [{ title: 'x', brief: 'y' }])).rejects.toThrow(/create one on the Team board/)
-    const { driver } = setup()
-    await expect(driver.dispatch('s1', '/p', [{ title: 'x', brief: 'y' }])).rejects.toThrow(/No crew members yet/)
+    const { driver, dir } = setup()
+    await expect(driver.dispatch('s1', dir, [{ title: 'x', brief: 'y' }])).rejects.toThrow(/No crew members yet/)
   })
 })
 
-// ---------- end to end: relay + git remote + a driver + two crew members on a fake Claude ----------
+// ---------- end to end: relay + a lead with no git remote + two crew members on a fake Claude ----------
 
 /** Calls a tool on an in-process SDK MCP server the way Claude Code would (test-only: reaches into the MCP server). */
 async function callTool(server: unknown, name: string, args: Record<string, unknown>) {
@@ -303,7 +350,6 @@ function fakeClaude(behave: Behaviour): QueryFactory {
 
 describe('crew mode end to end', () => {
   const root = mkdtempSync(join(tmpdir(), 'harness-crew-'))
-  const origin = join(root, 'origin.git')
   const driverDir = join(root, 'driver')
   const token = 'crew-test-token-0123456789'
   let server: Server
@@ -352,6 +398,7 @@ describe('crew mode end to end', () => {
       app: 'cli',
       version: 'test',
       nudge: () => {},
+      files: { get: (fid) => team.getFile(fid), put: (fid, data) => team.putFile(fid, data) },
       stateFile: join(root, `state-${name}.json`),
       onEvent: (e) => events.push(e),
     })
@@ -371,11 +418,11 @@ describe('crew mode end to end', () => {
   }
 
   beforeAll(async () => {
-    sh(`git init --bare -b main "${origin}"`)
-    sh(`git clone "${origin}" "${driverDir}"`)
+    // No GitHub, no remote at all: the project and the work travel through the team server.
+    sh(`git init -q -b main "${driverDir}"`)
     sh('git config user.name Veeti && git config user.email v@example.com', driverDir)
     writeFileSync(join(driverDir, 'README.md'), '# Mini\n')
-    sh('git add -A && git commit -m init && git push -u origin main', driverDir)
+    sh('git add -A && git commit -q -m init', driverDir)
     server = createServer(createRelay())
     await new Promise<void>((r) => server.listen(0, '127.0.0.1', () => r()))
     relayUrl = `http://127.0.0.1:${(server.address() as AddressInfo).port}`
@@ -390,6 +437,8 @@ describe('crew mode end to end', () => {
       deliver: (sessionId, text) => (delivered.push({ sessionId, text }), true),
       autoReports: () => true,
       joinCommand: () => 'npx harness-crew HT1.test',
+      files: { put: (fid, data) => driverTeam.putFile(fid, data), get: (fid) => driverTeam.getFile(fid) },
+      tmpDir: join(root, 'lead-tmp'),
     })
     driverTeam = makeTeam('drv00001', 'Veeti', { payload: () => driver.payload(), received: (e) => driver.received(e), fast: () => driver.fast() })
     void driverTeam
@@ -430,16 +479,18 @@ describe('crew mode end to end', () => {
     server?.close()
   })
 
-  it('clones the driver’s project on every crew laptop before any mission', async () => {
+  it('copies the lead’s project to every crew laptop before any mission, through the team server', async () => {
+    // The relay only accepts files from a team that exists: sync once first, as Harness does on Start.
+    for (const t of teams) await t.sync()
     await driver.setProject(driverDir)
     await until(() => workers.every((w) => w.events.some((e) => e.kind === 'repo' && e.state === 'ready')))
-    expect(existsSync(join(root, 'home-Anna', 'origin', 'README.md'))).toBe(true)
+    expect(readFileSync(join(root, 'home-Anna', 'driver', 'README.md'), 'utf8')).toBe('# Mini\n')
     await until(() => (driverState?.members.length ?? 0) === 2 && driverState!.members.every((m) => m.accepting))
     expect(driver.statusText()).toMatch(/Crew: 2 of 2 ready/)
     expect(driver.statusText()).toMatch(/Your own plan: 20% usage left/)
   })
 
-  it('runs a mission: dispatch → approval → messages → pushed branch → report', async () => {
+  it('runs a mission: dispatch → approval → messages → branch back in the lead’s repo → report', async () => {
     const out = await driver.dispatch('s1', driverDir, [{ title: 'Feature', brief: 'Add feature.txt', to: 'anna' }])
     expect(out).toMatch(/^✓/)
     const id = /✓ (m-[0-9a-f]+)/.exec(out)![1]
@@ -455,17 +506,17 @@ describe('crew mode end to end', () => {
     let first = ''
     void waiting.then((t) => (first = t))
     await until(() => !!first)
-    // The waiting crew_wait gets the message (sent before the branch was pushed)…
-    expect(first).toMatch(new RegExp(`Message from Anna \\(about ${id}\\):\nFeature is exported from feature.txt\nStill running: ${id} "Feature"`))
+    // The waiting crew_wait gets the message (sent before the work)…
+    expect(first).toMatch(new RegExp(`Message from Anna \\(about ${id}\\):\nFeature is exported from feature.txt`))
 
     // …and the report, with nobody waiting, arrives in the session as a "[crew]" turn.
     await until(() => driverState?.missions.find((m) => m.id === id)?.state === 'done')
     const report = delivered.find((d) => d.sessionId === 's1' && d.text.includes('finished'))?.text ?? ''
     expect(report).toMatch(new RegExp(`Anna's Claude finished ${id} "Feature"`))
-    expect(report).toMatch(new RegExp(`origin/crew/anna/${id} \\(1 commit, 1 file: feature.txt\\)`))
+    expect(report).toMatch(new RegExp(`Branch crew/anna/${id} is in your repository \\(1 commit, 1 file: feature.txt\\)`))
     expect(report).toMatch(/Report: Added feature.txt; checks pass./)
-    expect(report).toMatch(/git fetch origin && git merge origin\/crew\/anna/)
-    expect(sh(`git show origin/crew/anna/${id}:feature.txt`, (sh('git fetch origin', driverDir), driverDir))).toBe('built by Anna (allow)')
+    expect(report).toMatch(new RegExp(`git merge crew/anna/${id}`))
+    expect(sh(`git show crew/anna/${id}:feature.txt`, driverDir)).toBe('built by Anna (allow)')
     expect(pushDecision).toMatchObject({ behavior: 'deny', message: expect.stringMatching(/harness-crew pushes crew\/anna\/m-[0-9a-f]+ for you/) })
     expect(driverState!.asks).toEqual([])
     // Anna's terminal saw the whole story.
@@ -473,7 +524,7 @@ describe('crew mode end to end', () => {
     expect(kinds).toEqual(expect.arrayContaining(['driver', 'repo', 'mission', 'ask', 'answer', 'message']))
   })
 
-  it('moves a mission to someone with usage left when a plan runs out, continuing from the pushed work', async () => {
+  it('moves a mission to someone with usage left when a plan runs out, continuing from the work that arrived', async () => {
     const out = await driver.dispatch('s1', driverDir, [{ title: 'Big job', brief: 'Write both halves', to: 'Anna' }])
     const id = /✓ (m-[0-9a-f]+)/.exec(out)![1]
     await until(() => driverState?.missions.some((m) => m.continues === id && m.state === 'done') ?? false, 30_000)
@@ -484,18 +535,25 @@ describe('crew mode end to end', () => {
     expect(delivered.some((d) => d.sessionId === 's1' && /ran out of plan usage on .*→ given to Ben/.test(d.text))).toBe(true)
     // Ben ended without reporting: harness-crew nudged once, then reported for him.
     expect(moved.progress).toMatchObject({ auto: true, commits: 1 })
-    sh('git fetch origin', driverDir)
-    expect(sh(`git show origin/${moved.branch}:half.txt`, driverDir)).toBe('first half')
-    expect(sh(`git show origin/${moved.branch}:second-half.txt`, driverDir)).toBe('second half')
+    expect(sh(`git show ${moved.branch}:half.txt`, driverDir)).toBe('first half')
+    expect(sh(`git show ${moved.branch}:second-half.txt`, driverDir)).toBe('second half')
     // Anna is out of usage now, so she isn't offered missions until it resets.
     expect(driverState!.members.find((m) => m.name === 'Anna')).toMatchObject({ headroom: 0 })
   })
 
-  it('refuses to dispatch from a branch crew can’t see yet', async () => {
-    writeFileSync(join(driverDir, 'local.txt'), 'not pushed\n')
-    sh('git add -A && git commit -m local', driverDir)
-    await expect(driver.dispatch('s1', driverDir, [{ title: 'x', brief: 'y' }])).rejects.toThrow(/1 commit crew can't see yet: git push origin main/)
-    sh('git push origin main', driverDir)
+  it('starts each mission from the lead’s latest commit, and refuses a branch that doesn’t exist', async () => {
+    writeFileSync(join(driverDir, 'later.txt'), 'committed after the first share\n')
+    sh('git add -A && git commit -q -m later', driverDir)
+    const out = await driver.dispatch('s1', driverDir, [
+      { title: 'Second half again', brief: 'Write the second half', to: 'Ben' },
+      { title: 'Nowhere', brief: 'x', from: 'no-such-branch' },
+    ])
+    expect(out).toMatch(/✗ "Nowhere": there's no branch no-such-branch/)
+    const id = /✓ (m-[0-9a-f]+)/.exec(out)![1]
+    expect(driver.payload()!.missions.find((m) => m.id === id)?.at).toBe(sh('git rev-parse HEAD', driverDir))
+    await until(() => driverState?.missions.find((m) => m.id === id)?.state === 'done', 30_000)
+    expect(sh(`git show crew/ben/${id}:later.txt`, driverDir)).toBe('committed after the first share')
+    expect(sh(`git show crew/ben/${id}:second-half.txt`, driverDir)).toBe('second half')
   })
 
   it('keeps missions and seen messages across a restart of harness-crew', () => {

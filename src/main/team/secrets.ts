@@ -43,3 +43,24 @@ export function openSecrets(token: string, sealed: string): Record<string, strin
 
 export const sealCrew = (token: string, payload: unknown) => sealJson(token, payload, CREW)
 export const openCrew = (token: string, sealed: string) => openJson(token, sealed, CREW)
+
+/** Files (git bundles) sealed with the team key: iv, tag, then ciphertext. */
+const FILES = 'harness-crew-files'
+
+export function sealBytes(token: string, data: Buffer): Buffer {
+  const iv = randomBytes(12)
+  const c = createCipheriv('aes-256-gcm', keyFor(token, FILES), iv)
+  const body = Buffer.concat([c.update(data), c.final()])
+  return Buffer.concat([Buffer.from('HB1'), iv, c.getAuthTag(), body])
+}
+
+export function openBytes(token: string, sealed: Buffer): Buffer | null {
+  try {
+    if (sealed.subarray(0, 3).toString() !== 'HB1') return null
+    const d = createDecipheriv('aes-256-gcm', keyFor(token, FILES), sealed.subarray(3, 15))
+    d.setAuthTag(sealed.subarray(15, 31))
+    return Buffer.concat([d.update(sealed.subarray(31)), d.final()])
+  } catch {
+    return null
+  }
+}

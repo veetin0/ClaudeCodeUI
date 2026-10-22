@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto'
-import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
-import { dirname } from 'node:path'
+import { mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { dirname, join } from 'node:path'
 import type { SDKRateLimitInfo } from '@anthropic-ai/claude-agent-sdk'
 import {
   ASK_TIMEOUT_MS,
@@ -38,7 +38,7 @@ import * as gitOps from './git'
 /** What the terminal (or the app) shows as the crew member's log. */
 export type CrewWorkerEvent =
   | { kind: 'driver'; name: string }
-  | { kind: 'repo'; state: 'cloning' | 'ready' | 'problem'; text: string }
+  | { kind: 'repo'; state: 'downloading' | 'ready' | 'updated' | 'problem'; text: string }
   | { kind: 'mission'; mission: Mission; state: MissionState | 'starting'; progress?: MissionProgress }
   | { kind: 'activity'; mission: string; text: string }
   | { kind: 'message'; direction: 'in' | 'out'; message: CrewMessage; toName?: string }
@@ -51,14 +51,14 @@ export interface CrewWorkerDeps {
   me(): { id: string; name: string } | null
   agents: Pick<AgentService, 'start' | 'send' | 'close' | 'respondPermission' | 'interrupt'>
   bus: { subscribe(fn: (e: HarnessEvent) => void): () => void }
-  /** Folder the driver's project is cloned into. */
+  /** Folder the lead's project is copied into. */
   home: string
   app: 'cli' | 'harness'
   version: string
   /** Asks the team to sync now. */
   nudge(): void
-  /** Lets git ask for credentials in this terminal (the first clone). */
-  interactiveGit?: boolean
+  /** Files on the team server (the project, mission results), sealed with the team key. */
+  files: { get(id: string): Promise<Buffer | null>; put(id: string, data: Buffer): Promise<void> }
   /** Missions and seen messages, kept across restarts. */
   stateFile?: string
   /** HackForge's builder rules, when the clone is a HackForge project. */
@@ -79,6 +79,8 @@ interface Record_ {
   p: MissionProgress
   /** Member id of the driver who sent it. */
   driver: string
+  /** Attempts to get the project version it starts from. */
+  tries?: number
 }
 
 interface Running {
@@ -98,6 +100,15 @@ interface Saved {
   missions: Record_[]
   seen: string[]
   known: string[]
+}
+
+/** What came of sending a mission's work to the lead. */
+interface SentWork {
+  commit?: string
+  commits: number
+  files: string[]
+  bundle?: string
+  sendError?: string
 }
 
 /** A peer's status plus its crew payload, as the `team` tool reports it. */
@@ -123,9 +134,10 @@ export class CrewWorker {
   private answered = new Set<string>()
   private peers: Peer[] = []
   private driverId?: string
-  private repo?: { url: string; base: string; name: string; dir: string; canPush: boolean; checkedAt: number }
+  private repo?: { base: string; name: string; dir: string; head: string; bundle: string }
   private repoProblem?: string
-  private repoBusy = false
+  private repoBusy?: Promise<void>
+  private leadRepo?: CrewRepo
   private repoRetryAt = 0
   private problem?: string
   private preflightRetryAt = 0
@@ -170,9 +182,9 @@ export class CrewWorker {
       v: CREW_PROTOCOL,
       app: this.deps.app,
       version: this.deps.version,
-      accepting: this.accepting && !problem && !!this.repo?.canPush && !(this.limitedUntil && this.limitedUntil > now),
+      accepting: this.accepting && !problem && !!this.repo && !(this.limitedUntil && this.limitedUntil > now),
       problem,
-      repo: this.repo ? { url: this.repo.url, dir: this.repo.dir, canPush: this.repo.canPush } : undefined,
+      repo: this.repo ? { dir: this.repo.dir, head: this.repo.head } : undefined,
       missions: [...this.missions.values()].map((r) => r.p).filter((p) => !isFinal(p.state) || now - (p.endedAt ?? now) < FINISHED_TTL_MS),
       asks: [...this.asks.values()].map((a) => a.ask),
       outbox: this.outbox.filter((m) => now - m.at < MESSAGE_TTL_MS),
@@ -193,6 +205,7 @@ export class CrewWorker {
       this.driverId = lead.member.id
       this.emit({ kind: 'driver', name: lead.member.name })
     }
+    this.leadRepo = lead?.payload.repo
     if (lead?.payload.repo) void this.ensureRepo(lead.payload.repo)
 
     let changed = false
@@ -237,49 +250,52 @@ export class CrewWorker {
 
   // ---------- the project ----------
 
-  private async ensureRepo(repo: CrewRepo) {
-    if (this.repoBusy) return
-    const now = this.now()
-    if (this.repo && gitOps.sameRepo(this.repo.url, repo.url)) {
+  /** Gets (or updates) this laptop's copy of the lead's project from the team server. */
+  private async ensureRepo(repo: CrewRepo): Promise<void> {
+    if (this.repo?.bundle === repo.bundle) {
       this.repo.base = repo.base
-      // No push access yet (invite not accepted?): look again every minute.
-      if (this.repo.canPush || now - this.repo.checkedAt < 60_000) return
-    } else if (this.repoProblem && now < this.repoRetryAt) return
+      return
+    }
+    if (this.repoBusy) return this.repoBusy
+    if (this.repoProblem && this.now() < this.repoRetryAt) return
     const me = this.deps.me()
     if (!me) return
-    this.repoBusy = true
-    try {
-      let dir = this.repo && gitOps.sameRepo(this.repo.url, repo.url) ? this.repo.dir : undefined
-      let url = repo.url
-      if (!dir) {
-        this.emit({ kind: 'repo', state: 'cloning', text: `Getting ${repo.url}` })
-        mkdirSync(this.deps.home, { recursive: true })
-        const c = await this.git.ensureClone(repo, this.deps.home, this.deps.interactiveGit ?? false)
-        dir = c.dir
-        url = c.url
-        await this.git.ensureIdentity(dir, me.name, `${slug(me.name)}@users.noreply.github.com`)
-      }
-      const pushError = await this.git.checkPush(dir, crewBranch(me.name, 'access-check'))
-      this.repo = { url, base: repo.base, name: repo.name, dir, canPush: !pushError, checkedAt: this.now() }
-      this.repoProblem = pushError
-        ? `Can't push to ${repo.url} (${pushError}). Accept the GitHub invite, then sign git in on this laptop: gh auth login (HTTPS, log in with a web browser).`
-        : undefined
-      this.emit(pushError ? { kind: 'repo', state: 'problem', text: this.repoProblem! } : { kind: 'repo', state: 'ready', text: dir })
-    } catch (err) {
-      this.repoProblem = `${err instanceof Error ? err.message : String(err)}. Check you have access to the repository (accept the GitHub invite, then gh auth login).`
-      this.repoRetryAt = this.now() + 60_000
-      this.emit({ kind: 'repo', state: 'problem', text: this.repoProblem })
-    } finally {
-      this.repoBusy = false
+    this.repoBusy = this.syncRepo(repo, me).finally(() => {
+      this.repoBusy = undefined
       this.deps.nudge()
       this.pump()
+    })
+    return this.repoBusy
+  }
+
+  private async syncRepo(repo: CrewRepo, me: { id: string; name: string }) {
+    const first = !this.repo
+    if (first) this.emit({ kind: 'repo', state: 'downloading', text: `Getting ${repo.name} from the team server` })
+    const file = join(this.deps.home, '.bundles', `${repo.bundle}.bundle`)
+    try {
+      const data = await this.deps.files.get(repo.bundle)
+      if (!data) throw new Error('The project isn’t on the team server (it may have expired); waiting for the lead to share it again')
+      mkdirSync(dirname(file), { recursive: true })
+      writeFileSync(file, data)
+      const dir = this.repo?.dir ?? join(this.deps.home, repo.name)
+      await this.git.syncFromBundle(dir, file, repo.base)
+      if (first) await this.git.ensureIdentity(dir, me.name, `${slug(me.name)}@users.noreply.github.com`)
+      this.repo = { base: repo.base, name: repo.name, dir, head: repo.head, bundle: repo.bundle }
+      this.repoProblem = undefined
+      this.emit({ kind: 'repo', state: first ? 'ready' : 'updated', text: dir })
+    } catch (err) {
+      this.repoProblem = `Couldn't get the project: ${err instanceof Error ? err.message : String(err)}`
+      this.repoRetryAt = this.now() + 30_000
+      this.emit({ kind: 'repo', state: 'problem', text: this.repoProblem })
+    } finally {
+      rmSync(file, { force: true })
     }
   }
 
   // ---------- missions ----------
 
   private pump() {
-    if (this.running || this.starting || this.closed || !this.accepting || !this.repo?.canPush || this.now() < this.preflightRetryAt) return
+    if (this.running || this.starting || this.closed || !this.accepting || !this.repo || this.now() < this.preflightRetryAt) return
     const next = [...this.missions.values()].find((r) => r.p.state === 'queued')
     if (next) void this.run(next)
   }
@@ -303,6 +319,19 @@ export class CrewWorker {
         if (this.problem !== was) this.emit({ kind: 'note', tone: 'warn', text: this.problem })
         this.deps.nudge()
         return
+      }
+      // The lead shares a new copy with each mission; wait for it rather than start from an old one.
+      if (r.m.at && !(await this.git.hasCommit(repo.dir, r.m.at))) {
+        if (this.leadRepo) await this.ensureRepo(this.leadRepo)
+        if (!(await this.git.hasCommit(repo.dir, r.m.at))) {
+          r.tries = (r.tries ?? 0) + 1
+          if (r.tries < 4) {
+            this.preflightRetryAt = this.now() + 20_000
+            return
+          }
+          this.finish(r, 'failed', `This laptop never got the version of the project this mission starts from (${r.m.at.slice(0, 7)}).`, true)
+          return
+        }
       }
       this.emit({ kind: 'mission', mission: r.m, state: 'starting' })
       this.update(r, { state: 'working', startedAt: this.now(), activity: 'Setting up the branch' })
@@ -407,19 +436,14 @@ export class CrewWorker {
   private async finalize(r: Record_, run: Running, state: MissionState, summary: string, o: { auto?: boolean } = {}) {
     if (run.finishing) return
     run.finishing = true
-    this.update(r, { activity: 'Pushing the branch' })
+    this.update(r, { activity: 'Sending the work to the lead' })
     for (const [id, a] of this.asks) if (a.sessionId === run.sessionId) this.answer(id, false, 'harness-crew', false, 'The mission ended.')
     this.waiter?.([])
     this.waiter = undefined
     run.unsub()
     this.deps.agents.close(run.sessionId)
-    // The report goes out with the pushed branch, so the driver can merge it straight away.
-    const me = this.deps.me()
-    const res = this.repo
-      ? await this.git
-          .finishMissionBranch(this.repo.dir, run.start, r.m.branch, `crew(${me?.name ?? 'crew'}): ${r.m.title} [${r.m.id}]`)
-          .catch((err: unknown) => ({ commits: 0, files: [] as string[], commit: undefined, pushError: err instanceof Error ? err.message : String(err) }))
-      : undefined
+    // The report goes out with the work, so the lead can merge it straight away.
+    const res = this.repo ? await this.sendWork(r, run) : undefined
     if (this.running === run) this.running = undefined
     this.finish(r, state, summary, o.auto, res)
     this.session(r)
@@ -429,7 +453,28 @@ export class CrewWorker {
     this.pump()
   }
 
-  private finish(r: Record_, state: MissionState, summary: string, auto?: boolean, res?: gitOps.MissionResult) {
+  /** Commits what's left, bundles the mission's commits and puts them on the team server for the lead. */
+  private async sendWork(r: Record_, run: Running): Promise<SentWork> {
+    const me = this.deps.me()
+    const file = join(this.deps.home, '.bundles', `${r.m.id}.bundle`)
+    try {
+      mkdirSync(dirname(file), { recursive: true })
+      const res = await this.git.finishMissionBranch(this.repo!.dir, run.start, r.m.branch, `crew(${me?.name ?? 'crew'}): ${r.m.title} [${r.m.id}]`, file)
+      const out: SentWork = { commit: res.commit, commits: res.commits, files: res.files, sendError: res.error }
+      if (res.bundle) {
+        const id = `r-${r.m.id}-${randomUUID().slice(0, 8)}`
+        await this.deps.files.put(id, readFileSync(res.bundle))
+        out.bundle = id
+      }
+      return out
+    } catch (err) {
+      return { commits: 0, files: [], sendError: err instanceof Error ? err.message : String(err) }
+    } finally {
+      rmSync(file, { force: true })
+    }
+  }
+
+  private finish(r: Record_, state: MissionState, summary: string, auto?: boolean, res?: SentWork) {
     this.update(r, {
       state,
       summary: summary.slice(0, 6000),
@@ -437,7 +482,7 @@ export class CrewWorker {
       endedAt: this.now(),
       activity: undefined,
       resetsAt: state === 'limited' ? this.limitedUntil : undefined,
-      ...(res ? { commit: res.commit, commits: res.commits, files: res.files, pushError: res.pushError } : {}),
+      ...(res ? { commit: res.commit, commits: res.commits, files: res.files, bundle: res.bundle, sendError: res.sendError } : {}),
     })
     this.emit({ kind: 'mission', mission: r.m, state, progress: r.p })
     this.save()

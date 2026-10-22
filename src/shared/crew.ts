@@ -3,7 +3,8 @@
  * them on their own laptops and Claude plans (`npx harness-crew <join code>` in a terminal, no app
  * needed). Missions, progress, permission questions and Claude-to-Claude messages travel inside each
  * member's team status, sealed with the team key, so the relay needs no changes and can't read them.
- * Code travels through the team's git remote: each mission is a branch the crew member pushes.
+ * Code travels through the team server as encrypted git bundles: the lead's project out to the crew,
+ * each mission's commits back as a branch in the lead's repository. Teammates need no GitHub access.
  */
 import { relTo } from './paths'
 import { headroom, isOnline, type MemberStatus, type PlanUsage } from './team'
@@ -24,12 +25,16 @@ export const ASK_TIMEOUT_MS = 10 * 60_000
 
 /** The project crew members clone. */
 export interface CrewRepo {
-  /** git remote URL (the driver's origin). */
-  url: string
   /** Branch missions start from. */
   base: string
-  /** Folder name for the clone. */
+  /** Folder name for the crew member's copy. */
   name: string
+  /** The base branch's commit when this copy was shared. */
+  head: string
+  /** The team-server file holding the project (a git bundle of every branch). */
+  bundle: string
+  /** The lead's GitHub URL, if it has one (shown only). */
+  url?: string
 }
 
 /** Work the driver's Claude gives one crew member's Claude. */
@@ -42,7 +47,9 @@ export interface Mission {
   to: string
   /** Branch to start from (default: the repo's base); a crew branch when continuing someone's work. */
   from?: string
-  /** Branch the crew member pushes. */
+  /** The commit `from` was at when the mission was given (the crew member waits for a copy that has it). */
+  at?: string
+  /** Branch the crew member works on (it comes back to the lead under this name). */
   branch: string
   model?: string
   /** Extra commands the crew Claude may run without asking, e.g. "Bash(docker compose *)". */
@@ -73,8 +80,10 @@ export interface MissionProgress {
   summary?: string
   /** The report was written by harness-crew, not by Claude (it ended without reporting). */
   auto?: boolean
-  /** Work wasn't pushed, and why. */
-  pushError?: string
+  /** The team-server file with the mission's commits (a git bundle of the branch). */
+  bundle?: string
+  /** Work couldn't be sent to the lead, and why. */
+  sendError?: string
   /** When the plan limit that stopped it resets (state 'limited'). */
   resetsAt?: number
   costUsd?: number
@@ -132,7 +141,8 @@ export interface CrewPayload {
   accepting: boolean
   /** Why it can't take missions right now (not signed in to Claude, no access to the repo…). */
   problem?: string
-  repo?: { url: string; dir: string; canPush: boolean }
+  /** The lead's project, once this laptop has a copy. */
+  repo?: { dir: string; head: string }
   missions: MissionProgress[]
   asks: CrewAsk[]
   outbox: CrewMessage[]
@@ -150,14 +160,19 @@ const ID = /^[A-Za-z0-9_-]{1,64}$/
 const BRANCH = /^[A-Za-z0-9._/-]{1,120}$/
 const STATES = new Set<MissionState>(['queued', 'working', 'done', 'blocked', 'failed', 'limited', 'stopped'])
 
+const SHA = /^[0-9a-f]{7,64}$/
+const FILE_ID = /^[A-Za-z0-9_-]{4,80}$/
+
 function pickRepo(x: unknown): CrewRepo | undefined {
   const o = obj(x)
-  const url = str(o.url, 500)
   const base = str(o.base, 120)
   const name = str(o.name, 80)
-  if (!url || !base || !BRANCH.test(base) || !name || !/^[\w.-]+$/.test(name) || name.startsWith('.')) return undefined
-  if (!/^(https?:\/\/|ssh:\/\/|git@|file:\/\/|\/)/.test(url) && !/^[A-Za-z]:[\\/]/.test(url)) return undefined
-  return { url, base, name }
+  const head = str(o.head, 64)
+  const bundle = str(o.bundle, 80)
+  if (!base || !BRANCH.test(base) || !name || !/^[\w.-]+$/.test(name) || name.startsWith('.')) return undefined
+  if (!head || !SHA.test(head) || !bundle || !FILE_ID.test(bundle)) return undefined
+  const url = str(o.url, 500)
+  return { base, name, head, bundle, url: url && /^https?:\/\//.test(url) ? url : undefined }
 }
 
 export function pickMission(x: unknown): Mission | null {
@@ -167,12 +182,14 @@ export function pickMission(x: unknown): Mission | null {
   const from = str(o.from, 120)
   if (!id || !ID.test(id) || !str(o.title) || !str(o.to, 64) || !branch || !BRANCH.test(branch) || !num(o.createdAt)) return null
   if (from !== undefined && !BRANCH.test(from)) return null
+  const at = str(o.at, 64)
   return {
     id,
     title: str(o.title)!,
     brief: str(o.brief, MAX_BRIEF) ?? '',
     to: str(o.to, 64)!,
     from,
+    at: at && SHA.test(at) ? at : undefined,
     branch,
     model: str(o.model, 80),
     allow: arr(o.allow, 30).flatMap((a) => (typeof a === 'string' && a.length < 200 ? [a] : [])),
@@ -198,7 +215,8 @@ function pickProgress(x: unknown): MissionProgress | null {
     files: arr(o.files, 200).flatMap((f) => (typeof f === 'string' && f.length < 400 ? [f] : [])),
     summary: str(o.summary, MAX_SUMMARY),
     auto: o.auto === true || undefined,
-    pushError: str(o.pushError, 500),
+    bundle: str(o.bundle, 80) && FILE_ID.test(str(o.bundle, 80)!) ? str(o.bundle, 80) : undefined,
+    sendError: str(o.sendError, 500),
     resetsAt: num(o.resetsAt),
     costUsd: num(o.costUsd),
     tokens: num(o.tokens),
@@ -257,7 +275,7 @@ export function pickCrewPayload(x: unknown): AnyCrewPayload | null {
       version: str(o.version, 20) ?? '?',
       accepting: o.accepting === true,
       problem: str(o.problem, 500),
-      repo: str(repo.url, 500) && str(repo.dir, 500) ? { url: str(repo.url, 500)!, dir: str(repo.dir, 500)!, canPush: repo.canPush === true } : undefined,
+      repo: str(repo.dir, 500) && str(repo.head, 64) ? { dir: str(repo.dir, 500)!, head: str(repo.head, 64)! } : undefined,
       missions: list(o.missions, 40, pickProgress),
       asks: list(o.asks, 20, pickAsk),
       outbox: list(o.outbox, MAX_OUTBOX, pickMessage),
@@ -298,7 +316,7 @@ export const slug = (name: string, max = 24) =>
     .replace(/[\s_]+/g, '-')
     .slice(0, max) || 'crew'
 
-/** "crew/anna/m-7f3a2": the branch a crew member pushes for a mission. */
+/** "crew/anna/m-7f3a2": the branch a crew member works on for a mission. */
 export const crewBranch = (name: string, missionId: string) => `crew/${slug(name)}/${missionId}`
 
 /** "github.com/team/app.git" or "git@github.com:team/app.git" → "app". */
@@ -309,12 +327,6 @@ export function repoName(url: string): string {
       .split(/[/:\\]/)
       .pop() ?? ''
   return last.replace(/\.git$/, '').replace(/[^\w.-]/g, '-') || 'project'
-}
-
-/** git@github.com:o/r.git → https://github.com/o/r.git (for crew members without SSH keys). */
-export function httpsVariant(url: string): string | undefined {
-  const m = /^git@([^:]+):(.+)$/.exec(url) ?? /^ssh:\/\/git@([^/]+)\/(.+)$/.exec(url)
-  return m ? `https://${m[1]}/${m[2]}` : undefined
 }
 
 /** One line for what a crew Claude is doing: "Edit src/app.ts", "Bash: npm test". */
@@ -351,8 +363,7 @@ export interface CrewMemberView {
   current?: { id: string; title: string; activity?: string; since?: number }
   /** Missions waiting for it. */
   queued: number
-  canPush?: boolean
-  /** Hasn't got the project yet (no project shared, or still cloning). */
+  /** Hasn't got the project yet (nothing shared, or still downloading it). */
   waiting: boolean
 }
 
@@ -388,7 +399,7 @@ export interface CrewState {
   autoReports: boolean
   /** The project crew members clone, once there's one to share. */
   project?: CrewRepo
-  /** Why there's nothing to share yet, or what crew can't see (unpushed commits). */
+  /** Why there's nothing to share yet, or what crew can't see (uncommitted changes). */
   projectNote?: { tone: 'warn' | 'info'; text: string }
 }
 
@@ -414,7 +425,6 @@ export function crewMembers(members: MemberStatus[], payloads: Map<string, CrewP
           usage: m.usage,
           current: cur ? { id: cur.id, title: cur.title, activity: cur.activity, since: cur.startedAt } : undefined,
           queued: (waiting.get(m.id) ?? 0) + p.missions.filter((x) => x.state === 'queued').length,
-          canPush: p.repo?.canPush,
           waiting: !p.repo && !p.problem,
         },
       ]
@@ -511,7 +521,7 @@ export function crewSystemPrompt(o: { me: string; driver: string; crew: string[]
   return [
     `# Harness crew mission`,
     `You are ${o.me}'s Claude, working as one of ${o.driver}'s crew: ${o.driver}'s Claude leads the project and gave you this mission${others.length ? `; ${others.join(', ')} ${others.length > 1 ? 'are' : 'is'} working on other missions in parallel` : ''}. Nobody is watching this computer, so never wait for a human here: decide yourself, or ask the lead with mcp__crew__message and wait for the answer with mcp__crew__wait.`,
-    `- You are on branch ${o.mission.branch}, made for this mission. Commit as you go with clear messages. Don't push, merge into or switch to other branches: harness-crew pushes your branch when you report, and ${o.driver}'s Claude merges it.`,
+    `- You are on branch ${o.mission.branch}, made for this mission. Commit as you go with clear messages. Don't push, merge into or switch to other branches: harness-crew sends your branch to ${o.driver}'s Claude when you report, and it merges it.`,
     `- Stay inside the mission's scope and owned paths. If you must touch a shared file (contracts, config, package.json), keep the change minimal and say so in your report. Check mcp__crew__team before editing files someone else may own, and message them (to: their name) when your work affects theirs.`,
     `- Done means the mission's done criteria pass: run its checks and tests yourself. When finished, or blocked, call mcp__crew__report once (done / blocked / failed) with what you did, the commands you ran and their results, and anything the lead must know to merge. Then end your turn.`,
     `- Messages from the lead or teammates arrive as turns starting "[crew]". Answer with mcp__crew__message.`,
@@ -547,11 +557,11 @@ export function missionReportText(m: MissionView): string {
   const p = m.progress
   const head = `${m.toName}'s Claude ${m.state === 'done' ? 'finished' : m.state === 'limited' ? 'ran out of plan usage on' : m.state === 'blocked' ? 'is blocked on' : m.state === 'stopped' ? 'stopped' : 'failed'} ${m.id} "${m.title}"`
   const lines = [head + (m.movedTo ? ` → given to ${m.movedTo}` : '')]
-  if (p?.branch && !p.pushError)
+  if (p?.branch && p.commits && !p.sendError)
     lines.push(
-      `Branch: origin/${p.branch}${p.commits !== undefined ? ` (${p.commits} commit${p.commits === 1 ? '' : 's'}` : ''}${p.files?.length ? `, ${p.files.length} file${p.files.length === 1 ? '' : 's'}: ${p.files.slice(0, 12).join(', ')}${p.files.length > 12 ? '…' : ''})` : p.commits !== undefined ? ')' : ''}`,
+      `Branch ${p.branch} is in your repository${p.commits !== undefined ? ` (${p.commits} commit${p.commits === 1 ? '' : 's'}` : ''}${p.files?.length ? `, ${p.files.length} file${p.files.length === 1 ? '' : 's'}: ${p.files.slice(0, 12).join(', ')}${p.files.length > 12 ? '…' : ''})` : p.commits !== undefined ? ')' : ''}`,
     )
-  if (p?.pushError) lines.push(`Not pushed: ${p.pushError}`)
+  if (p?.sendError) lines.push(`Their work didn't arrive: ${p.sendError}`)
   if (p?.resetsAt) lines.push(`Their limit resets ${new Date(p.resetsAt).toISOString()}.`)
   if (p?.summary) lines.push(`${p.auto ? 'Last words (no report)' : 'Report'}: ${p.summary}`)
   return lines.join('\n')
@@ -559,4 +569,4 @@ export function missionReportText(m: MissionView): string {
 
 /** Appended to the driver's sessions while it's in a team. */
 export const CREW_GUIDE = `# Harness crew
-Teammates can lend their Claude to this project (harness-crew): mcp__harness__crew_status shows who is ready and how much plan usage each has left. When crew is ready, split independent work into missions and hand them out with mcp__harness__crew_dispatch (each crew Claude starts fresh on its own laptop and branch, so its brief must carry everything: task, owned paths, contracts to read, yes/no done criteria, checks to run). Push the base branch first; crew clones from the git remote. harness-crew commits and pushes each crew branch itself when its Claude reports, so never ask crew to push or merge. Then keep working on your own part, collect reports with mcp__harness__crew_wait (reports also arrive as "[crew]" messages), merge each pushed branch (git fetch origin, then merge origin/<branch>) and run the checks. Give bigger missions to whoever has the most usage left, never two missions the same files.`
+Teammates can lend their Claude to this project (harness-crew): mcp__harness__crew_status shows who is ready and how much plan usage each has left. When crew is ready, split independent work into missions and hand them out with mcp__harness__crew_dispatch (each crew Claude starts fresh on its own laptop and branch, so its brief must carry everything: task, owned paths, contracts to read, yes/no done criteria, checks to run). Commit before dispatching: crew gets a copy of the committed branches through the team server (no GitHub needed). When a crew Claude reports, its branch appears in this repository as crew/<name>/<mission>, so never ask crew to push or merge. Keep working on your own part, collect reports with mcp__harness__crew_wait (reports also arrive as "[crew]" messages), merge each branch (git merge crew/<name>/<mission>) and run the checks. Give bigger missions to whoever has the most usage left, never two missions the same files.`

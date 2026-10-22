@@ -1,8 +1,7 @@
 import { spawn } from 'node:child_process'
-import { existsSync } from 'node:fs'
-import { join } from 'node:path'
-import { httpsVariant, type CrewRepo } from '@shared/crew'
-import { repoId } from '../team/changes'
+import { createHash } from 'node:crypto'
+import { existsSync, mkdirSync } from 'node:fs'
+import { basename, join } from 'node:path'
 
 export interface GitResult {
   code: number
@@ -10,16 +9,13 @@ export interface GitResult {
   err: string
 }
 
-/**
- * Runs git. `interactive` lets git ask for credentials in the terminal (the first clone in
- * harness-crew); everything else must never sit waiting for a prompt nobody sees.
- */
-export function git(args: string[], opts: { cwd?: string; interactive?: boolean; timeout?: number; env?: Record<string, string> } = {}): Promise<GitResult> {
+/** Runs git, never waiting for a prompt nobody would see. */
+export function git(args: string[], opts: { cwd?: string; timeout?: number; env?: Record<string, string> } = {}): Promise<GitResult> {
   return new Promise((resolve) => {
     const child = spawn('git', args, {
       cwd: opts.cwd,
-      stdio: opts.interactive ? ['inherit', 'pipe', 'inherit'] : ['ignore', 'pipe', 'pipe'],
-      env: { ...process.env, GIT_TERMINAL_PROMPT: opts.interactive ? '1' : '0', ...opts.env },
+      stdio: ['ignore', 'pipe', 'pipe'],
+      env: { ...process.env, GIT_TERMINAL_PROMPT: '0', ...opts.env },
       windowsHide: true,
     })
     let out = ''
@@ -54,64 +50,73 @@ export const lastLines = (s: string) =>
     .join(' ')
     .slice(0, 300)
 
-/** Same remote, whatever the URL form (https vs SSH, .git or not). */
-export const sameRepo = (a: string, b: string) => repoId(a) === repoId(b)
+// ---------- the lead's side ----------
 
-/** The project a driver's session works in: its origin and current branch. */
-export type DriverRepo = { repo?: CrewRepo; problem?: string; ahead?: number; dirty?: boolean }
+export interface DriverRepo {
+  repo?: { base: string; name: string; head: string; url?: string }
+  /** Changes to all branches: a new value means crew needs a new copy. */
+  fingerprint?: string
+  problem?: string
+  /** Uncommitted changes to tracked files (crew only gets what's committed). */
+  dirty?: boolean
+}
 
+/**
+ * The project the lead shares with the crew: its current branch (missions start from it), the
+ * folder name, and a fingerprint of every branch head. No remote needed: the project travels to
+ * crew members through the team server as a git bundle.
+ */
 export async function driverRepo(dir: string): Promise<DriverRepo> {
-  const url = (await git(['remote', 'get-url', 'origin'], { cwd: dir })).out
-  if (!url)
-    return {
-      problem:
-        'This project has no git remote (origin). Crew members clone it from there: push it to GitHub first (git remote add origin … && git push -u origin main).',
-    }
-  const base = (await git(['rev-parse', '--abbrev-ref', 'HEAD'], { cwd: dir })).out
-  if (!base || base === 'HEAD') return { problem: 'This project is in a detached HEAD state; check out the branch crew should start from.' }
   const top = (await git(['rev-parse', '--show-toplevel'], { cwd: dir })).out
-  const name = (repoId(url)?.split('/').pop() ?? top.split(/[\\/]/).pop() ?? 'project').replace(/[^\w.-]/g, '-')
-  const upstream = await git(['rev-list', '--count', `origin/${base}..${base}`], { cwd: dir })
+  if (!top) return { problem: 'This folder isn’t a git repository yet.' }
+  const base = (await git(['rev-parse', '--abbrev-ref', 'HEAD'], { cwd: dir })).out
+  if (!base || base === 'HEAD') return { problem: 'The project is in a detached HEAD state; check out the branch the crew should start from.' }
+  const head = (await git(['rev-parse', 'HEAD'], { cwd: dir })).out
+  if (!head) return { problem: 'The project has no commits yet.' }
+  const refs = (await git(['for-each-ref', '--format=%(refname) %(objectname)', 'refs/heads'], { cwd: dir })).out
+  const url = (await git(['remote', 'get-url', 'origin'], { cwd: dir })).out || undefined
   const status = await git(['status', '--porcelain', '--untracked-files=no'], { cwd: dir })
   return {
-    repo: { url, base, name },
-    // -1: the branch isn't on origin at all.
-    ahead: upstream.code === 0 ? Number(upstream.out) || 0 : -1,
+    repo: { base, name: basename(top).replace(/[^\w.-]/g, '-') || 'project', head, url },
+    fingerprint: createHash('sha1').update(refs).digest('hex').slice(0, 16),
     dirty: !!status.out,
   }
 }
 
-/**
- * The crew member's copy of the driver's project under `home`: an existing clone of the same
- * remote, or a fresh one (trying HTTPS when the driver's remote is SSH and that fails).
- */
-export async function ensureClone(repo: CrewRepo, home: string, interactive: boolean): Promise<{ dir: string; url: string }> {
-  for (let i = 0; i < 20; i++) {
-    const dir = join(home, i ? `${repo.name}-${i + 1}` : repo.name)
-    if (existsSync(dir)) {
-      const origin = (await git(['remote', 'get-url', 'origin'], { cwd: dir })).out
-      if (origin && sameRepo(origin, repo.url)) {
-        await git(['fetch', 'origin', '--prune'], { cwd: dir, timeout: 120_000 })
-        return { dir, url: origin }
-      }
-      continue
-    }
-    const urls = [repo.url, httpsVariant(repo.url)].filter((u): u is string => !!u)
-    let error = ''
-    for (const url of urls) {
-      const r = await git(['clone', url, dir], { interactive, timeout: 15 * 60_000 })
-      if (r.code === 0) return { dir, url }
-      error = lastLines(r.err || r.out) || `exit ${r.code}`
-    }
-    throw new Error(`Couldn't clone ${repo.url}: ${error}`)
-  }
-  throw new Error(`Too many folders named ${repo.name} in ${home}`)
+/** A git bundle of every branch of the project, for crew members to clone or update from. */
+export async function makeProjectBundle(dir: string, file: string): Promise<void> {
+  await must(['bundle', 'create', file, '--branches'], { cwd: dir, timeout: 300_000 })
 }
 
-/** Whether this laptop may push to the remote (a dry-run push of a new branch: GitHub checks access). */
-export async function checkPush(dir: string, probeBranch: string): Promise<string | undefined> {
-  const r = await git(['push', '--dry-run', 'origin', `HEAD:refs/heads/${probeBranch}`], { cwd: dir, timeout: 60_000 })
-  return r.code === 0 ? undefined : lastLines(r.err || r.out) || 'push was refused'
+/** Brings a crew member's finished mission in as a local branch of the same name. */
+export async function importResultBundle(dir: string, file: string, branch: string): Promise<void> {
+  await must(['fetch', '--no-tags', '--force', file, `+refs/heads/${branch}:refs/heads/${branch}`], { cwd: dir, timeout: 300_000 })
+}
+
+/** The commit a branch points at, or undefined. */
+export async function branchHead(dir: string, branch: string): Promise<string | undefined> {
+  return (await git(['rev-parse', '--verify', '--quiet', `refs/heads/${branch}`], { cwd: dir })).out || undefined
+}
+
+// ---------- the crew member's side ----------
+
+/**
+ * Brings the lead's branches in as origin/<branch> from a project bundle, creating the folder (and
+ * a checkout of the base branch) the first time.
+ */
+export async function syncFromBundle(dir: string, file: string, base: string): Promise<void> {
+  const fresh = !existsSync(join(dir, '.git'))
+  if (fresh) {
+    mkdirSync(dir, { recursive: true })
+    await must(['init', '-q'], { cwd: dir })
+  }
+  await must(['fetch', '--no-tags', '--force', file, '+refs/heads/*:refs/remotes/origin/*'], { cwd: dir, timeout: 300_000 })
+  if (fresh) await must(['checkout', '-q', '-B', base, `origin/${base}`], { cwd: dir })
+}
+
+/** Whether a commit is in this clone. */
+export async function hasCommit(dir: string, sha: string): Promise<boolean> {
+  return (await git(['cat-file', '-e', `${sha}^{commit}`], { cwd: dir })).code === 0
 }
 
 /** Gives the clone a commit identity when git has none (commits would fail otherwise). */
@@ -121,14 +126,13 @@ export async function ensureIdentity(dir: string, name: string, email: string) {
 }
 
 /**
- * Puts the clone on a fresh mission branch from origin/<from>. Leftovers from a mission that was cut
- * off (harness-crew closed mid-way) are stashed, never thrown away. Returns the starting commit.
+ * Puts the clone on a fresh mission branch from the lead's <from>. Leftovers from a mission that was
+ * cut off (harness-crew closed mid-way) are stashed, never thrown away. Returns the starting commit.
  */
 export async function startMissionBranch(dir: string, from: string, branch: string): Promise<string> {
-  await must(['fetch', 'origin', '--prune'], { cwd: dir, timeout: 120_000 })
   if ((await git(['status', '--porcelain'], { cwd: dir })).out)
     await git(['stash', 'push', '-u', '-m', `harness-crew: left over before ${branch}`], { cwd: dir })
-  await must(['checkout', '-B', branch, `origin/${from}`], { cwd: dir })
+  await must(['checkout', '-q', '-B', branch, `origin/${from}`], { cwd: dir })
   return must(['rev-parse', 'HEAD'], { cwd: dir })
 }
 
@@ -136,20 +140,21 @@ export interface MissionResult {
   commit?: string
   commits: number
   files: string[]
-  pushError?: string
+  /** A bundle of the mission's commits (from the starting commit), when there are any. */
+  bundle?: string
+  error?: string
 }
 
-/** Commits anything left uncommitted and pushes the mission branch. */
-export async function finishMissionBranch(dir: string, start: string, branch: string, message: string): Promise<MissionResult> {
+/** Commits anything left uncommitted and bundles the mission's commits for the lead. */
+export async function finishMissionBranch(dir: string, start: string, branch: string, message: string, bundleFile: string): Promise<MissionResult> {
   if ((await git(['status', '--porcelain'], { cwd: dir })).out) {
     await git(['add', '-A'], { cwd: dir, timeout: 120_000 })
-    await git(['commit', '-m', message, '--no-verify'], { cwd: dir })
+    await git(['commit', '-q', '-m', message, '--no-verify'], { cwd: dir })
   }
   const commit = (await git(['rev-parse', 'HEAD'], { cwd: dir })).out || undefined
   const commits = Number((await git(['rev-list', '--count', `${start}..HEAD`], { cwd: dir })).out) || 0
   const files = (await git(['diff', '--name-only', `${start}..HEAD`], { cwd: dir })).out.split('\n').filter(Boolean)
   if (!commits) return { commit, commits, files }
-  // The branch is this mission's alone, so a retry may overwrite an earlier push of it.
-  const r = await git(['push', '--force', '-u', 'origin', `HEAD:refs/heads/${branch}`], { cwd: dir, timeout: 180_000 })
-  return { commit, commits, files, pushError: r.code === 0 ? undefined : lastLines(r.err || r.out) || 'push failed' }
+  const r = await git(['bundle', 'create', bundleFile, `refs/heads/${branch}`, `^${start}`], { cwd: dir, timeout: 300_000 })
+  return r.code === 0 ? { commit, commits, files, bundle: bundleFile } : { commit, commits, files, error: lastLines(r.err || r.out) || 'git bundle failed' }
 }

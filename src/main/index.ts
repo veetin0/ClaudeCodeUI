@@ -532,6 +532,8 @@ async function start() {
       return true
     },
     autoReports: () => settings.get().crewAutoReports,
+    files: { put: (id, data) => team.putFile(id, data), get: (id) => team.getFile(id) },
+    tmpDir: join(app.getPath('userData'), 'crew-bundles'),
     joinCommand: () => {
       const st = team.state()
       const c = st.config

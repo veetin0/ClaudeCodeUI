@@ -25,7 +25,7 @@ import {
 } from '@shared/team'
 import { relTo } from '@shared/paths'
 import { scanChanges } from './changes'
-import { openCrew, openSecrets, sealCrew, sealSecrets } from './secrets'
+import { openBytes, openCrew, openSecrets, sealBytes, sealCrew, sealSecrets } from './secrets'
 import { createRelay } from '../../../relay/relay.mjs'
 import type { PlanUsageReading } from '../agent/AgentService'
 
@@ -453,6 +453,40 @@ export class TeamService {
     const body = (await res.json().catch(() => ({}))) as { error?: string }
     if (!res.ok) throw new Error(body.error ? `Relay: ${body.error}` : `Relay answered ${res.status}`)
     return body
+  }
+
+  // ---------- files (crew mode moves the project and mission results as git bundles) ----------
+
+  private fileUrl(c: TeamConfig, id: string) {
+    const base = c.hosting ? `http://127.0.0.1:${this.port}` : c.relayUrl
+    return `${base}/v1/team/blobs/${encodeURIComponent(id)}`
+  }
+
+  /** Stores a file for the team on the relay, sealed with the team key. */
+  async putFile(id: string, data: Buffer): Promise<void> {
+    const c = this.deps.getConfig()
+    if (!c) throw new Error('Not in a team.')
+    const f = this.deps.fetch ?? fetch
+    const res = await f(this.fileUrl(c, id), {
+      method: 'PUT',
+      body: new Uint8Array(sealBytes(c.token, data)),
+      headers: { authorization: `Bearer ${c.token}`, 'content-type': 'application/octet-stream' },
+      signal: AbortSignal.timeout(180_000),
+    }).catch(() => null)
+    if (!res) throw new Error("Can't reach the team server.")
+    if (res.status === 404) throw new Error('This team server is too old for crew mode: redeploy it (Settings → Team server).')
+    if (res.status === 413) throw new Error(`Too large for the team server (${Math.round(data.length / 1e6)} MB; the limit is 40 MB). Keep big files out of git.`)
+    if (!res.ok) throw new Error(`Team server answered ${res.status}`)
+  }
+
+  /** A file teammates stored, opened with the team key; null when it isn't (or no longer) there. */
+  async getFile(id: string): Promise<Buffer | null> {
+    const c = this.deps.getConfig()
+    if (!c) return null
+    const f = this.deps.fetch ?? fetch
+    const res = await f(this.fileUrl(c, id), { headers: { authorization: `Bearer ${c.token}` }, signal: AbortSignal.timeout(180_000) }).catch(() => null)
+    if (!res?.ok) return null
+    return openBytes(c.token, Buffer.from(await res.arrayBuffer()))
   }
 
   private async checkRelay(url: string) {

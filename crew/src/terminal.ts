@@ -40,10 +40,10 @@ const indent = (text: string, max = 4) =>
 
 function finished(p: MissionProgress): string {
   const took = p.startedAt && p.endedAt ? ` in ${dur(p.endedAt - p.startedAt)}` : ''
-  const pushed = p.pushError
-    ? c.red(` · not pushed: ${p.pushError}`)
+  const pushed = p.sendError
+    ? c.red(` · not sent: ${p.sendError}`)
     : p.commits
-      ? ` · pushed ${p.branch} (${p.commits} commit${p.commits === 1 ? '' : 's'}, ${p.files?.length ?? 0} file${p.files?.length === 1 ? '' : 's'})`
+      ? ` · sent ${p.branch} to the lead (${p.commits} commit${p.commits === 1 ? '' : 's'}, ${p.files?.length ?? 0} file${p.files?.length === 1 ? '' : 's'})`
       : ' · no changes'
   const word: Record<string, string> = {
     done: c.green('✓ done'),
@@ -61,8 +61,9 @@ export function printEvent(e: CrewWorkerEvent, lead: () => string) {
     case 'driver':
       return ok(`Connected. ${c.bold(e.name)}'s Claude leads the project and hands out the missions.`)
     case 'repo':
-      if (e.state === 'cloning') return info(e.text)
+      if (e.state === 'downloading') return info(e.text)
       if (e.state === 'ready') return ok(`Project ready in ${e.text}`)
+      if (e.state === 'updated') return say(c.dim('  Got the lead’s latest commits.'))
       return warn(e.text)
     case 'mission':
       if (e.state === 'queued') return say(`${c.cyan('•')} Mission for you: ${e.mission.title} ${c.dim(`(${e.mission.id})`)}`)

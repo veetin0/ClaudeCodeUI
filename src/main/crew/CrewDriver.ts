@@ -1,6 +1,7 @@
 import { randomBytes } from 'node:crypto'
-import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
-import { dirname } from 'node:path'
+import { mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { dirname, join } from 'node:path'
 import {
   CREW_PROTOCOL,
   crewBranch,
@@ -28,7 +29,7 @@ import {
 } from '@shared/crew'
 import { headroom, type MemberStatus, type PlanUsage } from '@shared/team'
 import type { CrewDriverTools } from './crewTools'
-import { driverRepo, type DriverRepo } from './git'
+import { branchHead, driverRepo, importResultBundle, makeProjectBundle, type DriverRepo } from './git'
 
 /** A mission as the driver keeps it. */
 interface DriverMission extends Mission {
@@ -41,6 +42,10 @@ interface DriverMission extends Mission {
   reported?: boolean
   movedTo?: string
   continues?: string
+  /** The crew member's branch is in the lead's repository. */
+  imported?: boolean
+  importError?: string
+  settling?: boolean
 }
 
 export interface CrewDriverDeps {
@@ -57,6 +62,10 @@ export interface CrewDriverDeps {
   joinCommand(): string | undefined
   notify?(title: string, body: string, kind: 'done' | 'problem' | 'ask'): void
   repoOf?(cwd: string): Promise<DriverRepo>
+  /** Files on the team server (the project out, mission results back), sealed with the team key. */
+  files: { put(id: string, data: Buffer): Promise<void>; get(id: string): Promise<Buffer | null> }
+  /** Scratch folder for git bundles. */
+  tmpDir?: string
   now?(): number
 }
 
@@ -89,6 +98,10 @@ export class CrewDriver {
   private lastSession?: string
   /** What's in the way of sharing the project, or what crew can't see yet. */
   private projectNote?: CrewState['projectNote']
+  /** The lead's project folder, and the branch heads last shared with the crew. */
+  private projectDir?: string
+  private shared?: string
+  private sharing?: Promise<void>
   /** Updates gathered during one sync, handed to each session together. */
   private batch?: Map<string, { text: string; mission?: string }[]>
 
@@ -115,7 +128,21 @@ export class CrewDriver {
       repo: this.repo,
       missions: this.missions
         .filter((m) => !m.acked && !m.local && !this.cancel.has(m.id))
-        .map(({ sessionId: _s, acked: _a, progress: _p, local: _l, reported: _r, movedTo: _m, continues: _c, ...m }) => m),
+        .map(
+          ({
+            sessionId: _s,
+            acked: _a,
+            progress: _p,
+            local: _l,
+            reported: _r,
+            movedTo: _m,
+            continues: _c,
+            imported: _i,
+            importError: _e,
+            settling: _g,
+            ...m
+          }) => m,
+        ),
       cancel: [...this.cancel],
       answers: this.answers.filter((a) => now - a.at < ANSWER_TTL_MS).map(({ at: _at, ...a }) => a),
       outbox: this.outbox.filter((m) => now - m.at < MESSAGE_TTL_MS),
@@ -156,7 +183,10 @@ export class CrewDriver {
         const was = m.progress?.state
         m.progress = prog
         if (prog.state !== was) changed = true
-        if (isFinal(prog.state) && !m.reported) this.onFinal(m)
+        if (isFinal(prog.state) && !m.reported && !m.settling) {
+          m.settling = true
+          void this.settle(m)
+        }
       }
     }
     // A crew member who left (or vanished) mid-mission: report it so the work can move on.
@@ -170,10 +200,10 @@ export class CrewDriver {
           state: 'stopped',
           branch: m.progress?.branch,
           endedAt: now,
-          summary: `${this.nameOf(m.to)} went offline (harness-crew closed or the laptop slept). Nothing was pushed after their last report.`,
+          summary: `${this.nameOf(m.to)} went offline (harness-crew closed or the laptop slept). Nothing arrived after their last report.`,
           auto: true,
         }
-        this.onFinal(m)
+        void this.onFinal(m)
         // If they come back, they stop it (and push what they had) rather than finish work someone else now has.
         this.cancel.add(m.id)
         changed = true
@@ -206,20 +236,48 @@ export class CrewDriver {
   }
 
   private view(m: DriverMission): MissionView {
-    const { acked: _a, local, reported: _r, ...rest } = m
-    return { ...rest, toName: this.nameOf(m.to), state: this.stateOf(m), progress: local ?? m.progress }
+    const { acked: _a, local, reported: _r, imported: _i, importError, settling: _g, ...rest } = m
+    const progress = local ?? (importError && m.progress ? { ...m.progress, sendError: importError } : m.progress)
+    return { ...rest, toName: this.nameOf(m.to), state: this.stateOf(m), progress }
   }
 
-  private onFinal(m: DriverMission) {
+  /** A finished mission: bring its branch into the lead's repository, then report it. */
+  private async settle(m: DriverMission) {
+    const p = m.progress
+    if (p?.bundle && p.commits && this.projectDir) {
+      const file = join(this.deps.tmpDir ?? tmpdir(), `${p.bundle}.bundle`)
+      try {
+        const data = await this.deps.files.get(p.bundle)
+        if (!data) throw new Error('their work isn’t on the team server (it may have expired)')
+        mkdirSync(dirname(file), { recursive: true })
+        writeFileSync(file, data)
+        await importResultBundle(this.projectDir, file, p.branch ?? m.branch)
+        m.imported = true
+      } catch (err) {
+        m.importError = err instanceof Error ? err.message : String(err)
+      } finally {
+        rmSync(file, { force: true })
+      }
+    }
+    m.settling = false
+    await this.onFinal(m)
+    this.save()
+    this.publish()
+  }
+
+  private async onFinal(m: DriverMission) {
     m.reported = true
     const state = this.stateOf(m)
     const p = m.local ?? m.progress
-    // Out of usage or gone: give it to someone with usage left, continuing from what was pushed.
+    // Out of usage or gone: give it to someone with usage left, continuing from the work that arrived.
     if ((state === 'limited' || state === 'stopped') && !this.cancel.has(m.id)) {
       const next = pickAssignee(this.crew().filter((c) => c.id !== m.to))
       if (next) {
         const id = newMissionId()
-        const from = p?.branch && p.commits && !p.pushError ? p.branch : m.from
+        const from = p?.branch && p.commits && m.imported ? p.branch : m.from
+        // Their branch is new here: share the project again so the next crew member has it.
+        if (from !== m.from && this.projectDir) await this.setProject(this.projectDir)
+        const at = this.projectDir && from ? await branchHead(this.projectDir, from) : undefined
         const handed: DriverMission = {
           id,
           title: m.title,
@@ -230,6 +288,7 @@ export class CrewDriver {
             ),
           to: next.id,
           from,
+          at,
           branch: crewBranch(next.name, id),
           model: m.model,
           allow: m.allow,
@@ -243,8 +302,8 @@ export class CrewDriver {
     }
     const v = this.view(m)
     const hint =
-      state === 'done' && p?.branch && p.commits && !p.pushError
-        ? `\nMerge it when it fits your plan: git fetch origin && git merge origin/${p.branch} (then run the checks).`
+      state === 'done' && p?.branch && p.commits && m.imported
+        ? `\nMerge it when it fits your plan: git merge ${p.branch} (then run the checks).`
         : m.movedTo
           ? `\nHarness gave it to ${m.movedTo} automatically.`
           : ''
@@ -277,30 +336,59 @@ export class CrewDriver {
 
   // ---------- the project ----------
 
-  /** The project crew members clone ahead of the first mission (the event project). */
+  /**
+   * The project crew members get ahead of the first mission (the run's project). Shares a fresh copy
+   * through the team server whenever a branch moved, so missions start from the latest commits.
+   */
   async setProject(dir: string | undefined) {
     const before = JSON.stringify([this.repo, this.projectNote])
     if (!dir) {
-      if (!this.repo)
-        this.projectNote = { tone: 'info', text: 'Link the event project (Set up or Link on this page) so crew members can get it before the first mission.' }
+      if (!this.repo) this.projectNote = { tone: 'info', text: 'Create the project (Setup) so crew members can get it before the first mission.' }
     } else {
+      this.projectDir = dir
       const r = await (this.deps.repoOf ?? driverRepo)(dir).catch(() => ({ problem: 'Not a git repository.' }) as DriverRepo)
-      if (r.repo) this.repo = r.repo
-      this.projectNote = r.problem
-        ? { tone: 'warn', text: r.problem }
-        : r.ahead === -1
-          ? { tone: 'warn', text: `Branch ${r.repo!.base} isn't on GitHub yet: git push -u origin ${r.repo!.base}` }
-          : r.ahead
-            ? {
-                tone: 'info',
-                text: `${r.ahead} commit${r.ahead === 1 ? '' : 's'} on ${r.repo!.base} not pushed yet; crew only sees what's pushed (your Claude pushes before handing out work).`,
-              }
-            : undefined
+      if (r.problem || !r.repo) this.projectNote = { tone: 'warn', text: r.problem ?? 'Not a git repository.' }
+      else {
+        let problem: string | undefined
+        if (this.deps.me() && (r.fingerprint !== this.shared || !this.repo)) problem = await this.share(dir, r)
+        this.projectNote = problem
+          ? { tone: 'warn', text: problem }
+          : !this.deps.me()
+            ? { tone: 'info', text: 'Start the team to share the project with the crew.' }
+            : r.dirty
+              ? { tone: 'info', text: 'Uncommitted changes reach the crew once they’re committed.' }
+              : undefined
+      }
     }
     if (JSON.stringify([this.repo, this.projectNote]) !== before) {
       this.deps.nudge()
       this.publish()
     }
+  }
+
+  /** Bundles every branch and puts it on the team server; returns a problem, if any. */
+  private async share(dir: string, r: DriverRepo): Promise<string | undefined> {
+    while (this.sharing) await this.sharing
+    if (r.fingerprint === this.shared && this.repo) return undefined
+    let problem: string | undefined
+    this.sharing = (async () => {
+      const file = join(this.deps.tmpDir ?? tmpdir(), `project-${r.fingerprint}.bundle`)
+      try {
+        mkdirSync(dirname(file), { recursive: true })
+        await makeProjectBundle(dir, file)
+        const id = `p-${r.fingerprint}`
+        await this.deps.files.put(id, readFileSync(file))
+        this.repo = { ...r.repo!, bundle: id, url: r.repo!.url && /^https?:\/\//.test(r.repo!.url) ? r.repo!.url : undefined }
+        this.shared = r.fingerprint
+      } catch (err) {
+        problem = `Couldn't share the project with the crew: ${err instanceof Error ? err.message : String(err)}`
+      } finally {
+        rmSync(file, { force: true })
+      }
+    })()
+    await this.sharing
+    this.sharing = undefined
+    return problem
   }
 
   // ---------- tools for the driver's sessions ----------
@@ -352,7 +440,10 @@ export class CrewDriver {
     lines.push(
       `Your own plan: ${headroom(this.deps.myUsage(), now)}% usage left.${ready.length ? ' Hand bigger missions to whoever has more left than you.' : ''}`,
     )
-    if (this.repo) lines.push(`Project for crew: ${this.repo.url} (missions start from origin/${this.repo.base} unless you say otherwise).`)
+    if (this.repo)
+      lines.push(
+        `Project shared with the crew: ${this.repo.name}, ${this.repo.base} at ${this.repo.head.slice(0, 7)} (missions start from ${this.repo.base} unless you say otherwise).`,
+      )
     const recent = this.missions.slice(-15)
     if (recent.length) {
       lines.push('Missions:')
@@ -360,7 +451,7 @@ export class CrewDriver {
         const v = this.view(m)
         const p = v.progress
         lines.push(
-          `- ${m.id} "${m.title}" → ${v.toName}: ${v.state}${m.movedTo ? ` (moved to ${m.movedTo})` : ''}${p?.activity && v.state === 'working' ? ` (${p.activity})` : ''}${p?.branch && isFinal(v.state) && p.commits ? `, branch origin/${p.branch} (${p.commits} commits)` : ''}`,
+          `- ${m.id} "${m.title}" → ${v.toName}: ${v.state}${m.movedTo ? ` (moved to ${m.movedTo})` : ''}${p?.activity && v.state === 'working' ? ` (${p.activity})` : ''}${p?.branch && isFinal(v.state) && p.commits && m.imported ? `, branch ${p.branch} (${p.commits} commits)` : ''}`,
         )
       }
     }
@@ -372,16 +463,10 @@ export class CrewDriver {
   async dispatch(sessionId: string, cwd: string, specs: Parameters<CrewDriverTools['dispatch']>[0]): Promise<string> {
     const me = this.deps.me()
     if (!me) throw new Error('Not in a team yet: create one on the Team board first, then teammates join with npx harness-crew <join code>.')
-    const r = await (this.deps.repoOf ?? driverRepo)(cwd)
-    if (r.problem || !r.repo) throw new Error(r.problem ?? 'Not a git repository.')
-    const usedFrom = new Set(specs.map((s) => s.from ?? r.repo!.base))
-    if (usedFrom.has(r.repo.base) && r.ahead === -1)
-      throw new Error(`Branch ${r.repo.base} isn't on origin yet, so crew can't start from it: git push -u origin ${r.repo.base}, then dispatch again.`)
-    if (usedFrom.has(r.repo.base) && r.ahead && r.ahead > 0)
-      throw new Error(
-        `Your ${r.repo.base} has ${r.ahead} commit${r.ahead === 1 ? '' : 's'} crew can't see yet: git push origin ${r.repo.base} first (they clone from origin), then dispatch again.`,
-      )
-    this.repo = r.repo
+    // Crew gets the latest committed branches before any mission starts.
+    await this.setProject(cwd)
+    const repo = this.repo
+    if (!repo || this.projectNote?.tone === 'warn') throw new Error(this.projectNote?.text ?? 'There is no project to share yet.')
     this.lastSession = sessionId
     const crew = this.crew()
     if (!crew.length) throw new Error(`No crew members yet. Teammates join from a terminal with: ${this.deps.joinCommand() ?? 'npx harness-crew <join code>'}`)
@@ -396,13 +481,20 @@ export class CrewDriver {
         out.push(`✗ "${s.title}": ${s.to ? `${s.to} can't take it` : 'nobody can take it'} right now (${why}). Do it yourself or later.`)
         continue
       }
+      const from = s.from ?? repo.base
+      const at = from === repo.base ? repo.head : await branchHead(cwd, from)
+      if (!at) {
+        out.push(`✗ "${s.title}": there's no branch ${from} in this repository to start from.`)
+        continue
+      }
       const id = newMissionId()
       const m: DriverMission = {
         id,
         title: s.title.slice(0, 120),
         brief: s.brief,
         to: target.id,
-        from: s.from ?? r.repo.base,
+        from,
+        at,
         branch: crewBranch(target.name, id),
         model: s.model,
         allow: s.allow,
@@ -419,7 +511,7 @@ export class CrewDriver {
     this.deps.nudge()
     this.publish()
     const sent = out.filter((l) => l.startsWith('✓')).length
-    return `${out.join('\n')}${sent ? `\n${r.dirty ? 'Note: you have uncommitted changes; crew only sees what is pushed.\n' : ''}They start within seconds. Carry on with your own part and collect reports with crew_wait (they also arrive as "[crew]" messages).` : ''}`
+    return `${out.join('\n')}${sent ? `\n${this.projectNote?.text ? `Note: ${this.projectNote.text}\n` : ''}They start within seconds. Carry on with your own part and collect reports with crew_wait (they also arrive as "[crew]" messages).` : ''}`
   }
 
   wait(sessionId: string, o: { missions?: string[]; timeoutSec: number }, signal?: AbortSignal): Promise<string> {

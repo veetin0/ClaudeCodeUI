@@ -282,7 +282,7 @@ async function main() {
     home: projects,
     app: 'cli',
     version: VERSION,
-    interactiveGit: !!process.stdin.isTTY,
+    files: { get: (id) => team.getFile(id), put: (id, data) => team.putFile(id, data) },
     nudge: () => team?.nudge(),
     stateFile: join(home, `missions-${saved.memberId}.json`),
     builderRules,

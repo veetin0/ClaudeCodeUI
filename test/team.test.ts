@@ -1,4 +1,5 @@
 import { createServer, type Server } from 'node:http'
+import type { AddressInfo } from 'node:net'
 import { afterEach, describe, expect, it } from 'vitest'
 import { headroom, isOnline, makeJoinCode, parseJoinCode, pickMember, usageAdvice, type MemberStatus, type TeamConfig, type TeamState } from '@shared/team'
 import { createRelay } from '../relay/relay.mjs'
@@ -66,6 +67,47 @@ describe('relay + TeamService', () => {
     services.push(svc)
     return { svc, pushed, config: () => config }
   }
+
+  it('moves files between teammates through the relay, sealed with the team key', async () => {
+    const port = 47000 + Math.floor(Math.random() * 1500)
+    const a = laptop('aaaa', port)
+    const b = laptop('bbbb', port + 1)
+    await a.svc.create({ name: 'Ada', host: true })
+    await b.svc.join(a.svc.joinCode()!.replace(/HT1\.\S+/, (c) => c), 'Ben')
+    const data = Buffer.from('PACK git bundle bytes '.repeat(1000))
+    await a.svc.putFile('repo-abc123', data)
+    expect((await b.svc.getFile('repo-abc123'))?.equals(data)).toBe(true)
+    expect(await b.svc.getFile('missing')).toBeNull()
+    // The relay only ever holds ciphertext.
+    const raw = await fetch(`http://127.0.0.1:${port}/v1/team/blobs/repo-abc123`, { headers: { authorization: `Bearer ${a.config()!.token}` } })
+    expect(Buffer.from(await raw.arrayBuffer()).includes(Buffer.from('git bundle'))).toBe(false)
+    // Other teams can't read it, and nobody can store files without a team.
+    const other = await fetch(`http://127.0.0.1:${port}/v1/team/blobs/repo-abc123`, { headers: { authorization: 'Bearer another-team-token-123456' } })
+    expect(other.status).toBe(404)
+    const stranger = await fetch(`http://127.0.0.1:${port}/v1/team/blobs/x1234`, { method: 'PUT', body: 'x', headers: { authorization: 'Bearer another-team-token-123456' } })
+    expect(stranger.status).toBe(403)
+  })
+
+  it('relay keeps files within its size limits, oldest out first', async () => {
+    let t = 1000
+    const server = createServer(createRelay({ now: () => t, maxBlob: 100, teamBlobBytes: 250, totalBlobBytes: 10_000 }))
+    servers.push(server)
+    await new Promise<void>((r) => server.listen(0, '127.0.0.1', () => r()))
+    const base = `http://127.0.0.1:${(server.address() as AddressInfo).port}`
+    const auth = { authorization: 'Bearer team-token-for-files-1234' }
+    await fetch(`${base}/v1/team/members/m1234`, { method: 'PUT', headers: auth, body: JSON.stringify({ id: 'm1234', name: 'A', updatedAt: 1 }) })
+    const put = (id: string, n: number) => fetch(`${base}/v1/team/blobs/${id}`, { method: 'PUT', headers: auth, body: 'x'.repeat(n) })
+    expect((await put('big1', 101)).status).toBe(413)
+    for (const id of ['f001', 'f002', 'f003']) {
+      t += 1
+      expect((await put(id, 100)).status).toBe(200)
+    }
+    const has = async (id: string) => (await fetch(`${base}/v1/team/blobs/${id}`, { headers: auth })).status === 200
+    expect([await has('f001'), await has('f002'), await has('f003')]).toEqual([false, true, true])
+    t += 13 * 3600_000
+    expect(await has('f003')).toBe(false)
+    expect((await fetch(`${base}/health`).then((r) => r.json())).blobs).toBe(true)
+  })
 
   it('relay rejects missing tokens and mismatched ids', async () => {
     const server = createServer(createRelay()).listen(0)
