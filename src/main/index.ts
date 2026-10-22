@@ -41,7 +41,7 @@ import { CrewDriver } from './crew/CrewDriver'
 import { driverCrewTools } from './crew/crewTools'
 import { CREW_GUIDE } from '@shared/crew'
 import { makeJoinCode } from '@shared/team'
-import { RUN_GUIDE, type ClaudePlan, type FileKind, type RunStage } from '@shared/run'
+import { RUN_ALLOW, RUN_GUIDE, type ClaudePlan, type FileKind, type RunStage } from '@shared/run'
 import { RunService } from './run/RunService'
 import { ghCli } from './run/project'
 
@@ -521,7 +521,7 @@ async function start() {
     hackforgeLean,
     teamRadar: (abs) => team?.radarFor(abs),
     extraEnv: (cwd) => ({ ...design.env(), ...partners.envFor(cwd) }),
-    mcp: (cwd) => ({ servers: devTools.mcpServers(cwd), allow: devTools.allowedTools() }),
+    mcp: (cwd) => ({ servers: devTools.mcpServers(cwd), allow: [...devTools.allowedTools(), ...(run?.isRunProject(cwd) ? RUN_ALLOW : [])] }),
     // Crew tools for every session: they explain how to get a team when there's none.
     harnessTools: (s) => driverCrewTools({ ...crew.toolsFor(s.id, s.cwd), askDriver: run?.isRunProject(s.cwd) ? (q) => run.ask(q) : undefined }),
     getEnv: () => {

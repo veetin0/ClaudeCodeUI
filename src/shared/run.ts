@@ -8,6 +8,8 @@
  * does the thinking; Harness makes sure the steps happen, in order, on time.
  */
 
+import { CREW_ALLOW } from './crew'
+
 export type RunStage = 'team' | 'setup' | 'plan' | 'run' | 'done'
 export const RUN_STAGES: RunStage[] = ['team', 'setup', 'plan', 'run', 'done']
 
@@ -194,7 +196,43 @@ export function taskBrief(c: Contract, t: ContractTask): string {
 export const RUN_GUIDE = `# Harness team run
 You are the lead's Claude in a Harness team run, and Harness drives the build: it splits each milestone's tasks between you and the crew (teammates' Claudes on their own laptops), and tells you with "[run]" messages when to build your part, when to integrate and verify, and when to finish. Follow those messages exactly and end your turn when a step is done; don't start the next milestone or hand out build tasks yourself unless a message says so. Plan with HackForge as usual until the plan checkpoint, then end your turn there with a short summary (no AskUserQuestion: the lead accepts the plan in Harness). While planning, give research and architect work to ready crew (mcp__harness__crew_dispatch, then mcp__harness__crew_wait before you decide) to save your own usage.
 - Crew questions reach you as "[crew]" messages: answer routine ones yourself with mcp__harness__crew_message. For a real decision (scope, plan or rule changes, anything you'd checkpoint), use mcp__harness__crew_ask_driver with your suggested answer and carry on with other work; the answer comes back as a "[run]" message.
+- Create and change files with the Write and Edit tools, not shell redirects or heredocs: those stop for the lead's approval. Keep shell commands simple so they match the allowlist: you're already in the project folder, so no "cd …;" prefix, one command per call, and HackForge's scripts by their full path (bash /…/scripts/hf-run.sh …), not through shell variables.
 - Never ask the user to approve the permissions allowlist: apply HackForge's proposal (tools permissions --apply) and say so. The lead approves anything unusual from the Harness inbox.`
+
+/**
+ * What the lead's Claude may run without asking in a team run: the crew's dev commands plus the
+ * shell basics HackForge's own scripts and builders use. Anything else comes to the lead's inbox;
+ * HackForge's guard hook and the private-files rules still apply on top.
+ */
+export const RUN_ALLOW = [
+  ...CREW_ALLOW.filter((t) => t !== 'mcp__crew'),
+  ...[
+    'bash',
+    'sh',
+    'cd',
+    'chmod',
+    'sed',
+    'awk',
+    'tr',
+    'cut',
+    'xargs',
+    'test',
+    'printf',
+    'tee',
+    'jq',
+    'basename',
+    'dirname',
+    'date',
+    'env',
+    'git init',
+    'git worktree',
+    'git tag',
+    'git reset --soft',
+    'git cherry-pick',
+    'git rm',
+    'git mv',
+  ].map((c) => `Bash(${c} *)`),
+]
 
 export const PLAN_PROMPT = `/hackforge:run --profile auto
 (Harness team run: plan only. Stop at the plan checkpoint after writing PLAN.md: end your turn with a short summary of the decision and the milestones, without AskUserQuestion. The lead accepts the plan in Harness.)`

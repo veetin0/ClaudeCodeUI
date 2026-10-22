@@ -32,6 +32,9 @@ Use a host that gives you HTTPS (Render, Fly.io, Railway, or a VPS behind Caddy)
 Check it's up with `curl https://our-relay.example.com/health`.
 
 API: `PUT /v1/team/members/:id` (store my status, returns everyone's), `GET /v1/team`,
-`DELETE /v1/team/members/:id`, all with `Authorization: Bearer <team token>`.
+`DELETE /v1/team/members/:id`, and `PUT`/`GET /v1/team/blobs/:id` (crew mode's encrypted git
+bundles; only a team that exists may store them), all with `Authorization: Bearer <team token>`.
+`GET /health` answers `{"ok":true,"service":"harness-team-relay","blobs":true}`; a relay without
+`blobs` is too old for crew mode, so redeploy it.
 Each returned status carries `seenMsAgo` (on the relay's clock), so online/offline doesn't depend on
 teammates' laptop clocks agreeing.

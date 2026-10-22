@@ -6,7 +6,7 @@ import { describe, expect, it } from 'vitest'
 import type { CrewMemberView, MissionView } from '@shared/crew'
 import type { HarnessEvent, SessionStatus } from '@shared/events'
 import type { PermissionDecision } from '@shared/ipc'
-import { PLAN_PROMPT, pickContract, taskBrief, type Contract, type RunState } from '@shared/run'
+import { PLAN_PROMPT, RUN_ALLOW, pickContract, taskBrief, type Contract, type RunState } from '@shared/run'
 import type { PlanUsage } from '@shared/team'
 import type { AssignResult, MissionEvent, MissionSpec } from '../src/main/crew/CrewDriver'
 import { addFiles, createProject, hasChallenge, prepareProject, privateGuard, projectSlug, readContracts } from '../src/main/run/project'
@@ -73,6 +73,12 @@ describe('team run project', () => {
     expect(run({ tool_name: 'Grep', tool_input: { pattern: 'x', path: 'private' } })).toContain('"deny"')
     expect(run({ tool_name: 'Bash', tool_input: { command: 'python3 score.py private/matches.csv' } })).toBe('')
     expect(run({ tool_name: 'Read', tool_input: { file_path: `${dir}/src/app.ts` } })).toBe('')
+  })
+
+  it('lets the lead’s Claude run routine dev and HackForge commands without asking, nothing crew-only', () => {
+    expect(RUN_ALLOW).toEqual(expect.arrayContaining(['Bash(npm *)', 'Bash(git commit *)', 'Bash(bash *)', 'Bash(git worktree *)', 'WebSearch']))
+    expect(RUN_ALLOW).not.toContain('mcp__crew')
+    expect(RUN_ALLOW.some((r) => /push|sudo|^Bash\(rm /.test(r))).toBe(false)
   })
 
   it('reads HackForge contracts in milestone order, skipping half-written ones', async () => {
