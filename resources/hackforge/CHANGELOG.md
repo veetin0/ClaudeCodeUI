@@ -1,5 +1,17 @@
 # Changelog
 
+## 2.7.0 — 2026-10-23
+The mascot film's character now lives inside the app, and it acts.
+- **New story:**
+  1. The character wakes up in a studio and says hello. It talks about the problem while the problem pops up around it as cards (`PROBLEM`), then swats them away.
+  2. It jumps through the glass of the big screen into the app. The app fills the frame, readable, and the character navigates it: it walks along rows, hops between elements, types into fields and presses buttons. Every action changes the screen.
+  3. At the end the screen shrinks into the app's icon, and the character dives in and becomes the logo.
+- **A face that acts:** `scene/face.js` draws the eyes (blink, look, ^^ squint, wide, cross or worried), the brows, the mouth (a smile, a D, an O, a wide grin), the tongue and the blush on a plate that hugs the body. There are nine moods, keyed from the beats: worried for the problem, focused with the tongue out while typing, joy on a cheer.
+- **Lip sync with any voice:** `voice.py` reads the mouth shapes (open, round, wide) from the audio at 60 per second.
+- **Typing is the real app's text:** `capture_ui.mjs` captures each `type` field at every step of its text, and the camera frames the field while the character types.
+- **Timeline API:** `f.intro()`, `f.enter()`, `f.go(t, state, target, action, then=…)`, `f.say()` and `f.outro()`. Walks and hops come from the distance, camera shots lead the action, and the checker also refuses leaving before an action is done.
+- **Sound:** a hesitant pluck under the problem, the beat dropping as the character lands in the app, plus footsteps, key presses, a light clunk, a power-on, a glass bloop and the screen-to-icon swirl.
+
 ## 2.6.0 — 2026-10-23
 An optional mascot for products whose AI talks to people. Never by default: kickoff's scout proposes it only when it raises a criterion.
 - **`/hackforge:mascot`:** designs the character (`.hackforge/MASCOT.md`: one smooth toy shape, one colour, a prop, a personality and a voice), its in-app avatar states (idle, thinking, talking, success, error) as a builder task, the logo from its silhouette, and a character-led film.

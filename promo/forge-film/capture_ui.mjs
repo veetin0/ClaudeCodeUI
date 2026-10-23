@@ -1,7 +1,8 @@
 // The real Harness UI, screenshotted state by state at 3840×2160 (1920×1080 UI pixels at 2×), plus
-// the rectangles of everything Forge lands on. Launches the built app (npm run build) under a
-// throwaway profile, drives the team run with real IPC where it can (project, challenge, files)
-// and pushes run/team/crew states where a real run would need Claude.
+// the rectangles of everything Forge lands on and, for the two fields Forge types into (your name,
+// the challenge), the field at each step of the text going in. Launches the built app (npm run
+// build) under a throwaway profile, drives the team run with real IPC where it can (project,
+// challenge, files) and pushes run/team/crew states where a real run would need Claude.
 //   xvfb-run -a -s "-screen 0 3900x2300x24" node capture_ui.mjs
 import { cpSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -38,6 +39,7 @@ await page.waitForTimeout(800)
 const push = (channel, state) => app.evaluate(({ BrowserWindow }, [c, s]) => BrowserWindow.getAllWindows()[0].webContents.send(c, s), [channel, state])
 const now = Date.now()
 const layout = {}
+const typing = {}
 
 /** Rectangles (UI pixels) of the named elements, found by a selector or by button text. */
 async function rects(spec) {
@@ -61,15 +63,37 @@ async function rects(spec) {
   }, spec)
 }
 
-const PANELS = { sidebar: { css: 'aside' }, main: { css: 'main' }, topbar: { css: 'main header' }, stepper: { css: 'ol[aria-label="Team run steps"]', up: 1 } }
+async function grab(file, clip = { x: 0, y: 0, w: 1920, h: 1080 }) {
+  const { data } = await cdp.send('Page.captureScreenshot', { format: 'png', clip: { x: clip.x, y: clip.y, width: clip.w, height: clip.h, scale: 1 } })
+  writeFileSync(file, Buffer.from(data, 'base64'))
+}
 
 async function shot(name, spec = {}, wait = 500) {
   await page.waitForTimeout(wait)
-  const { data } = await cdp.send('Page.captureScreenshot', { format: 'png', clip: { x: 0, y: 0, width: 1920, height: 1080, scale: 1 } })
-  writeFileSync(join(OUT, `${name}.png`), Buffer.from(data, 'base64'))
-  layout[name] = await rects({ ...PANELS, ...spec })
+  await grab(join(OUT, `${name}.png`))
+  layout[name] = await rects(spec)
   const missing = Object.entries(layout[name]).filter(([, v]) => !v).map(([k]) => k)
   console.log(`${name}${missing.length ? `  (missing: ${missing.join(', ')})` : ''}`)
+}
+
+/** The field at each step of `text` going in, without a caret (the film draws the typing). */
+async function typeSteps(state, target, field, text, n) {
+  await page.addStyleTag({ content: '* { caret-color: transparent !important }' })
+  const box = await field.boundingBox()
+  const clip = { x: Math.floor(box.x) - 2, y: Math.floor(box.y) - 2, w: Math.ceil(box.width) + 4, h: Math.ceil(box.height) + 4 }
+  const dir = join(OUT, `${state}.type`)
+  mkdirSync(dir, { recursive: true })
+  const steps = []
+  for (let k = 1; k <= n; k++) {
+    await field.fill(text.slice(0, Math.round((text.length * k) / n)))
+    await field.evaluate((el) => (el.scrollTop = 0))
+    await page.waitForTimeout(80)
+    const file = `${String(k).padStart(2, '0')}.png`
+    await grab(join(dir, file), clip)
+    steps.push(`build/ui/${state}.type/${file}`)
+  }
+  typing[state] = { target, clip, steps }
+  console.log(`  typing on ${state}: ${n} steps`)
 }
 
 // ---------- the people ----------
@@ -92,8 +116,10 @@ const team = { config: { relayUrl: 'https://harness-relay.onrender.com', token: 
 
 // ---------- 1. Team ----------
 await page.getByRole('heading', { name: 'Start your team' }).waitFor()
-await page.getByPlaceholder('e.g. Veeti').fill('Veeti')
-await shot('team_start', { start: { button: '^Start$' }, card: { button: '^Start$', up: 1 } })
+const nameField = page.getByPlaceholder('e.g. Veeti')
+await shot('team_start', { name: { css: 'input[placeholder="e.g. Veeti"]' }, start: { button: '^Start$' } })
+await typeSteps('team_start', 'name', nameField, 'Veeti', 5)
+await shot('team_named', { start: { button: '^Start$' } })
 
 await push('team:push', team)
 await push('crew:push', crew([]))
@@ -110,19 +136,16 @@ mkdirSync(parent, { recursive: true })
 await page.evaluate((p) => window.harness.runCreateProject({ name: 'Grid Pulse', parent: p, deadline: new Date(Date.now() + 38 * 3600_000).toISOString(), plan: 'pro' }), parent)
 await page.getByRole('heading', { name: 'Grid Pulse' }).waitFor()
 await push('team:push', team)
+const CHALLENGE = '# Smart grids for Espoo\n\nHelp households shift their electricity use to the cheapest, cleanest hours. Judged on impact, tech and demo.'
 await shot('setup_empty', { challenge: { css: 'textarea' }, files: { text: '^Drop files or folders here$', up: 2 }, private: { text: '^Drop private files here$', up: 2 }, continue: { button: 'Continue: plan it' } })
+await typeSteps('setup_empty', 'challenge', page.locator('textarea').first(), CHALLENGE, 12)
+await page.evaluate((c) => window.harness.runSetChallenge(c), CHALLENGE)
+await shot('setup_typed', { files: { text: '^Drop files or folders here$', up: 2 }, private: { text: '^Drop private files here$', up: 2 }, continue: { button: 'Continue: plan it' } })
 
 const src = join(tmp, 'organisers')
 mkdirSync(src, { recursive: true })
 const files = { 'rules.pdf': '%PDF-1.4 rules', 'grid-prices-2025.csv': 'hour,price\n', 'brand-kit.zip': 'zip', 'smart-meter-sample.json': '{}' , 'household-meters.csv': 'id\n' }
 for (const [f, body] of Object.entries(files)) writeFileSync(join(src, f), body)
-await page.evaluate(
-  ([s]) =>
-    window.harness.runSetChallenge(
-      `# Smart grids for Espoo\n\nPartner: Aalto University × Fingrid\n\nBuild a tool that helps households shift their electricity use to the cheapest, cleanest hours, using real Finnish grid prices.\n\nJudged on: impact (40%), technical depth (30%), demo (30%).\nDeliverables: working prototype, 2-min video, repository.\nDeadline: Sunday 10:00.`,
-    ),
-  [src],
-)
 await page.evaluate(([s]) => window.harness.runAddFiles('challenge', [`${s}/rules.pdf`]), [src])
 await page.evaluate(([s]) => window.harness.runAddFiles('files', [`${s}/grid-prices-2025.csv`, `${s}/smart-meter-sample.json`, `${s}/brand-kit.zip`]), [src])
 await page.evaluate(([s]) => window.harness.runAddFiles('private', [`${s}/household-meters.csv`]), [src])
@@ -229,7 +252,7 @@ await push('run:push', { ...runState(3, undefined), stage: 'done', step: 'idle',
 await page.getByRole('heading', { name: 'Done' }).waitFor()
 await shot('done', { trophy: { css: 'main .lucide-trophy', up: 1 }, title: { text: '^Done$', tag: 'h1' } })
 
-writeFileSync(join(HERE, 'build', 'ui_layout.json'), JSON.stringify({ px: [1920, 1080], scale: 2, states: layout }, null, 2))
+writeFileSync(join(HERE, 'build', 'ui_layout.json'), JSON.stringify({ px: [1920, 1080], scale: 2, states: layout, typing }, null, 2))
 console.log(`→ ${OUT} and build/ui_layout.json`)
 await app.close()
 rmSync(tmp, { recursive: true, force: true })

@@ -1,9 +1,10 @@
 // APP: the real screens of your app and what the hero lands on. capture_ui.mjs opens `url`, runs
 // each state's `go`, screenshots it and measures its targets. The names are what timeline.py uses.
 //
-// Targets and panels are Playwright selectors: CSS ('#build'), text ('text=Publish'), role
-// ('role=button[name="Publish"]'). Panels are the slabs the screen is cut into (measured on the
-// first state); together they should cover the window.
+// Targets are Playwright selectors: CSS ('#build'), text ('text=Publish'), role
+// ('role=button[name="Publish"]'). The hero stands on a target's top edge.
+// `type: { target, text }` captures the field at each step of `text` being typed (an <input> or
+// <textarea>; `steps` to choose how many); the next screen should show the finished text.
 //
 // The example drives demo/index.html (a stand-in app). For your app: set `url` to where it runs
 // (start it first), and make each `go` click or navigate the way a user would; push fake data
@@ -11,12 +12,15 @@
 
 export const url = 'demo/index.html' // or 'http://localhost:3000'
 
-export const panels = { sidebar: 'aside', header: 'main > header', content: 'main > section.on' }
-
 const show = (name) => (page) => page.evaluate((n) => window.show(n), name)
 
 export const states = [
-  { name: 'describe_empty', go: show('describe_empty'), targets: { prompt: '#prompt', build: '#build' } },
+  {
+    name: 'describe_empty',
+    go: show('describe_empty'),
+    targets: { prompt: '#prompt', build: '#build' },
+    type: { target: 'prompt', text: 'A plant tracker that reminds me to water them every Sunday.', steps: 9 },
+  },
   { name: 'describe_filled', go: show('describe_filled'), targets: { build: '#build' } },
   { name: 'build_1', go: show('build_1'), targets: { step1: '#c1', step2: '#c2', step3: '#c3' } },
   { name: 'build_2', go: show('build_2') },

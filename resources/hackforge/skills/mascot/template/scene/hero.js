@@ -47,15 +47,21 @@ export function sdf(x, y, z) {
   return d
 }
 
-/** Eyes and mouth on the front of the body (z just outside the surface). */
+/**
+ * The face (face.js draws it on a plate that hugs the body): where the plate sits on the front of
+ * the body and how big it is, the eyes (centres and size of one eye: a tall slit here), whether it
+ * has brows, and the mouth (centre and width). All in body units, seen from the front.
+ */
 export const FACE = {
+  plate: { center: [-0.06, 0.635], size: [0.9, 0.46] },
   eyes: [
-    [-0.19, 0.665, 0.335],
-    [0.07, 0.665, 0.335],
+    [-0.19, 0.64],
+    [0.07, 0.64],
   ],
-  eye: [0.075, 0.19, 0.06], // a tall slit: width, height, depth
-  mouth: [-0.06, 0.535, 0.333],
-  mouthSize: [0.12, 0.024, 0.05],
+  eye: [0.075, 0.165],
+  brows: true,
+  mouth: [-0.06, 0.528],
+  mouthWidth: 0.17,
 }
 
 /** Where the prop hits the screen, from the hero's feet (sparks fly from here on a stamp). */

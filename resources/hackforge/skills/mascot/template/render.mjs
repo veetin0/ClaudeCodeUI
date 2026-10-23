@@ -1,5 +1,5 @@
 // Renders the Three.js scene in headless Chrome, one deterministic frame at a time.
-//   node render.mjs stills            18 stills at half resolution: look at them before the film
+//   node render.mjs stills            up to 20 stills at half resolution: look before the film
 //   node render.mjs frames [from to]  every frame into build/frames/ (W, H, SUB to change the size
 //                                     and the motion-blur subframes; JOBS=2 splits the range)
 //   node render.mjs still <t>         one full-size still at time t
@@ -49,11 +49,27 @@ const pad = (n) => String(n).padStart(5, '0')
 const t0 = Date.now()
 
 if (mode === 'stills') {
-  // The moments that matter: the sticker, the pop, every landing, the finale.
+  // The moments that matter: the studio, the problem, the jump in, each action just after its
+  // screen change has settled, the jump out, the screen becoming the icon, the logo.
   const f = TL.finale
-  // Each landing just after its screen change has settled.
-  const times = [0.3, TL.sticker.knocks[1] + 0.01, (TL.sticker.peel[0] + TL.sticker.peel[1]) / 2, TL.sticker.pop + 0.1, ...TL.hops.filter((h) => h.to !== 'logo').map((h) => h.t1 + 0.35), f.logo_rise[1] + 0.3, f.splash + 0.3, f.wordmark + 0.8]
-  const pick = times.length > 18 ? times.filter((_, i) => i % Math.ceil(times.length / 18) === 0 || i === times.length - 1) : times
+  const line = (id) => TL.lines.find((l) => l.id === id)
+  const wake = TL.actions.find((a) => a.does === 'wake')
+  const swat = TL.actions.find((a) => a.does === 'swat')
+  const acts = TL.actions.filter((a) => ['press', 'stamp', 'type', 'cheer'].includes(a.does))
+  const times = [
+    TL.light + 0.4,
+    wake && wake.t + 0.6,
+    line('problem') && line('problem').at + line('problem').seconds * 0.7,
+    swat && swat.t + 0.12,
+    TL.power + 0.6,
+    TL.music.drop - 0.35,
+    ...acts.map((a) => (a.does === 'type' ? (a.start + a.end) / 2 : a.t + 0.35)),
+    f.morph[0] - 0.3,
+    (f.morph[0] + f.morph[1]) / 2,
+    f.splash + 0.3,
+    f.wordmark + 0.8,
+  ].filter((t) => t != null)
+  const pick = times.length > 20 ? times.filter((_, i) => i % Math.ceil(times.length / 20) === 0 || i === times.length - 1) : times
   mkdirSync(join(HERE, 'build', 'stills'), { recursive: true })
   const { page, grab } = await open(960, 540, 3)
   for (const t of pick) {

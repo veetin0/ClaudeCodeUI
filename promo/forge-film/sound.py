@@ -1,10 +1,14 @@
-"""The film's sound, all synthesized (numpy, scipy, pedalboard): no samples. Reads every event from
-build/timeline.json and lands each hit on its video frame. Writes build/sound.wav (48 kHz stereo).
+"""The film's sound, all synthesized (numpy, scipy, pedalboard): no samples, nothing to license.
+Reads every event from build/timeline.json and lands each hit on its video frame. Writes
+build/sound.wav (48 kHz stereo, 24-bit) and build/sound_onsets.json.
 
-Music: a cute lo-fi beat at 120 BPM. Before the pop only a soft pad and ticking hats; the beat drops
-on the pop (kick, snare, hats, a rubbery bass on F G Am C, glassy FM keys on the off-beats, the bed
-pumping with the kick). It filters down as the screens power off, a riser lifts into the logo, a C
-major brass stab lands on the splash and the chord rings out to a 0.5 s fade.
+Music: a cute lo-fi score at the timeline's BPM. In the studio a warm pad; while the hero talks about
+the problem, A minor with a hesitant pluck; when it says how the product fixes it, the chords
+brighten and hats tick up to the jump. The beat drops as the hero lands in the app (kick, snare,
+hats, a rubbery bass on MUSIC's chord loop, glassy FM keys on the off-beats, the bed pumping with
+the kick). It filters down as the hero leaves the app, a riser lifts into the logo, a brass stab
+on MUSIC's final chord lands on the splash and rings out to the fade. The voice sits on top: music
+and effects duck under it, then a compressor and a limiter at -1 dBFS.
 """
 import json
 import os
@@ -23,9 +27,10 @@ N = int(round(DUR * SR))
 BEAT = 60 / TL['bpm']
 rng = np.random.default_rng(2026)
 
-POP = TL['sticker']['pop']
+DROP = TL['music']['drop']  # the hero lands in the app: the groove starts
 SPLASH = TL['finale']['splash']
-FALL = TL['finale']['panels_fall']
+MORPH = TL['finale']['morph']
+LINES = {ln['id']: ln for ln in TL['lines']}
 
 # ---------- building blocks ----------
 
@@ -96,41 +101,12 @@ def place(bus, x, t, gain=1.0, pan=0.0, exact=False):
 # ---------- the effects ----------
 
 
-def knock():
-    thump = sine(sweep(170, 110, 0.12), 0.12) * env_exp(0.12, 0.03)
-    tick = filt(noise(0.05), 'band', (1800, 4200)) * env_exp(0.05, 0.008) * 0.6
-    ring = sine(2600, 0.25) * env_exp(0.25, 0.05) * 0.12
-    return _mix(thump, tick, ring)
-
-
 def _mix(*xs):
     n = max(len(x) for x in xs)
     out = np.zeros(n)
     for x in xs:
         out[: len(x)] += x
     return out
-
-
-def peel():
-    d = 0.55
-    x = filt(noise(d), 'band', (900, 2500)) * 0.6
-    x += filt(noise(d), 'band', (2500, 7000)) * 0.4 * np.linspace(0.2, 1, int(d * SR))
-    crackle = (rng.random(int(d * SR)) < 0.004) * rng.standard_normal(int(d * SR)) * 3
-    x = (x + filt(crackle, 'high', 2000)) * np.sin(np.linspace(0, np.pi, int(d * SR))) ** 0.7
-    return x * 0.5
-
-
-def pop():
-    bubble = sine(sweep(320, 1500, 0.06), 0.06) * env_exp(0.06, 0.03)
-    glass = np.zeros(int(0.9 * SR))
-    for _ in range(26):
-        f = rng.uniform(2800, 9500)
-        start = int(rng.uniform(0, 0.25) * SR)
-        g = sine(f, 0.4) * env_exp(0.4, rng.uniform(0.04, 0.16)) * rng.uniform(0.05, 0.16)
-        glass[start : start + len(g)] += g[: len(glass) - start]
-    glass += filt(noise(0.9), 'high', 3500) * env_exp(0.9, 0.12) * 0.35
-    sub = sine(sweep(70, 38, 0.9), 0.9) * env_exp(0.9, 0.35, 0.004) * 0.9
-    return _mix(bubble, glass, sub)
 
 
 def boing(big=False):
@@ -203,14 +179,6 @@ def pop_in():
     return sine(sweep(560, 980, 0.08), 0.08) * env_exp(0.08, 0.035) * 0.35
 
 
-def zap():
-    d = 0.42
-    x = saw(sweep(1400, 55, d), d) * env_exp(d, 0.18)
-    x = filt(x, 'low', 3000) * 0.3
-    crack = filt(noise(d), 'high', 4000) * env_exp(d, 0.03) * 0.25
-    return x + crack
-
-
 def riser(d):
     t = t_(d)
     x = filt(noise(d), 'band', (600, 6000)) * (t / d) ** 2 * 0.25
@@ -248,10 +216,80 @@ def shimmer():
     return _mix(out, sparkle())
 
 
+def clunk():
+    """A big studio light switching on."""
+    click_ = filt(noise(0.02), 'high', 2500) * env_exp(0.02, 0.003) * 0.8
+    thunk = filt(noise(0.3), 'low', 500) * env_exp(0.3, 0.06) * 1.3
+    hum = (sine(100, 1.2) * 0.12 + sine(200, 1.2) * 0.05) * env_exp(1.2, 0.5, 0.01)
+    return _mix(click_, thunk, hum)
+
+
+def wake():
+    """A cute startled 'bwip!'."""
+    return _mix(sine(sweep(480, 1400, 0.16), 0.16) * env_exp(0.16, 0.08) * 0.35, sine(sweep(900, 2100, 0.12), 0.12) * env_exp(0.12, 0.05) * 0.15)
+
+
+def card(i=0):
+    """A notification popping up, a semitone off: something's wrong."""
+    a, b = [('E5', 'F5'), ('C#5', 'D5'), ('A#4', 'B4'), ('F#5', 'G5')][i % 4]
+    out = np.zeros(int(0.7 * SR))
+    g1, g2 = glock(note(a), 0.55, 0.16), glock(note(b), 0.55, 0.13)
+    out[: len(g1)] += g1
+    s0 = int(0.08 * SR)
+    out[s0 : s0 + len(g2)] += g2[: len(out) - s0]
+    return _mix(out, pop_in() * 0.6)
+
+
+def swat():
+    hit = filt(noise(0.15), 'band', (400, 3000)) * env_exp(0.15, 0.03) * 0.9
+    body = sine(sweep(300, 140, 0.15), 0.15) * env_exp(0.15, 0.05) * 0.5
+    return _mix(hit, body)
+
+
+def power_on():
+    """The big screen switching on: a click, a rising hum, a soft glassy whine."""
+    d = 0.9
+    tt = t_(d)
+    click_ = filt(noise(0.02), 'high', 3000) * env_exp(0.02, 0.003)
+    hum = filt(saw(sweep(45, 110, d), d), 'low', 600) * np.clip(tt / 0.2, 0, 1) * np.exp(-tt / 0.5) * 0.25
+    whine = sine(sweep(1800, 6200, d), d) * np.clip(tt / 0.1, 0, 1) * np.exp(-tt / 0.35) * 0.05
+    return _mix(click_, hum, whine)
+
+
+def glass():
+    """Through the screen's glass: a bubbly bloop with a shimmer."""
+    bloop = sine(sweep(260, 900, 0.18), 0.18) * env_exp(0.18, 0.09) * 0.45
+    return _mix(bloop, sparkle() * 0.7, filt(noise(0.4), 'band', (2000, 8000)) * env_exp(0.4, 0.1) * 0.12)
+
+
+def step(k=0):
+    """A tiny squeaky footstep."""
+    f = 920 if k % 2 else 760
+    return _mix(sine(sweep(f, f * 0.7, 0.05), 0.05) * env_exp(0.05, 0.015) * 0.22, filt(noise(0.03), 'band', (2000, 5000)) * env_exp(0.03, 0.006) * 0.12)
+
+
+def type_(k=0):
+    """A key going in: a keycap click and a little rising tick."""
+    tick = sine(1500 + 70 * (k % 7), 0.04) * env_exp(0.04, 0.012) * 0.18
+    return _mix(click() * 0.75, tick)
+
+
+def morph():
+    """The screen shrinking into the icon: a swirl up."""
+    d = 1.0
+    tt = t_(d)
+    x = filt(noise(d), 'band', (900, 6000)) * np.sin(np.pi * tt / d) ** 2 * 0.25
+    tone = sine(sweep(400, 1600, d), d) * np.sin(np.pi * tt / d) ** 2 * 0.06
+    return _mix(x, tone)
+
+
 SFX = {
-    'knock': (knock, 0.9),
-    'peel': (peel, 0.7),
-    'pop': (pop, 1.0),
+    'clunk': (clunk, 0.9),
+    'wake': (wake, 0.8),
+    'swat': (swat, 0.8),
+    'power_on': (power_on, 0.8),
+    'glass': (glass, 0.8),
+    'morph': (morph, 0.7),
     'whoosh': (whoosh, 0.6),
     'pomf': (pomf, 0.7),
     'click': (click, 0.8),
@@ -260,7 +298,6 @@ SFX = {
     'yay': (yay, 0.8),
     'flip': (flip, 0.8),
     'pop_in': (pop_in, 0.8),
-    'zap': (zap, 0.6),
     'splash': (splash, 1.0),
     'sparkle': (sparkle, 0.8),
     'shimmer': (shimmer, 0.7),
@@ -308,9 +345,19 @@ def pad(freqs, dur, gain=0.08):
     return x * a * gain / len(freqs)
 
 
-CHORDS = {'F': ['F3', 'A3', 'C4'], 'G': ['G3', 'B3', 'D4'], 'Am': ['A3', 'C4', 'E4'], 'C': ['C3', 'E3', 'G3']}
-ROOTS = {'F': 'F2', 'G': 'G2', 'Am': 'A2', 'C': 'C2'}
-PROG = ['F', 'G', 'Am', 'C']
+MUSIC = TL.get('music', {})
+PROG = MUSIC.get('progression', ['F', 'G', 'Am', 'C'])
+FINAL = MUSIC.get('final', ['C4', 'E4', 'G4', 'C5', 'E5'])
+FLATS = {'Db': 'C#', 'Eb': 'D#', 'Gb': 'F#', 'Ab': 'G#', 'Bb': 'A#'}
+
+
+def triad(name):
+    """'Am' → the chord's root (octave 2, for the bass) and its three notes from octave 3, in Hz."""
+    minor = name.endswith('m')
+    root = name[:-1] if minor else name
+    root = FLATS.get(root, root)
+    r = note(f'{root}3')
+    return r / 2, [r, r * 2 ** ((3 if minor else 4) / 12), r * 2 ** (7 / 12)]
 
 
 def music():
@@ -320,20 +367,35 @@ def music():
     kicks = []
     bar_len = 4 * BEAT
     end_beat = SPLASH  # the groove stops on the splash
-    # Before the pop: a soft pad and ticking hats.
-    place(bed, pad([note(n) for n in CHORDS['F']], POP + 0.3, 0.06), 0, exact=True)
-    t = 0.0
-    while t < POP - 0.01:
-        place(drums, hat() * 0.6, t, pan=0.25, exact=True)
+    # The studio: a warm pad once the light is on.
+    light = TL['light']
+    p0 = LINES['problem']['at'] if 'problem' in LINES else light + 2
+    f0 = LINES['fix']['at'] if 'fix' in LINES else DROP - 2
+    place(bed, pad(triad('F')[1], p0 - light + 0.4, 0.05), light, exact=True)
+    # The problem: A minor, a hesitant pluck that skips beats.
+    place(bed, pad(triad('Am')[1], f0 - p0 + 0.4, 0.055), p0, exact=True)
+    plucks = ['A4', 'C5', 'E5', 'B4', 'A4', 'E5', 'D5', 'C5']
+    t, k = p0 + BEAT / 2, 0
+    while t < f0 - 0.2:
+        place(melodic, fm_key(note(plucks[k % len(plucks)]), 0.7) * 1.4, t, pan=0.2 * ((k % 3) - 1), exact=True)
+        t += BEAT * (1.5 if k % 3 == 2 else 1)
+        k += 1
+    # The fix: brighter chords, hats ticking up to the jump, a short lift into the drop.
+    half = (DROP - f0) / 2
+    place(bed, pad(triad('F')[1], half + 0.3, 0.06), f0, exact=True)
+    place(bed, pad(triad('G')[1], half + 0.3, 0.065), f0 + half, exact=True)
+    t = TL['power']
+    while t < DROP - 0.01:
+        place(drums, hat() * 0.5, t, pan=0.25, exact=True)
         t += BEAT / 2
-    # The drop: bar by bar from the pop.
+    place(bed, riser(max(0.4, DROP - TL['power'])) * 0.5, TL['power'], exact=True)
+    # The drop: bar by bar from the hero landing in the app.
     bar = 0
-    start = POP
+    start = DROP
     while start < end_beat - 0.01:
-        chord = PROG[bar % 4]
-        root = note(ROOTS[chord])
+        root, chord = triad(PROG[bar % len(PROG)])
         bar_end = min(start + bar_len, end_beat)
-        place(bed, pad([note(n) * 2 for n in CHORDS[chord]], bar_end - start + 0.3, 0.07), start, exact=True)
+        place(bed, pad([f * 2 for f in chord], bar_end - start + 0.3, 0.07), start, exact=True)
         for b in range(4):
             tb = start + b * BEAT
             if tb >= end_beat - 0.01:
@@ -355,8 +417,8 @@ def music():
             if b == 1:
                 place(melodic, bass(root, 0.2), tb + BEAT / 2, gain=0.6, exact=True)
             # Glassy keys on the off-beats.
-            for i, n in enumerate(CHORDS[chord]):
-                place(melodic, fm_key(note(n) * 2, 0.45), tb + BEAT / 2, gain=0.8, pan=-0.3 + 0.3 * i, exact=True)
+            for i, f in enumerate(chord):
+                place(melodic, fm_key(f * 2, 0.45), tb + BEAT / 2, gain=0.8, pan=-0.3 + 0.3 * i, exact=True)
         bar += 1
         start += bar_len
     # Pump the bed and keys with the kick.
@@ -368,8 +430,8 @@ def music():
     bed *= pump
     melodic[:, :] = melodic * (0.6 + 0.4 * pump)
     mix = drums + melodic + bed
-    # The screens power off: the music sinks under a closing filter, then the riser lifts it.
-    lo_start, lo_end = FALL[0]['t'], TL['finale']['logo_rise'][0] + 0.4
+    # The hero leaves the app: the music sinks under a closing filter, then the riser lifts it.
+    lo_start, lo_end = MORPH[0] - 0.7, MORPH[1]
     sos_bank = [butter(2, fc / (SR / 2), btype='low', output='sos') for fc in (8000, 2500, 900, 450)]
     seg0 = int(lo_start * SR)
     seg1 = min(int(SPLASH * SR), N)
@@ -380,13 +442,12 @@ def music():
         w = np.clip((np.arange(len(x)) / SR) / (lo_end - lo_start), 0, 1)
         mix[ch, seg0:seg1] = x * (1 - w) + filtered * w * 0.8
         del u
-    # The riser, then a C major brass stab on the splash that rings out.
-    place(mix, riser(SPLASH - TL['finale']['logo_rise'][0]), TL['finale']['logo_rise'][0], gain=0.7, exact=True)
-    brass_notes = ['C4', 'E4', 'G4', 'C5', 'E5']
+    # The riser, then a brass stab on the final chord at the splash that rings out.
+    place(mix, riser(SPLASH - MORPH[0]), MORPH[0], gain=0.7, exact=True)
     d = DUR - SPLASH
     tt = t_(d)
     stab = np.zeros(len(tt))
-    for n in brass_notes:
+    for n in FINAL:
         f = note(n)
         x = sum(saw(f * dt, d) for dt in (0.996, 1.0, 1.004))
         cutoff = 400 + 3800 * np.exp(-tt / 0.25)
@@ -395,7 +456,7 @@ def music():
         stab += x * (cutoff / 4200)
     stab *= np.clip(tt / 0.012, 0, 1) * (0.45 + 0.55 * np.exp(-tt / 0.5)) * 0.07
     place(mix, stab, SPLASH, gain=1.0)
-    place(mix, pad([note(n) for n in ['C3', 'G3', 'C4', 'E4']], d, 0.09), SPLASH, gain=1.0)
+    place(mix, pad([note(n) / 2 for n in FINAL[:4]], d, 0.09), SPLASH, gain=1.0)
     # Lo-fi: a little vinyl crackle all the way.
     crackle = (rng.random(N) < 0.0007) * rng.standard_normal(N) * 0.08
     mix += filt(crackle, 'band', (1500, 6000))
@@ -428,6 +489,12 @@ def main():
             x, g = boing(e.get('big', False)), 0.8
         elif kind == 'ding':
             x, g = ding(e['note']), 0.9
+        elif kind == 'card':
+            x, g = card(e.get('i', 0)), 0.75
+        elif kind == 'step':
+            x, g = step(e.get('k', 0)), 0.6
+        elif kind == 'type':
+            x, g = type_(e.get('k', 0)), 0.7
         else:
             fn, g = SFX[kind]
             x = fn()
@@ -444,7 +511,7 @@ def main():
     mus_b = mus * 0.62 * duck
     sfx_b = sfx * 0.75 * (0.75 + 0.25 * duck)
     mix = mus_b + sfx_b + voice * 1.0
-    # Voice over the bed while Forge speaks (dB), so the words always read.
+    # Voice over the bed while the hero speaks (dB), so the words always read.
     talking = smooth > 0.02 * smooth.max()
     if talking.any():
         rms = lambda x: np.sqrt(np.mean(x[:, talking] ** 2)) + 1e-9  # noqa: E731

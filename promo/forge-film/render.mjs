@@ -1,38 +1,41 @@
-// Renders the Three.js scene in headless Chromium, one deterministic frame at a time.
-//   node render.mjs stills            18 stills at half resolution (look at them before the film)
-//   node render.mjs frames [from to]  every frame, full HD, into build/frames/
-//   node render.mjs logo              the finished mark, 1024×1024 on transparent, into out/logo.png
+// Renders the Three.js scene in headless Chrome, one deterministic frame at a time.
+//   node render.mjs stills            up to 20 stills at half resolution: look before the film
+//   node render.mjs frames [from to]  every frame into build/frames/ (W, H, SUB to change the size
+//                                     and the motion-blur subframes; JOBS=2 splits the range)
 //   node render.mjs still <t>         one full-size still at time t
-import { createServer } from 'node:http'
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
-import { extname, join, resolve } from 'node:path'
-import { chromium } from 'playwright-core'
+//   node render.mjs logo              the finished mark, 1024×1024 on transparent, → out/logo.png
+// Chrome draws with SwiftShader (software GL) so it works on any machine; GL=gpu uses the GPU
+// instead (faster where headless Chrome gets one; check that a still looks the same).
+import { spawn } from 'node:child_process'
+import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { join, resolve } from 'node:path'
+import { chrome, serve } from './util.mjs'
 
 const HERE = resolve(import.meta.dirname)
 const TL = JSON.parse(readFileSync(join(HERE, 'build', 'timeline.json'), 'utf8'))
 const [mode = 'stills', a, b] = process.argv.slice(2)
+const env = (k, d) => Number(process.env[k] ?? d)
 
-const types = { '.html': 'text/html', '.js': 'text/javascript', '.mjs': 'text/javascript', '.json': 'application/json', '.png': 'image/png' }
-const server = createServer((q, s) => {
-  const p = join(HERE, decodeURIComponent(q.url.split('?')[0]))
-  if (!p.startsWith(HERE) || !existsSync(p)) {
-    s.writeHead(404)
-    return s.end()
-  }
-  s.writeHead(200, { 'content-type': types[extname(p)] ?? 'application/octet-stream', 'cache-control': 'no-store' })
-  s.end(readFileSync(p))
-})
-await new Promise((r) => server.listen(0, '127.0.0.1', r))
-const port = server.address().port
+// Several processes: each renders its own slice of the frames.
+if (mode === 'frames' && env('JOBS', 1) > 1) {
+  const from = Number(a ?? 0)
+  const to = Number(b ?? TL.frames)
+  const jobs = env('JOBS', 1)
+  const size = Math.ceil((to - from) / jobs)
+  const runs = Array.from({ length: jobs }, (_, j) => [from + j * size, Math.min(to, from + (j + 1) * size)]).filter(([x, y]) => x < y)
+  const codes = await Promise.all(runs.map(([x, y]) => new Promise((r) => spawn(process.execPath, [import.meta.filename, 'frames', String(x), String(y)], { stdio: 'inherit', env: { ...process.env, JOBS: '1' } }).on('exit', r))))
+  process.exit(codes.some((c) => c) ? 1 : 0)
+}
 
-const exe = existsSync('/opt/pw-browsers/chromium') ? '/opt/pw-browsers/chromium' : undefined
-const browser = await chromium.launch({ executablePath: exe, args: ['--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist', '--disable-gpu-sandbox'] })
+const site = await serve(HERE)
+const gl = process.env.GL === 'gpu' ? ['--enable-gpu', '--ignore-gpu-blocklist'] : ['--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist', '--disable-gpu-sandbox']
+const browser = await chrome(gl)
 
 async function open(w, h, sub, extra = '') {
   const page = await browser.newPage({ viewport: { width: w, height: h }, deviceScaleFactor: 1 })
-  page.on('console', (m) => (m.type() === 'error' || m.type() === 'warning') && console.log('page:', m.text()))
+  page.on('console', (m) => (m.type() === 'error' || m.type() === 'warning') && !m.text().includes('favicon') && console.log('page:', m.text()))
   page.on('pageerror', (e) => console.log('page error:', e.message))
-  await page.goto(`http://127.0.0.1:${port}/scene/index.html?w=${w}&h=${h}&sub=${sub}${extra}`)
+  await page.goto(`${site.url}/scene/index.html?w=${w}&h=${h}&sub=${sub}${extra}`)
   await page.waitForFunction(() => window.ready === true, null, { timeout: 300_000 })
   const cdp = await page.context().newCDPSession(page)
   const grab = async (file) => {
@@ -46,19 +49,37 @@ const pad = (n) => String(n).padStart(5, '0')
 const t0 = Date.now()
 
 if (mode === 'stills') {
-  // The 18 moments that matter: sticker, pop, every landing, the finale.
-  const times = [0.3, 0.86, 1.6, 2.1, 3.6, 3.95, 5.1, 7.15, 8.45, 9.7, 11.95, 13.45, 15.45, 16.6, 17.6, 18.9, 20.6, 22.5]
+  // The moments that matter: the studio, the problem, the jump in, each action just after its
+  // screen change has settled, the jump out, the screen becoming the icon, the logo.
+  const f = TL.finale
+  const line = (id) => TL.lines.find((l) => l.id === id)
+  const wake = TL.actions.find((a) => a.does === 'wake')
+  const swat = TL.actions.find((a) => a.does === 'swat')
+  const acts = TL.actions.filter((a) => ['press', 'stamp', 'type', 'cheer'].includes(a.does))
+  const times = [
+    TL.light + 0.4,
+    wake && wake.t + 0.6,
+    line('problem') && line('problem').at + line('problem').seconds * 0.7,
+    swat && swat.t + 0.12,
+    TL.power + 0.6,
+    TL.music.drop - 0.35,
+    ...acts.map((a) => (a.does === 'type' ? (a.start + a.end) / 2 : a.t + 0.35)),
+    f.morph[0] - 0.3,
+    (f.morph[0] + f.morph[1]) / 2,
+    f.splash + 0.3,
+    f.wordmark + 0.8,
+  ].filter((t) => t != null)
+  const pick = times.length > 20 ? times.filter((_, i) => i % Math.ceil(times.length / 20) === 0 || i === times.length - 1) : times
   mkdirSync(join(HERE, 'build', 'stills'), { recursive: true })
   const { page, grab } = await open(960, 540, 3)
-  for (const t of times) {
+  for (const t of pick) {
     await page.evaluate((t) => window.renderFrame(t), t)
     await grab(join(HERE, 'build', 'stills', `t${t.toFixed(2).padStart(5, '0')}.png`))
   }
-  console.log(`${times.length} stills in ${((Date.now() - t0) / 1000).toFixed(1)} s → build/stills/`)
+  console.log(`${pick.length} stills in ${((Date.now() - t0) / 1000).toFixed(1)} s → build/stills/`)
 } else if (mode === 'still') {
-  const { page, grab } = await open(Number(process.env.W ?? 1920), Number(process.env.H ?? 1080), Number(process.env.SUB ?? 5), process.env.EXTRA ?? '')
+  const { page, grab } = await open(env('W', 1920), env('H', 1080), env('SUB', 5), process.env.EXTRA ?? '')
   await page.evaluate((t) => window.renderFrame(t), Number(a))
-  mkdirSync(join(HERE, 'build'), { recursive: true })
   const name = `still-${a}${process.env.TAG ? `-${process.env.TAG}` : ''}.png`
   await grab(join(HERE, 'build', name))
   console.log(`still at ${a} s → build/${name}`)
@@ -66,11 +87,11 @@ if (mode === 'stills') {
   const from = Number(a ?? 0)
   const to = Number(b ?? TL.frames)
   mkdirSync(join(HERE, 'build', 'frames'), { recursive: true })
-  const { page, grab } = await open(1920, 1080, Number(process.env.SUB ?? 5))
+  const { page, grab } = await open(env('W', 1920), env('H', 1080), env('SUB', 5))
   for (let f = from; f < to; f++) {
     await page.evaluate((t) => window.renderFrame(t), f / TL.fps)
     await grab(join(HERE, 'build', 'frames', `${pad(f)}.png`))
-    if (f % 30 === 0) console.log(`frame ${f}/${to}  ${((Date.now() - t0) / 1000 / (f - from + 1)).toFixed(2)} s/frame`)
+    if ((f - from) % 30 === 0) console.log(`frame ${f}/${to}  ${((Date.now() - t0) / 1000 / (f - from + 1)).toFixed(2)} s/frame`)
   }
   console.log(`frames ${from}–${to - 1} in ${((Date.now() - t0) / 60000).toFixed(1)} min`)
 } else if (mode === 'logo') {
@@ -82,4 +103,4 @@ if (mode === 'stills') {
 }
 
 await browser.close()
-server.close()
+site.close()

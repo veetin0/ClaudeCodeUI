@@ -14,7 +14,7 @@
       canvas {
         display: block;
       }
-      /* What Forge says, for viewers with the sound off. */
+      /* What the hero says, for viewers with the sound off. */
       #caption {
         position: fixed;
         left: 0;
@@ -26,10 +26,6 @@
         text-shadow: 0 2px 12px rgba(0, 0, 0, 0.85);
         letter-spacing: 0.01em;
         opacity: 0;
-      }
-      #caption b {
-        color: #ee8a4a;
-        font-weight: 700;
       }
       #wordmark {
         position: fixed;
@@ -50,7 +46,7 @@
         margin-top: calc(var(--h) * 0.006);
         font-weight: 500;
         font-size: calc(var(--h) * 0.03);
-        color: #e9b89c;
+        color: var(--tag, #e9b89c);
       }
       #fade {
         position: fixed;

@@ -1,6 +1,10 @@
 // The character film's Three.js world. Everything is a pure function of time read from
-// build/timeline.json, so any frame renders the same every time (window.renderFrame(t)). The hero
-// comes from hero.js; the screens are the app's real screenshots on floating slabs.
+// build/timeline.json, so any frame renders the same every time (window.renderFrame(t)).
+//
+// The set: a dark studio with a pedestal in front of a big screen. The screen shows the app's real
+// screenshots and faces the camera; the hero jumps through its glass and lives on the app, standing
+// on the top edges of buttons and fields like platforms. At the end the screen shrinks into the
+// app's icon and the hero dives in. The hero comes from hero.js, its face from face.js.
 import * as THREE from 'three'
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js'
 import { MarchingCubes } from 'three/addons/objects/MarchingCubes.js'
@@ -12,23 +16,31 @@ import { BokehPass } from 'three/addons/postprocessing/BokehPass.js'
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js'
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js'
 import * as HERO from './hero.js'
+import { createFace, MOODS, mixMood } from './face.js'
 
 const Q = new URLSearchParams(location.search)
 const W = Number(Q.get('w') ?? 1920)
 const H = Number(Q.get('h') ?? 1080)
 const SUB = Number(Q.get('sub') ?? 5) // motion-blur subframes
 // Tone mapping: Khronos PBR Neutral keeps the body and the logo tile their true colour (AgX greys
-// saturated colours out in three.js); a little contrast on top. ?tm=agx&look=0.6 for the AgX look.
+// saturated colours out in three.js); a little contrast on top.
 const TM = Q.get('tm') ?? 'neutral'
 const LOOK = Number(Q.get('look') ?? 0.2)
-const GLOW = Number(Q.get('glow') ?? 1.25) // how bright the screens are
+const GLOW = Number(Q.get('glow') ?? 1.15) // how bright the screen is
 document.documentElement.style.setProperty('--h', `${H}px`)
 
 const TL = await (await fetch('/build/timeline.json')).json()
 const FPS = TL.fps
 const [PX, PY] = TL.ui.px // UI pixels of the captured window
 const S = 0.01 // world units per UI pixel
-const FLOOR = -1.2 // the studio floor (pedestal top)
+const SW = PX * S // the screen in world units
+const SH = PY * S
+const SIZE = TL.hero.size ?? 0.85
+const HERO_Z = 0.36 * SIZE + 0.02 // standing on the app: its back just off the picture
+const GLASS_Z = 0.95 // the screen's glass, in front of the hero
+const FLOOR = -SH / 2 - 0.25 // the studio floor
+const PEDESTAL = new THREE.Vector3(0, FLOOR + 0.55, 5.2) // where the hero stands in the studio
+const LOGO_AT = new THREE.Vector3(0, -2.0, 3.2)
 const tint = new THREE.Color(TL.hero.color)
 document.documentElement.style.setProperty('--tag', `#${tint.clone().lerp(new THREE.Color(0xffffff), 0.45).getHexString()}`)
 
@@ -42,6 +54,7 @@ const sstep = (a, b, x) => {
 const easeInOut = (u) => (u < 0.5 ? 4 * u * u * u : 1 - Math.pow(-2 * u + 2, 3) / 2)
 const easeOutBack = (u, k = 1.7) => 1 + (k + 1) * Math.pow(u - 1, 3) + k * Math.pow(u - 1, 2)
 const spring = (dt, f = 24, d = 9) => (dt < 0 ? 0 : Math.exp(-dt * d) * Math.cos(dt * f))
+const pulse = (t, at, w) => Math.exp(-Math.pow((t - at) / w, 2))
 function rng(seed) {
   return () => {
     seed |= 0
@@ -51,8 +64,8 @@ function rng(seed) {
     return ((t ^ (t >>> 14)) >>> 0) / 4294967296
   }
 }
-/** A UI pixel on the screens → a world point (the screens lie flat, y up). */
-const ui = (px, py, y = 0) => new THREE.Vector3((px - PX / 2) * S, y, (py - PY / 2) * S)
+/** A UI pixel on the screen → a world point (the screen faces +z, y up). */
+const ui = (px, py, z = 0) => new THREE.Vector3((px - PX / 2) * S, (PY / 2 - py) * S, z)
 const centreOf = (r) => [r.x + r.w / 2, r.y + r.h / 2]
 
 // ---------- renderer ----------
@@ -60,7 +73,6 @@ const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, preserv
 renderer.setPixelRatio(1)
 renderer.setSize(W, H)
 renderer.toneMapping = { agx: THREE.AgXToneMapping, neutral: THREE.NeutralToneMapping, aces: THREE.ACESFilmicToneMapping }[TM]
-renderer.toneMappingExposure = 1.0
 renderer.outputColorSpace = THREE.SRGBColorSpace
 renderer.shadowMap.enabled = true
 renderer.shadowMap.type = THREE.PCFSoftShadowMap
@@ -70,20 +82,21 @@ RectAreaLightUniformsLib.init()
 const scene = new THREE.Scene()
 const studio = new THREE.Color(TL.set.studio)
 scene.background = studio
-scene.fog = new THREE.FogExp2(studio, TL.set.haze ?? 0.011)
-// Soft reflections for the toy, dim so nothing blows out on the screens.
+scene.fog = new THREE.FogExp2(studio, TL.set.haze ?? 0.008)
 const pmrem = new THREE.PMREMGenerator(renderer)
 scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture
 scene.environmentIntensity = 0.45
 
 const camera = new THREE.PerspectiveCamera(34, W / H, 0.05, 200)
+const TAN = Math.tan(THREE.MathUtils.degToRad(17))
 
-// Key light follows the hero (tight shadows), a rim from behind, a cool glow up from the screens.
+// Key light follows the hero (tight shadows), a rim from behind, a studio spot on the pedestal, a
+// glow from the screen, a light on the logo at the end.
 const key = new THREE.DirectionalLight(0xfff1e4, 2.1)
 key.castShadow = true
 key.shadow.mapSize.set(1536, 1536)
-key.shadow.camera.left = key.shadow.camera.bottom = -3.2
-key.shadow.camera.right = key.shadow.camera.top = 3.2
+key.shadow.camera.left = key.shadow.camera.bottom = -2.6
+key.shadow.camera.right = key.shadow.camera.top = 2.6
 key.shadow.camera.near = 0.5
 key.shadow.camera.far = 30
 key.shadow.bias = -0.0004
@@ -91,15 +104,20 @@ key.shadow.normalBias = 0.02
 scene.add(key, key.target)
 const rim = new THREE.DirectionalLight(0xffc9a8, 1.3)
 scene.add(rim, rim.target)
-scene.add(new THREE.HemisphereLight(0x6b5a52, 0x0b0705, 0.45))
+const hemi = new THREE.HemisphereLight(0x6b5a52, 0x0b0705, 0.45)
+scene.add(hemi)
+const spot = new THREE.SpotLight(0xfff1e4, 0, 30, 0.42, 0.65, 1.2)
+spot.position.copy(PEDESTAL).add(new THREE.Vector3(-0.5, 7.5, 3.5))
+spot.target.position.copy(PEDESTAL)
+scene.add(spot, spot.target)
 const logoLight = new THREE.SpotLight(0xfff4ec, 0, 40, 0.45, 0.7, 2)
 scene.add(logoLight, logoLight.target)
-const screenLight = new THREE.RectAreaLight(0xcfd8ff, 0.9, PX * S * 0.9, PY * S * 0.9)
-screenLight.position.set(0, 0.02, 0)
-screenLight.lookAt(0, 5, 0)
+const screenLight = new THREE.RectAreaLight(0xcfd8ff, 0, SW * 0.9, SH * 0.9)
+screenLight.position.set(0, 0, 0.05)
+screenLight.lookAt(0, 0, 5)
 scene.add(screenLight)
 
-// ---------- the screens ----------
+// ---------- textures ----------
 const loader = new THREE.TextureLoader()
 const loadTex = (file) =>
   new Promise((res, rej) =>
@@ -116,83 +134,146 @@ const loadTex = (file) =>
     ),
   )
 const tex = Object.fromEntries(await Promise.all(Object.entries(TL.ui.screens).map(async ([name, file]) => [name, await loadTex(file)])))
+const typing = TL.actions.filter((a) => a.does === 'type')
+for (const a of typing) a.tex = await Promise.all(a.steps.map(loadTex))
+const iconTex = TL.logo.icon ? await loadTex(TL.logo.icon) : null
 
-const screenUniforms = {
+// ---------- the studio ----------
+const floor = new THREE.Mesh(new THREE.PlaneGeometry(120, 120), new THREE.MeshStandardMaterial({ color: studio.clone().multiplyScalar(1.1), roughness: 0.7, envMapIntensity: 0.12 }))
+floor.rotation.x = -Math.PI / 2
+floor.position.y = FLOOR
+floor.receiveShadow = true
+scene.add(floor)
+const pedestal = new THREE.Mesh(new THREE.CylinderGeometry(1.15, 1.25, 0.55, 64), new THREE.MeshPhysicalMaterial({ color: 0x1b1310, roughness: 0.22, clearcoat: 0.7, clearcoatRoughness: 0.1 }))
+pedestal.position.copy(PEDESTAL).add(new THREE.Vector3(0, -0.275, 0))
+pedestal.receiveShadow = pedestal.castShadow = true
+scene.add(pedestal)
+
+// ---------- the screen ----------
+const screenGroup = new THREE.Group() // moves and shrinks into the icon at the end
+scene.add(screenGroup)
+const bezelMat = new THREE.MeshPhysicalMaterial({ color: 0x0c0a09, roughness: 0.45, metalness: 0.2, transparent: true })
+const bezel = new THREE.Mesh(new RoundedBoxGeometry(1, 1, 1, 4, 0.04), bezelMat)
+bezel.receiveShadow = true
+scene.add(bezel)
+
+const su = {
   texA: { value: tex[TL.states[0].screen] },
   texB: { value: tex[TL.states[0].screen] },
   uMix: { value: 0 },
   uMode: { value: 0 },
   uCenter: { value: new THREE.Vector2(0.5, 0.5) },
-  uTint: { value: tint.clone().lerp(new THREE.Color(0xffffff), 0.15) },
   uAspect: { value: PX / PY },
+  uTint: { value: tint.clone().lerp(new THREE.Color(0xffffff), 0.15) },
+  uGlow: { value: GLOW },
+  uPower: { value: 0 },
+  uPatch: { value: null },
+  uPatchRect: { value: new THREE.Vector4() },
+  uPatchOn: { value: 0 },
+  uDentRect: { value: new THREE.Vector4() },
+  uDent: { value: 0 },
+  uSize: { value: new THREE.Vector2(SW, SH) },
+  uCorner: { value: 0.06 },
+  uTile: { value: 0 },
+  uTileTop: { value: new THREE.Color(TL.logo.tile_top) },
+  uTileBot: { value: new THREE.Color(TL.logo.tile).multiplyScalar(0.82) },
+  uIcon: { value: iconTex },
+  uIconOn: { value: iconTex ? 1 : 0 },
+  uIconScale: { value: TL.logo.icon_scale ?? 0.73 },
 }
-function screenMaterial(rect) {
-  return new THREE.ShaderMaterial({
-    uniforms: {
-      ...screenUniforms,
-      uRect: { value: new THREE.Vector4(rect.x / PX, rect.y / PY, rect.w / PX, rect.h / PY) },
-      uPx: { value: new THREE.Vector2(PX, PY) },
-      uGlow: { value: GLOW },
-      uOff: { value: 0 },
-    },
-    vertexShader: `varying vec2 vUv; void main(){ vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position,1.0); }`,
-    fragmentShader: `
-      uniform sampler2D texA, texB; uniform float uMix, uMode, uGlow, uOff, uAspect; uniform vec2 uCenter, uPx; uniform vec4 uRect; uniform vec3 uTint;
-      varying vec2 vUv;
-      void main(){
-        vec2 p = vUv;
-        // Power down: the picture collapses to a line, like an old screen switching off.
-        float squash = 1.0 - uOff * 0.985;
-        float lv = 0.5 + (p.y - 0.5) / squash;
-        if (lv < 0.0 || lv > 1.0) { gl_FragColor = vec4(0.0, 0.0, 0.0, 1.0); return; }
-        vec2 px = vec2(uRect.x + p.x * uRect.z, uRect.y + (1.0 - lv) * uRect.w); // UI coords 0..1, y down
-        vec2 uv = vec2(px.x, 1.0 - px.y);
-        vec3 a = texture2D(texA, uv).rgb;
-        vec3 b = texture2D(texB, uv).rgb;
-        float m = uMix; float edge = 0.0;
-        if (uMode > 0.5) {
-          // The next screen ripples out from where the hero pressed. The ring is wide: a thin one
-          // moves further than its width between motion-blur subframes and shows as several rings.
-          float d = distance(px * vec2(uAspect, 1.0), uCenter * vec2(uAspect, 1.0));
-          float R = uMix * 2.2;
-          m = smoothstep(R, R - 0.05, d);
-          edge = smoothstep(0.045, 0.0, abs(d - R)) * (1.0 - uMix) * 0.22;
-        }
-        vec3 c = mix(a, b, m) + edge * uTint;
-        // A faint glowing rim: each panel reads as a floating screen.
-        float ex = min(p.x, 1.0 - p.x) * uRect.z * uPx.x;
-        float ey = min(p.y, 1.0 - p.y) * uRect.w * uPx.y;
-        c += vec3(1.0, 0.86, 0.76) * smoothstep(3.0, 0.0, min(ex, ey)) * 0.09;
-        // Black glass, faked: a faint diagonal sheen. Real glass would catch the key light as a blob.
-        c += vec3(0.010, 0.009, 0.008) * smoothstep(0.35, 0.0, abs((px.x - px.y * 0.6) - 0.45));
-        float line = uOff > 0.6 ? smoothstep(0.004, 0.0, abs(p.y - 0.5)) * (1.0 - uOff) * 6.0 : 0.0;
-        gl_FragColor = vec4(c * uGlow + line, 1.0);
-      }`,
-  })
-}
-
-const panels = {}
-Object.entries(TL.panels).forEach(([name, r], i) => {
-  const g = new THREE.Group()
-  const w = r.w * S
-  const d = r.h * S
-  const centre = ui(...centreOf(r))
-  g.position.copy(centre)
-  const body = new THREE.Mesh(new RoundedBoxGeometry(w, 0.16, d, 3, 0.03), new THREE.MeshPhysicalMaterial({ color: 0x0c0a09, roughness: 0.5, metalness: 0.2 }))
-  body.position.y = -0.08
-  body.receiveShadow = true
-  const screen = new THREE.Mesh(new THREE.PlaneGeometry(w - 0.02, d - 0.02), screenMaterial(r))
-  screen.rotation.x = -Math.PI / 2
-  screen.position.y = 0.001
-  // The hero's shadow on the screen, so it reads as standing on it.
-  const catcher = new THREE.Mesh(new THREE.PlaneGeometry(w, d), new THREE.ShadowMaterial({ opacity: 0.5, depthWrite: false }))
-  catcher.rotation.x = -Math.PI / 2
-  catcher.position.y = 0.008
-  catcher.receiveShadow = true
-  g.add(body, screen, catcher)
-  scene.add(g)
-  panels[name] = { g, screen, base: centre.clone(), seed: i + name.length }
+const screenMat = new THREE.ShaderMaterial({
+  uniforms: su,
+  vertexShader: `varying vec2 vUv; void main(){ vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position,1.0); }`,
+  fragmentShader: `
+    uniform sampler2D texA, texB, uPatch, uIcon;
+    uniform float uMix, uMode, uAspect, uGlow, uPower, uPatchOn, uDent, uCorner, uTile, uIconOn, uIconScale;
+    uniform vec2 uCenter, uSize; uniform vec4 uPatchRect, uDentRect; uniform vec3 uTint, uTileTop, uTileBot;
+    varying vec2 vUv;
+    float box(vec2 p, vec2 b, float r){ vec2 q = abs(p) - b + r; return length(max(q,0.0)) + min(max(q.x,q.y),0.0) - r; }
+    bool inside(vec2 p, vec4 r){ return p.x > r.x && p.x < r.x + r.z && p.y > r.y && p.y < r.y + r.w; }
+    void main(){
+      // Rounded corners (they grow as the screen becomes the icon).
+      if (box((vUv - 0.5) * uSize, uSize * 0.5, uCorner) > 0.0) discard;
+      vec2 px = vec2(vUv.x, 1.0 - vUv.y); // UI coords 0..1, y down
+      float dark = 0.0;
+      // A small dent where the hero presses.
+      if (uDent > 0.001 && inside(px, uDentRect)) {
+        vec2 c = uDentRect.xy + uDentRect.zw * 0.5;
+        px = c + (px - c) * (1.0 + 0.035 * uDent);
+        dark = 0.14 * uDent;
+      }
+      vec2 uv = vec2(px.x, 1.0 - px.y);
+      vec3 a = texture2D(texA, uv).rgb;
+      vec3 b = texture2D(texB, uv).rgb;
+      float m = uMix; float edge = 0.0;
+      if (uMode > 0.5) {
+        // The next screen ripples out from the press. The ring is wide: a thin one moves further
+        // than its width between motion-blur subframes and shows as several rings.
+        float d = distance(px * vec2(uAspect, 1.0), uCenter * vec2(uAspect, 1.0));
+        float R = uMix * 2.2;
+        m = smoothstep(R, R - 0.05, d);
+        edge = smoothstep(0.045, 0.0, abs(d - R)) * (1.0 - uMix) * 0.18;
+      }
+      vec3 c = mix(a, b, m);
+      // Typed text: the field as captured at this step of the typing.
+      if (uPatchOn > 0.5 && inside(px, uPatchRect)) {
+        vec2 l = (px - uPatchRect.xy) / uPatchRect.zw;
+        c = texture2D(uPatch, vec2(l.x, 1.0 - l.y)).rgb;
+      }
+      c = c * (1.0 - dark) + edge * uTint;
+      // Power: off is black glass; switching on, a bright line opens up into the picture.
+      float open = clamp(uPower * 1.25, 0.0, 1.0);
+      float band = smoothstep(open * 0.5 + 0.002, open * 0.5 - 0.002, abs(vUv.y - 0.5));
+      float line = (1.0 - smoothstep(0.0, 0.2, uPower)) * smoothstep(0.004, 0.0, abs(vUv.y - 0.5)) * step(0.001, uPower) * 4.0;
+      vec3 col = c * uGlow * band * smoothstep(0.0, 0.6, uPower) + line;
+      // Becoming the icon: the tile's gradient (and the app's icon, if there is one).
+      vec3 tile = mix(uTileBot, uTileTop, vUv.y);
+      if (uIconOn > 0.5) {
+        vec2 iv = (vUv - 0.5) / uIconScale + 0.5;
+        if (iv.x > 0.0 && iv.x < 1.0 && iv.y > 0.0 && iv.y < 1.0) { vec4 ic = texture2D(uIcon, iv); tile = mix(tile, ic.rgb, ic.a); }
+      }
+      gl_FragColor = vec4(mix(col, tile * 1.08, uTile), 1.0);
+    }`,
 })
+const screen = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), screenMat)
+screenGroup.add(screen)
+// The hero's shadow on the picture, so it reads as standing on the app.
+const catcher = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), new THREE.ShadowMaterial({ opacity: 0.45, depthWrite: false }))
+catcher.position.z = 0.004
+catcher.receiveShadow = true
+screenGroup.add(catcher)
+
+// The glass in front of the app: invisible but for a faint sheen and the ripple when the hero
+// passes through it.
+const gu = { uRip: { value: [new THREE.Vector4(0, 0, -9, 0), new THREE.Vector4(0, 0, -9, 0)] }, uTime: { value: 0 }, uFade: { value: 1 } }
+const glass = new THREE.Mesh(
+  new THREE.PlaneGeometry(SW, SH),
+  new THREE.ShaderMaterial({
+    uniforms: gu,
+    transparent: true,
+    depthWrite: false,
+    blending: THREE.AdditiveBlending,
+    vertexShader: `varying vec3 vW; void main(){ vW = (modelMatrix * vec4(position, 1.0)).xyz; gl_Position = projectionMatrix * viewMatrix * vec4(vW, 1.0); }`,
+    fragmentShader: `
+      uniform vec4 uRip[2]; uniform float uTime, uFade; varying vec3 vW;
+      void main(){
+        float c = 0.0;
+        for (int i = 0; i < 2; i++) {
+          float dt = uTime - uRip[i].z;
+          if (dt > 0.0 && dt < 0.8) {
+            float d = distance(vW.xy, uRip[i].xy);
+            float R = dt * 2.6;
+            c += smoothstep(0.18, 0.0, abs(d - R)) * pow(1.0 - dt / 0.8, 2.0) * 0.16;
+            c += smoothstep(0.45, 0.0, d) * smoothstep(0.2, 0.0, dt) * 0.4;
+          }
+        }
+        float sheen = 0.012 * smoothstep(3.0, 0.0, abs(vW.x - vW.y * 0.6 - 2.0));
+        gl_FragColor = vec4(vec3(0.85, 0.92, 1.0) * (c + sheen) * uFade, 1.0);
+      }`,
+  }),
+)
+glass.position.z = GLASS_Z
+scene.add(glass)
 
 // ---------- the hero ----------
 function heroGeometry(res = 72) {
@@ -224,29 +305,21 @@ function heroGeometry(res = 72) {
 const heroGeo = heroGeometry(Number(Q.get('mc') ?? 72))
 // A vinyl toy: soft clearcoat, a little sheen. The body must read as the hero's colour.
 const toyMat = new THREE.MeshPhysicalMaterial({ color: tint, roughness: 0.42, clearcoat: 0.4, clearcoatRoughness: 0.32, sheen: 0.25, sheenColor: tint.clone().lerp(new THREE.Color(0xffffff), 0.6) })
-const darkMat = new THREE.MeshPhysicalMaterial({ color: TL.hero.dark, roughness: 0.18, clearcoat: 1 })
 
 const hero = new THREE.Group() // feet at the origin
-const body = new THREE.Group() // squash and stretch
+hero.scale.setScalar(SIZE)
+const body = new THREE.Group() // squash, stretch, lean
 hero.add(body)
 const bodyMesh = new THREE.Mesh(heroGeo, toyMat)
 bodyMesh.castShadow = bodyMesh.receiveShadow = true
 body.add(bodyMesh)
-const F = HERO.FACE
-const eyeGeo = new RoundedBoxGeometry(F.eye[0], F.eye[1], F.eye[2], 3, Math.min(F.eye[0], F.eye[2]) * 0.45)
-const eyes = F.eyes.map((at) => {
-  const e = new THREE.Mesh(eyeGeo, darkMat)
-  e.position.set(...at)
-  body.add(e)
-  return e
-})
-const mouth = new THREE.Mesh(new RoundedBoxGeometry(...F.mouthSize, 2, F.mouthSize[1] * 0.45), darkMat)
-mouth.position.set(...F.mouth)
-body.add(mouth)
-const legs = HERO.LEGS.at.map(([x, z]) => {
+const face = createFace(HERO, { ink: TL.hero.dark })
+body.add(face.mesh)
+const legs = HERO.LEGS.at.map(([x, z], i) => {
   const l = new THREE.Mesh(new THREE.CapsuleGeometry(HERO.LEGS.radius, HERO.LEGS.length, 4, 10), toyMat)
   l.position.set(x, HERO.LEGS.y, z)
   l.castShadow = true
+  l.userData.phase = (i === 0 || i === 3 ? 0 : Math.PI) // diagonal pairs step together
   hero.add(l)
   return l
 })
@@ -254,105 +327,160 @@ const propGroup = HERO.prop(TL.hero)
 if (propGroup) body.add(propGroup)
 scene.add(hero)
 
-// ---------- the sticker the hero starts as ----------
-const stickerAt = ui(TL.sticker.at[0], TL.sticker.at[1], 0.012)
-// Lying on its back the hero covers x and -y of its body: the selection box goes round that.
-const bb = heroGeo.boundingBox
-const box = { x0: bb.min.x - 0.18, x1: bb.max.x + 0.12, z0: -bb.max.y - 0.18, z1: -bb.min.y + 0.06 }
+// ---------- where the hero can stand ----------
+function spotOf(to) {
+  if (to === 'pedestal') return PEDESTAL.clone()
+  if (to === 'logo') return LOGO_AT.clone().add(new THREE.Vector3(0, -0.45 * SIZE, 0.3))
+  return ui(to.ui[0], to.ui[1], HERO_Z)
+}
+const moves = TL.moves.map((m, i) => ({ ...m, i, p0: spotOf(m.from), p1: spotOf(m.to) }))
+// Where each glass crossing happens, for the ripple.
+for (const m of moves.filter((m) => m.glass)) {
+  const u = clamp((m.p0.z - GLASS_Z) / (m.p0.z - m.p1.z))
+  m.cross = { u, t: m.t0 + u * (m.t1 - m.t0) }
+}
 
-function crackTexture() {
+/** The hero's position along a move at fraction u. */
+function along(m, u) {
+  const p = new THREE.Vector3().lerpVectors(m.p0, m.p1, u)
+  if (m.kind === 'hop') {
+    const up = m.h + Math.max(0, m.p1.y - m.p0.y) * 0.5
+    p.y += 4 * up * u * (1 - u)
+  }
+  return p
+}
+
+// ---------- problem cards ----------
+function cardTexture(text, i) {
   const c = document.createElement('canvas')
-  c.width = c.height = 1024
+  c.width = 720
+  c.height = 200
   const x = c.getContext('2d')
-  const r = rng(7)
-  x.strokeStyle = 'rgba(235,245,255,0.95)'
-  x.lineCap = 'round'
-  for (let i = 0; i < 26; i++) {
-    let px = 512
-    let py = 512
-    let a = (i / 26) * Math.PI * 2 + r() * 0.3
-    x.lineWidth = 3.2
-    x.beginPath()
-    x.moveTo(px, py)
-    for (let s = 0; s < 9; s++) {
-      a += (r() - 0.5) * 0.6
-      const len = 30 + r() * 45
-      px += Math.cos(a) * len
-      py += Math.sin(a) * len
-      x.lineTo(px, py)
-      x.lineWidth *= 0.86
-    }
-    x.stroke()
-  }
-  for (let ring = 1; ring <= 3; ring++) {
-    x.lineWidth = 1.6
-    x.beginPath()
-    for (let k = 0; k <= 40; k++) {
-      const a = (k / 40) * Math.PI * 2
-      const rr = ring * 95 + (r() - 0.5) * 30
-      x[k ? 'lineTo' : 'moveTo'](512 + Math.cos(a) * rr, 512 + Math.sin(a) * rr)
-    }
-    x.stroke()
-  }
+  const r = 36
+  x.fillStyle = '#1f1a17'
+  x.strokeStyle = '#4a3d36'
+  x.lineWidth = 4
+  x.beginPath()
+  x.roundRect(6, 6, 708, 188, r)
+  x.fill()
+  x.stroke()
+  x.fillStyle = ['#ff6b5a', '#ffb54a', '#ff6b5a', '#ffb54a'][i % 4]
+  x.beginPath()
+  x.arc(64, 100, 18, 0, Math.PI * 2)
+  x.fill()
+  x.fillStyle = '#f4ece6'
+  x.font = '600 54px Inter, "Helvetica Neue", Arial, sans-serif'
+  x.textBaseline = 'middle'
+  x.fillText(text, 104, 102, 590)
   const t = new THREE.CanvasTexture(c)
   t.colorSpace = THREE.SRGBColorSpace
+  t.anisotropy = 8
   return t
 }
-// The glass cracks when the hero pops out: a decal of cracks plus flying shards.
-const crackAt = stickerAt.clone().add(new THREE.Vector3((box.x0 + box.x1) / 2, 0.003, (box.z0 + box.z1) / 2))
-const crack = new THREE.Mesh(new THREE.PlaneGeometry(3.4, 3.4), new THREE.MeshBasicMaterial({ map: crackTexture(), transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending }))
-crack.rotation.x = -Math.PI / 2
-crack.position.copy(crackAt)
-scene.add(crack)
+const CARD_AT = [
+  [-1.75, 1.35, 0.4],
+  [1.6, 1.75, 0.1],
+  [-1.35, 2.35, -0.3],
+  [1.85, 0.75, 0.5],
+]
+const cards = TL.cards.map((c, i) => {
+  const m = new THREE.Mesh(new THREE.PlaneGeometry(1.62, 0.45), new THREE.MeshBasicMaterial({ map: cardTexture(c.text, i), transparent: true, depthWrite: false, toneMapped: true }))
+  m.visible = false
+  scene.add(m)
+  const r = rng(40 + i)
+  const at = PEDESTAL.clone().add(new THREE.Vector3(...CARD_AT[i % CARD_AT.length]))
+  return { ...c, m, at, spin: new THREE.Vector3(r() * 6 - 3, r() * 6 - 3, r() * 10 - 5), away: at.clone().sub(PEDESTAL.clone().add(new THREE.Vector3(0, 0.5, 0))).normalize().multiplyScalar(7) }
+})
 
-const shardMat = new THREE.MeshPhysicalMaterial({ color: 0xdbe9ff, roughness: 0.05, metalness: 0.2, transparent: true, opacity: 0.75, side: THREE.DoubleSide, emissive: 0x334455, emissiveIntensity: 0.6 })
-const shards = []
-{
-  const r = rng(11)
-  for (let i = 0; i < 46; i++) {
-    const g = new THREE.BufferGeometry()
-    const s = 0.05 + r() * 0.14
-    g.setAttribute('position', new THREE.Float32BufferAttribute([0, 0, 0, s, 0, s * (r() - 0.5), s * (r() - 0.3), 0, s], 3))
-    g.computeVertexNormals()
-    const m = new THREE.Mesh(g, shardMat)
-    const a = r() * Math.PI * 2
-    shards.push({ m, p0: crackAt.clone().add(new THREE.Vector3((r() - 0.5) * 1.6, 0.02, (r() - 0.5) * 1.1)), v: new THREE.Vector3(Math.cos(a) * (1 + r() * 2.4), 2.5 + r() * 3.5, Math.sin(a) * (1 + r() * 2.4)), w: new THREE.Vector3(r() * 9, r() * 9, r() * 9) })
+// ---------- presses, typing, sparks, confetti, chips ----------
+const flashMat = (w, h) =>
+  new THREE.ShaderMaterial({
+    transparent: true,
+    depthWrite: false,
+    blending: THREE.AdditiveBlending,
+    uniforms: { uA: { value: 0 }, uSize: { value: new THREE.Vector2(w, h) }, uTint: su.uTint },
+    vertexShader: `varying vec2 vUv; void main(){ vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position,1.0); }`,
+    fragmentShader: `
+      uniform float uA; uniform vec2 uSize; uniform vec3 uTint; varying vec2 vUv;
+      float rr(vec2 p, vec2 b, float r){ vec2 q = abs(p) - b + r; return length(max(q,0.0)) + min(max(q.x,q.y),0.0) - r; }
+      void main(){
+        // An outline, not a fill: a filled flash turns a big element into a bright block.
+        vec2 p = (vUv - 0.5) * uSize;
+        float d = rr(p, uSize * 0.5 - 0.05, 0.07);
+        float ring = smoothstep(0.04, 0.0, abs(d));
+        gl_FragColor = vec4(uTint * ring * uA * 1.6, 1.0);
+      }`,
+  })
+const flashes = TL.actions
+  .filter((a) => a.rect && ['press', 'stamp', 'cheer'].includes(a.does))
+  .map((a) => {
+    const w = a.rect.w * S + 0.1
+    const h = a.rect.h * S + 0.1
+    const m = new THREE.Mesh(new THREE.PlaneGeometry(w, h), flashMat(w, h))
+    m.position.copy(ui(...centreOf(a.rect), 0.012))
+    m.visible = false
+    screenGroup.add(m)
+    return { m, t: a.t }
+  })
+
+const sparkGeo = new THREE.SphereGeometry(0.022, 6, 6)
+const sparkMat = new THREE.MeshBasicMaterial({ color: tint.clone().lerp(new THREE.Color(0xffd27a), 0.5) })
+const strike = new THREE.Vector3(...(HERO.STRIKE ?? [0, 0, 0])).multiplyScalar(SIZE)
+const bursts = []
+const restAt = (t) => {
+  let p = PEDESTAL.clone()
+  for (const m of moves) if (t >= m.t1) p = m.p1.clone()
+  return p
+}
+for (const a of TL.actions) if (a.does === 'stamp') bursts.push({ t: a.t, at: restAt(a.t).add(strike), n: 26, speed: 3.0, life: 0.6, seed: Math.round(a.t * 100) })
+bursts.push({ t: TL.finale.splash, at: LOGO_AT.clone().add(new THREE.Vector3(0, 0, 0.3)), n: 60, speed: 4.5, life: 1.1, seed: 99, logo: true })
+for (const b of bursts) {
+  const r = rng(b.seed)
+  b.parts = Array.from({ length: b.n }, () => {
+    const m = new THREE.Mesh(sparkGeo, b.logo ? new THREE.MeshBasicMaterial({ color: r() < 0.5 ? 0xffffff : tint.clone().lerp(new THREE.Color(0xffffff), 0.5) }) : sparkMat)
     m.visible = false
     scene.add(m)
+    const a = r() * Math.PI * 2
+    const up = b.logo ? (r() - 0.5) * 2 : 0.5 + r() * 1.2
+    return { m, v: new THREE.Vector3(Math.cos(a), up, b.logo ? Math.sin(a) : 0.4 + r()).normalize().multiplyScalar(b.speed * (0.5 + r() * 0.7)), s: 0.6 + r() * 1.2 }
+  })
+}
+
+const confetti = []
+for (const a of TL.actions.filter((a) => a.does === 'cheer')) {
+  const r = rng(5 + Math.round(a.t))
+  const colours = [tint, new THREE.Color(0xffffff), new THREE.Color(0x3fd0b0), new THREE.Color(0xffd166), new THREE.Color(TL.logo.tile)]
+  const at = restAt(a.t).add(new THREE.Vector3(0, 0.7 * SIZE, 0.2))
+  for (let i = 0; i < 80; i++) {
+    const m = new THREE.Mesh(new THREE.PlaneGeometry(0.07, 0.11), new THREE.MeshBasicMaterial({ color: colours[i % colours.length], side: THREE.DoubleSide }))
+    m.visible = false
+    scene.add(m)
+    const ang = r() * Math.PI * 2
+    confetti.push({ m, t: a.t, at, v: new THREE.Vector3(Math.cos(ang) * (0.8 + r() * 2), 3 + r() * 3, 0.5 + r() * 1.5), w: new THREE.Vector3(r() * 12, r() * 12, r() * 12) })
   }
 }
 
-// Editor-style selection handles around the flat sticker.
-const selection = new THREE.Group()
-{
-  const mat = new THREE.MeshBasicMaterial({ color: 0x7cc0ff, transparent: true })
-  const { x0, x1, z0, z1 } = box
-  const bar = (w, d, x, z) => {
-    const m = new THREE.Mesh(new THREE.PlaneGeometry(w, d), mat)
-    m.rotation.x = -Math.PI / 2
-    m.position.set(x, 0, z)
-    selection.add(m)
-  }
-  const t = 0.012
-  bar(x1 - x0, t, (x0 + x1) / 2, z0)
-  bar(x1 - x0, t, (x0 + x1) / 2, z1)
-  bar(t, z1 - z0, x0, (z0 + z1) / 2)
-  bar(t, z1 - z0, x1, (z0 + z1) / 2)
-  for (const x of [x0, (x0 + x1) / 2, x1]) for (const z of [z0, (z0 + z1) / 2, z1]) if (!(x === (x0 + x1) / 2 && z === (z0 + z1) / 2)) bar(0.07, 0.07, x, z)
-  selection.position.copy(stickerAt).add(new THREE.Vector3(0, 0.002, 0))
-  selection.userData.mat = mat
-  scene.add(selection)
+// Chips (files, cards) fly in from the camera into a zone as the hero stamps it.
+const chips = []
+for (const a of TL.actions.filter((a) => a.chips?.length)) {
+  const r = rng(3 + Math.round(a.t))
+  const stripes = [new THREE.Color(TL.logo.tile), new THREE.Color(0x3fd0b0), new THREE.Color(0x6aa8ff), new THREE.Color(0xffd166), tint]
+  a.chips.forEach((z, i) => {
+    const chip = new THREE.Mesh(new RoundedBoxGeometry(0.55, 0.32, 0.04, 2, 0.015), new THREE.MeshPhysicalMaterial({ color: 0xf4ece6, roughness: 0.35, emissive: 0x302826 }))
+    const stripe = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.32, 0.045), new THREE.MeshBasicMaterial({ color: stripes[i % stripes.length] }))
+    stripe.position.x = -0.195
+    chip.add(stripe)
+    chip.castShadow = true
+    chip.visible = false
+    scene.add(chip)
+    const to = ui(z.x + z.w * (0.25 + 0.5 * r()), z.y + z.h * (0.3 + 0.4 * r()), 0.05)
+    const from = to.clone().add(new THREE.Vector3((r() - 0.5) * 5, 2 + r() * 2, 6 + r() * 2))
+    chips.push({ chip, from, to, t0: a.t - 0.3 + i * 0.04, t1: a.t + 0.04 + i * 0.04, spin: (r() - 0.5) * 8 })
+  })
 }
 
-// ---------- the stage and the logo ----------
-const exitHop = TL.hops.find((h) => h.does === 'exit')
-const pedestal = new THREE.Mesh(new THREE.CylinderGeometry(1.5, 1.6, 0.3, 64), new THREE.MeshPhysicalMaterial({ color: 0x1b1310, roughness: 0.22, clearcoat: 0.7, clearcoatRoughness: 0.1 }))
-pedestal.position.copy(exitHop ? ui(exitHop.to[0], exitHop.to[1], FLOOR - 0.15) : new THREE.Vector3(0, FLOOR - 0.15, 6.4))
-pedestal.receiveShadow = true
-scene.add(pedestal)
-
+// ---------- the logo ----------
 const logo = new THREE.Group()
-const LOGO_AT = new THREE.Vector3(0, 0.85, 2.6)
 logo.position.copy(LOGO_AT)
 {
   const g = new RoundedBoxGeometry(2.6, 2.6, 0.42, 6, 0.46)
@@ -369,200 +497,193 @@ logo.position.copy(LOGO_AT)
   tile.castShadow = tile.receiveShadow = true
   logo.add(tile)
 }
-// The app's icon before the hero dives in (optional): it shrinks away on the splash.
 let icon = null
-if (TL.logo.icon) {
-  icon = new THREE.Mesh(new THREE.PlaneGeometry(1.9, 1.9), new THREE.MeshBasicMaterial({ map: await loadTex(TL.logo.icon), transparent: true, depthWrite: false }))
+if (iconTex) {
+  const s = 2.6 * (TL.logo.icon_scale ?? 0.73)
+  icon = new THREE.Mesh(new THREE.PlaneGeometry(s, s), new THREE.MeshBasicMaterial({ map: iconTex, transparent: true, depthWrite: false }))
   icon.position.z = 0.215
   logo.add(icon)
 }
-// The hero, flat and in the emblem colour, becomes the mark; its eyes are cut in the tile colour.
+// The hero, flat and in the emblem colour, becomes the mark; its face is drawn in the tile colour.
 const ES = 1.1 // the mark's size on the tile
 const emblem = new THREE.Group()
+const emblemFace = createFace(HERO, { ink: TL.logo.tile })
 {
   const ec = new THREE.Color(TL.logo.emblem ?? '#FFFFFF')
   emblem.add(new THREE.Mesh(heroGeo, new THREE.MeshPhysicalMaterial({ color: ec, roughness: 0.35, emissive: ec, emissiveIntensity: 0.12 })))
-  for (const at of F.eyes) {
-    const e = new THREE.Mesh(eyeGeo, new THREE.MeshPhysicalMaterial({ color: TL.logo.tile, roughness: 0.4 }))
-    e.position.set(at[0], at[1], at[2] + 0.025)
-    emblem.add(e)
-  }
-  // Centre the silhouette on the tile.
+  emblem.add(emblemFace.mesh)
+  emblemFace.set(MOODS.happy, { look: [0, 0] })
   const c = new THREE.Vector3()
-  bb.getCenter(c)
+  heroGeo.boundingBox.getCenter(c)
   emblem.userData.offset = new THREE.Vector3(-c.x * ES, -c.y * ES, 0.2)
-  emblem.position.copy(emblem.userData.offset)
   emblem.visible = false
   logo.add(emblem)
 }
 const ripple = new THREE.Mesh(new THREE.RingGeometry(0.9, 1.0, 64), new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending }))
 ripple.position.z = 0.23
 logo.add(ripple)
+logo.visible = false
 scene.add(logo)
 
-// ---------- the hero's path ----------
-function hopEnd(h) {
-  if (h.to === 'logo') return LOGO_AT.clone().add(new THREE.Vector3(0, -0.05, 0.22))
-  return ui(h.to[0], h.to[1], h.floor ? FLOOR : 0.008)
-}
-const hops = TL.hops.map((h, i) => ({ ...h, i }))
-const restBefore = (i) => (i === 0 ? stickerAt.clone() : hopEnd(hops[i - 1]))
-
-// ---------- press flashes, chips, sparks, confetti ----------
-const flashMat = (w, h) =>
-  new THREE.ShaderMaterial({
-    transparent: true,
-    depthWrite: false,
-    blending: THREE.AdditiveBlending,
-    uniforms: { uA: { value: 0 }, uSize: { value: new THREE.Vector2(w, h) }, uTint: screenUniforms.uTint },
-    vertexShader: `varying vec2 vUv; void main(){ vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position,1.0); }`,
-    fragmentShader: `
-      uniform float uA; uniform vec2 uSize; uniform vec3 uTint; varying vec2 vUv;
-      float rr(vec2 p, vec2 b, float r){ vec2 q = abs(p) - b + r; return length(max(q,0.0)) + min(max(q.x,q.y),0.0) - r; }
-      void main(){
-        // An outline, not a fill: a filled flash turns a big element into a bright block.
-        vec2 p = (vUv - 0.5) * uSize;
-        float d = rr(p, uSize * 0.5 - 0.06, 0.08);
-        float ring = smoothstep(0.05, 0.0, abs(d)) + 0.05 * smoothstep(0.0, -0.3, d);
-        gl_FragColor = vec4(uTint * ring * uA * 2.0, 1.0);
-      }`,
-  })
-const flashes = hops
-  .filter((h) => h.rect && ['press', 'stamp', 'cheer'].includes(h.does))
-  .map((h) => {
-    const w = h.rect.w * S + 0.12
-    const d = h.rect.h * S + 0.12
-    const m = new THREE.Mesh(new THREE.PlaneGeometry(w, d), flashMat(w, d))
-    m.rotation.x = -Math.PI / 2
-    m.position.copy(ui(...centreOf(h.rect), 0.014))
-    m.visible = false
-    scene.add(m)
-    return { m, t: h.t1 }
-  })
-
-const sparkGeo = new THREE.SphereGeometry(0.022, 6, 6)
-const sparkMat = new THREE.MeshBasicMaterial({ color: tint.clone().lerp(new THREE.Color(0xffd27a), 0.5) })
-const strike = new THREE.Vector3(...(HERO.STRIKE ?? [0, 0, 0]))
-const bursts = []
-for (const h of hops) if (h.does === 'stamp') bursts.push({ t: h.t1, at: hopEnd(h).add(strike), n: 26, speed: 3.2, life: 0.6, seed: Math.round(h.t1 * 100) })
-bursts.push({ t: TL.finale.splash, at: LOGO_AT.clone().add(new THREE.Vector3(0, 0, 0.3)), n: 60, speed: 4.5, life: 1.1, seed: 99, logo: true })
-for (const b of bursts) {
-  const r = rng(b.seed)
-  b.parts = Array.from({ length: b.n }, () => {
-    const m = new THREE.Mesh(sparkGeo, b.logo ? new THREE.MeshBasicMaterial({ color: r() < 0.5 ? 0xffffff : tint.clone().lerp(new THREE.Color(0xffffff), 0.5) }) : sparkMat)
-    m.visible = false
-    scene.add(m)
-    const a = r() * Math.PI * 2
-    const up = b.logo ? (r() - 0.5) * 2 : 0.6 + r() * 1.4
-    return { m, v: new THREE.Vector3(Math.cos(a), up, Math.sin(a)).normalize().multiplyScalar(b.speed * (0.5 + r() * 0.7)), s: 0.6 + r() * 1.2 }
-  })
-}
-
-const confetti = []
-for (const cheer of hops.filter((h) => h.does === 'cheer')) {
-  const r = rng(5 + cheer.i)
-  const colours = [tint, new THREE.Color(0xffffff), new THREE.Color(0x3fd0b0), new THREE.Color(0xffd166), new THREE.Color(TL.logo.tile)]
-  for (let i = 0; i < 70; i++) {
-    const m = new THREE.Mesh(new THREE.PlaneGeometry(0.07, 0.11), new THREE.MeshBasicMaterial({ color: colours[i % colours.length], side: THREE.DoubleSide }))
-    m.visible = false
-    scene.add(m)
-    const a = r() * Math.PI * 2
-    confetti.push({ m, t: cheer.t1, v: new THREE.Vector3(Math.cos(a) * (0.6 + r() * 1.6), 3 + r() * 3, Math.sin(a) * (0.6 + r() * 1.6)), w: new THREE.Vector3(r() * 12, r() * 12, r() * 12), at: hopEnd(cheer) })
-  }
-}
-
-// Chips (files, cards, words) fly into a zone as the hero stamps it: a hop's `chips` rectangles.
-const chips = []
-for (const h of hops.filter((h) => h.chips?.length)) {
-  const r = rng(3 + h.i)
-  const stripes = [new THREE.Color(TL.logo.tile), new THREE.Color(0x3fd0b0), new THREE.Color(0x6aa8ff), new THREE.Color(0xffd166), tint]
-  h.chips.forEach((z, i) => {
-    const chip = new THREE.Mesh(new RoundedBoxGeometry(0.62, 0.05, 0.36, 2, 0.02), new THREE.MeshPhysicalMaterial({ color: 0xf4ece6, roughness: 0.35, emissive: 0x302826 }))
-    const stripe = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.055, 0.36), new THREE.MeshBasicMaterial({ color: stripes[i % stripes.length] }))
-    stripe.position.x = -0.22
-    chip.add(stripe)
-    chip.castShadow = true
-    chip.visible = false
-    scene.add(chip)
-    const to = ui(z.x + z.w * (0.3 + 0.4 * r()), z.y + z.h * 0.5, 0.04)
-    const from = to.clone().add(new THREE.Vector3((r() - 0.5) * 6, 3.5 + r() * 1.5, 5 + r() * 2))
-    chips.push({ chip, from, to, t0: h.t1 - 0.32 + i * 0.03, t1: h.t1 + 0.02 + i * 0.03, spin: (r() - 0.5) * 8 })
-  })
-}
+// ---------- the hero over time ----------
+const actionsOf = (kind) => TL.actions.filter((a) => a.does === kind)
+const wake = actionsOf('wake')[0]
 
 /** Where the hero is and how it moves at time t. */
 function pose(t) {
-  const p = { pos: stickerAt.clone(), yaw: 0, pitch: 0, sy: 1, legs: 1, prop: 0.3, flight: false, flat: 1, lying: 0, visible: true, scale: 1 }
-  const sk = TL.sticker
-  // Before the first hop: a flat sticker that knocks, peels off and pops into 3D.
-  if (t < sk.peel[0]) {
-    p.lying = 1
-    p.flat = 0.035
-    for (const k of sk.knocks) p.flat += 0.32 * Math.exp(-Math.pow((t - k) / 0.055, 2))
-  } else if (t < sk.pop) {
-    const u = clamp((t - sk.peel[0]) / (sk.peel[1] - sk.peel[0]))
-    p.lying = 1 - easeOutBack(u, 1.2)
-    p.flat = lerp(0.035, 0.16, u)
-  } else {
-    p.flat = 1 - 0.84 * spring(t - sk.pop, 22, 10)
-  }
+  const p = { pos: PEDESTAL.clone(), yaw: 0, pitch: 0, roll: 0, sy: 1, legs: 1, lift: [0, 0, 0, 0], prop: 0.3, flight: false, visible: true, scale: 1, walking: false }
   let last = -1
-  for (const h of hops) if (t >= h.t0) last = h.i
+  for (const m of moves) if (t >= m.t0) last = m.i
   if (last >= 0) {
-    const h = hops[last]
-    const p0 = restBefore(last)
-    const p1 = hopEnd(h)
-    const dir = new THREE.Vector3().subVectors(p1, p0)
-    const travelYaw = h.does === 'dive' ? Math.PI : clamp(Math.atan2(dir.x, dir.z), -1.0, 1.0)
-    if (t < h.t1) {
-      const u = (t - h.t0) / (h.t1 - h.t0)
-      p.pos.lerpVectors(p0, p1, u)
-      p.pos.y += 4 * h.h * u * (1 - u)
-      p.flight = true
-      p.sy = 1 + 0.13 * Math.pow(Math.abs(2 * u - 1), 1.5)
-      p.legs = 0.45
-      p.yaw = lerp(0, travelYaw, sstep(0, 0.25, u))
-      if (h.does === 'dive') {
-        p.pitch = sstep(0.3, 1, u) * 1.1
-        p.scale = 1 - sstep(0.8, 1, u)
+    const m = moves[last]
+    const dir = new THREE.Vector3().subVectors(m.p1, m.p0)
+    // Turn towards where it's going, but never so far that the face is lost.
+    const travelYaw = m.to === 'logo' ? 0 : dir.z < -0.5 ? Math.sign(dir.x || 1) * 1.2 : clamp(Math.atan2(dir.x, Math.max(dir.z, 0.6)), -1.05, 1.05)
+    if (t < m.t1) {
+      const u = (t - m.t0) / (m.t1 - m.t0)
+      p.pos.copy(along(m, u))
+      p.yaw = lerp(0, travelYaw, sstep(0, 0.22, u))
+      if (m.kind === 'hop') {
+        p.flight = true
+        p.sy = 1 + 0.13 * Math.pow(Math.abs(2 * u - 1), 1.5)
+        p.legs = 0.45
+        if (m.to === 'logo') {
+          p.pitch = -sstep(0.3, 1, u) * 0.6
+          p.scale = 1 - sstep(0.8, 1, u)
+        }
+      } else {
+        // Walking: a waddle, diagonal leg pairs stepping, a little bob.
+        p.walking = true
+        const ph = (t - m.t0) * Math.PI * 2 * 3.2
+        p.pos.y += Math.abs(Math.sin(ph)) * 0.035
+        p.roll = 0.07 * Math.sin(ph)
+        p.lift = legs.map((l) => Math.max(0, Math.sin(ph + l.userData.phase)) * 0.06)
       }
     } else {
-      p.pos.copy(p1)
-      p.yaw = lerp(travelYaw, 0, sstep(h.t1, h.t1 + 0.32, t))
-      p.sy = 1 - 0.3 * spring(t - h.t1, 30, 11)
-      if (h.does === 'dive') p.visible = false
+      p.pos.copy(m.p1)
+      p.yaw = lerp(travelYaw, 0, sstep(m.t1, m.t1 + 0.3, t))
+      if (m.kind === 'hop') p.sy = 1 - 0.3 * spring(t - m.t1, 30, 11)
+      if (m.to === 'logo') p.visible = false
     }
-    // Anticipation before the next take-off.
-    const next = hops[last + 1]
-    if (next && t > next.t0 - 0.16 && t < next.t0) p.sy *= 1 - 0.2 * sstep(next.t0 - 0.16, next.t0 - 0.03, t)
-  } else if (t > hops[0].t0 - 0.16) p.sy *= 1 - 0.2 * sstep(hops[0].t0 - 0.16, hops[0].t0 - 0.03, t)
-  // The prop: a wind-up in the air, a strike on landing, a wave when it cheers.
-  for (const h of hops) {
-    const big = h.does === 'stamp'
-    if (h.does === 'press' || big) {
-      const wind = sstep(h.t1 - 0.3, h.t1 - 0.08, t) * (1 - sstep(h.t1 - 0.08, h.t1, t))
-      const hit = sstep(h.t1 - 0.08, h.t1, t) * (1 - sstep(h.t1 + 0.12, h.t1 + 0.45, t))
+    const next = moves[last + 1]
+    if (next && next.kind === 'hop' && t > next.t0 - 0.16 && t < next.t0) p.sy *= 1 - 0.2 * sstep(next.t0 - 0.16, next.t0 - 0.03, t)
+  } else if (moves[0] && t > moves[0].t0 - 0.16) p.sy *= 1 - 0.2 * sstep(moves[0].t0 - 0.16, moves[0].t0 - 0.03, t)
+
+  // Waking up: a little startled hop.
+  if (wake && t > wake.t && t < wake.t + 0.45) {
+    const u = (t - wake.t) / 0.45
+    p.pos.y += 4 * 0.22 * u * (1 - u)
+  }
+  if (wake && t < wake.t) p.sy *= 1 + 0.015 * Math.sin(t * 2.1) // slow sleepy breathing
+
+  // The prop: wind-up and strike for a press, taps while typing, waves, a big swat.
+  for (const a of TL.actions) {
+    if (a.does === 'press' || a.does === 'stamp') {
+      const big = a.does === 'stamp'
+      const wind = sstep(a.t - 0.3, a.t - 0.08, t) * (1 - sstep(a.t - 0.08, a.t, t))
+      const hit = sstep(a.t - 0.08, a.t, t) * (1 - sstep(a.t + 0.12, a.t + 0.45, t))
       p.prop += wind * (big ? -1.25 : -0.6) + hit * ((big ? 2.35 : 2.0) - 0.3)
+      p.sy *= 1 - 0.12 * pulse(t, a.t + 0.02, 0.06)
     }
-    if (h.does === 'cheer' && t > h.t1 - 0.1 && t < h.t1 + 0.95) {
-      const e = sstep(h.t1 - 0.1, h.t1 + 0.1, t) * (1 - sstep(h.t1 + 0.75, h.t1 + 0.95, t))
-      p.prop += e * (-2.75 + 0.45 * Math.sin((t - h.t1) * 16))
+    if (a.does === 'type' && t > a.start - 0.15 && t < a.end + 0.2) {
+      for (let k = 0; k < a.steps.length; k++) {
+        const tk = a.start + k * a.tap
+        p.prop += -0.9 * pulse(t, tk - 0.07, 0.045) + 1.6 * pulse(t, tk, 0.035)
+      }
+      p.pitch += 0.12 * sstep(a.start - 0.15, a.start, t) * (1 - sstep(a.end, a.end + 0.2, t)) // leans in to the field
+    }
+    if ((a.does === 'cheer' || a.does === 'wave') && t > a.t - 0.1 && t < a.end) {
+      const e = sstep(a.t - 0.1, a.t + 0.1, t) * (1 - sstep(a.end - 0.2, a.end, t))
+      p.prop += e * (-2.75 + 0.45 * Math.sin((t - a.t) * 16))
+    }
+    if (a.does === 'swat') {
+      const wind = sstep(a.t - 0.25, a.t - 0.05, t) * (1 - sstep(a.t - 0.05, a.t + 0.02, t))
+      const hit = sstep(a.t - 0.05, a.t + 0.06, t) * (1 - sstep(a.t + 0.25, a.t + 0.55, t))
+      p.prop += wind * -1.6 + hit * 2.6
+      p.yaw += wind * 0.5 - hit * 0.6
     }
   }
   return p
 }
 
+// ---------- the face over time ----------
+const faceKeys = TL.face
+function moodAt(t) {
+  let base = MOODS.happy
+  let burst = null
+  for (const k of faceKeys) {
+    if (k.t > t) break
+    if (!k.mood) continue
+    if (k.burst) {
+      if (t < k.t + k.burst) burst = MOODS[k.mood]
+    } else {
+      base = MOODS[k.mood] ?? base
+      burst = null
+    }
+  }
+  return burst ?? base
+}
+function lookKeyAt(t) {
+  let look = 'camera'
+  for (const k of faceKeys) {
+    if (k.t > t) break
+    if (k.look) look = k.look
+  }
+  return look
+}
+/** The look as eye offsets (-1..1): at the camera, at the next move's destination, or given. */
+function lookAt(t, yaw) {
+  const k = lookKeyAt(t)
+  if (Array.isArray(k)) return k
+  if (k === 'move') {
+    const m = moves.find((m) => m.t1 > t)
+    if (m) {
+      const d = new THREE.Vector3().subVectors(m.p1, m.p0)
+      return [clamp(d.x * 0.6, -1, 1), clamp(d.y * 0.3, -0.6, 0.8)]
+    }
+  }
+  // At the camera, compensating for the body's turn, with a little idle wander.
+  return [clamp(-yaw * 0.7 + 0.12 * Math.sin(t * 0.9), -1, 1), 0.08 * Math.sin(t * 0.6 + 1)]
+}
 function voiceAt(t) {
   for (const l of TL.lines) {
-    if (t >= l.at && t < l.at + (l.seconds ?? 0)) return { line: l, open: l.envelope[Math.floor((t - l.at) * FPS)] ?? 0 }
+    if (l.mouth && t >= l.at && t < l.at + (l.seconds ?? 0)) {
+      const f = (t - l.at) * (l.rate ?? 60)
+      const i = Math.floor(f)
+      const u = f - i
+      const g = (arr) => lerp(arr[i] ?? 0, arr[i + 1] ?? 0, u)
+      return { line: l, open: g(l.mouth.open), round: g(l.mouth.round), wide: g(l.mouth.wide) }
+    }
   }
-  return { line: null, open: 0 }
+  return { line: null, open: 0, round: 0, wide: 0 }
+}
+function faceAt(t, yaw) {
+  // Moods blend over ~0.2 s: the average of the mood over the last moments.
+  let m = null
+  let wsum = 0
+  for (let k = 0; k < 6; k++) {
+    const w = 6 - k
+    const mk = moodAt(t - k * 0.035)
+    m = m ? mixMood(m, mk, w / (wsum + w)) : mk
+    wsum += w
+  }
+  let lx = 0
+  let ly = 0
+  for (let k = 0; k < 5; k++) {
+    const [a, b] = lookAt(t - k * 0.03, yaw)
+    lx += a / 5
+    ly += b / 5
+  }
+  // Blinks every few seconds (not while asleep or squinting with joy).
+  const ph = (t + 0.7) % 3.1
+  const blink = ph < 0.12 ? 0.1 + 0.9 * Math.abs(ph - 0.06) / 0.06 : 1
+  const v = voiceAt(t)
+  return { mood: m, look: [lx, ly], blink, talk: v.line ? v : null, voice: v }
 }
 
 // ---------- the camera ----------
-const heroFocus = (t) => pose(t).pos.add(new THREE.Vector3(0, 0.55, 0))
-function followShot(t) {
-  // Smoothed, slightly ahead of the hero: the camera whips to where it's going.
+const heroFocus = (t) => pose(t).pos.add(new THREE.Vector3(0, 0.5 * SIZE, 0))
+function smoothedHero(t) {
   const f = new THREE.Vector3()
   let wsum = 0
   for (let k = -4; k <= 7; k++) {
@@ -570,21 +691,64 @@ function followShot(t) {
     f.addScaledVector(heroFocus(t + k * 0.05), w)
     wsum += w
   }
-  f.multiplyScalar(1 / wsum)
-  const yaw = 0.2 * Math.sin(t * 0.33) - 0.08
-  const dist = 3.5
-  return { pos: f.clone().add(new THREE.Vector3(Math.sin(yaw) * dist, 2.55, Math.cos(yaw) * dist)), look: f.clone().add(new THREE.Vector3(0, 0.05, 0)), focus: f }
+  return f.multiplyScalar(1 / wsum)
 }
-// Each shot gets the time, its start and its end.
+/**
+ * Where the follow camera looks: the spot the hero is heading for, reached a moment before it
+ * lands (a camera operator leads the action), so the camera has settled when the press lands.
+ */
+function restTrack(t) {
+  let p = PEDESTAL.clone()
+  for (const m of moves) {
+    if (t >= m.t1 - 0.1) {
+      p = m.p1.clone()
+      continue
+    }
+    if (t >= m.t0 - 0.25) p = m.p0.clone().lerp(m.p1, easeInOut(clamp((t - (m.t0 - 0.25)) / (m.t1 - m.t0 + 0.15))))
+    break
+  }
+  return p.add(new THREE.Vector3(0, 0.5 * SIZE, 0))
+}
+/** Frames a point of the app at a zoom, never showing past the screen's edges. */
+function frameApp(cx, cy, zoom, sway = 0) {
+  const hv = SH / zoom
+  const wv = hv * (W / H)
+  const x = wv >= SW ? 0 : clamp(cx, -SW / 2 + wv / 2, SW / 2 - wv / 2)
+  const y = hv >= SH ? 0 : clamp(cy, -SH / 2 + hv / 2, SH / 2 - hv / 2)
+  const d = hv / 2 / TAN
+  return { pos: new THREE.Vector3(x + sway, y + 0.08 * hv, d), look: new THREE.Vector3(x, y, 0) }
+}
+// Each shot gets the time, its start, its end and its options.
 const SHOTS = {
-  wide: (t, t0, t1) => {
-    const u = easeInOut(clamp((t - t0) / (t1 - t0)))
-    const pos = new THREE.Vector3(0, 11.5, 10.5).lerp(stickerAt.clone().add(new THREE.Vector3(0.6, 4.2, 5.6)), u * 0.85)
-    const look = new THREE.Vector3(0, 0, 0.6).lerp(stickerAt.clone().add(new THREE.Vector3(0.1, 0.2, -0.4)), u)
-    return { pos, look, focus: look }
+  studio_wide: () => ({ pos: new THREE.Vector3(0, 0.6, 27), look: new THREE.Vector3(0, -1.6, 0), focus: PEDESTAL.clone(), aperture: 0.0008 }),
+  studio_talk: (t) => {
+    const f = PEDESTAL.clone().add(new THREE.Vector3(0, 0.48 * SIZE, 0))
+    return { pos: f.clone().add(new THREE.Vector3(0.45 + 0.08 * Math.sin(t * 0.4), 0.42, 3.1)), look: f.clone().add(new THREE.Vector3(0, 0.02, 0)), focus: f, aperture: 0.0026 }
   },
-  follow: followShot,
-  pullback: () => ({ pos: pedestal.position.clone().add(new THREE.Vector3(0, 8.15, 10.6)), look: pedestal.position.clone().add(new THREE.Vector3(0, 0.55, -2.2)), focus: pedestal.position.clone().add(new THREE.Vector3(0, 0.55, -0.2)) }),
+  studio_mid: (t) => {
+    const f = PEDESTAL.clone().add(new THREE.Vector3(0, 1.05, 0))
+    return { pos: f.clone().add(new THREE.Vector3(0.1 * Math.sin(t * 0.5), 0.55, 6.8)), look: f, focus: PEDESTAL.clone().add(new THREE.Vector3(0, 0.5, 0.3)), aperture: 0.0016 }
+  },
+  screen: (t) => {
+    const f = frameApp(0, 0, 0.94)
+    return { ...f, focus: heroFocus(t), aperture: 0.0003 }
+  },
+  follow: (t, t0, t1, o) => {
+    const f = restTrack(t)
+    const fr = frameApp(f.x, f.y + 0.35 * SIZE, o.zoom ?? 2.3, 0.25 * Math.sin(t * 0.37))
+    return { ...fr, focus: heroFocus(t), aperture: 0.0007 }
+  },
+  focus: (t, t0, t1, o) => {
+    const [x, y, w, h] = o.rect
+    const c = ui(x + w / 2, y + h / 2)
+    const fr = frameApp(c.x, c.y, Math.min(SW / (w * S * 1.25), SH / (h * S * 1.4)))
+    return { ...fr, focus: heroFocus(t), aperture: 0.0005 }
+  },
+  talk: (t) => {
+    const f = smoothedHero(t)
+    return { pos: f.clone().add(new THREE.Vector3(0.35, 0.3, 2.9)), look: f.clone(), focus: heroFocus(t), aperture: 0.0016 }
+  },
+  out: () => ({ pos: new THREE.Vector3(0, -0.4, 26), look: new THREE.Vector3(0, -1.8, 0), focus: PEDESTAL.clone(), aperture: 0.0006 }),
   logo: (t, t0, t1) => {
     const u = easeInOut(clamp((t - t0) / (t1 - t0)))
     const pos = LOGO_AT.clone().add(new THREE.Vector3(0, 0.5, 10.6)).lerp(LOGO_AT.clone().add(new THREE.Vector3(0, 0.1, 6.8)), u)
@@ -594,13 +758,13 @@ const SHOTS = {
 }
 function shotAt(i, t) {
   const c = TL.camera[i]
-  return SHOTS[c.shot](t, c.t, TL.camera[i + 1]?.t ?? TL.duration)
+  return SHOTS[c.shot](t, c.t, TL.camera[i + 1]?.t ?? TL.duration, c)
 }
 function cameraAt(t) {
   let i = 0
   for (let k = 0; k < TL.camera.length; k++) if (t >= TL.camera[k].t) i = k
   const cur = shotAt(i, t)
-  const blend = i > 0 ? easeInOut(clamp((t - TL.camera[i].t) / 0.9)) : 1
+  const blend = i > 0 ? easeInOut(clamp((t - TL.camera[i].t) / (TL.camera[i].blend ?? 0.9))) : 1
   if (blend >= 1) return cur
   const prev = shotAt(i - 1, t)
   return { pos: prev.pos.lerp(cur.pos, blend), look: prev.look.lerp(cur.look, blend), focus: prev.focus.lerp(cur.focus, blend), aperture: lerp(prev.aperture ?? 0.0016, cur.aperture ?? 0.0016, blend) }
@@ -611,9 +775,9 @@ function cameraAt(t) {
 // instead, so the average is antialiased too.
 const composer = new EffectComposer(renderer, new THREE.WebGLRenderTarget(W, H, { type: THREE.HalfFloatType }))
 composer.addPass(new RenderPass(scene, camera))
-const bokeh = new BokehPass(scene, camera, { focus: 4, aperture: 0.0016, maxblur: 0.006 })
+const bokeh = new BokehPass(scene, camera, { focus: 4, aperture: 0.0016, maxblur: 0.008 })
 composer.addPass(bokeh)
-composer.addPass(new UnrealBloomPass(new THREE.Vector2(W, H), 0.3, 0.45, 1.0))
+composer.addPass(new UnrealBloomPass(new THREE.Vector2(W, H), 0.28, 0.45, 1.0))
 composer.addPass(new OutputPass())
 composer.renderToScreen = false
 
@@ -654,99 +818,136 @@ const wordmark = document.getElementById('wordmark')
 const fade = document.getElementById('fade')
 wordmark.querySelector('.name').textContent = TL.logo.wordmark
 wordmark.querySelector('.tag').textContent = TL.logo.tagline ?? ''
-const falls = TL.finale.panels_fall
+const fin = TL.finale
 
 function setTime(t) {
-  // Screens: which picture, and the transition into it.
+  // ----- the screen: which picture, the transition, typing, a press dent, power -----
   let si = 0
   for (let k = 0; k < TL.states.length; k++) if (t >= TL.states[k].t) si = k
   const st = TL.states[si]
   const prev = TL.states[si - 1]
   const dur = st.how === 'flip' ? 0.5 : 0.28
   const u = prev ? clamp((t - st.t) / dur) : 1
-  screenUniforms.texA.value = tex[prev && u < 1 ? prev.screen : st.screen]
-  screenUniforms.texB.value = tex[st.screen]
-  screenUniforms.uMix.value = u < 1 ? easeInOut(u) : 0
-  screenUniforms.uMode.value = st.how === 'flip' ? 1 : 0
-  const press = hops.find((h) => h.rect && Math.abs(h.t1 - st.t) < 0.15)
+  su.texA.value = tex[prev && u < 1 ? prev.screen : st.screen]
+  su.texB.value = tex[st.screen]
+  su.uMix.value = u < 1 ? easeInOut(u) : 0
+  su.uMode.value = st.how === 'flip' ? 1 : 0
+  const press = TL.actions.find((a) => a.rect && Math.abs(a.t - st.t) < 0.15)
   if (press) {
     const [cx, cy] = centreOf(press.rect)
-    screenUniforms.uCenter.value.set(cx / PX, cy / PY)
+    su.uCenter.value.set(cx / PX, cy / PY)
+  }
+  su.uPatchOn.value = 0
+  for (const a of typing) {
+    // Until the screen moves on (and through its crossfade: the next screenshot has the text).
+    const still = st.t <= a.start || (prev && prev.t <= a.start && u < 1)
+    if (t >= a.start && still && a.tex.length && a.clip) {
+      const k = Math.min(a.tex.length - 1, Math.floor((t - a.start) / a.tap))
+      su.uPatch.value = a.tex[k]
+      su.uPatchRect.value.set(a.clip.x / PX, a.clip.y / PY, a.clip.w / PX, a.clip.h / PY)
+      su.uPatchOn.value = 1
+    }
+  }
+  su.uDent.value = 0
+  for (const a of TL.actions) {
+    if (!a.rect || !(a.does === 'press' || a.does === 'stamp')) continue
+    const d = pulse(t, a.t + 0.03, 0.08)
+    if (d > su.uDent.value) {
+      su.uDent.value = d
+      su.uDentRect.value.set(a.rect.x / PX, a.rect.y / PY, a.rect.w / PX, a.rect.h / PY)
+    }
+  }
+  su.uPower.value = clamp((t - TL.power) / 0.45)
+
+  // ----- the screen becomes the icon -----
+  const [m0, m1] = fin.morph
+  const mu = easeInOut(clamp((t - m0) / (m1 - m0)))
+  const sw = lerp(SW, 2.6, mu)
+  const sh = lerp(SH, 2.6, mu)
+  screenGroup.position.lerpVectors(new THREE.Vector3(0, 0, 0), LOGO_AT.clone().add(new THREE.Vector3(0, 0, 0.215)), mu)
+  screen.scale.set(sw, sh, 1)
+  catcher.scale.set(sw, sh, 1)
+  su.uSize.value.set(sw, sh)
+  su.uCorner.value = lerp(0.06, 0.46, sstep(0.3, 1, mu))
+  su.uTile.value = sstep(0.05, 0.75, mu)
+  screenGroup.visible = t < m1
+  bezel.scale.set(sw + 0.45, sh + 0.45, 0.45)
+  bezel.position.copy(screenGroup.position).add(new THREE.Vector3(0, 0, -0.24))
+  bezelMat.opacity = 1 - sstep(0, 0.45, mu)
+  bezel.visible = bezelMat.opacity > 0.01
+  catcher.visible = mu < 0.05
+  gu.uTime.value = t
+  gu.uFade.value = 1 - sstep(m0, m0 + 0.3, t)
+  glass.visible = gu.uFade.value > 0.01
+  let ri = 0
+  for (const m of moves) {
+    if (m.cross && ri < 2) {
+      const p = along(m, m.cross.u)
+      gu.uRip.value[ri++].set(p.x, p.y, m.cross.t, 0)
+    }
   }
 
-  // Panels power down and fall away in the finale.
-  for (const f of falls) {
-    const P = panels[f.panel]
-    const off = sstep(f.t, f.t + 0.3, t)
-    const flicker = t > f.t - 0.18 && t < f.t ? 0.7 + 0.3 * Math.sin(t * 95) : 1
-    P.screen.material.uniforms.uOff.value = off
-    P.screen.material.uniforms.uGlow.value = GLOW * flicker * (1 - sstep(f.t + 0.22, f.t + 0.32, t))
-    const dt = Math.max(0, t - (f.t + 0.3))
-    P.g.position.copy(P.base)
-    P.g.position.y -= 0.5 * 9 * dt * dt
-    P.g.position.z -= dt * 1.2
-    P.g.rotation.x = -0.5 * dt * dt * (P.seed % 2 ? 1 : -1)
-    P.g.rotation.z = 0.25 * dt * dt * (P.seed % 3 ? 1 : -1)
-    P.g.visible = P.g.position.y > -9
-  }
-  screenLight.intensity = 0.9 * (1 - sstep(falls[0].t, falls[falls.length - 1].t + 0.4, t))
+  // ----- lights -----
+  const on = sstep(TL.light, TL.light + 0.06, t) * (t < TL.light + 0.2 ? 0.85 + 0.15 * Math.sin(t * 90) : 1)
+  const inApp = sstep(TL.music.drop - 0.6, TL.music.drop + 0.4, t) * (1 - sstep(fin.morph[0] - 0.8, fin.morph[0], t))
+  spot.intensity = 14 * on * (1 - 0.85 * inApp)
+  key.intensity = 2.1 * lerp(0.03, 1, on)
+  rim.intensity = 1.3 * lerp(0.02, 1, on)
+  hemi.intensity = 0.45 * lerp(0.05, 1, on)
+  screenLight.intensity = 1.1 * su.uPower.value * (1 - mu)
 
-  // The hero.
+  // ----- the hero -----
   const p = pose(t)
   hero.visible = p.visible
   hero.position.copy(p.pos)
-  hero.rotation.set((-Math.PI / 2) * p.lying, p.yaw, 0, 'YXZ')
-  if (p.pitch) hero.rotateX(p.pitch)
+  const fa = faceAt(t, p.yaw)
+  const talking = fa.voice.open
+  hero.rotation.set(p.pitch + 0.05 * talking, p.yaw, p.roll, 'YXZ')
   const breathe = p.flight ? 0 : 0.012 * Math.sin(t * 3.1)
-  const v = voiceAt(t)
-  const sy = (p.sy + breathe + v.open * 0.025) * p.scale
+  const sy = (p.sy + breathe + talking * 0.02) * p.scale
   const sxz = (1 / Math.sqrt(Math.max(0.3, p.sy))) * p.scale
-  body.scale.set(sxz, sy, sxz * p.flat)
-  for (const l of legs) {
-    l.scale.set(p.scale, p.legs * p.scale, p.scale * p.flat)
-    l.visible = p.lying < 0.5
-  }
-  const blink = (t + 0.7) % 2.9 < 0.11 ? 0.12 : 1
-  for (const e of eyes) e.scale.y = blink
-  mouth.scale.y = 1 + v.open * 4.2
-  mouth.scale.x = 1 - v.open * 0.25
-  if (propGroup) {
-    propGroup.rotation.z = p.prop
-    propGroup.visible = p.lying < 0.6
-  }
+  body.scale.set(sxz, sy, sxz)
+  legs.forEach((l, i) => {
+    l.scale.set(p.scale, p.legs * p.scale, p.scale)
+    l.position.y = HERO.LEGS.y + (p.lift[i] ?? 0)
+  })
+  face.set(fa.mood, { look: fa.look, blink: fa.blink, talk: fa.talk })
+  if (propGroup) propGroup.rotation.z = p.prop
 
-  // The sticker's selection handles, the cracked glass and its shards.
-  const sk = TL.sticker
-  selection.userData.mat.opacity = 1 - sstep(sk.peel[0], sk.peel[0] + 0.15, t)
-  selection.visible = selection.userData.mat.opacity > 0.01
-  crack.material.opacity = t >= sk.pop ? 0.9 * (1 - sstep(sk.pop + 1.3, sk.pop + 1.8, t)) : 0
-  for (const s of shards) {
-    const dt = t - sk.pop
-    s.m.visible = dt > 0 && dt < 1.5
-    if (!s.m.visible) continue
-    s.m.position.copy(s.p0).addScaledVector(s.v, dt)
-    s.m.position.y -= 0.5 * 9.8 * dt * dt
-    s.m.rotation.set(s.w.x * dt, s.w.y * dt, s.w.z * dt)
-    s.m.material.opacity = 0.75 * (1 - sstep(1.1, 1.5, dt))
+  // ----- cards, flashes, chips, sparks, confetti -----
+  for (const c of cards) {
+    const dt = t - c.t
+    const out = t - c.out
+    c.m.visible = dt > 0 && out < 0.8
+    if (!c.m.visible) continue
+    const s = easeOutBack(clamp(dt / 0.3), 2.2)
+    c.m.scale.setScalar(Math.max(0.001, s))
+    c.m.position.copy(c.at).add(new THREE.Vector3(0.03 * Math.sin(t * 7 + c.i), 0.05 * Math.sin(t * 2.3 + c.i * 1.7), 0))
+    c.m.rotation.set(0, 0, 0.06 * Math.sin(t * 2 + c.i))
+    if (out > 0) {
+      c.m.position.addScaledVector(c.away, out)
+      c.m.position.y -= 3 * out * out
+      c.m.rotation.set(c.spin.x * out, c.spin.y * out, c.spin.z * out)
+      c.m.material.opacity = 1 - sstep(0.4, 0.8, out)
+    }
   }
-
   for (const f of flashes) {
     const dt = t - f.t
     f.m.visible = dt > 0 && dt < 0.5
     if (f.m.visible) {
-      const u = dt / 0.5
-      f.m.scale.setScalar(1 + 0.25 * u)
-      f.m.material.uniforms.uA.value = Math.pow(1 - u, 2)
+      const k = dt / 0.5
+      f.m.scale.setScalar(1 + 0.2 * k)
+      f.m.material.uniforms.uA.value = Math.pow(1 - k, 2)
     }
   }
   for (const c of chips) {
     c.chip.visible = t > c.t0 && t < c.t1 + 0.12
     if (!c.chip.visible) continue
-    const u = clamp((t - c.t0) / (c.t1 - c.t0))
-    const e = 1 - Math.pow(1 - u, 2)
+    const k = clamp((t - c.t0) / (c.t1 - c.t0))
+    const e = 1 - Math.pow(1 - k, 2)
     c.chip.position.lerpVectors(c.from, c.to, e)
-    c.chip.position.y += Math.sin(u * Math.PI) * 0.8
-    c.chip.rotation.set(0, c.spin * (1 - e), 0.6 * (1 - e))
+    c.chip.position.y += Math.sin(k * Math.PI) * 0.6
+    c.chip.rotation.set(0.5 * (1 - e), c.spin * (1 - e), 0.6 * (1 - e))
     c.chip.scale.setScalar(t > c.t1 ? 1 - clamp((t - c.t1) / 0.12) : 1)
   }
   for (const b of bursts) {
@@ -762,54 +963,52 @@ function setTime(t) {
   }
   for (const c of confetti) {
     const dt = t - c.t
-    c.m.visible = dt > 0 && dt < 1.8 && t < falls[0].t + 0.4
+    c.m.visible = dt > 0 && dt < 1.8 && t < fin.morph[0]
     if (!c.m.visible) continue
-    c.m.position.copy(c.at).add(new THREE.Vector3(0, 0.6, 0)).addScaledVector(c.v, dt)
+    c.m.position.copy(c.at).addScaledVector(c.v, dt)
     c.m.position.y -= 0.5 * 6 * dt * dt
     c.m.rotation.set(c.w.x * dt, c.w.y * dt, c.w.z * dt)
   }
 
-  // The logo rises, the hero dives in and becomes the mark.
-  const [r0, r1] = TL.finale.logo_rise
-  const ru = clamp((t - r0) / (r1 - r0))
-  logo.visible = t > r0
+  // ----- the logo: the 3D tile takes over from the shrunken screen, the hero dives in -----
+  logo.visible = t >= m1
   logo.position.copy(LOGO_AT)
-  logo.position.y = lerp(-5, LOGO_AT.y, easeOutBack(ru, 1.1))
-  logo.rotation.y = (1 - easeOutBack(ru, 1.2)) * 0.6
-  const ds = t - TL.finale.splash
-  logo.scale.setScalar(1 + (ds > 0 ? 0.1 * Math.exp(-ds * 6) * Math.sin(ds * 24) : 0))
-  if (icon) icon.scale.setScalar(Math.max(0.001, 1 - sstep(TL.finale.splash, TL.finale.splash + 0.2, t)))
-  const [e0, e1] = TL.finale.emblem
+  const ds = t - fin.splash
+  const swap = t - m1
+  logo.scale.setScalar(1 + (swap > 0 ? 0.06 * spring(swap, 20, 8) : 0) + (ds > 0 ? 0.1 * Math.exp(-ds * 6) * Math.sin(ds * 24) : 0))
+  if (icon) icon.scale.setScalar(Math.max(0.001, 1 - sstep(fin.splash, fin.splash + 0.2, t)))
+  const [e0, e1] = fin.emblem
   emblem.visible = t > e0
   const eu = easeOutBack(clamp((t - e0) / (e1 - e0)), 1.6)
   emblem.scale.set(ES * eu, ES * eu, 0.12 * Math.max(eu, 0.01))
   emblem.position.copy(emblem.userData.offset).multiply(new THREE.Vector3(eu, eu, 1))
+  emblemFace.set(MOODS.happy, { blink: (t + 0.3) % 2.7 < 0.1 ? 0.15 : 1 })
   ripple.material.opacity = ds > 0 ? 0.9 * (1 - clamp(ds / 0.6)) : 0
   ripple.scale.setScalar(0.2 + clamp(ds / 0.6) * 1.6)
 
-  // Camera, focus, lights that follow.
+  // ----- camera, focus, lights that follow -----
   const c = cameraAt(t)
   camera.position.copy(c.pos)
   camera.lookAt(c.look)
   bokeh.uniforms.focus.value = camera.position.distanceTo(c.focus)
   bokeh.uniforms.aperture.value = c.aperture ?? 0.0016
   const kf = p.visible ? p.pos : LOGO_AT
-  key.position.copy(kf).add(new THREE.Vector3(-3.5, 7, 5))
+  key.position.copy(kf).add(new THREE.Vector3(-3.0, 5.0, 7.0))
   key.target.position.copy(kf)
   rim.position.copy(kf).add(new THREE.Vector3(3, 4, -6))
   rim.target.position.copy(kf)
-  logoLight.intensity = 30 * sstep(r0, r1, t)
+  logoLight.intensity = 30 * sstep(m0 + 0.4, m1, t)
   logoLight.position.copy(camera.position).add(new THREE.Vector3(1.5, 2.5, 0))
   logoLight.target.position.copy(LOGO_AT)
 
-  // Captions and the end card.
+  // ----- captions and the end card -----
   const cap = TL.lines.find((l) => l.caption !== false && t >= l.at - 0.05 && t < l.at + (l.seconds ?? 0) + 0.35)
   caption.textContent = cap ? cap.text : ''
   caption.style.opacity = cap ? String(sstep(cap.at - 0.05, cap.at + 0.08, t) * (1 - sstep(cap.at + cap.seconds + 0.2, cap.at + cap.seconds + 0.35, t))) : '0'
-  const wm = sstep(TL.finale.wordmark, TL.finale.wordmark + 0.45, t)
+  const wm = sstep(fin.wordmark, fin.wordmark + 0.45, t)
   wordmark.style.opacity = String(wm)
   wordmark.style.transform = `translateY(${(1 - wm) * 18}px)`
-  fade.style.opacity = String(sstep(TL.finale.end_fade[0], TL.finale.end_fade[1], t))
+  fade.style.opacity = String(sstep(fin.end_fade[0], fin.end_fade[1], t))
 }
 
 const JITTER = [
@@ -853,21 +1052,21 @@ window.renderFrame = (t) => {
 
 /** The finished mark alone on a transparent background, as a PNG data URL. */
 window.renderLogo = () => {
-  setTime(TL.finale.end_fade[0] - 0.1)
-  for (const P of Object.values(panels)) P.g.visible = false
-  for (const o of [hero, pedestal, crack, selection]) o.visible = false
+  setTime(fin.end_fade[0] - 0.1)
+  for (const o of [hero, pedestal, floor, screenGroup, bezel, glass]) o.visible = false
   const a = W / H
   const cam = new THREE.OrthographicCamera(-1.55 * a, 1.55 * a, 1.55, -1.55, 0.1, 50)
   cam.position.copy(LOGO_AT).add(new THREE.Vector3(0, 0, 8))
   cam.lookAt(LOGO_AT)
-  const [bg, fog] = [scene.background, scene.fog]
+  const fog = scene.fog
   scene.background = null
   scene.fog = null
   renderer.setRenderTarget(null)
   renderer.setClearColor(0x000000, 0)
   renderer.clear()
   renderer.render(scene, cam)
-  ;[scene.background, scene.fog] = [bg, fog]
+  scene.background = studio
+  scene.fog = fog
   return renderer.domElement.toDataURL('image/png')
 }
 
