@@ -86,7 +86,8 @@ export function createRelay({ now = () => Date.now(), maxBlob = MAX_BLOB, teamBl
   return async (req, res) => {
     try {
       const url = new URL(req.url ?? '/', 'http://relay')
-      if (url.pathname === '/health') return send(res, 200, { ok: true, service: 'harness-team-relay', blobs: true })
+      // The bare address too, so opening it in a browser shows the server is up (not a "not found").
+      if (url.pathname === '/' || url.pathname.replace(/\/+$/, '') === '/health') return send(res, 200, { ok: true, service: 'harness-team-relay', blobs: true })
       if (!url.pathname.startsWith('/v1/team')) return send(res, 404, { error: 'not found' })
       const key = teamKey(req)
       if (!key) return send(res, 401, { error: 'missing or invalid team token' })
