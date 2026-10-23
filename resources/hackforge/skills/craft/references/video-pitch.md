@@ -14,6 +14,7 @@ The video is often the only thing every judge watches in full. Its visuals shoul
 | Mobility, logistics, maps | **Animated route map** zooming from region to street | Fleet dots moving, heat building up | Map screenshots/tiles + SVG paths animated in Remotion |
 | Health, social impact, education | **Human-first**: illustrated people/icons, warm colour, real quotes | Gentle kinetic typography, simple iconography | Remotion + SVG illustrations; real footage only if allowed |
 | Game, interactive, XR | **Gameplay capture** with a 3D logo reveal | Speed ramps, UI overlays | Capture + `@remotion/three` logo |
+| AI assistant or agent with a character (optional, `hackforge:mascot`) | **Character-led film**: the mascot hops across the real UI, every hop changes the screen, it explains the product and dives into the logo | Captions, a synthesized hit on every landing, the logo reveal | `skills/mascot/template` (Three.js in headless Chrome; Blender optional), Kokoro or the team's own voice |
 
 Rules: one hero treatment per video (two at most). It must explain something; spinning a model with no point is noise. Use the team's real assets from `challenge/assets/` and the real product wherever possible. Never show anything as working that isn't built: label concepts as concepts.
 

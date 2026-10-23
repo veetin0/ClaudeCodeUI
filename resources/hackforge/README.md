@@ -49,6 +49,7 @@ mkdir my-hack && cd my-hack && claude
 | `/hackforge:views` | One-page HTML: plan brief, progress, acceptance (ship / wait / reject) |
 | `/hackforge:retro` | Turns this hackathon's failures into lessons you approve, loaded at every future kickoff |
 | `/hackforge:video` | Pitch video with a treatment chosen by subject (3D product hero, digital-twin flythrough, data in motion, 3D device mockup, Manim explainer, maps), voice, music, sound effects; Remotion |
+| `/hackforge:mascot` | Optional, for a product whose AI talks to people: a character that is the assistant's face in the app, the logo, and the star of a short film where it hops across the real UI (every hop changes the screen), explains the product and dives into the logo |
 | `/hackforge:craft <asset>` | 3D (Blender), CAD, audio, video, hardware, interactive, pitch assets — scripted and reproducible |
 | `/hackforge:eval` | Real metric, honest split, baseline, run log |
 | `/hackforge:solve` | Algorithmic problems with brute-force stress testing |

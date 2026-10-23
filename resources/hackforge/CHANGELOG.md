@@ -1,5 +1,11 @@
 # Changelog
 
+## 2.6.0 — 2026-10-23
+An optional mascot for products whose AI talks to people. Never by default: kickoff's scout proposes it only when it raises a criterion.
+- **`/hackforge:mascot`:** designs the character (`.hackforge/MASCOT.md`: one smooth toy shape, one colour, a prop, a personality and a voice), its in-app avatar states (idle, thinking, talking, success, error) as a builder task, the logo from its silhouette, and a character-led film.
+- **The film template** (`skills/mascot/template/`): one `timeline.py` holds every hop, screen change, line and sound cue and checks that each hop changes the screen; `capture_ui.mjs` screenshots the real app at 2× and measures what the hero lands on; Kokoro speaks the lines offline (or ElevenLabs, or the team's own recordings); Three.js renders each frame in headless Chrome with motion blur, bloom and shallow focus (no GPU needed); all sound is synthesized and lands on its frame. `./make.sh smoke` checks the pipeline in about a minute on a stand-in app.
+- **Hooks:** the possibilities scout can propose a character, video's treatment table has a character-led film row, and the film can open or close the pitch video.
+
 ## 2.5.0 — 2026-10-22
 Team runs with the Harness app: the app drives the build across the crew, and teammates need no GitHub access.
 - **Team run protocol:** when Harness runs the build ("Harness team run" in the system prompt), build follows its "[run]" messages: Harness hands each milestone's tasks to the crew and to the driver's Claude by usage left, and says when to build, integrate, verify and finish. Contracts give every task a unique `id`, a `role` and non-overlapping `owned` paths, so they can be handed out.

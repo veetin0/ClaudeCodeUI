@@ -1,0 +1,9 @@
+{
+  "name": "forge-film",
+  "private": true,
+  "description": "Forge shows Harness: a mascot film (Three.js scene, synthesized sound, Kokoro voice), driven by timeline.py.",
+  "type": "module",
+  "dependencies": {
+    "three": "0.182.0"
+  }
+}

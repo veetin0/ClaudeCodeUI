@@ -1,0 +1,323 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Tinker (demo app)</title>
+    <!-- A stand-in app so the template runs out of the box: replace it with your real app's URL in
+         ui_states.mjs. show('<state>') switches what's on screen. -->
+    <style>
+      :root {
+        --bg: #14110f;
+        --panel: #1c1815;
+        --line: #2e2723;
+        --text: #f4ece6;
+        --muted: #a39389;
+        --accent: #ee8a4a;
+        --good: #3fd0b0;
+        color-scheme: dark;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+        background: var(--bg);
+        color: var(--text);
+        font: 16px/1.5 'Inter', 'Helvetica Neue', Arial, sans-serif;
+      }
+      body {
+        display: flex;
+      }
+      aside {
+        width: 300px;
+        border-right: 1px solid var(--line);
+        background: var(--panel);
+        padding: 28px 22px;
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+      }
+      .brand {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        font-weight: 800;
+        font-size: 24px;
+        margin-bottom: 28px;
+      }
+      .brand i {
+        width: 38px;
+        height: 38px;
+        border-radius: 10px;
+        background: linear-gradient(#ec9472, #c7684b);
+      }
+      nav a {
+        display: block;
+        padding: 11px 14px;
+        border-radius: 10px;
+        color: var(--muted);
+        font-weight: 500;
+        text-decoration: none;
+      }
+      nav a.on {
+        background: #2a221e;
+        color: var(--text);
+      }
+      aside .me {
+        margin-top: auto;
+        color: var(--muted);
+        font-size: 14px;
+      }
+      main {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+      }
+      header {
+        padding: 34px 56px 26px;
+        border-bottom: 1px solid var(--line);
+      }
+      header h1 {
+        margin: 0 0 18px;
+        font-size: 34px;
+        letter-spacing: -0.01em;
+      }
+      .steps {
+        display: flex;
+        gap: 10px;
+        list-style: none;
+        margin: 0;
+        padding: 0;
+      }
+      .steps li {
+        padding: 7px 16px;
+        border-radius: 999px;
+        border: 1px solid var(--line);
+        color: var(--muted);
+        font-weight: 600;
+        font-size: 14px;
+      }
+      .steps li.on {
+        border-color: var(--accent);
+        color: var(--accent);
+      }
+      .steps li.done {
+        color: var(--good);
+        border-color: #23574c;
+      }
+      section {
+        flex: 1;
+        padding: 44px 56px;
+        display: none;
+      }
+      section.on {
+        display: block;
+      }
+      .prompt {
+        width: 100%;
+        height: 260px;
+        border-radius: 18px;
+        border: 2px dashed #4a3d36;
+        background: #181412;
+        padding: 26px 30px;
+        font-size: 26px;
+        color: var(--muted);
+      }
+      .prompt.filled {
+        border-style: solid;
+        border-color: var(--accent);
+        color: var(--text);
+      }
+      .chips {
+        display: flex;
+        gap: 12px;
+        margin-top: 18px;
+      }
+      .chips span {
+        padding: 8px 14px;
+        border-radius: 10px;
+        background: #2a221e;
+        font-size: 15px;
+      }
+      button {
+        margin-top: 30px;
+        padding: 16px 34px;
+        border-radius: 14px;
+        border: 0;
+        font: 700 20px/1 inherit;
+        font-family: inherit;
+        background: #3a302b;
+        color: var(--muted);
+      }
+      button.go {
+        background: var(--accent);
+        color: #1d1410;
+      }
+      .cards {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 24px;
+      }
+      .card {
+        border-radius: 18px;
+        border: 1px solid var(--line);
+        background: var(--panel);
+        padding: 28px;
+        min-height: 230px;
+      }
+      .card h3 {
+        margin: 0 0 8px;
+        font-size: 24px;
+      }
+      .card p {
+        color: var(--muted);
+        margin: 0 0 24px;
+      }
+      .card .bar {
+        height: 10px;
+        border-radius: 5px;
+        background: #2a221e;
+        overflow: hidden;
+      }
+      .card .bar b {
+        display: block;
+        height: 100%;
+        width: 0;
+        background: var(--accent);
+      }
+      .card.doing .bar b {
+        width: 45%;
+      }
+      .card.done {
+        border-color: #23574c;
+      }
+      .card.done .bar b {
+        width: 100%;
+        background: var(--good);
+      }
+      .card .tag {
+        float: right;
+        font-size: 14px;
+        font-weight: 700;
+        color: var(--muted);
+      }
+      .card.doing .tag {
+        color: var(--accent);
+      }
+      .card.done .tag {
+        color: var(--good);
+      }
+      .preview {
+        display: flex;
+        gap: 56px;
+        align-items: flex-start;
+      }
+      .phone {
+        width: 330px;
+        height: 560px;
+        border-radius: 42px;
+        border: 10px solid #2a221e;
+        background: linear-gradient(#20302b, #15201d);
+        padding: 40px 26px;
+      }
+      .phone h4 {
+        margin: 0 0 18px;
+        font-size: 26px;
+      }
+      .phone div {
+        height: 64px;
+        border-radius: 14px;
+        background: #ffffff14;
+        margin-bottom: 14px;
+      }
+      .live {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        padding-top: 70px;
+      }
+      .badge {
+        width: 220px;
+        height: 220px;
+        border-radius: 50%;
+        background: radial-gradient(#3fd0b0, #1f8f78);
+        display: grid;
+        place-items: center;
+        font-size: 120px;
+        color: #0d2a24;
+        font-weight: 800;
+      }
+      .live h2 {
+        font-size: 44px;
+        margin: 30px 0 6px;
+      }
+      .live code {
+        color: var(--muted);
+        font-size: 22px;
+      }
+    </style>
+  </head>
+  <body>
+    <aside>
+      <div class="brand"><i></i>Tinker</div>
+      <nav><a class="on">New app</a><a>My apps</a><a>Templates</a><a>Settings</a></nav>
+      <div class="me">Signed in as Sam</div>
+    </aside>
+    <main>
+      <header>
+        <h1 id="title">What do you want to build?</h1>
+        <ol class="steps"><li id="s1">1 · Describe</li><li id="s2">2 · Build</li><li id="s3">3 · Publish</li></ol>
+      </header>
+      <section id="describe">
+        <div id="prompt" class="prompt">Describe your app…</div>
+        <div class="chips" id="chips"></div>
+        <button id="build">Build it</button>
+      </section>
+      <section id="build-view">
+        <div class="cards">
+          <div class="card" id="c1"><span class="tag"></span><h3>Screens</h3><p>Home, plants, reminders</p><div class="bar"><b></b></div></div>
+          <div class="card" id="c2"><span class="tag"></span><h3>Data</h3><p>Plants and watering log</p><div class="bar"><b></b></div></div>
+          <div class="card" id="c3"><span class="tag"></span><h3>Reminders</h3><p>Every Sunday at 9:00</p><div class="bar"><b></b></div></div>
+        </div>
+      </section>
+      <section id="preview-view">
+        <div class="preview">
+          <div class="phone"><h4>My plants</h4><div></div><div></div><div></div></div>
+          <div><h2 style="margin: 0 0 8px; font-size: 34px">Looks good?</h2><p style="color: var(--muted); font-size: 20px; margin: 0">Three screens, a watering log and Sunday reminders.</p><button class="go" id="publish">Publish</button></div>
+        </div>
+      </section>
+      <section id="live-view">
+        <div class="live"><div class="badge" id="badge">✓</div><h2>It's live!</h2><code>tinker.app/sam/plants</code></div>
+      </section>
+    </main>
+    <script>
+      const $ = (id) => document.getElementById(id)
+      const STATES = {
+        describe_empty: { view: 'describe', title: 'What do you want to build?', step: 1 },
+        describe_filled: { view: 'describe', title: 'What do you want to build?', step: 1, filled: true },
+        build_1: { view: 'build-view', title: 'Building your app', step: 2, cards: ['doing', '', ''] },
+        build_2: { view: 'build-view', title: 'Building your app', step: 2, cards: ['done', 'doing', ''] },
+        build_3: { view: 'build-view', title: 'Building your app', step: 2, cards: ['done', 'done', 'doing'] },
+        preview: { view: 'preview-view', title: 'Your app is ready', step: 3 },
+        live: { view: 'live-view', title: 'Published', step: 4 },
+      }
+      window.show = (name) => {
+        const s = STATES[name]
+        for (const el of document.querySelectorAll('section')) el.classList.toggle('on', el.id === s.view)
+        $('title').textContent = s.title
+        for (const i of [1, 2, 3]) $('s' + i).className = i < s.step ? 'done' : i === s.step ? 'on' : ''
+        $('prompt').className = s.filled ? 'prompt filled' : 'prompt'
+        $('prompt').textContent = s.filled ? 'A plant tracker that reminds me to water them every Sunday.' : 'Describe your app…'
+        $('chips').innerHTML = s.filled ? '<span>sketch.png</span><span>plants.csv</span><span>brand.svg</span>' : ''
+        $('build').className = s.filled ? 'go' : ''
+        ;(s.cards ?? []).forEach((c, i) => {
+          $('c' + (i + 1)).className = 'card ' + c
+          $('c' + (i + 1)).querySelector('.tag').textContent = { doing: 'Building…', done: 'Done', '': 'Waiting' }[c]
+        })
+      }
+      show(location.hash.slice(1) || 'describe_empty')
+    </script>
+  </body>
+</html>

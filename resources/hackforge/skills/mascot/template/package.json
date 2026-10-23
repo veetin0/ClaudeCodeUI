@@ -1,0 +1,13 @@
+{
+  "name": "mascot-film",
+  "private": true,
+  "description": "A character film: the hero explains the app by hopping across its real screens and dives into the logo. Driven by timeline.py.",
+  "type": "module",
+  "engines": {
+    "node": ">=20.11"
+  },
+  "dependencies": {
+    "playwright-core": "1.64.0",
+    "three": "0.182.0"
+  }
+}

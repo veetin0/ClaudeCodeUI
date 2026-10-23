@@ -32,7 +32,7 @@ Everything is written under `.hackforge/` (the project's memory, reloaded after 
 
 ## Phase 2 — Widen
 
-Run `hackforge:possibilities-scout` with BRIEF, RULES, DIRECTIVES, research and INVENTORY → `.hackforge/POSSIBILITIES.md`. This is where 3D models, CAD, audio, video, simulations, hardware, games or anything else beyond plain code gets proposed — ranked by how much it raises the score, checked against the rules and the tools on this machine.
+Run `hackforge:possibilities-scout` with BRIEF, RULES, DIRECTIVES, research and INVENTORY → `.hackforge/POSSIBILITIES.md`. This is where 3D models, CAD, audio, video, simulations, hardware, games, a mascot for a product with an AI character (`hackforge:mascot`), or anything else beyond plain code gets proposed — ranked by how much it raises the score, checked against the rules and the tools on this machine.
 
 ## Phase 3 — Design options
 

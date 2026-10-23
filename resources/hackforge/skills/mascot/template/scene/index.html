@@ -1,0 +1,68 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>Mascot film</title>
+    <link rel="icon" href="data:," />
+    <style>
+      html,
+      body {
+        margin: 0;
+        background: #000;
+        overflow: hidden;
+      }
+      canvas {
+        display: block;
+      }
+      /* What the hero says, for viewers with the sound off. */
+      #caption {
+        position: fixed;
+        left: 0;
+        right: 0;
+        bottom: 6.5%;
+        text-align: center;
+        font: 600 calc(var(--h) * 0.028) / 1.25 'Inter', 'Helvetica Neue', Arial, sans-serif;
+        color: #fff8f2;
+        text-shadow: 0 2px 12px rgba(0, 0, 0, 0.85);
+        letter-spacing: 0.01em;
+        opacity: 0;
+      }
+      #wordmark {
+        position: fixed;
+        left: 0;
+        right: 0;
+        top: 70%;
+        text-align: center;
+        color: #fff8f2;
+        opacity: 0;
+        font-family: 'Inter', 'Helvetica Neue', Arial, sans-serif;
+      }
+      #wordmark .name {
+        font-weight: 800;
+        font-size: calc(var(--h) * 0.085);
+        letter-spacing: -0.02em;
+      }
+      #wordmark .tag {
+        margin-top: calc(var(--h) * 0.006);
+        font-weight: 500;
+        font-size: calc(var(--h) * 0.03);
+        color: var(--tag, #e9b89c);
+      }
+      #fade {
+        position: fixed;
+        inset: 0;
+        background: #000;
+        opacity: 0;
+      }
+    </style>
+    <script type="importmap">
+      { "imports": { "three": "/node_modules/three/build/three.module.js", "three/addons/": "/node_modules/three/examples/jsm/" } }
+    </script>
+  </head>
+  <body>
+    <div id="caption"></div>
+    <div id="wordmark"><div class="name"></div><div class="tag"></div></div>
+    <div id="fade"></div>
+    <script type="module" src="./scene.js"></script>
+  </body>
+</html>

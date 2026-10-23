@@ -20,6 +20,7 @@ Go through each modality and ask "would this raise a judging criterion, and is i
 - **Interactive** — games (Godot, three.js), mobile (Expo/SwiftUI), dashboards, chat/voice interfaces.
 - **Data & insight** — visualisations, maps, reports, forecasts with uncertainty.
 - **Pitch assets** — brand, logo, slides, one-pager, demo script.
+- **Character** — only when the product has an AI assistant or agent that talks to people, or the team asks for one: a mascot that is the assistant's face in the app, the logo, and the star of a character-led film (`hackforge:mascot`). Never by default; it has to raise a criterion (UX, storytelling, the demo video).
 
 Also check for useful MCP connectors or CLIs (e.g. a Blender MCP server) and say how to enable them.
 
