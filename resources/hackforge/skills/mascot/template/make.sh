@@ -36,8 +36,9 @@ rm -rf build/frames
 step "frames";   node render.mjs frames
 step "sound";    python3 sound.py
 NAME=$(python3 -c 'import timeline as T; print(T.HERO["name"].lower() + "-" + T.APP["name"].lower())')
+# AAC overshoots the master's -1 dBFS peak by about a dB: -1.2 dB keeps the true peak under -1.
 step "video";    ffmpeg -loglevel error -y -framerate 30 -i build/frames/%05d.png -i build/sound.wav \
-  -c:v libx264 -pix_fmt yuv420p -crf 18 -preset slow -c:a aac -b:a 192k -shortest -movflags +faststart "out/$NAME.mp4"
+  -c:v libx264 -pix_fmt yuv420p -crf 18 -preset slow -af volume=-1.2dB -c:a aac -b:a 192k -shortest -movflags +faststart "out/$NAME.mp4"
 step "logo";     node render.mjs logo
 ffprobe -v error -show_entries format=duration:stream=codec_type,width,height,r_frame_rate -of compact "out/$NAME.mp4"
 echo "→ out/$NAME.mp4 and out/logo.png"
