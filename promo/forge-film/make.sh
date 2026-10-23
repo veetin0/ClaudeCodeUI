@@ -29,6 +29,6 @@ rm -rf build/frames
 step "frames";   node render.mjs frames
 step "sound";    python3 sound.py
 step "video";    ffmpeg -loglevel error -y -framerate 30 -i build/frames/%05d.png -i build/sound.wav \
-  -c:v libx264 -pix_fmt yuv420p -crf 18 -preset slow -af volume=-1.2dB -c:a aac -b:a 192k -shortest -movflags +faststart out/forge-harness.mp4
+  -c:v libx264 -pix_fmt yuv420p -crf 18 -preset slow -af volume=-1.5dB -c:a aac -b:a 192k -shortest -movflags +faststart out/forge-harness.mp4
 step "logo";     node render.mjs logo
 echo "→ out/forge-harness.mp4 and out/logo.png"
