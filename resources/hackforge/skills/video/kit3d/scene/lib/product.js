@@ -15,7 +15,7 @@ function demoProduct(tint) {
     mesh.castShadow = mesh.receiveShadow = true
     g.add(mesh)
   }
-  part('base', new THREE.Mesh(new THREE.CylinderGeometry(1.0, 1.08, 0.22, 64), new THREE.MeshPhysicalMaterial({ color: 0x24262a, roughness: 0.5 })), 0.11)
+  part('base', new THREE.Mesh(new THREE.CylinderGeometry(1.0, 1.08, 0.22, 64), new THREE.MeshPhysicalMaterial({ color: 0x24262a, roughness: 0.8 })), 0.11) // matte: the spot's highlight sweeps a glossy top
   const battery = new THREE.Group()
   for (const x of [-0.32, 0.32]) {
     const cell = new THREE.Mesh(new THREE.CylinderGeometry(0.17, 0.17, 0.9, 32), new THREE.MeshPhysicalMaterial({ color: 0xc8ccd2, metalness: 0.9, roughness: 0.25 }))

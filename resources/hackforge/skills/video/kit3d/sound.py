@@ -20,7 +20,7 @@ import sys
 import numpy as np
 import soundfile as sf
 from pedalboard import Compressor, Limiter, Pedalboard, Reverb, LowpassFilter
-from scipy.signal import butter, sosfilt
+from scipy.signal import butter, resample_poly, sosfilt
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 CLIP = next((a for a in sys.argv[1:] if not a.startswith('--')), 'film')
@@ -534,7 +534,9 @@ def main():
         mix *= np.clip((f1 - np.arange(N) / SR) / (f1 - f0), 0, 1)
     master = Pedalboard([Compressor(threshold_db=-14, ratio=2.5, attack_ms=8, release_ms=120), Limiter(threshold_db=-1.0, release_ms=80)])
     out = master(mix.astype(np.float32), SR)
-    peak = np.max(np.abs(out))
+    # The ceiling on the true peak (4× oversampled): a sharp click overshoots between samples by up
+    # to a few dB, past a limiter that only sees the samples.
+    peak = np.max(np.abs(resample_poly(out, 4, 1, axis=1)))
     ceiling = 10 ** (-1.0 / 20)
     if peak > ceiling:
         out *= ceiling / peak
@@ -543,7 +545,8 @@ def main():
     path = os.path.join(HERE, 'build', CLIP, 'sfx.wav' if STEM else 'sound.wav')
     sf.write(path, out.T, SR, subtype='PCM_24')
     peak_db = 20 * np.log10(np.max(np.abs(out)))
-    print(f"→ {path}: {out.shape[1] / SR:.3f} s, {SR} Hz stereo, peak {peak_db:.2f} dBFS, {len(onsets)} effects on their frames")
+    tp_db = 20 * np.log10(np.max(np.abs(resample_poly(out, 4, 1, axis=1))))
+    print(f"→ {path}: {out.shape[1] / SR:.3f} s, {SR} Hz stereo, peak {peak_db:.2f} dBFS (true peak {tp_db:.2f}), {len(onsets)} effects on their frames")
     json.dump([{'t': t, 'kind': k, 'sample': s} for t, k, s in onsets], open(os.path.join(HERE, 'build', CLIP, 'sound_onsets.json'), 'w'), indent=0)
 
 
