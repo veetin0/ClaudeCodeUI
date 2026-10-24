@@ -48,7 +48,7 @@ mkdir my-hack && cd my-hack && claude
 | `/hackforge:pitch` | README, timed demo script, slides, video, backup demo, blind-judge pass, UI rubric |
 | `/hackforge:views` | One-page HTML: plan brief, progress, acceptance (ship / wait / reject) |
 | `/hackforge:retro` | Turns this hackathon's failures into lessons you approve, loaded at every future kickoff |
-| `/hackforge:video` | Pitch video with a treatment chosen by subject (3D product hero, digital-twin flythrough, data in motion, 3D device mockup, Manim explainer, maps), voice, music, sound effects; Remotion |
+| `/hackforge:video` | Pitch video with a treatment chosen by subject (3D product hero, digital-twin flythrough, data in motion, 3D device mockup, Manim explainer, maps), voice, music, sound effects; Remotion. Scenes the 3D pitch kit can do (the real app with a 3D cursor, a laptop or phone, an exploding product, problem cards, a logo sting) get a blind 3D-vs-2D bake-off |
 | `/hackforge:mascot` | Optional, for a product whose AI talks to people: a character that is the assistant's face in the app, the logo, and the star of a short film: it says hello, talks about the problem, jumps into the app and lives there (walks the real screens, types into fields, presses buttons; every action changes the screen), talks with a moving mouth and expressions, and dives into the logo |
 | `/hackforge:craft <asset>` | 3D (Blender), CAD, audio, video, hardware, interactive, pitch assets — scripted and reproducible |
 | `/hackforge:eval` | Real metric, honest split, baseline, run log |

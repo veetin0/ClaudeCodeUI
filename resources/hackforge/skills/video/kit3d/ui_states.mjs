@@ -1,5 +1,5 @@
 // APP: the real screens of your app and what the hero lands on. capture_ui.mjs opens `url`, runs
-// each state's `go`, screenshots it and measures its targets. The names are what timeline.py uses.
+// each state's `go`, screenshots it and measures its targets. The names are what story.py uses.
 //
 // Targets are Playwright selectors: CSS ('#build'), text ('text=Publish'), role
 // ('role=button[name="Publish"]'). The hero stands on a target's top edge.

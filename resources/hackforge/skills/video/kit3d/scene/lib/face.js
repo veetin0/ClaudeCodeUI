@@ -23,7 +23,7 @@ export function mixMood(a, b, u) {
   return out
 }
 
-/** Builds the face plate for a hero (hero.js exports sdf and FACE). */
+/** Builds the face plate for a hero (scene/character.js exports sdf and FACE). */
 export function createFace(HERO, { ink, tongue = '#E8607A', blush = '#FF8FA3', eyes = null } = {}) {
   const F = HERO.FACE
   const [cx, cy] = F.plate.center

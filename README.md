@@ -141,7 +141,7 @@ The browser and the docs run without permission prompts, so the improvement loop
 
 ## HackForge
 
-Harness is built to drive **HackForge**, the Claude Code plugin for hackathons and coding challenges. **HackForge is built in:** Harness ships a copy in `resources/hackforge` (currently 2.7.0) and loads it into every session through the Agent SDK, so there's nothing to install. If you've also installed HackForge yourself (`claude plugin install hackforge@veeti-tools`) and that copy is newer, Harness uses yours instead. It never loads both. The dashboard shows which one is in use.
+Harness is built to drive **HackForge**, the Claude Code plugin for hackathons and coding challenges. **HackForge is built in:** Harness ships a copy in `resources/hackforge` (currently 2.8.0) and loads it into every session through the Agent SDK, so there's nothing to install. If you've also installed HackForge yourself (`claude plugin install hackforge@veeti-tools`) and that copy is newer, Harness uses yours instead. It never loads both. The dashboard shows which one is in use.
 
 To update the built-in copy from your HackForge repository:
 
@@ -179,6 +179,7 @@ HackForge's hooks run Python 3 (macOS has it with the Xcode command-line tools; 
 - **Crew inside HackForge** (2.4.0): with a [crew](#crew-mode) ready, build hands its tasks to teammates' Claudes as missions (a builder brief each, one per crew member, never two on the same files), the improvement loop runs fixes on them in parallel, and the integrator merges the crew branches.
 - **Team runs** (2.5.0): in a [team run](#team-run-a-hackathon-in-five-steps) build follows Harness's "[run]" messages (Harness hands out each milestone's tasks), contracts give every task an id, a role and its own paths, kickoff spreads research and architect work across the crew, and crew branches arrive locally through the team server.
 - **Mascot** (2.6.0, optional; 2.7.0 lives inside the app): for a product whose AI talks to people, `/hackforge:mascot` designs a character that becomes the assistant's face in the app, the logo, and the star of a 30–40 s film. It says hello and talks about the problem, then jumps into the app and lives there: it walks the real screens, types into fields and presses buttons, and every action changes the screen. It talks with a moving mouth and expressions, and at the end it dives into the logo. The film renders with Three.js in headless Chrome, so it needs no GPU. [`promo/forge-film`](promo/forge-film) is the example: Forge shows Harness.
+- **3D pitch kit** (2.8.0): `/hackforge:video` can cut short 3D clips into the pitch video: the real app driven by a 3D cursor, the app on a laptop or phone, an exploding product with callouts, the problem as popping cards, and a logo sting. They're rendered with the same Three.js engine as the mascot film. It builds both a 3D and a 2D version of each such scene, and keeps the 3D one only when a blind judge likes it better.
 
 ![HackForge dashboard with a running improvement loop](docs/screenshots/hackforge.png)
 

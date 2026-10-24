@@ -17,10 +17,10 @@ Write the HERO block (it's reused by the logo, the avatar and the film):
 Sketch three options in words, pick one, say in one line why it fits the product and the audience.
 
 ## 2. In the app (optional, its own builder task)
-Where the AI speaks — chat bubbles, empty states, onboarding — the character appears with five states: idle (breathing), thinking (looks up, prop taps), talking (mouth flaps with streamed text or TTS), success (a hop), error (droops). Keep it light: SVG + CSS or a small canvas; 3D only if the app is 3D already. The film's moods (`template/scene/face.js`: eyes, brows, mouth shapes, blush) are the reference for the avatar's faces. Add it to the milestone contract as a task with its own owned paths.
+Where the AI speaks — chat bubbles, empty states, onboarding — the character appears with five states: idle (breathing), thinking (looks up, prop taps), talking (mouth flaps with streamed text or TTS), success (a hop), error (droops). Keep it light: SVG + CSS or a small canvas; 3D only if the app is 3D already. The film's moods (`${CLAUDE_PLUGIN_ROOT}/skills/video/kit3d/scene/lib/face.js`: eyes, brows, mouth shapes, blush) are the reference for the avatar's faces. Add it to the milestone contract as a task with its own owned paths.
 
 ## 3. The logo
-The mark is the character's front silhouette, flat, one colour on the brand tile (eye slits cut out in the tile colour). Export `assets/logo/` as SVG and PNG at 1024, 512, 256 and 32 px, and check it at 32 px. The film renders it as its last frame too (`out/logo.png`).
+The mark is the character's front silhouette, flat, one colour on the brand tile (eye slits cut out in the tile colour). Export `assets/logo/` as SVG and PNG at 1024, 512, 256 and 32 px, and check it at 32 px. The kit renders it as the film's last frame too (`./make.sh logo film` → `out/logo.png`).
 
 ## 4. The film
 **The story:** the hero wakes up in a studio and says hello. It talks about the problem while the problem pops up around it as cards, and swats them away. Then it jumps through the glass of the big screen behind it into the app. Inside, the app fills the frame and the hero lives on it:
@@ -31,10 +31,11 @@ The mark is the character's front silhouette, flat, one colour on the brand tile
 
 At the end it hops back out, the screen shrinks into the app's icon, and the hero dives in and becomes the logo.
 
-Read `references/film.md` first: the prompt blocks this follows, what each one does, and the lessons that make it look good. Copy `${CLAUDE_PLUGIN_ROOT}/skills/mascot/template/` to `video/mascot/` and work there; its README says what each file does. Run `./make.sh smoke` once first: it films the bundled stand-in app (`demo/`) in about a minute and proves Node, Python, Chrome and ffmpeg all work here.
-1. **BRAND:** in `timeline.py`, fill HERO (colour, size on the app), APP, LOGO (tile colours, the app's current mark as `icon`), SET and MUSIC.
-   - In `scene/hero.js`, write the hero's body: a signed-distance function of rounded boxes, capsules and cones, smooth-blended and meshed once with marching cubes, plus its legs and prop.
-   - Also in `hero.js`, write its `FACE`: where the face plate sits, the eyes, the brows and the mouth. `scene/face.js` draws them on a plate that hugs the body, with moods: neutral, happy, joy, excited, worried, focused, surprised, proud and sleep.
+Read `references/film.md` first: the prompt blocks this follows, what each one does, and the lessons that make it look good. The film is the `film` clip of HackForge's 3D pitch kit: copy `${CLAUDE_PLUGIN_ROOT}/skills/video/kit3d/` to `video/kit3d/` (skip it if the video skill already did) and work there; its README says what each file does. Run `./make.sh smoke` once first: it films the bundled stand-in app (`demo/`) in a few minutes and proves Node, Python, Chrome and ffmpeg all work here. The kit's other clips (the app with a 3D cursor, a device, a product, the problem cards, a logo sting) can join the pitch video too.
+1. **BRAND:** in `story.py`, fill HERO (colour, size on the app), APP, LOGO (tile colours, the app's current mark as `icon`, `mark: 'hero'`), SET and MUSIC.
+   - In `scene/character.js`, write the hero's body: a signed-distance function of rounded boxes, capsules and cones, smooth-blended and meshed once with marching cubes, plus its legs and prop.
+   - A prop is held outside the body: an arm and fist in the SDF, and `PROP` poses (one angle each) clamped to an outer sector, so swings never cross the body. `node scene/check_prop.mjs` samples the prop at every angle against the SDF and fails if it touches.
+   - Also in `character.js`, write its `FACE`: where the face plate sits, the eyes, the brows and the mouth. `scene/lib/face.js` draws them on a plate that hugs the body, with moods: neutral, happy, joy, excited, worried, focused, surprised, proud and sleep.
 2. **APP:** in `ui_states.mjs`:
    - point `url` at the running app;
    - list its screens (how to reach each, the way a user would) and the elements the hero lands on;
@@ -43,30 +44,30 @@ Read `references/film.md` first: the prompt blocks this follows, what each one d
    `node capture_ui.mjs` screenshots each state at 3840×2160 (dark theme if it has one) and records every element's rectangle, so the hero lands on real buttons. It also captures each typing field at every step of its text, so the typing is the real app's text. An Electron app exports `launch()` instead (example in the file). Delete `demo/` once it points at the real app.
 3. **LINES and PROBLEM:** a hello, the problem (one or two sentences, with 3–4 short cards that pop up), how the product fixes it, then one short line per step in the app, and the product's name over the logo. About 30–40 s in total (≈ 2.5 words/s). Each line has a `mood`.
    - `python3 voice.py` speaks them with `VOICE['engine']`:
-     - `kokoro`: free, offline, natural English; the model downloads from GitHub releases;
+     - `kokoro`: free, offline, natural English; the model downloads from GitHub releases. `VOICE['character']` turns it into a lively cartoon voice with Praat (pitch moved to `median` Hz, formants shifted up for a smaller voice, the melody widened by `range`). Never pitch it up with a phase vocoder: that sounds metallic. `python3 voice.py --audition` renders a few voices into `out/audition.mp4`; let the team pick;
      - `elevenlabs`: `ELEVENLABS_API_KEY` and a `voice_id`, when the rules allow;
      - `own`: the team's recordings in `recordings/<id>.wav`;
      - `silent`: timing only.
    - It also reads the mouth shapes from the audio (open, round, wide, 60 per second), so the lip sync works with any voice.
    - The voice comes first: the timeline is laid out around it.
-4. **BEATS:** in `build()`:
+4. **BEATS:** in the `film()` clip in `story.py`:
    - `f.intro()` lays out the studio part from the voice;
    - `f.enter(t, state, target)` is the jump in;
    - `f.go(t, state, target, 'press' | 'stamp' | 'type' | 'cheer', then='next_screen')` covers each action. The hero walks when the next target is on the same row and hops otherwise. `note=` adds a rising ding; `chips=` flies files into a zone.
    - `f.say(id, t)` places a line, `f.shot(...)` overrides the camera, and `f.outro(t)` adds the finale.
 
-   `python3 timeline.py` refuses:
+   `python3 story.py film` refuses:
    - a press that changes nothing;
    - typing without captured steps;
    - leaving before an action is done;
    - moves or lines that overlap;
    - screens that weren't captured.
-5. **CHECKS before any full render:** `./make.sh check` renders up to 20 half-res stills (the studio, the problem, the jump in, every action, the jump out, the icon, the logo) and a contact sheet, `build/stills.png`. **Look at it** (and at `build/ui/`), fix, and run it again. Then render a quick full-length preview: `W=480 H=270 SUB=1 node render.mjs frames`, a few minutes, and a sheet of one frame per second. It shows camera moves and pacing that stills miss. Most of the polish comes from this step.
-6. **Render:** `./make.sh` → frames, then `python3 sound.py`, then the ffmpeg mux and `out/logo.png`.
+5. **CHECKS before any full render:** `./make.sh check film` renders up to 20 half-res stills (the studio, the problem, the jump in, every action, the jump out, the icon, the logo) and a contact sheet, `build/film/stills.png`. **Look at it** (and at `build/ui/`), fix, and run it again. Then render a quick full-length preview: `W=480 H=270 SUB=1 node render.mjs frames film`, a few minutes, and a sheet of one frame per second. It shows camera moves and pacing that stills miss. Most of the polish comes from this step.
+6. **Render:** `./make.sh film` → frames, then `python3 sound.py film`, then the ffmpeg mux; `./make.sh logo film` → `out/logo.png`.
    - **Sound:** all synthesized: a hesitant pluck under the problem, the beat dropping as the hero lands in the app, an effect for every step, key press and press on its frame, and the voice on top, through a compressor and a limiter at −1 dBFS.
-   - **Render time:** the template renders with Three.js in headless Chrome's software GL, so it works anywhere Node runs. That's about 1–9 s per 1080p frame on a CPU, so 1–3 h for a 35 s film. Start it in the background and keep working. One process is usually fastest (software GL already uses several cores; `JOBS=2` only on a big machine). A cut-off render resumes with `node render.mjs frames <from> <to>`.
-   - **Blender (optional):** with Blender and a GPU (`hf-run.sh toolcheck`), the same `build/timeline.json` can drive a Blender scene for Cycles quality. Never a blocker.
-7. **Deliver** `video/mascot/out/<name>.mp4` (1920×1080, 30 fps, H.264 + AAC) and `out/logo.png`. With the Harness pitch studio (`pitch/script.json`), copy the MP4 into `pitch/public/` and add a `screen` scene for it; never touch the narration fields.
+   - **Render time:** the kit renders with Three.js in headless Chrome's software GL, so it works anywhere Node runs. That's about 1–9 s per 1080p frame on a CPU, so 1–3 h for a 35 s film. Start it in the background and keep working. One process is usually fastest (software GL already uses several cores; `JOBS=2` only on a big machine). A cut-off render resumes with `node render.mjs frames film <from> <to>`.
+   - **Blender (optional):** with Blender and a GPU (`hf-run.sh toolcheck`), the same `build/film/timeline.json` can drive a Blender scene for Cycles quality. Never a blocker.
+7. **Deliver** `video/kit3d/out/film.mp4` (1920×1080, 30 fps, H.264 + AAC) and `out/logo.png`. With the Harness pitch studio (`pitch/script.json`), copy the MP4 into `pitch/public/` and add a `screen` scene for it; never touch the narration fields.
 
 ## 5. Check
 - `ffprobe`: duration, 1920×1080, 30 fps, an audio stream. `sound.py` prints the peak (≤ −1 dBFS) and the voice level over the music while the hero talks (aim for +6 dB or more).

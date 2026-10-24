@@ -15,7 +15,7 @@ Go through each modality and ask "would this raise a judging criterion, and is i
 - **CAD / physical** — parametric parts (CadQuery, OpenSCAD), 3D-printable models, enclosures, assembly drawings.
 - **Simulation** — physics, agent-based, discrete-event, energy/thermal (EnergyPlus), Gymnasium environments.
 - **Audio** — sound design, procedural/generative music, sonification of data, TTS narration, audio analysis.
-- **Video / motion** — the pitch video's visual treatment by subject (`${CLAUDE_PLUGIN_ROOT}/skills/craft/references/video-pitch.md`): 3D product hero / exploded view, digital-twin flythrough, data in motion, 3D device mockup with the real UI, Manim explainer, animated map.
+- **Video / motion** — the pitch video's visual treatment by subject (`${CLAUDE_PLUGIN_ROOT}/skills/craft/references/video-pitch.md`): 3D product hero / exploded view, digital-twin flythrough, data in motion, 3D device mockup with the real UI, Manim explainer, animated map. HackForge's 3D pitch kit (`${CLAUDE_PLUGIN_ROOT}/skills/video/kit3d`, Node + Chrome, no GPU) renders the real app driven by a 3D cursor, the app on a laptop or phone, an exploding product with callouts, problem cards and a logo sting; `hackforge:video` keeps a 3D scene only when it beats the 2D version in a blind bake-off. Budget ~1–9 s per 1080p frame.
 - **Hardware** — Arduino/ESP32/Raspberry Pi prototypes, sensors, PlatformIO firmware, if hardware is on site.
 - **Interactive** — games (Godot, three.js), mobile (Expo/SwiftUI), dashboards, chat/voice interfaces.
 - **Data & insight** — visualisations, maps, reports, forecasts with uncertainty.

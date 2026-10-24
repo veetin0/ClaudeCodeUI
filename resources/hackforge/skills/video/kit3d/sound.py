@@ -1,6 +1,9 @@
 """The film's sound, all synthesized (numpy, scipy, pedalboard): no samples, nothing to license.
-Reads every event from build/timeline.json and lands each hit on its video frame. Writes
-build/sound.wav (48 kHz stereo, 24-bit) and build/sound_onsets.json.
+Reads every event from build/<clip>/timeline.json and lands each hit on its video frame. Writes
+build/<clip>/sound.wav (48 kHz stereo, 24-bit) and build/<clip>/sound_onsets.json.
+
+  python3 sound.py <clip>          the clip's mix: effects, plus music and voice when it has them
+  python3 sound.py <clip> --stem   effects only, for a clip that goes into a narrated pitch
 
 Music: a cute lo-fi score at the timeline's BPM. In the studio a warm pad; while the hero talks about
 the problem, A minor with a hesitant pluck; when it says how the product fixes it, the chords
@@ -12,6 +15,7 @@ and effects duck under it, then a compressor and a limiter at -1 dBFS.
 """
 import json
 import os
+import sys
 
 import numpy as np
 import soundfile as sf
@@ -19,7 +23,9 @@ from pedalboard import Compressor, Limiter, Pedalboard, Reverb, LowpassFilter
 from scipy.signal import butter, sosfilt
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-TL = json.load(open(os.path.join(HERE, 'build', 'timeline.json')))
+CLIP = next((a for a in sys.argv[1:] if not a.startswith('--')), 'film')
+STEM = '--stem' in sys.argv
+TL = json.load(open(os.path.join(HERE, 'build', CLIP, 'timeline.json')))
 SR = TL['sr']
 FPS = TL['fps']
 DUR = TL['duration']
@@ -27,9 +33,10 @@ N = int(round(DUR * SR))
 BEAT = 60 / TL['bpm']
 rng = np.random.default_rng(2026)
 
-DROP = TL['music']['drop']  # the hero lands in the app: the groove starts
-SPLASH = TL['finale']['splash']
-MORPH = TL['finale']['morph']
+MUSIC_ON = TL['music'].get('on', False) and not STEM
+DROP = TL['music'].get('drop', 0.0)  # the groove starts (the character landing in the app)
+SPLASH = TL['finale'].get('splash')
+MORPH = TL['finale'].get('morph')
 LINES = {ln['id']: ln for ln in TL['lines']}
 
 # ---------- building blocks ----------
@@ -290,6 +297,7 @@ SFX = {
     'power_on': (power_on, 0.8),
     'glass': (glass, 0.8),
     'morph': (morph, 0.7),
+    'glide': (lambda: filt(noise(0.22), 'band', (1500, 5000)) * np.sin(np.linspace(0, np.pi, int(0.22 * SR))) ** 2 * 0.12, 0.6),
     'whoosh': (whoosh, 0.6),
     'pomf': (pomf, 0.7),
     'click': (click, 0.8),
@@ -360,19 +368,11 @@ def triad(name):
     return r / 2, [r, r * 2 ** ((3 if minor else 4) / 12), r * 2 ** (7 / 12)]
 
 
-def music():
-    drums = np.zeros((2, N))
-    melodic = np.zeros((2, N))
-    bed = np.zeros((2, N))
-    kicks = []
-    bar_len = 4 * BEAT
-    end_beat = SPLASH  # the groove stops on the splash
-    # The studio: a warm pad once the light is on.
-    light = TL['light']
-    p0 = LINES['problem']['at'] if 'problem' in LINES else light + 2
-    f0 = LINES['fix']['at'] if 'fix' in LINES else DROP - 2
+def intro(bed, melodic, drums, light):
+    """The studio part of a character film: a warm pad once the light is on; A minor and a
+    hesitant pluck under the problem; brighter chords and ticking hats up to the jump."""
+    p0, f0 = LINES['problem']['at'], LINES['fix']['at']
     place(bed, pad(triad('F')[1], p0 - light + 0.4, 0.05), light, exact=True)
-    # The problem: A minor, a hesitant pluck that skips beats.
     place(bed, pad(triad('Am')[1], f0 - p0 + 0.4, 0.055), p0, exact=True)
     plucks = ['A4', 'C5', 'E5', 'B4', 'A4', 'E5', 'D5', 'C5']
     t, k = p0 + BEAT / 2, 0
@@ -380,16 +380,28 @@ def music():
         place(melodic, fm_key(note(plucks[k % len(plucks)]), 0.7) * 1.4, t, pan=0.2 * ((k % 3) - 1), exact=True)
         t += BEAT * (1.5 if k % 3 == 2 else 1)
         k += 1
-    # The fix: brighter chords, hats ticking up to the jump, a short lift into the drop.
     half = (DROP - f0) / 2
     place(bed, pad(triad('F')[1], half + 0.3, 0.06), f0, exact=True)
     place(bed, pad(triad('G')[1], half + 0.3, 0.065), f0 + half, exact=True)
-    t = TL['power']
+    power = TL.get('power', DROP - 1)
+    t = power
     while t < DROP - 0.01:
         place(drums, hat() * 0.5, t, pan=0.25, exact=True)
         t += BEAT / 2
-    place(bed, riser(max(0.4, DROP - TL['power'])) * 0.5, TL['power'], exact=True)
-    # The drop: bar by bar from the hero landing in the app.
+    place(bed, riser(max(0.4, DROP - power)) * 0.5, power, exact=True)
+
+
+def music():
+    drums = np.zeros((2, N))
+    melodic = np.zeros((2, N))
+    bed = np.zeros((2, N))
+    kicks = []
+    bar_len = 4 * BEAT
+    end_beat = SPLASH or DUR  # the groove stops on the splash
+    light = TL['stage'].get('light')
+    if light is not None and 'problem' in LINES and 'fix' in LINES:
+        intro(bed, melodic, drums, light)
+    # The drop: bar by bar from the character landing in the app (or the start).
     bar = 0
     start = DROP
     while start < end_beat - 0.01:
@@ -430,20 +442,20 @@ def music():
     bed *= pump
     melodic[:, :] = melodic * (0.6 + 0.4 * pump)
     mix = drums + melodic + bed
-    # The hero leaves the app: the music sinks under a closing filter, then the riser lifts it.
-    lo_start, lo_end = MORPH[0] - 0.7, MORPH[1]
-    sos_bank = [butter(2, fc / (SR / 2), btype='low', output='sos') for fc in (8000, 2500, 900, 450)]
-    seg0 = int(lo_start * SR)
-    seg1 = min(int(SPLASH * SR), N)
-    for ch in range(2):
-        x = mix[ch, seg0:seg1]
-        u = np.linspace(0, 1, len(x))
-        filtered = sosfilt(sos_bank[2], x)
-        w = np.clip((np.arange(len(x)) / SR) / (lo_end - lo_start), 0, 1)
-        mix[ch, seg0:seg1] = x * (1 - w) + filtered * w * 0.8
-        del u
-    # The riser, then a brass stab on the final chord at the splash that rings out.
-    place(mix, riser(SPLASH - MORPH[0]), MORPH[0], gain=0.7, exact=True)
+    if MORPH:
+        # Leaving the app: the music sinks under a closing filter, then the riser lifts it.
+        lo_start, lo_end = MORPH[0] - 0.7, MORPH[1]
+        sos = butter(2, 900 / (SR / 2), btype='low', output='sos')
+        seg0 = int(lo_start * SR)
+        seg1 = min(int(SPLASH * SR), N)
+        for ch in range(2):
+            x = mix[ch, seg0:seg1]
+            w = np.clip((np.arange(len(x)) / SR) / (lo_end - lo_start), 0, 1)
+            mix[ch, seg0:seg1] = x * (1 - w) + sosfilt(sos, x) * w * 0.8
+        place(mix, riser(SPLASH - MORPH[0]), MORPH[0], gain=0.7, exact=True)
+    if not SPLASH:
+        return mix + filt((rng.random(N) < 0.0007) * rng.standard_normal(N) * 0.08, 'band', (1500, 6000))
+    # A brass stab on the final chord at the splash that rings out.
     d = DUR - SPLASH
     tt = t_(d)
     stab = np.zeros(len(tt))
@@ -501,8 +513,8 @@ def main():
         pan = float(np.clip(rng.normal(0, 0.25), -0.6, 0.6))
         place(sfx, x, e['t'], gain=g, pan=pan)
         onsets.append((e['t'], kind, frame_sample(e['t'])))
-    mus = music()
-    voice = voice_bus()
+    mus = music() if MUSIC_ON else np.zeros((2, N))
+    voice = voice_bus() if not STEM else np.zeros((2, N))
     # Duck the music and effects under the voice.
     env = np.abs(voice).max(axis=0)
     k = int(0.12 * SR)
@@ -516,10 +528,10 @@ def main():
     if talking.any():
         rms = lambda x: np.sqrt(np.mean(x[:, talking] ** 2)) + 1e-9  # noqa: E731
         print(f"voice vs music+effects while talking: {20 * np.log10(rms(voice) / rms(mus_b + sfx_b)):+.1f} dB")
-    # The end: a 0.5 s fade.
-    f0, f1 = TL['finale']['end_fade']
-    fade = np.clip((f1 - np.arange(N) / SR) / (f1 - f0), 0, 1)
-    mix *= fade
+    # The end: the clip's fade, if it has one.
+    if TL['finale'].get('end_fade'):
+        f0, f1 = TL['finale']['end_fade']
+        mix *= np.clip((f1 - np.arange(N) / SR) / (f1 - f0), 0, 1)
     master = Pedalboard([Compressor(threshold_db=-14, ratio=2.5, attack_ms=8, release_ms=120), Limiter(threshold_db=-1.0, release_ms=80)])
     out = master(mix.astype(np.float32), SR)
     peak = np.max(np.abs(out))
@@ -528,11 +540,11 @@ def main():
         out *= ceiling / peak
     out = out[:, :N]
     assert out.shape == (2, N), out.shape
-    path = os.path.join(HERE, 'build', 'sound.wav')
+    path = os.path.join(HERE, 'build', CLIP, 'sfx.wav' if STEM else 'sound.wav')
     sf.write(path, out.T, SR, subtype='PCM_24')
     peak_db = 20 * np.log10(np.max(np.abs(out)))
     print(f"→ {path}: {out.shape[1] / SR:.3f} s, {SR} Hz stereo, peak {peak_db:.2f} dBFS, {len(onsets)} effects on their frames")
-    json.dump([{'t': t, 'kind': k, 'sample': s} for t, k, s in onsets], open(os.path.join(HERE, 'build', 'sound_onsets.json'), 'w'), indent=0)
+    json.dump([{'t': t, 'kind': k, 'sample': s} for t, k, s in onsets], open(os.path.join(HERE, 'build', CLIP, 'sound_onsets.json'), 'w'), indent=0)
 
 
 if __name__ == '__main__':

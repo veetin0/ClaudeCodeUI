@@ -1,5 +1,23 @@
 # Changelog
 
+## 2.8.0 — 2026-10-24
+A general 3D pitch kit, and the pitch video uses 3D only where it beats 2D.
+- **The 3D pitch kit** (`skills/video/kit3d/`) replaces the mascot's film template. It's one Three.js engine in headless Chrome (no GPU) with several kinds of short clip, each a function in the project's `story.py`:
+  - `app`: the real app driven by a glossy 3D cursor that glides, clicks and types;
+  - `device`: the app on a laptop whose lid opens and screen powers on, or a floating phone;
+  - `product`: a glTF product turning, exploding into its named parts, with callouts (a demo model ships);
+  - `cards`: the problem popping up in 3D;
+  - `logo`: a logo sting;
+  - `film`: the character film, as before.
+
+  The scene loads only the modules a clip uses. `./make.sh stem <clip>` renders a clip with effects only, for a narrated pitch. `./make.sh smoke` renders two low-res seconds of every clip and a contact sheet.
+- **A 3D-or-2D bake-off in `/hackforge:video`:** for each scene the kit can do, both versions are built. `hackforge:blind-judge` sees each one once (3 stills and the line). The better vote wins; ties go to the take that says what the product does, then to fewer "lost at", then to 2D. The result is recorded in STORYBOARD.md. A 3D winner joins Remotion or Harness's pitch studio as a clip.
+- **Mascot fixes:**
+  - The prop is held outside the body: an arm and a fist in the character's SDF, poses clamped to an outer sector, and `scene/check_prop.mjs` to prove no angle touches.
+  - A lively character voice: Kokoro through Praat (pitch and formants moved, the melody widened, exclamations acted) instead of a phase-vocoder pitch shift. `python3 voice.py --audition` renders a few voices to pick from.
+- **Fixes:** after a screen's ripple transition, a glow no longer stays at the press point. Laptop bezels and lids no longer blow out under the studio lights.
+- The video playbook (`craft/references/video-pitch.md`) gains a 3D kit section, and the possibilities scout knows the kit.
+
 ## 2.7.0 — 2026-10-23
 The mascot film's character now lives inside the app, and it acts.
 - **New story:**

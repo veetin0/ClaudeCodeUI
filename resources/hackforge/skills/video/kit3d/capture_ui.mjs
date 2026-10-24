@@ -1,5 +1,5 @@
-// The app's real screens: each state in ui_states.mjs screenshotted at 3840×2160 (a 1920×1080
-// window drawn at 2×, Chrome's device scale, not zoom, so the layout stays the app's own) in the
+// The app's real screens: each state in ui_states.mjs screenshotted at 2× (a 1920×1080 window, or
+// ui_states.viewport, drawn at 2× with Chrome's device scale, not zoom, so the layout stays the app's own) in the
 // dark colour scheme, plus the rectangle of every target in UI pixels. A state with `type` also
 // gets its field captured at each step of the text being typed in (the hero types it in the film).
 //   node capture_ui.mjs          → build/ui/<state>.png, build/ui/<state>.type/*.png, build/ui_layout.json
@@ -11,7 +11,7 @@ import { chrome, serve } from './util.mjs'
 
 const HERE = resolve(import.meta.dirname)
 const OUT = join(HERE, 'build', 'ui')
-const [PX, PY] = [1920, 1080]
+const [PX, PY] = APP.viewport ?? [1920, 1080] // a phone app: export const viewport = [390, 844]
 mkdirSync(OUT, { recursive: true })
 
 let page

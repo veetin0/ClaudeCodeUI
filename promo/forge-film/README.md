@@ -11,9 +11,9 @@ A 37 s character film in three parts:
    Its face acts the whole time: ^^ eyes, worried brows, a tongue while it types, a mouth that speaks every line.
 3. **The logo.** Forge hops back out, the screen shrinks into the Harness icon, and Forge dives in and becomes the mark.
 
-Voice by Kokoro, pitched up; all sound synthesized.
+Voice by Kokoro (af_heart) with a Praat character treatment; all sound synthesized.
 
-It's made with HackForge's optional `/hackforge:mascot` template (`resources/hackforge/skills/mascot/template/`). The scene, voice, sound and render scripts are the template's. The Harness-specific parts are:
+It's made with HackForge's optional `/hackforge:mascot`. The scene, voice, sound and render scripts come from its film template, which is now the `film` clip of HackForge's 3D pitch kit (`resources/hackforge/skills/video/kit3d/`). This folder keeps its own finished copy. The Harness-specific parts are:
 - `timeline.py`: lines, problem cards, beats;
 - `capture_ui.mjs`: drives the real Electron app with pushed run, team and crew states, and captures the two typed fields step by step;
 - `assets/harness-mark.png`: the spark and dots from the app icon, shown on the tile before Forge dives in.

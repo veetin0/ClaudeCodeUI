@@ -527,11 +527,15 @@ scene.add(logo)
 
 // ---------- the hero over time ----------
 const actionsOf = (kind) => TL.actions.filter((a) => a.does === kind)
+// The prop's poses (hero.js PROP): angles that keep it outside the body.
+const PP = HERO.PROP?.poses ?? { rest: 0.3, wind: -0.3, strike: 1.7, bigWind: -0.6, bigStrike: 2.0, wave: [-0.4, 0.2], tap: [0.6, 1.5], swat: [-0.6, 2.0] }
+const PROP_MIN = HERO.PROP?.min ?? -Math.PI
+const PROP_MAX = HERO.PROP?.max ?? Math.PI
 const wake = actionsOf('wake')[0]
 
 /** Where the hero is and how it moves at time t. */
 function pose(t) {
-  const p = { pos: PEDESTAL.clone(), yaw: 0, pitch: 0, roll: 0, sy: 1, legs: 1, lift: [0, 0, 0, 0], prop: 0.3, flight: false, visible: true, scale: 1, walking: false }
+  const p = { pos: PEDESTAL.clone(), yaw: 0, pitch: 0, roll: 0, sy: 1, legs: 1, lift: [0, 0, 0, 0], prop: PP.rest, flight: false, visible: true, scale: 1, walking: false }
   let last = -1
   for (const m of moves) if (t >= m.t0) last = m.i
   if (last >= 0) {
@@ -576,33 +580,38 @@ function pose(t) {
   }
   if (wake && t < wake.t) p.sy *= 1 + 0.015 * Math.sin(t * 2.1) // slow sleepy breathing
 
-  // The prop: wind-up and strike for a press, taps while typing, waves, a big swat.
+  // The prop: wind-up and strike for a press, taps while typing, waves, a big swat. Every pose is
+  // an angle from hero.js (PROP), as an offset from rest, and the sum stays in the safe sector.
+  const R = PP.rest
+  let dp = 0
   for (const a of TL.actions) {
     if (a.does === 'press' || a.does === 'stamp') {
       const big = a.does === 'stamp'
       const wind = sstep(a.t - 0.3, a.t - 0.08, t) * (1 - sstep(a.t - 0.08, a.t, t))
       const hit = sstep(a.t - 0.08, a.t, t) * (1 - sstep(a.t + 0.12, a.t + 0.45, t))
-      p.prop += wind * (big ? -1.25 : -0.6) + hit * ((big ? 2.35 : 2.0) - 0.3)
+      dp += wind * ((big ? PP.bigWind : PP.wind) - R) + hit * ((big ? PP.bigStrike : PP.strike) - R)
       p.sy *= 1 - 0.12 * pulse(t, a.t + 0.02, 0.06)
     }
-    if (a.does === 'type' && t > a.start - 0.15 && t < a.end + 0.2) {
-      for (let k = 0; k < a.steps.length; k++) {
-        const tk = a.start + k * a.tap
-        p.prop += -0.9 * pulse(t, tk - 0.07, 0.045) + 1.6 * pulse(t, tk, 0.035)
-      }
-      p.pitch += 0.12 * sstep(a.start - 0.15, a.start, t) * (1 - sstep(a.end, a.end + 0.2, t)) // leans in to the field
+    if (a.does === 'type' && t > a.start - 0.25 && t < a.end + 0.3) {
+      const on = sstep(a.start - 0.25, a.start - 0.05, t) * (1 - sstep(a.end, a.end + 0.3, t))
+      let tap = 0
+      for (let k = 0; k < a.steps.length; k++) tap = Math.max(tap, pulse(t, a.start + k * a.tap, 0.04))
+      dp += on * (PP.tap[0] - R + tap * (PP.tap[1] - PP.tap[0]))
+      p.pitch += 0.12 * on // leans in to the field
     }
     if ((a.does === 'cheer' || a.does === 'wave') && t > a.t - 0.1 && t < a.end) {
       const e = sstep(a.t - 0.1, a.t + 0.1, t) * (1 - sstep(a.end - 0.2, a.end, t))
-      p.prop += e * (-2.75 + 0.45 * Math.sin((t - a.t) * 16))
+      const [lo, hi] = PP.wave
+      dp += e * (lo + (hi - lo) * (0.5 + 0.5 * Math.sin((t - a.t) * 16)) - R)
     }
     if (a.does === 'swat') {
       const wind = sstep(a.t - 0.25, a.t - 0.05, t) * (1 - sstep(a.t - 0.05, a.t + 0.02, t))
       const hit = sstep(a.t - 0.05, a.t + 0.06, t) * (1 - sstep(a.t + 0.25, a.t + 0.55, t))
-      p.prop += wind * -1.6 + hit * 2.6
+      dp += wind * (PP.swat[0] - R) + hit * (PP.swat[1] - R)
       p.yaw += wind * 0.5 - hit * 0.6
     }
   }
+  p.prop = clamp(R + dp, PROP_MIN, PROP_MAX)
   return p
 }
 
@@ -831,7 +840,7 @@ function setTime(t) {
   su.texA.value = tex[prev && u < 1 ? prev.screen : st.screen]
   su.texB.value = tex[st.screen]
   su.uMix.value = u < 1 ? easeInOut(u) : 0
-  su.uMode.value = st.how === 'flip' ? 1 : 0
+  su.uMode.value = st.how === 'flip' && u < 1 ? 1 : 0 // (after it, a ripple of radius 0 would glow at the press)
   const press = TL.actions.find((a) => a.rect && Math.abs(a.t - st.t) < 0.15)
   if (press) {
     const [cx, cy] = centreOf(press.rect)

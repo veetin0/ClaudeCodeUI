@@ -6,8 +6,8 @@ Then it jumps through the glass of the big screen into the app and navigates it:
 across the real interface, types into fields, presses buttons, and talks to you with a moving mouth
 and expressions. Every action changes the screen. At the end the screen shrinks into the app's
 icon, and the character dives in and becomes the logo. The look and the pipeline come from a prompt
-that made a Claude Code mascot film in Blender; the template turns it into something any project
-can run.
+that made a Claude Code mascot film in Blender; HackForge's 3D pitch kit (`skills/video/kit3d`, its
+`film` clip) turns it into something any project can run.
 
 ## The prompt blocks
 
@@ -43,23 +43,36 @@ Example (the Harness film, `promo/forge-film` in Harness):
   6. It walks along the milestones, each one filling with a rising ding, and lands on Done (confetti, ^^ eyes).
   7. It hops out, the screen becomes the Harness icon, and it dives in and becomes the mark.
 
-## How the template is built
-- `timeline.py`: the single source of truth.
-  - It holds the BRAND blocks, the voice, the lines with their moods, the problem cards, and the beats.
-  - The beats are built with `f.intro()`, `f.enter()`, `f.go(t, state, target, action, then=…)`, `f.say()` and `f.outro()`.
-  - From those it derives the moves (walk or hop, from the distance), the screen changes (a ripple out from the press for a new step, a crossfade for an update), the face keyframes, the camera shots and every sound cue.
-  - `check()` enforces the rules. Writes `build/timeline.json`.
+## How the kit builds it
+- `story.py`: the project's file. It holds the BRAND blocks, the voice, the lines with their moods,
+  the problem cards, and the clips; the character film is `film()`.
+  - The beats are built with `f.intro()`, `f.enter()`, `f.go(t, state, target, action, then=…)`,
+    `f.say()` and `f.outro()` (from `film.py`, the library).
+  - From those it derives the moves (walk or hop, from the distance), the screen changes (a ripple
+    out from the press for a new step, a crossfade for an update), the face keyframes, the camera
+    shots and every sound cue.
+  - `check()` enforces the rules. `python3 story.py film` writes `build/film/timeline.json`.
 - `capture_ui.mjs` + `ui_states.mjs`:
-  - The real app, screenshotted per state at 2× (3840×2160) with Chrome's device scale (not zoom; zoom crops and enlarges), the dark colour scheme emulated, and each target's rectangle saved.
+  - The real app, screenshotted per state at 2× (3840×2160) with Chrome's device scale (not zoom;
+    zoom crops and enlarges), the dark colour scheme emulated, and each target's rectangle saved.
   - Typing fields are captured at every step of their text, with no caret.
-  - For an Electron app, `launch()` it with Playwright's `_electron` and push states over IPC (`promo/forge-film/capture_ui.mjs` in Harness does this).
-- `voice.py`: per line, a WAV (Kokoro pitched up for a character voice, ElevenLabs, or the team's own recordings), its duration, and the mouth shapes over time read from the audio.
-- `scene/`: Three.js in headless Chromium, every frame a pure function of time (`window.renderFrame(t)`).
-  - **The studio:** a pedestal, a spotlight, the problem cards.
-  - **The screen:** the screenshots on one plane facing the camera, with typing patches, a press dent, a power-on and the shrink into the icon. Its glass ripples when the hero passes through.
-  - **The hero (`hero.js`):** a marching-cubes mesh of its SDF with a vinyl-toy material. It stands on the top edges of targets.
+  - For an Electron app, `launch()` it with Playwright's `_electron` and push states over IPC
+    (`promo/forge-film/capture_ui.mjs` in Harness does this).
+- `voice.py`: per line, a WAV (Kokoro with a Praat character treatment, ElevenLabs, or the team's
+  own recordings), its duration, and the mouth shapes over time read from the audio.
+- `scene/`: Three.js in headless Chromium, every frame a pure function of time
+  (`window.renderFrame(t)`). `main.js` loads only the modules the clip uses from `scene/lib/`.
+  - **The studio (`stage.js`, `cards.js`):** a pedestal, a spotlight, the problem cards.
+  - **The screen (`screen.js`, `fx.js`):** the screenshots on one plane facing the camera, with
+    typing patches, a press dent, a power-on and the shrink into the icon. Its glass ripples when the
+    hero passes through.
+  - **The hero (`character.js`, `hero.js`, `path.js`):** a marching-cubes mesh of its SDF with a
+    vinyl-toy material. It stands on the top edges of targets; the camera leads it.
   - **Its face (`face.js`):** one shader on a plate projected onto the body's surface.
-- `render.mjs`: stills, frames and the logo (1024×1024, transparent, a finer mesh). One process is usually fastest: Chrome's software GL already spreads a frame over several cores, and four processes on four cores ran five times slower than one.
+  - **The logo (`logo.js`):** the tile, the hero's silhouette as the mark, the wordmark.
+- `render.mjs`: stills, frames and the logo (1024×1024, transparent, a finer mesh). One process is
+  usually fastest: Chrome's software GL already spreads a frame over several cores, and four
+  processes on four cores ran five times slower than one.
 - `sound.py`: music, effects and voice from the timeline; ducking; compressor and limiter.
 
 ## Lessons (each one cost a render)
@@ -90,12 +103,20 @@ Example (the Harness film, `promo/forge-film` in Harness):
 - **Lead the action:** a follow camera that chases the hero is still moving when it lands, and the
   press blurs. Move the camera to the next target first, so it has settled by the landing.
 - **Keep jumps in frame:** a big leap's arc can leave the top of the shot; lower it.
+- **Props stay outside the body:** a hammer anchored inside the face block swings through the body.
+  Give the character an arm and a fist in its SDF, hold the prop at the fist, and clamp every pose
+  to an outer sector; `scene/check_prop.mjs` proves no angle touches.
+- **A lively voice, not a chipmunk:** a phase-vocoder pitch shift sounds metallic, and a plain TTS
+  voice sounds flat. Move the pitch and formants with Praat (PSOLA), widen the melody, and act the
+  exclamations a little faster and higher. Let the team pick from an audition.
+- **Effects that end must switch off:** a ripple left at radius 0 glows at the press point for as
+  long as that screen stays.
 - **Let the checker pace it:** it catches a hop that leaves before a press is done, or two lines
   running into each other. Fix the beat, not the check.
 
 ## Blender (optional)
-With Blender and a GPU, the same `build/timeline.json` can drive a Cycles scene: UI slabs as emission
+With Blender and a GPU, the same `build/film/timeline.json` can drive a Cycles scene: UI slabs as emission
 planes under black glass (`Principled BSDF`, roughness 0.05), the hero as one smooth mesh (the SDF
-exported from `scene/hero.js` as OBJ, or modelled with subdivision), AgX or Standard view transform,
+exported from `scene/character.js` as OBJ, or modelled with subdivision), AgX or Standard view transform,
 0.5 shutter, bloom via the compositor's Glare node. Render 18 stills at half resolution first. Never
 let it block the film: the Three.js render is the deliverable unless Blender's is done and checked.

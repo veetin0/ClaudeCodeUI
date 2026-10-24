@@ -42,8 +42,10 @@ MUSIC = {'progression': ['F', 'G', 'Am', 'C'], 'final': ['C4', 'E4', 'G4', 'C5',
 
 # ---------- the voice (voice.py) ----------
 # engine: kokoro (offline, free), elevenlabs (ELEVENLABS_API_KEY and voice_id), own (recordings/
-# <id>.wav) or silent (timing only). semitones pitches Kokoro up for a small, cute character.
-VOICE = {'engine': 'kokoro', 'voice': 'af_heart', 'speed': 1.08, 'semitones': 3.5, 'lang': 'en-us', 'voice_id': None}
+# <id>.wav) or silent (timing only). `character` turns Kokoro into a lively cartoon voice with Praat:
+# the pitch moved to `median` Hz, formants shifted (above 1 = smaller, cuter), the melody widened by
+# `range` (above 1 = bouncier). `python3 voice.py --audition` plays a few to pick from.
+VOICE = {'engine': 'kokoro', 'voice': 'af_heart', 'speed': 1.08, 'semitones': 0, 'lang': 'en-us', 'voice_id': None, 'character': {'median': 265, 'formants': 1.12, 'range': 1.5}}
 # mood: the face while the line is spoken (face.js MOODS). intro() places hi, problem and fix,
 # build() places the rest with f.say(id, time), outro() places logo.
 LINES = [

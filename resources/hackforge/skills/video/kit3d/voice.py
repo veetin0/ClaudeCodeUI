@@ -1,9 +1,9 @@
-"""The hero's voiceover: every line in timeline.LINES, one WAV per line. Writes build/voice/<id>.wav
+"""The hero's voiceover: every line in story.LINES, one WAV per line. Writes build/voice/<id>.wav
 (48 kHz mono) and build/voice.json with each line's duration and its mouth shapes over time (open,
 round, wide at 60 per second), which the hero's face speaks with. The timeline is laid out around
 these real durations.
 
-Engines (timeline.VOICE['engine']):
+Engines (story.VOICE["engine"]):
   kokoro      offline and free, natural English; the model (~110 MB) downloads from GitHub releases
               into models/ (or KOKORO_DIR). Pitched up `semitones` for a small, cute character.
   elevenlabs  ELEVENLABS_API_KEY in the environment and VOICE['voice_id']; check the rules allow it.
@@ -12,10 +12,12 @@ Engines (timeline.VOICE['engine']):
 
   python3 voice.py            # only lines whose text or voice changed
   python3 voice.py --all      # everything again
+  python3 voice.py --audition # the first lines in a few voices → out/audition.mp4, to pick one
 """
 import hashlib
 import json
 import os
+import re
 import subprocess
 import sys
 import urllib.request
@@ -26,7 +28,7 @@ import soundfile as sf
 from pedalboard import Compressor, Gain, HighpassFilter, Pedalboard, PitchShift
 from scipy.signal import resample_poly
 
-import timeline as T
+import story as T
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 OUT = os.path.join(HERE, 'build', 'voice')
@@ -63,7 +65,7 @@ def elevenlabs(text):
     key = os.environ.get('ELEVENLABS_API_KEY')
     vid = T.VOICE.get('voice_id')
     if not key or not vid:
-        sys.exit('elevenlabs needs ELEVENLABS_API_KEY and VOICE["voice_id"] in timeline.py')
+        sys.exit('elevenlabs needs ELEVENLABS_API_KEY and VOICE["voice_id"] in story.py')
     req = urllib.request.Request(
         f'https://api.elevenlabs.io/v1/text-to-speech/{vid}?output_format=pcm_44100',
         data=json.dumps({'text': text, 'model_id': T.VOICE.get('model', 'eleven_multilingual_v2')}).encode(),
@@ -82,6 +84,14 @@ def trim_level(x):
     return (x / (peak or 1) * 0.89).astype(np.float32)
 
 
+def voice_style(k, voice):
+    """A Kokoro voice by name, or a blend: 'af_sky+af_bella' (equal parts)."""
+    if '+' not in voice:
+        return voice
+    parts = [k.get_voice_style(v) for v in voice.split('+')]
+    return sum(parts) / len(parts)
+
+
 def speak(engine, k, line):
     v = T.VOICE
     if engine == 'silent':
@@ -91,12 +101,122 @@ def speak(engine, k, line):
         return trim_level(to_sr(x.mean(axis=1) if x.ndim > 1 else x, rate))
     if engine == 'elevenlabs':
         return trim_level(elevenlabs(line['text']))
-    samples, rate = k.create(line['text'], voice=v['voice'], speed=v['speed'], lang=v.get('lang', 'en-us'))
+    return kokoro_line(k, line['text'], v)
+
+
+def character(x, rate, c, lift=0.0):
+    """A cartoon voice with Praat's 'Change gender' (PSOLA, no phase-vocoder warble): the pitch
+    moved to `median` Hz, the formants shifted by `formants` (above 1 = a smaller, cuter vocal
+    tract), and the melody's range widened by `range` (above 1 = livelier, bouncier intonation,
+    which is what keeps a synthetic voice from sounding flat and robotic). `lift` adds semitones."""
+    import parselmouth
+    from parselmouth.praat import call
+    snd = parselmouth.Sound(x.astype(np.float64), sampling_frequency=rate)
+    f0 = snd.to_pitch(time_step=0.01, pitch_floor=75, pitch_ceiling=600).selected_array['frequency']
+    if not np.any(f0 > 0):
+        return x
+    m = c.get('median', float(np.median(f0[f0 > 0]))) * 2 ** (lift / 12)
+    try:
+        out = call(snd, 'Change gender', 75, 600, c.get('formants', 1.0), m, 1.0, 1.0)
+        r = c.get('range', 1.0)
+        if r != 1.0:
+            # Widen the melody around its median in the log domain (Praat's own range factor goes
+            # silent when it pushes the pitch out of bounds), clamped to a speaking range.
+            man = call(out, 'To Manipulation', 0.01, 75, 700)
+            tier = call(man, 'Extract pitch tier')
+            call(tier, 'Formula', f'max(110, min(680, {m} * (self / {m}) ^ {r}))')
+            call([tier, man], 'Replace pitch tier')
+            out = call(man, 'Get resynthesis (overlap-add)')
+        return np.asarray(out.values[0], dtype=np.float32)
+    except parselmouth.PraatError:
+        return x  # too short or unvoiced to analyse: leave it as spoken
+
+
+def pitch_stats(x, rate=None):
+    """Median pitch (Hz) and the range of the melody (10th to 90th percentile, in semitones)."""
+    import parselmouth
+    f0 = parselmouth.Sound(x.astype(np.float64), sampling_frequency=rate or SR).to_pitch(time_step=0.01, pitch_floor=60, pitch_ceiling=700).selected_array['frequency']
+    f0 = f0[f0 > 0]
+    if not len(f0):
+        return 0, 0
+    lo, hi = np.percentile(f0, [10, 90])
+    return float(np.median(f0)), float(12 * np.log2(hi / lo))
+
+
+def kokoro_line(k, text, v):
+    c = v.get('character')
+    if c and c.get('act', True):
+        # A little acting: each sentence on its own, exclamations a touch faster and higher.
+        parts = []
+        for p in re.split(r'(?<=[.!?])\s+', text.strip()):
+            # Very short sentences ("Hi!") go with the next one: too little voice to analyse alone.
+            if parts and len(parts[-1].split()) < 3:
+                parts[-1] += ' ' + p
+            elif p:
+                parts.append(p)
+        if len(parts) > 1:
+            gap = np.zeros(int(0.09 * SR), dtype=np.float32)
+            out = []
+            for p in parts:
+                out += [kokoro_part(k, p, v), gap]
+            return trim_level(np.concatenate(out[:-1]))
+    return trim_level(kokoro_part(k, text, v))
+
+
+def kokoro_part(k, text, v):
+    c = v.get('character')
+    loud = c and text.endswith('!')
+    speed = v['speed'] * (1.06 if loud else 1.0)
+    samples, rate = k.create(text, voice=voice_style(k, v['voice']), speed=speed, lang=v.get('lang', 'en-us'))
     x = np.asarray(samples, dtype=np.float32)
-    # The character: pitched up (formants move too, which reads as small and cute), a touch of
-    # compression so it sits on top of the music.
-    board = Pedalboard([PitchShift(semitones=v.get('semitones', 0)), HighpassFilter(cutoff_frequency_hz=110), Compressor(threshold_db=-20, ratio=3, attack_ms=3, release_ms=80), Gain(gain_db=2)])
-    return trim_level(to_sr(board(x, rate), rate))
+    fx = []
+    if c:
+        x = character(x, rate, c, lift=1.2 if loud else 0.0)
+    elif v.get('semitones'):
+        # The old way, a phase vocoder: more than a semitone or two warbles. Prefer `character`.
+        fx = [PitchShift(semitones=v['semitones'])]
+    # A touch of compression so it sits on top of the music.
+    board = Pedalboard(fx + [HighpassFilter(cutoff_frequency_hz=90), Compressor(threshold_db=-20, ratio=3, attack_ms=3, release_ms=80), Gain(gain_db=2)])
+    return to_sr(board(x, rate), rate)
+
+
+AUDITION = [
+    ('Now', {'voice': 'af_heart', 'speed': 1.08, 'semitones': 3.5, 'character': None}),
+    ('1 · Heart, lively', {'voice': 'af_heart', 'speed': 1.08, 'semitones': 0, 'character': {'median': 265, 'formants': 1.12, 'range': 1.5}}),
+    ('2 · Sky, lively', {'voice': 'af_sky', 'speed': 1.08, 'semitones': 0, 'character': {'median': 235, 'formants': 1.1, 'range': 1.55}}),
+    ('3 · Puck, lively and boyish', {'voice': 'am_puck', 'speed': 1.08, 'semitones': 0, 'character': {'median': 205, 'formants': 1.18, 'range': 1.5}}),
+    ('4 · Bella, extra bouncy', {'voice': 'af_bella', 'speed': 1.1, 'semitones': 0, 'character': {'median': 275, 'formants': 1.12, 'range': 1.8}}),
+]
+
+
+def audition():
+    """The first two lines in each AUDITION voice, one after another, each with a numbered card:
+    out/audition.mp4 (and build/audition/*.wav). Put the pick in VOICE."""
+    k = kokoro()
+    text = ' '.join(ln['text'] for ln in T.LINES[:2])
+    d = os.path.join(HERE, 'build', 'audition')
+    os.makedirs(d, exist_ok=True)
+    os.makedirs(os.path.join(HERE, 'out'), exist_ok=True)
+    parts = []
+    for i, (label, v) in enumerate(AUDITION):
+        x = kokoro_line(k, text, {**T.VOICE, **v})
+        med, rng = pitch_stats(x)
+        label_stats = f'{med:.0f} Hz, melody range {rng:.1f} semitones'
+        gap = np.zeros(int(0.7 * SR), dtype=np.float32)
+        wav = os.path.join(d, f'{i}.wav')
+        sf.write(wav, np.concatenate([gap, x, gap]), SR, subtype='PCM_16')
+        card = os.path.join(d, f'{i}.mp4')
+        safe = label.replace(':', '\\:')
+        subprocess.run(['ffmpeg', '-loglevel', 'error', '-y', '-f', 'lavfi', '-i', 'color=c=0x120C0A:s=1280x720:r=30', '-i', wav,
+                        '-vf', f"drawtext=text='{safe}':fontcolor=white:fontsize=56:x=(w-text_w)/2:y=(h-text_h)/2-30,drawtext=text='{v['voice']}':fontcolor=0xE9B89C:fontsize=30:x=(w-text_w)/2:y=(h-text_h)/2+50",
+                        '-shortest', '-c:v', 'libx264', '-pix_fmt', 'yuv420p', '-c:a', 'aac', '-b:a', '160k', card], check=True)
+        parts.append(card)
+        print(f'{label:<36} {len(x) / SR:5.2f} s   {label_stats}')
+    lst = os.path.join(d, 'list.txt')
+    open(lst, 'w').write(''.join(f"file '{p}'\n" for p in parts))
+    out = os.path.join(HERE, 'out', 'audition.mp4')
+    subprocess.run(['ffmpeg', '-loglevel', 'error', '-y', '-f', 'concat', '-safe', '0', '-i', lst, '-c', 'copy', out], check=True)
+    print(f'→ {out}')
 
 
 MOUTH_RATE = 60  # mouth samples per second (the scene interpolates between them)
@@ -163,4 +283,4 @@ def main():
 
 
 if __name__ == '__main__':
-    main()
+    audition() if '--audition' in sys.argv else main()

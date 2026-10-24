@@ -6,17 +6,41 @@ The video is often the only thing every judge watches in full. Its visuals shoul
 
 | Subject | Hero treatment | Supporting motion | Tools |
 |---|---|---|---|
-| Physical product, hardware, energy, industrial equipment (switchgear, turbine, sensor) | **3D hero**: slow orbit, then an **exploded view** that separates the parts and labels the one that matters | Callouts that track 3D points, a cutaway, before/after | Blender model → glTF → `@remotion/three`; or Blender-rendered turntable as a video clip |
+| Physical product, hardware, energy, industrial equipment (switchgear, turbine, sensor) | **3D hero**: slow orbit, then an **exploded view** that separates the parts and labels the one that matters | Callouts that track 3D points, a cutaway, before/after | The 3D kit's `product` clip (glTF with named parts: orbit, explode, callouts); Blender model → glTF → `@remotion/three`; or a Blender turntable as a video clip |
 | Digital twin, building, site, spatial scan (e.g. VEO360) | **3D flythrough** of the space; tags pop in at their 3D positions | Camera path along the workflow, scan "materialising" from points to mesh | glTF/point cloud in `@remotion/three`; screen capture of the real viewer |
 | Data, AI, forecasting, market signals (e.g. IRMA) | **Data in motion**: signals flow in as particles, merge into the model, fan out into scenarios | Line charts that draw themselves, counters that count up, a highlighted insight | Remotion SVG/Canvas charts from the real data; `@remotion/three` particles for the hero |
-| Software, app, SaaS | **Device mockup in 3D** playing the real screen recording | Cursor-led zooms into the key click, UI elements lifting out of the screen | Playwright capture → `@remotion/three` phone/laptop with `useVideoTexture`; Remotion zoom/pan |
+| Software, app, SaaS | **Device mockup in 3D** playing the real screen recording | Cursor-led zooms into the key click, UI elements lifting out of the screen | The 3D kit's `app` clip (the real screens driven by a 3D cursor) or `device` clip (laptop, phone); Playwright capture → `@remotion/three` phone/laptop with `useVideoTexture`; Remotion zoom/pan |
 | Algorithm, science, maths | **Explainer**: the idea built step by step | Equations transforming, graph traversal, before/after metric | Manim scenes rendered to MP4, cut into Remotion |
 | Mobility, logistics, maps | **Animated route map** zooming from region to street | Fleet dots moving, heat building up | Map screenshots/tiles + SVG paths animated in Remotion |
 | Health, social impact, education | **Human-first**: illustrated people/icons, warm colour, real quotes | Gentle kinetic typography, simple iconography | Remotion + SVG illustrations; real footage only if allowed |
 | Game, interactive, XR | **Gameplay capture** with a 3D logo reveal | Speed ramps, UI overlays | Capture + `@remotion/three` logo |
-| AI assistant or agent with a character (optional, `hackforge:mascot`) | **Character-led film**: the mascot says hello and talks about the problem, jumps into the app and lives there (walks the real UI, types, presses; every action changes the screen), then dives into the logo | A face that acts and lip-syncs, captions, a synthesized hit on every step and press, the screen shrinking into the icon | `skills/mascot/template` (Three.js in headless Chrome; Blender optional), Kokoro or the team's own voice |
+| AI assistant or agent with a character (optional, `hackforge:mascot`) | **Character-led film**: the mascot says hello and talks about the problem, jumps into the app and lives there (walks the real UI, types, presses; every action changes the screen), then dives into the logo | A face that acts and lip-syncs, captions, a synthesized hit on every step and press, the screen shrinking into the icon | The 3D kit's `film` clip (`skills/video/kit3d`: Three.js in headless Chrome; Blender optional), Kokoro with a character voice, or the team's own |
 
 Rules: one hero treatment per video (two at most). It must explain something; spinning a model with no point is noise. Use the team's real assets from `challenge/assets/` and the real product wherever possible. Never show anything as working that isn't built: label concepts as concepts.
+
+## 1b. The 3D kit, and when 3D wins
+`${CLAUDE_PLUGIN_ROOT}/skills/video/kit3d/` renders short 3D clips with Three.js in headless Chrome: PBR Neutral colour, bloom, shallow focus, 5-subframe motion blur, and synthesized sound that lands on its frames. Its README has the builders.
+
+| Clip | Fits | What it does |
+|---|---|---|
+| `app` | Software, SaaS, any product with a UI | The real app fills the frame; a glossy 3D cursor glides, clicks (a ring spreads) and types (the real text goes in); every press changes the screen (a ripple for a new step, a crossfade for an update); the camera leads the cursor |
+| `device` | Apps where the device matters (mobile, a tool on a laptop) | A laptop opens and its screen powers on, or a phone floats in; the same real screens and cursor; orbit, push-in, close-up |
+| `product` | Hardware, a sensor, anything physical | The product turns on a pedestal, explodes into its named parts, and callouts point at the parts that matter |
+| `cards` | The problem, the stakes | The pain as cards popping up in 3D, then swept away |
+| `logo` | The reveal, the end card | The tile rises and the mark shines, then the wordmark; or the screen shrinks into the app's icon |
+| `film` | An AI product with a character (`hackforge:mascot`) | The whole character film |
+
+**When 3D is used:** never by default. `hackforge:video` builds both versions of each scene the kit can do (the Remotion one and the kit's), and `hackforge:blind-judge` sees each version once, with 3 stills and the line. The better vote wins; a tie goes to the one whose 30-second take says what the product does, then to fewer "lost at", then to 2D (cheaper to change). The pick and why go in STORYBOARD.md.
+
+**Render time:** about 1–9 s per 1080p frame on a CPU, so 5–30 min for a 7 s clip and 1–3 h for a 35 s film. Look at the stills (`./make.sh check <clip>`) and a 480×270 preview first. Render in the background and resume a cut-off range with `node render.mjs frames <clip> <from> <to>`.
+
+**In the pitch:** `./make.sh stem <clip>` gives a clip with effects only. The narration and the music stay in Remotion or in Harness's pitch studio (a `screen` scene with `media` and `seconds`). End the clip with `f.end(<seconds>, fade=0)` when the edit cuts straight on.
+
+**Lessons from the films:**
+- Keep lights off glossy surfaces: a spotlight on a laptop lid, or the studio ceiling in a glossy bezel, blows out into a white blob.
+- A light product top needs a soft light.
+- Lead the action with the camera, so presses land sharp.
+- Effects that end must switch off.
 
 ## 2. Story (60–120 s, adjust to the rules' limit)
 
