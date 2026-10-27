@@ -4,7 +4,8 @@ import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import type { PreviewState } from '@shared/preview'
 import { createServer, type Server } from 'node:net'
-import { freePort, PreviewService } from '../src/main/preview/PreviewService'
+import { findModels, freePort, PreviewService } from '../src/main/preview/PreviewService'
+import { SERVED_EXTENSIONS } from '@shared/visuals'
 
 let dir: string
 let last: PreviewState | null
@@ -95,5 +96,30 @@ describe('freePort', () => {
     expect(ports.length).toBeGreaterThanOrEqual(2)
     for (const p of ports) expect(await freePort(p)).not.toBe(p)
     held.forEach((s) => s.close())
+  })
+})
+
+describe('3D models for the viewer', () => {
+  it('finds .glb and .gltf files in the project, skipping installs and builds', async () => {
+    const root = mkdtempSync(join(tmpdir(), 'harness-models-'))
+    const put = (rel: string) => {
+      mkdirSync(join(root, rel, '..'), { recursive: true })
+      writeFileSync(join(root, rel), '')
+    }
+    put('assets/sensor.glb')
+    put('assets/scene/room.gltf')
+    put('assets/scene/room.bin')
+    put('node_modules/three/examples/models/duck.glb')
+    put('.git/x.glb')
+    put('video/kit3d/build/x.glb')
+    put('a/b/c/d/e/f/g/too-deep.glb')
+    expect(await findModels(root)).toEqual([join(root, 'assets', 'scene', 'room.gltf'), join(root, 'assets', 'sensor.glb')])
+    expect(await findModels(root, 6, 1)).toHaveLength(1)
+  })
+
+  it('serves models (and a .gltf’s .bin buffers) on the local file protocol, nothing else new', () => {
+    for (const ext of ['.glb', '.gltf', '.bin', '.mp4', '.png']) expect(SERVED_EXTENSIONS).toContain(ext)
+    expect(SERVED_EXTENSIONS).not.toContain('.json')
+    expect(SERVED_EXTENSIONS).not.toContain('.js')
   })
 })

@@ -80,6 +80,14 @@ Remotion downloads its own headless Chrome the first time you render. Set `HARNE
 - **Watching it happen:** the preview hot-reloads, so you see the change land.
 - **Usage saver:** it judges these messages by what you typed, so a small visual tweak runs on Sonnet.
 
+**3D models.** Every `.glb` or `.gltf` in the project gets a button on the Preview tab (or use **Open .glb…**). The viewer:
+- turns the model with the mouse, with optional auto-rotate, wireframe and background toggles;
+- lists its named parts (the parts a 3D clip's exploded view separates), with click to highlight or show only that part;
+- shows triangles, materials, textures, size in metres and file size, with a warning when it's too heavy for the web or a clip;
+- reloads by itself when the file changes, for example after Claude re-exports it from Blender.
+
+Its buttons: **Ask Claude to change** (sends a screenshot plus the part you picked), **Open in Blender**, and **Use in a 3D clip**.
+
 ![Remotion Studio with a finished render](docs/screenshots/remotion.png)
 
 ## Usage saver
@@ -131,7 +139,7 @@ Their licences are kept next to them in `resources/design/`.
 
 ## Dev tools
 
-Sessions get four kinds of tools Claude reaches for by itself. Claude Code loads a tool's definition only when it's needed, so tools you don't use cost little context. **Settings → Dev tools** switches each one.
+Sessions get five kinds of tools Claude reaches for by itself. Claude Code loads a tool's definition only when it's needed, so tools you don't use cost little context. **Settings → Dev tools** switches each one.
 
 - **Browser** (Playwright, built in). Claude opens the running app, clicks through the demo, reads console errors and saves screenshots. HackForge's verifier walks the demo path this way and keeps the screenshots as evidence. It uses your Google Chrome or Microsoft Edge; on a computer with neither, **Get Chromium** downloads one (about 150 MB, once). It runs in the background unless you tick **Show the browser window**, with a fresh profile every session.
 - **Library docs** (Context7, hosted). Current, version-specific docs for any library or SDK, so Claude looks up a partner's SDK instead of guessing its API. It works without a key; a free key from context7.com raises the limits.
@@ -145,11 +153,19 @@ Sessions get four kinds of tools Claude reaches for by itself. Claude Code loads
 
   REA runs on your own Node (22.23.4+ or 24.22.1+), because the Node inside Harness is older than it needs. **Install REA** fetches the pinned release (about 280 MB with its analysis engines) into Harness's data folder. If you've already added REA to Claude Code (`npx rea-agents setup`), Harness uses that copy instead. Use it only on software you own or are allowed to analyse.
 
+- **Blender** (the community [MCP for Blender](https://github.com/ahujasid/blender-mcp), off until you switch it on). Claude builds and adjusts 3D objects and scenes in your open Blender, looks at the result, and exports a `.glb` for the product, the pitch or a 3D clip.
+  - **What you need:** Blender, and [uv](https://docs.astral.sh/uv/) to run the connection.
+  - **Setup:** **Set up Blender add-on** installs and enables the add-on, without touching other apps' settings. Then **Open Blender**: the add-on connects by itself, and Settings shows "connected".
+  - **Telemetry:** Harness runs the pinned release with its telemetry off.
+  - **Permissions:** looking at the scene doesn't ask. Running code in Blender, importing assets and AI model generation (some need your API keys) ask first.
+  - **Your own copy:** if you've already added it to Claude Code, Harness uses that copy.
+  - **Linux:** a distribution's own Blender package may lack Python modules the add-on needs. The official build from blender.org brings its own Python.
+
 The browser and the docs run without permission prompts, so the improvement loop doesn't stall on them. REA's read-only analysis doesn't prompt either. Anything that runs the target program, attaches a debugger, touches a phone or writes files asks first. Partner servers can change real accounts (deploys, DNS, uploads), so their tools still ask first. A project with private files keeps them away from REA too.
 
 ## HackForge
 
-Harness is built to drive **HackForge**, the Claude Code plugin for hackathons and coding challenges. **HackForge is built in:** Harness ships a copy in `resources/hackforge` (currently 2.9.0) and loads it into every session through the Agent SDK, so there's nothing to install. If you've also installed HackForge yourself (`claude plugin install hackforge@veeti-tools`) and that copy is newer, Harness uses yours instead. It never loads both. The dashboard shows which one is in use.
+Harness is built to drive **HackForge**, the Claude Code plugin for hackathons and coding challenges. **HackForge is built in:** Harness ships a copy in `resources/hackforge` (currently 2.10.0) and loads it into every session through the Agent SDK, so there's nothing to install. If you've also installed HackForge yourself (`claude plugin install hackforge@veeti-tools`) and that copy is newer, Harness uses yours instead. It never loads both. The dashboard shows which one is in use.
 
 To update the built-in copy from your HackForge repository:
 
@@ -189,6 +205,7 @@ HackForge's hooks run Python 3 (macOS has it with the Xcode command-line tools; 
 - **Mascot** (2.6.0, optional; 2.7.0 lives inside the app): for a product whose AI talks to people, `/hackforge:mascot` designs a character that becomes the assistant's face in the app, the logo, and the star of a 30–40 s film. It says hello and talks about the problem, then jumps into the app and lives there: it walks the real screens, types into fields and presses buttons, and every action changes the screen. It talks with a moving mouth and expressions, and at the end it dives into the logo. The film renders with Three.js in headless Chrome, so it needs no GPU. [`promo/forge-film`](promo/forge-film) is the example: Forge shows Harness.
 - **3D pitch kit** (2.8.0): `/hackforge:video` can cut short 3D clips into the pitch video: the real app driven by a 3D cursor, the app on a laptop or phone, an exploding product with callouts, the problem as popping cards, and a logo sting. They're rendered with the same Three.js engine as the mascot film. It builds both a 3D and a 2D version of each such scene, and keeps the 3D one only when a blind judge likes it better.
 - **Reverse engineering** (2.9.0, with REA on in Settings → Dev tools): the researcher maps a partner's real API from their site, a HAR capture or their app, with evidence, into `.hackforge/research/partner-api.md`. Builders code against that file instead of guessing, and `/hackforge:solve` takes on reversing tasks (binaries, APKs, firmware, packet captures), checking each answer with a script.
+- **Live Blender and 3D in the app** (2.10.0): with Blender connected (Settings → Dev tools), the craftsman builds and adjusts 3D models in your open Blender and still delivers the script, the `.glb` and the renders. The Pitch studio's 3D clips section renders the kit's clips and adds them to the pitch, and the Preview tab shows any `.glb`.
 
 ![HackForge dashboard with a running improvement loop](docs/screenshots/hackforge.png)
 
@@ -304,6 +321,18 @@ The **Pitch** tab creates `pitch/`, a Remotion video driven by `pitch/script.jso
 - **Editor:** the length is shown against the time limit; edits save to `script.json` automatically.
 - **Rehearse:** a full-screen teleprompter with the video's timing, per-scene countdowns and the overall clock.
 - **Preview & render:** opens Remotion Studio and Render on the Preview tab. The output is `pitch/out/pitch.mp4`.
+
+**3D clips** are short 3D shots made with HackForge's 3D kit (Three.js in a hidden Chrome, so no GPU is needed): your real app driven by a 3D cursor, the app on a laptop or phone, a product exploding into its parts with labels, the problem as cards, or a logo sting.
+- **Setup:** once per project. **Set up the 3D kit** copies the kit into `video/kit3d/` and installs what it renders with (about 300 MB). A checklist says what's missing first: Python 3.10+, ffmpeg, a browser, npm.
+- **New 3D clip:** pick a type and describe it in a line. Claude writes the clip for your app and brand.
+- **Each clip:**
+  - **Stills:** a quick look in about a minute;
+  - **Draft** (540p) or **Render** (1080p): a progress bar with frames and time left, and **Stop**. Rendering again picks up where it stopped;
+  - **Play;**
+  - **Add to pitch:** it goes into `pitch/public/3d/` and into a demo-clip scene before the end card;
+  - **Change:** tell Claude what to change.
+
+  The clips carry their sound effects; the pitch brings narration and music. A clip that speaks (the mascot film) keeps its own voice.
 
 The ElevenLabs key is stored in the Keychain, or read from `ELEVENLABS_API_KEY`.
 

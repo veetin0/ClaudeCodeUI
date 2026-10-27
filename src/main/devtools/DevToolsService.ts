@@ -5,6 +5,8 @@ import { homedir } from 'node:os'
 import { join } from 'node:path'
 import type { McpServerConfig } from '@anthropic-ai/claude-agent-sdk'
 import {
+  BLENDER_READ_TOOLS,
+  BLENDER_SERVER,
   BROWSER_SERVER,
   DOCS_SERVER,
   REA_SERVER,
@@ -12,6 +14,7 @@ import {
   devToolsGuide,
   nodeRunsRea,
   reaRunsWithoutAsking,
+  type BlenderInfo,
   type BrowserInfo,
   type DevToolsSettings,
   type DevToolsState,
@@ -19,6 +22,7 @@ import {
   type ReaTool,
 } from '@shared/devtools'
 import type { ResolvedPartnerMcp } from '@shared/partners'
+import { BLENDER_MCP_ENV, BLENDER_MCP_VERSION, blenderMcpArgs, type BlenderService } from './blender'
 
 export interface DevToolsDeps {
   /** Folder holding Harness's node_modules (the app path; app.asar when packaged). */
@@ -45,6 +49,8 @@ export interface DevToolsDeps {
   runNpm?(args: string[]): Promise<{ code: number; out: string }>
   /** Claude Code's user config (~/.claude.json), where `npx rea-agents setup` registers REA. */
   claudeConfigPath?: string
+  /** Blender and MCP for Blender on this computer. */
+  blender?: BlenderService
 }
 
 export const PLAYWRIGHT_MCP = join('@playwright', 'mcp', 'cli.js')
@@ -164,6 +170,8 @@ export class DevToolsService {
   private reaError?: string
   private nodeSeen?: { at: number; node: { version: string; path: string } | null }
   private reaTools?: { mtime: number; names: string[] }
+  private blenderInstalling = false
+  private blenderError?: string
 
   constructor(private readonly deps: DevToolsDeps) {}
 
@@ -217,7 +225,12 @@ export class DevToolsService {
 
   /** REA registered in the user's Claude Code config (user scope, this folder's local scope, or .mcp.json). */
   private reaExternal(cwd?: string): boolean {
-    const has = (o: unknown) => !!o && typeof o === 'object' && REA_SERVER in (o as Record<string, unknown>)
+    return this.external(REA_SERVER, cwd)
+  }
+
+  /** An MCP server of this name in the user's Claude Code config (user scope, this folder's local scope, or .mcp.json). */
+  private external(name: string, cwd?: string): boolean {
+    const has = (o: unknown) => !!o && typeof o === 'object' && name in (o as Record<string, unknown>)
     const read = (path: string) => {
       try {
         return JSON.parse(readFileSync(path, 'utf8'))
@@ -275,6 +288,54 @@ export class DevToolsService {
   }
 
   /** fresh: look for the user's Node again (Settings opening: they may have just installed it). */
+  /**
+   * Blender, and the live connection when it's switched on. Blender is looked for only when asked
+   * (fresh: Settings opening) or when the connection is on, since printing its version takes a moment.
+   */
+  blender(cwd?: string, fresh = false): BlenderInfo {
+    const svc = this.deps.blender
+    const on = this.deps.settings().blender
+    if (!svc) return { status: 'off' }
+    if (!on && !fresh) return { status: 'off' }
+    const { blender, uvx } = svc.detect(fresh)
+    const found = { ...(blender ? { blender } : {}), ...(uvx ? { uvx } : {}) }
+    if (!on) return { status: 'off', ...found }
+    if (this.external(BLENDER_SERVER, cwd)) return { status: 'external', ...found, live: svc.lastLive }
+    if (!blender) return { status: 'needs-blender', ...found }
+    if (!uvx) return { status: 'needs-uv', ...found }
+    if (this.blenderInstalling) return { status: 'installing', ...found }
+    if (svc.addonVersion() !== BLENDER_MCP_VERSION) return this.blenderError ? { status: 'failed', ...found, error: this.blenderError } : { status: 'needs-addon', ...found }
+    return { status: 'ready', ...found, live: svc.lastLive }
+  }
+
+  /** Installs and enables MCP for Blender's add-on (pinned with the server). */
+  async setupBlender(): Promise<DevToolsState> {
+    const svc = this.deps.blender
+    if (!svc || this.blenderInstalling) return this.state()
+    this.blenderInstalling = true
+    this.blenderError = undefined
+    this.publish()
+    try {
+      await svc.setupAddon()
+    } catch (err) {
+      this.blenderError = err instanceof Error ? err.message : String(err)
+    } finally {
+      this.blenderInstalling = false
+    }
+    return this.publish()
+  }
+
+  openBlender(file?: string) {
+    if (!this.deps.blender) throw new Error('Blender isn’t available here.')
+    this.deps.blender.open(file)
+  }
+
+  /** fresh: look for the user's Node and Blender again (Settings opening: they may have just installed them). */
+  async stateFresh(): Promise<DevToolsState> {
+    await this.deps.blender?.live()
+    return this.state(true)
+  }
+
   state(fresh = false): DevToolsState {
     const s = this.deps.settings()
     return {
@@ -291,6 +352,7 @@ export class DevToolsService {
             }))
         : [],
       rea: this.rea(undefined, fresh),
+      blender: this.blender(undefined, fresh),
       eventProject: this.deps.eventProject(),
     }
   }
@@ -363,6 +425,8 @@ export class DevToolsService {
         env: { REA_MCP_OUTPUT_SCHEMA_PROFILE: 'off' },
       }
     }
+    const blender = this.blender(cwd)
+    if (blender.status === 'ready' && blender.uvx) out[BLENDER_SERVER] = { type: 'stdio', command: blender.uvx, args: blenderMcpArgs, env: BLENDER_MCP_ENV }
     return out
   }
 
@@ -373,7 +437,8 @@ export class DevToolsService {
   allowedTools(cwd?: string): string[] {
     const s = this.deps.settings()
     const rea = cwd && this.rea(cwd).status === 'ready' ? this.reaQuietTools().map((t) => `mcp__${REA_SERVER}__${t}`) : []
-    return [...(s.browser ? [`mcp__${BROWSER_SERVER}`] : []), ...(s.docs ? [`mcp__${DOCS_SERVER}`] : []), ...rea]
+    const blender = cwd && this.blender(cwd).status === 'ready' ? BLENDER_READ_TOOLS.map((t) => `mcp__${BLENDER_SERVER}__${t}`) : []
+    return [...(s.browser ? [`mcp__${BROWSER_SERVER}`] : []), ...(s.docs ? [`mcp__${DOCS_SERVER}`] : []), ...rea, ...blender]
   }
 
   /** The system-prompt guide for a session in this folder (only the tools it actually gets). */
@@ -381,6 +446,7 @@ export class DevToolsService {
     const servers = this.mcpServers(cwd)
     const partners = this.deps.partnerServers(cwd).filter((p) => !('missing' in p.server) && servers[p.id])
     const rea = Boolean(servers[REA_SERVER]) || this.rea(cwd).status === 'external'
-    return devToolsGuide({ browser: Boolean(servers[BROWSER_SERVER]), docs: Boolean(servers[DOCS_SERVER]), partners, rea })
+    const blender = Boolean(servers[BLENDER_SERVER]) || this.blender(cwd).status === 'external'
+    return devToolsGuide({ browser: Boolean(servers[BROWSER_SERVER]), docs: Boolean(servers[DOCS_SERVER]), partners, rea, blender })
   }
 }

@@ -2,7 +2,7 @@ import type { ChildProcess } from 'node:child_process'
 import { killTree, spawnTool } from '../system/proc'
 import { randomUUID } from 'node:crypto'
 import { existsSync } from 'node:fs'
-import { mkdir, readFile } from 'node:fs/promises'
+import { mkdir, readdir, readFile } from 'node:fs/promises'
 import { createServer } from 'node:net'
 import { isAbsolute, join } from 'node:path'
 import {
@@ -22,6 +22,26 @@ import { agentEnv } from '../system/environment'
 
 const LOG_LINES = 200
 const MAX_DETECTED = 12
+const MODEL_RE = /\.(glb|gltf)$/i
+/** Not looked in for models: installs, builds, caches. */
+const SKIP_DIRS = new Set(['node_modules', '.git', 'build', 'dist', 'out', '.next', '.venv', 'venv', '__pycache__', '.cache', 'coverage', 'target'])
+
+/** 3D models in a project: a bounded walk (depth, count), in name order. */
+export async function findModels(root: string, maxDepth = 6, max = 200): Promise<string[]> {
+  const found: string[] = []
+  const walk = async (dir: string, depth: number): Promise<void> => {
+    if (depth > maxDepth || found.length >= max) return
+    const entries = await readdir(dir, { withFileTypes: true }).catch(() => [])
+    for (const e of entries.sort((a, b) => a.name.localeCompare(b.name))) {
+      if (found.length >= max) return
+      if (e.isDirectory()) {
+        if (!SKIP_DIRS.has(e.name) && !e.name.startsWith('.')) await walk(join(dir, e.name), depth + 1)
+      } else if (e.isFile() && MODEL_RE.test(e.name)) found.push(join(dir, e.name))
+    }
+  }
+  await walk(root, 0)
+  return found
+}
 
 const canListen = (port: number, host: string) =>
   new Promise<boolean>((resolve) => {
@@ -90,9 +110,9 @@ export class PreviewService {
       const pkg = JSON.parse(await readFile(join(cwd, 'package.json'), 'utf8'))
       const deps = { ...pkg.dependencies, ...pkg.devDependencies }
       const remotionVersion = deps.remotion ?? deps['@remotion/cli']
-      return { cwd, remotion: Boolean(remotionVersion), remotionVersion, devScripts: devScripts(pkg.scripts) }
+      return { cwd, remotion: Boolean(remotionVersion), remotionVersion, devScripts: devScripts(pkg.scripts), models: await findModels(cwd) }
     } catch {
-      return { cwd, remotion: false, devScripts: [] }
+      return { cwd, remotion: false, devScripts: [], models: await findModels(cwd) }
     }
   }
 

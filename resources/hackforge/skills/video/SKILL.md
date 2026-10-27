@@ -32,7 +32,7 @@ For each storyboard scene the kit can do, decide with a bake-off, not by taste:
 1. Copy the kit to `video/kit3d/` once and run `./make.sh smoke` (a few minutes): it proves this machine can render it. Point its `ui_states.mjs` at the running app and run `node capture_ui.mjs`.
 2. Build both versions of the scene:
    - **A, 2D:** the Remotion scene, as the playbook says.
-   - **B, 3D:** a clip in the kit's `story.py`, as long as the scene's voiceover line, ending with `f.end(<seconds>, fade=0)`.
+   - **B, 3D:** a clip in the kit's `story.py`, as long as the scene's voiceover line, ending with `f.end(<seconds>, fade=0)`. For a physical product, give the `product` clip a real `.glb` with named top-level parts (from `challenge/assets/`, or built in Blender per the craft playbook), not the demo model.
 3. Render 3 stills of each at the same beats (the start, the key action, the end): `npx remotion still … --frame=N` for A, and `node render.mjs still <clip> <t>` for B. Put them in `video/bakeoff/<scene>-A-1.png` … `<scene>-B-3.png`, with the voiceover line in `video/bakeoff/<scene>-line.txt`.
 4. Launch `hackforge:blind-judge` twice in parallel, once per version: its 3 stills, the line, and the audience from BRIEF.md. Never show one judge both versions, so each gives a first impression.
 5. **Winner:** the better `vote` (yes > maybe > no). On a tie, the one whose `impression` says what the product does. If still tied, the one with fewer `lost_at`. Still tied → A, which is cheaper to change.
@@ -40,6 +40,8 @@ For each storyboard scene the kit can do, decide with a bake-off, not by taste:
 7. **A 3D winner:**
    - Render it with `./make.sh stem <clip>`. The clip carries only its effects; the narration and music stay in the pitch.
    - Copy `out/<clip>.mp4` to `video/public/` (Remotion `<OffthreadVideo>`) or `pitch/public/` (a `screen` scene with `media` and `seconds`).
+
+**In the Harness app** the Pitch studio's **3D clips** section does the setup, stills, renders with progress, and **Add to pitch** for you; write the clips into `video/kit3d/story.py` and tell the user their names.
 
 **Budget:** a 1080p frame takes about 1–9 s on a CPU, so a 7 s clip renders in 5–30 min. Start renders in the background and build other scenes meanwhile; a cut-off render resumes with `node render.mjs frames <clip> <from> <to>`. Skip the bake-off (and keep A) with `--no-3d`, when the smoke test fails, or when less than about two hours remain before the deadline.
 

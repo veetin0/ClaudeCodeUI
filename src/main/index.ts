@@ -26,6 +26,8 @@ import { builtinPlugin, choosePlugin, installedPlugin } from './hackforge/plugin
 import { EventService } from './event/EventService'
 import { newMemberId, TeamService } from './team/TeamService'
 import { PitchService } from './pitch/PitchService'
+import { Kit3dService } from './kit3d/Kit3dService'
+import type { Kit3dQuality } from '@shared/kit3d'
 import { hackforgeLean, readHackforge } from './hackforge/HackforgeService'
 import { hackforgeGuide } from '@shared/hackforge'
 import { takeOverPrompt } from '@shared/handoff'
@@ -37,6 +39,7 @@ import { cancelPick, pickElement, type Rect } from './preview/pick'
 import { DesignService } from './design/DesignService'
 import { designGuide } from '@shared/design'
 import { DevToolsService } from './devtools/DevToolsService'
+import { BlenderService } from './devtools/blender'
 import { CrewDriver } from './crew/CrewDriver'
 import { driverCrewTools } from './crew/crewTools'
 import { CREW_GUIDE } from '@shared/crew'
@@ -69,6 +72,7 @@ let agents: AgentService
 let presence: Presence
 let team: TeamService
 let pitch: PitchService
+let kit3d: Kit3dService
 let partners: PartnerService
 let resetQueue: ResetQueue
 let crew: CrewDriver
@@ -79,9 +83,11 @@ const design = new DesignService({
   settings: () => settings.get().designSkills,
   push: (state) => broadcast(IPC.designPush, state),
 })
+const blender = new BlenderService({ dataDir: app.getPath('userData') })
 const devTools = new DevToolsService({
   appPath: app.getAppPath(),
   dataDir: app.getPath('userData'),
+  blender,
   settings: () => settings.get().devTools,
   context7Key: () => settings.getContext7Key(),
   partnerServers: (cwd) => partners?.mcpServers(cwd) ?? [],
@@ -314,6 +320,13 @@ function registerIpc() {
   ipcMain.handle(IPC.pitchInstall, () => pitch.install())
   ipcMain.handle(IPC.pitchNarrate, () => pitch.narrate())
   ipcMain.handle(IPC.pitchVoices, () => pitch.voices())
+  ipcMain.handle(IPC.kit3dState, () => kit3d.state(true))
+  ipcMain.handle(IPC.kit3dSetup, () => kit3d.setup())
+  ipcMain.handle(IPC.kit3dCapture, () => kit3d.capture())
+  ipcMain.handle(IPC.kit3dStills, (_e, clip: string) => kit3d.stills(clip))
+  ipcMain.handle(IPC.kit3dRender, (_e, clip: string, quality: Kit3dQuality) => kit3d.render(clip, quality))
+  ipcMain.handle(IPC.kit3dCancel, () => kit3d.cancel())
+  ipcMain.handle(IPC.kit3dAddToPitch, (_e, clip: string) => kit3d.addToPitch(clip))
   ipcMain.handle(IPC.teamState, () => team.state())
   ipcMain.handle(IPC.teamCreate, (_e, opts: { name: string; host: boolean; relayUrl?: string }) => team.create(opts))
   ipcMain.handle(IPC.teamJoin, (_e, code: string, name: string) => team.join(code, name))
@@ -369,9 +382,15 @@ function registerIpc() {
   ipcMain.handle(IPC.teamTestServer, (_e, url: string) => team.testServer(url))
   ipcMain.handle(IPC.designState, () => design.state())
   ipcMain.handle(IPC.designPrepare, () => design.prepare())
-  ipcMain.handle(IPC.devToolsState, () => devTools.state(true))
+  ipcMain.handle(IPC.devToolsState, () => devTools.stateFresh())
   ipcMain.handle(IPC.devToolsInstallBrowser, () => devTools.installBrowser())
   ipcMain.handle(IPC.devToolsInstallRea, () => devTools.installRea())
+  ipcMain.handle(IPC.devToolsSetupBlender, () => devTools.setupBlender())
+  ipcMain.handle(IPC.devToolsOpenBlender, (_e, file?: string) => devTools.openBlender(file))
+  ipcMain.handle(IPC.previewPickModel, async () => {
+    const r = await dialog.showOpenDialog({ properties: ['openFile'], filters: [{ name: '3D models', extensions: ['glb', 'gltf'] }] })
+    return r.canceled ? null : (r.filePaths[0] ?? null)
+  })
 
   // Handoffs: put work on the team board, or take a teammate's.
   ipcMain.handle(IPC.handoffPlan, async (_e, sessionId: string) => {
@@ -727,6 +746,17 @@ async function start() {
       for (const w of BrowserWindow.getAllWindows()) w.webContents.send(IPC.pitchPush, state)
     },
   })
+  kit3d = new Kit3dService({
+    projectDir: () => settings.get().eventProject ?? undefined,
+    // The kit from the HackForge in use: a newer installed one brings its newer kit.
+    templateDir: () => {
+      const inst = hackforgePlugin().source === 'installed' ? installedPlugin(claudeDir)?.path : undefined
+      return inst ? join(inst, 'skills', 'video', 'kit3d') : join(app.getAppPath(), 'resources', 'hackforge', 'skills', 'video', 'kit3d')
+    },
+    push: (state) => broadcast(IPC.kit3dPush, state),
+    browserPath: () => devTools.browser().path,
+    node: { command: process.execPath, env: { ELECTRON_RUN_AS_NODE: '1' } },
+  })
   registerIpc()
   createWindow()
   // impeccable's detector engine: fetched once per computer, in the background.
@@ -747,6 +777,7 @@ app.on('before-quit', () => {
   team?.dispose()
   run?.dispose()
   pitch?.dispose()
+  kit3d?.dispose()
   resetQueue?.dispose()
   partners?.dispose()
   observer?.stop()

@@ -49,6 +49,9 @@ export type VisualSource = 'tool' | 'telemetry' | 'parsed'
 export const IMAGE_EXTENSIONS = ['.png', '.jpg', '.jpeg', '.gif', '.webp', '.svg']
 /** What the local file protocol will serve: images agents show and videos Remotion renders. */
 export const MEDIA_EXTENSIONS = [...IMAGE_EXTENSIONS, '.mp4', '.webm', '.mov', '.m4v']
+/** 3D models for the Preview tab's viewer (a .gltf's buffers come as .bin files next to it). */
+export const MODEL_EXTENSIONS = ['.glb', '.gltf']
+export const SERVED_EXTENSIONS = [...MEDIA_EXTENSIONS, ...MODEL_EXTENSIONS, '.bin']
 
 /** URL scheme the main process serves local media files on (see main/system/fileProtocol.ts). */
 export const FILE_SCHEME = 'harness-file'

@@ -3,6 +3,7 @@ import type { HackforgeMode, HackforgeSnapshot } from './hackforge'
 import type { EventState } from './event'
 import type { ChallengePatch } from './challenges'
 import type { PitchScript, PitchState, Voice } from './pitch'
+import type { Kit3dQuality, Kit3dState } from './kit3d'
 export type { PitchState, Voice, PitchJob } from './pitch'
 import type { MemberSession, TeamConfig, TeamState } from './team'
 import type { Composition, PreviewServer, PreviewState, ProjectInfo, RenderJob } from './preview'
@@ -202,6 +203,16 @@ export interface HarnessApi {
   /** Generates ElevenLabs narration for scenes whose audio is missing or out of date. */
   pitchNarrate(): Promise<PitchState>
   pitchVoices(): Promise<Voice[]>
+  /** 3D clips (HackForge's 3D kit in the event project's video/kit3d). */
+  kit3dState(): Promise<Kit3dState>
+  kit3dSetup(): Promise<Kit3dState>
+  kit3dCapture(): Promise<Kit3dState>
+  kit3dStills(clip: string): Promise<Kit3dState>
+  kit3dRender(clip: string, quality: Kit3dQuality): Promise<Kit3dState>
+  kit3dCancel(): Promise<Kit3dState>
+  /** Copies the rendered clip into pitch/public/3d/; returns its media path and length. */
+  kit3dAddToPitch(clip: string): Promise<{ media: string; seconds?: number }>
+  onKit3d(cb: (state: Kit3dState) => void): () => void
   onPitch(cb: (state: PitchState) => void): () => void
   teamState(): Promise<TeamState>
   /** New team: host the relay on this computer, or use a relay server URL. */
@@ -261,6 +272,12 @@ export interface HarnessApi {
   devToolsInstallBrowser(): Promise<DevToolsState>
   /** Installs REA (reverse engineering) with the user's npm. */
   devToolsInstallRea(): Promise<DevToolsState>
+  /** Installs and enables MCP for Blender's add-on in Blender. */
+  devToolsSetupBlender(): Promise<DevToolsState>
+  /** Opens Blender (its add-on connects by itself), importing a model if given. */
+  devToolsOpenBlender(file?: string): Promise<void>
+  /** Asks for a .glb/.gltf file to open in the 3D viewer. */
+  previewPickModel(): Promise<string | null>
   onDevTools(cb: (state: DevToolsState) => void): () => void
   /** Crew mode: teammates' Claudes (harness-crew), their missions and questions. */
   crewState(): Promise<import('./crew').CrewState>
@@ -376,6 +393,14 @@ export const IPC = {
   pitchNarrate: 'pitch:narrate',
   pitchVoices: 'pitch:voices',
   pitchPush: 'pitch:push',
+  kit3dState: 'kit3d:state',
+  kit3dSetup: 'kit3d:setup',
+  kit3dCapture: 'kit3d:capture',
+  kit3dStills: 'kit3d:stills',
+  kit3dRender: 'kit3d:render',
+  kit3dCancel: 'kit3d:cancel',
+  kit3dAddToPitch: 'kit3d:add-to-pitch',
+  kit3dPush: 'kit3d:push',
   handoffPlan: 'handoff:plan',
   handoffOffer: 'handoff:offer',
   handoffWithdraw: 'handoff:withdraw',
@@ -405,6 +430,9 @@ export const IPC = {
   devToolsState: 'devtools:state',
   devToolsInstallBrowser: 'devtools:install-browser',
   devToolsInstallRea: 'devtools:install-rea',
+  devToolsSetupBlender: 'devtools:setup-blender',
+  devToolsOpenBlender: 'devtools:open-blender',
+  previewPickModel: 'preview:pick-model',
   devToolsPush: 'devtools:push',
   crewState: 'crew:state',
   crewAnswer: 'crew:answer',

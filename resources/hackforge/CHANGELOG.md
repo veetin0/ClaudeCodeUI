@@ -1,5 +1,15 @@
 # Changelog
 
+## 2.10.0 — 2026-10-27
+Live Blender, and the 3D kit inside the Harness app.
+- **Live Blender** (the community MCP for Blender, `mcp__blender__*`, when it's connected: Harness → Settings → Dev tools → Blender):
+  - the craftsman iterates in the user's open Blender (`look` after each change, `execute_blender_code` asks first);
+  - it still delivers the reproducible script, the `.glb` and the renders;
+  - the craft playbook explains when to use it.
+- **The 3D kit in the app:** the Pitch studio's **3D clips** section sets the kit up, renders stills, drafts and finals with progress, and adds clips to the pitch. Claude writes the clips; `/hackforge:video` tells the user their names.
+- **`story.py --list`** prints the clips as JSON. `make.sh` keeps the Python packages in `.venv/`, the same environment the app uses.
+- **A product clip uses a real model:** a `.glb` with named top-level parts (from the challenge assets or built in Blender) instead of the demo model.
+
 ## 2.9.0 — 2026-10-27
 Reverse engineering with REA, when it's available: Harness → Settings → Dev tools → Reverse engineering, or the team's own `npx rea-agents setup`. Without it, nothing changes.
 - **The researcher maps a partner's real API.** It works from their site, a saved HAR capture, or their web or Electron app, writes `.hackforge/research/partner-api.md` with REA's evidence and stated limits, and checks RULES.md and the partner's terms first.

@@ -3,7 +3,7 @@ import type { UsageSaverSettings } from '@shared/usageSaver'
 import { newAlertTopic, subscribeUrl, type PhoneAlertSettings } from '@shared/alerts'
 import { AlarmClock, Leaf, Palette, Server, Smartphone, SquareTerminal, Wrench, X } from 'lucide-react'
 import type { DesignSkillsSettings, DesignState } from '@shared/design'
-import { REA_NODE, type DevToolsSettings, type DevToolsState, type ReaInfo } from '@shared/devtools'
+import { REA_NODE, type BlenderInfo, type DevToolsSettings, type DevToolsState, type ReaInfo } from '@shared/devtools'
 import { useEffect, useMemo, useState } from 'react'
 import qrcode from 'qrcode-generator'
 import type { ObserveStatus } from '@shared/ipc'
@@ -485,7 +485,95 @@ function DevToolsSection({
           </span>
         </label>
         {s.rea && state && <ReaStatus rea={state.rea} onInstall={() => void window.harness.devToolsInstallRea().then(setState)} />}
+        <label className="flex items-start gap-2.5">
+          <input type="checkbox" className="mt-0.5" checked={s.blender} onChange={(e) => onChange({ blender: e.target.checked })} />
+          <span>
+            <span className="font-medium">Blender</span>
+            <span className="text-[11px] text-muted"> · live connection through MCP for Blender (community, open source)</span>
+            <span className="mt-0.5 block text-[11px] text-muted">
+              Claude builds and adjusts 3D objects and scenes in your open Blender, looks at the result, and exports a .glb for the product, the pitch or a 3D clip.
+              Running code in Blender, importing assets and AI model generation ask first.
+            </span>
+          </span>
+        </label>
+        {state && <BlenderStatus info={state.blender} on={s.blender} setState={setState} />}
       </div>
+    </div>
+  )
+}
+
+function BlenderStatus({ info, on, setState }: { info: BlenderInfo; on: boolean; setState: (s: DevToolsState) => void }) {
+  const [error, setError] = useState<string | null>(null)
+  // While it waits for Blender to open, look every few seconds so "connected" shows up by itself.
+  useEffect(() => {
+    if (!on || (info.status !== 'ready' && info.status !== 'external')) return
+    const t = setInterval(() => void window.harness.devToolsState().then(setState), 4000)
+    return () => clearInterval(t)
+  }, [on, info.status, setState])
+  const warn = 'text-amber-700 dark:text-amber-300'
+  const ok = 'text-emerald-600 dark:text-emerald-400'
+  const link = (url: string, label: string) => (
+    <button onClick={() => void window.harness.openExternal(url)} className="underline hover:text-fg">
+      {label}
+    </button>
+  )
+  const open = () =>
+    void window.harness.devToolsOpenBlender().then(
+      () => setError(null),
+      (e) => setError(ipcErrorMessage(e)),
+    )
+  const btn = 'rounded border border-line px-1.5 py-px text-fg hover:bg-surface-2'
+  return (
+    <div className="pl-6 text-[11px] leading-5 text-muted [&_button]:ml-1.5">
+      Blender:{' '}
+      {info.blender ? (
+        <span className={ok}>{info.blender.version ? `${info.blender.version} found` : 'found'}</span>
+      ) : (
+        <>
+          <span className={on ? warn : undefined}>not found</span>
+          {link('https://www.blender.org/download/', 'Get Blender')}
+        </>
+      )}
+      {on && (
+        <>
+          {' · '}
+          {info.status === 'ready' || info.status === 'external' ? (
+            info.live ? (
+              <span className={ok}>connected: Claude can work in it now</span>
+            ) : (
+              <>
+                {info.status === 'external' ? 'using your own MCP for Blender setup; ' : 'ready; '}open Blender to connect
+                {info.blender && (
+                  <button onClick={open} className={btn}>
+                    Open Blender
+                  </button>
+                )}
+              </>
+            )
+          ) : info.status === 'needs-uv' ? (
+            <>
+              <span className={warn}>needs uv (it runs the connection)</span>
+              {link('https://docs.astral.sh/uv/getting-started/installation/', 'Get uv')}
+            </>
+          ) : info.status === 'needs-addon' || info.status === 'failed' ? (
+            <>
+              {info.status === 'failed' ? (
+                <span className={warn} title={info.error}>
+                  {info.error}
+                </span>
+              ) : (
+                'the Blender add-on isn’t set up yet'
+              )}
+              <button onClick={() => void window.harness.devToolsSetupBlender().then(setState)} className={btn}>
+                Set up Blender add-on
+              </button>
+            </>
+          ) : info.status === 'installing' ? (
+            'setting up the add-on…'
+          ) : null}
+        </>
+      )}
+      {error && <span className="ml-1.5 text-red-500">{error}</span>}
     </div>
   )
 }

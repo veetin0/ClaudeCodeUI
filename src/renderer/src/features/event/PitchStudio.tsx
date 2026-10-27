@@ -19,6 +19,7 @@ import { cn } from '@/lib/format'
 import { useApp } from '@/stores/app'
 import { useEvent } from '@/stores/event'
 import { usePitch } from '@/stores/pitch'
+import { Kit3dPanel } from './Kit3dPanel'
 
 const field = 'selectable w-full rounded-md border border-line bg-surface-2 px-2.5 py-1.5 text-[12.5px] outline-none focus:border-[var(--accent)]/60'
 const VISUAL_LABEL: Record<Visual, string> = { title: 'Title card', bullets: 'Bullet points', quote: 'Big statement', screen: 'Demo clip / screenshot', end: 'End card' }
@@ -71,6 +72,7 @@ export function PitchStudio({ event }: { event: EventState }) {
           <VoiceRow />
           <ScriptHeader script={draft} />
           <TimingBar script={draft} />
+          <Kit3dPanel />
           <Scenes script={draft} media={state.media} />
         </>
       )}

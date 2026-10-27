@@ -1,5 +1,5 @@
-import { Clapperboard, ExternalLink, FileVideo, FolderOpen, Globe, Loader2, MousePointerClick, Play, RefreshCw, ScrollText, Send, Square, X } from 'lucide-react'
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { Box, Clapperboard, ExternalLink, FileVideo, FolderOpen, Globe, Loader2, MousePointerClick, Play, RefreshCw, ScrollText, Send, Square, X } from 'lucide-react'
+import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react'
 import type { PreviewServer, RenderJob } from '@shared/preview'
 import { changePrompt, type PickedElement } from '@shared/pick'
 import type { ImageAttachment } from '@shared/events'
@@ -9,6 +9,9 @@ import { basename, cn, formatDuration } from '@/lib/format'
 import { relativeTime } from '@/lib/time'
 import { useApp } from '@/stores/app'
 import type { SessionState } from '@/stores/reducer'
+
+// three.js is big: the viewer loads only when a model is opened.
+const ModelViewer = lazy(() => import('./ModelViewer'))
 
 /**
  * Live preview of the project: Remotion Studio (which hot-reloads as Claude edits compositions),
@@ -36,6 +39,13 @@ export function PreviewView({ session }: { session: SessionState }) {
   const detected = preview.detected.filter((d) => !d.cwd || d.cwd === cwd)
   const server = target?.kind === 'server' ? preview.servers.find((s) => s.id === target.id) : undefined
   const url = target?.kind === 'url' ? target.url : server?.url
+  const model = target?.kind === 'model' ? target.path : undefined
+  const models = project?.models ?? []
+  // Whether Blender is on this computer, for the viewer's Open in Blender (looked up once a model is open).
+  const [hasBlender, setHasBlender] = useState(false)
+  useEffect(() => {
+    if (model) void window.harness.devToolsState().then((s) => setHasBlender(!!s.blender.blender))
+  }, [model])
 
   // Studio edits show up by itself (hot reload); a plain dev server may need a nudge.
   const lastWrite = Math.max(0, ...Object.values(session.files).filter((f) => f.lastKind === 'write').map((f) => f.lastTs))
@@ -99,6 +109,41 @@ export function PreviewView({ session }: { session: SessionState }) {
                 />
               )
             })}
+          {models.slice(0, 4).map((m) => (
+            <SourceButton
+              key={m}
+              active={model === m}
+              onClick={() => setPreviewTarget(cwd, { kind: 'model', path: m })}
+              icon={<Box className="size-3.5" />}
+              label={basename(m)}
+              title={`3D model: ${m}`}
+            />
+          ))}
+          {models.length > 4 && (
+            <select
+              value={model && models.indexOf(model) >= 4 ? model : ''}
+              onChange={(e) => e.target.value && setPreviewTarget(cwd, { kind: 'model', path: e.target.value })}
+              className="rounded-md border border-line bg-surface-2 px-1.5 py-0.5 text-[11.5px]"
+              title="More 3D models in this project"
+            >
+              <option value="">{models.length - 4} more models…</option>
+              {models.slice(4).map((m) => (
+                <option key={m} value={m}>
+                  {m.startsWith(cwd) ? m.slice(cwd.length + 1) : m}
+                </option>
+              ))}
+            </select>
+          )}
+          <button
+            onClick={async () => {
+              const p = await window.harness.previewPickModel()
+              if (p) setPreviewTarget(cwd, { kind: 'model', path: p })
+            }}
+            className="flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[11.5px] text-muted hover:bg-black/5 hover:text-fg dark:hover:bg-white/10"
+            title="Open a .glb or .gltf in the 3D viewer"
+          >
+            <Box className="size-3" /> Open .glb…
+          </button>
           {detected.map((d) => (
             <SourceButton
               key={d.url}
@@ -169,7 +214,11 @@ export function PreviewView({ session }: { session: SessionState }) {
         )}
 
         <div className="relative min-h-0 flex-1 bg-surface-2">
-          {url ? (
+          {model ? (
+            <Suspense fallback={<div className="flex h-full items-center justify-center text-[12px] text-muted">Loading the 3D viewer…</div>}>
+              <ModelViewer key={model} path={model} session={session} version={session.files[model]?.lastTs} blender={hasBlender} />
+            </Suspense>
+          ) : url ? (
             <iframe ref={frameRef} key={`${url}-${reloadKey}`} src={url} title="Preview" className="h-full w-full border-0 bg-white" allow="autoplay; clipboard-read; clipboard-write; fullscreen" />
           ) : server ? (
             <Starting server={server} />

@@ -93,6 +93,18 @@ const api: HarnessApi = {
   pitchInstall: () => ipcRenderer.invoke(IPC.pitchInstall),
   pitchNarrate: () => ipcRenderer.invoke(IPC.pitchNarrate),
   pitchVoices: () => ipcRenderer.invoke(IPC.pitchVoices),
+  kit3dState: () => ipcRenderer.invoke(IPC.kit3dState),
+  kit3dSetup: () => ipcRenderer.invoke(IPC.kit3dSetup),
+  kit3dCapture: () => ipcRenderer.invoke(IPC.kit3dCapture),
+  kit3dStills: (clip) => ipcRenderer.invoke(IPC.kit3dStills, clip),
+  kit3dRender: (clip, quality) => ipcRenderer.invoke(IPC.kit3dRender, clip, quality),
+  kit3dCancel: () => ipcRenderer.invoke(IPC.kit3dCancel),
+  kit3dAddToPitch: (clip) => ipcRenderer.invoke(IPC.kit3dAddToPitch, clip),
+  onKit3d: (cb) => {
+    const l = (_: unknown, s: import('../shared/kit3d').Kit3dState) => cb(s)
+    ipcRenderer.on(IPC.kit3dPush, l)
+    return () => ipcRenderer.removeListener(IPC.kit3dPush, l)
+  },
   onPitch: (cb) => {
     const l = (_: unknown, s: import('../shared/ipc').PitchState) => cb(s)
     ipcRenderer.on(IPC.pitchPush, l)
@@ -154,6 +166,9 @@ const api: HarnessApi = {
   devToolsState: () => ipcRenderer.invoke(IPC.devToolsState),
   devToolsInstallBrowser: () => ipcRenderer.invoke(IPC.devToolsInstallBrowser),
   devToolsInstallRea: () => ipcRenderer.invoke(IPC.devToolsInstallRea),
+  devToolsSetupBlender: () => ipcRenderer.invoke(IPC.devToolsSetupBlender),
+  devToolsOpenBlender: (file) => ipcRenderer.invoke(IPC.devToolsOpenBlender, file),
+  previewPickModel: () => ipcRenderer.invoke(IPC.previewPickModel),
   onDevTools: (cb) => {
     const l = (_: unknown, s: import('../shared/devtools').DevToolsState) => cb(s)
     ipcRenderer.on(IPC.devToolsPush, l)

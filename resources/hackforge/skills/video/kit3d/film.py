@@ -486,7 +486,11 @@ def check(tl):
 
 
 def run(story, clips):
-    """`python3 story.py <clip>` (or `all`): build, check and write build/<clip>/timeline.json."""
+    """`python3 story.py <clip>` (or `all`): build, check and write build/<clip>/timeline.json.
+    `python3 story.py --list`: the clips and their descriptions, as JSON (for the Harness app)."""
+    if '--list' in sys.argv:
+        print(json.dumps([{'name': n, 'doc': ' '.join((fn.__doc__ or '').split())} for n, fn in clips.items()]))
+        return
     args = [a for a in sys.argv[1:] if not a.startswith('--')]
     names = list(clips) if not args or args[0] == 'all' else args
     bad = 0

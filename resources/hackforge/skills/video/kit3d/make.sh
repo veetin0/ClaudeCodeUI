@@ -10,6 +10,10 @@ cd "$(dirname "$0")"
 step() { printf '\n== %s\n' "$*"; }
 
 [ -d node_modules/three ] && [ -d node_modules/playwright-core ] || npm install --no-audit --no-fund
+# Python packages live in .venv (the Harness app sets it up too): a system Python may refuse pip installs.
+[ -x .venv/bin/python3 ] || [ -x .venv/Scripts/python.exe ] || python3 -m venv .venv
+PY=.venv/bin/python3; [ -x "$PY" ] || PY=.venv/Scripts/python.exe
+python3() { "$PY" "$@"; }
 python3 -c 'import numpy, scipy, soundfile, pedalboard, parselmouth, kokoro_onnx' 2>/dev/null || python3 -m pip install -r requirements.txt
 command -v ffmpeg >/dev/null || { echo "ffmpeg is needed (brew install ffmpeg / apt install ffmpeg)"; exit 1; }
 mkdir -p build out

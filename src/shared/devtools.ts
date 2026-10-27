@@ -20,14 +20,37 @@ export interface DevToolsSettings {
   partnerServers: boolean
   /** Reverse engineering with REA. */
   rea: boolean
+  /** Claude works in an open Blender (the community MCP for Blender). */
+  blender: boolean
 }
 
-export const DEFAULT_DEV_TOOLS: DevToolsSettings = { browser: true, showBrowser: false, docs: true, partnerServers: true, rea: false }
+export const DEFAULT_DEV_TOOLS: DevToolsSettings = { browser: true, showBrowser: false, docs: true, partnerServers: true, rea: false, blender: false }
 
 /** MCP server names sessions see (tools are mcp__<name>__<tool>). */
 export const BROWSER_SERVER = 'browser'
 export const DOCS_SERVER = 'context7'
 export const REA_SERVER = 'rea'
+export const BLENDER_SERVER = 'blender'
+
+/**
+ * MCP for Blender's tools that only look (at the scene, the add-on, or asset search results): they
+ * run without asking. Running Python in Blender, importing assets, AI model generation (paid
+ * services) and the telemetry tools ask first.
+ */
+export const BLENDER_READ_TOOLS = ['get_addon_status', 'get_scene_info', 'look', 'search_assets']
+
+export interface BlenderInfo {
+  /**
+   * 'off': the live connection is off (Blender may still be found, for scripted renders).
+   * 'external': MCP for Blender is already in the user's Claude Code config, so sessions use that.
+   */
+  status: 'off' | 'needs-blender' | 'needs-uv' | 'needs-addon' | 'installing' | 'ready' | 'external' | 'failed'
+  blender?: { path: string; version?: string }
+  uvx?: string
+  /** A Blender with the add-on is open, so Claude can work in it now. */
+  live?: boolean
+  error?: string
+}
 
 /** The REA release Harness installs: one exact version, as REA's docs ask of a lasting registration. */
 export const REA_VERSION = '6.8.0'
@@ -132,13 +155,14 @@ export interface DevToolsState {
   docs: { status: 'off' | 'ready'; keyed: boolean }
   partners: PartnerServerInfo[]
   rea: ReaInfo
+  blender: BlenderInfo
   /** Partner servers only load in the event project (where the keys are). */
   eventProject?: string
 }
 
 /** Appended to the system prompt: when to reach for each tool. */
-export function devToolsGuide(on: { browser: boolean; docs: boolean; partners: { id: string; name: string }[]; rea?: boolean }): string | undefined {
-  if (!on.browser && !on.docs && !on.partners.length && !on.rea) return undefined
+export function devToolsGuide(on: { browser: boolean; docs: boolean; partners: { id: string; name: string }[]; rea?: boolean; blender?: boolean }): string | undefined {
+  if (!on.browser && !on.docs && !on.partners.length && !on.rea && !on.blender) return undefined
   const lines = ['# Dev tools (Harness)']
   if (on.browser) {
     lines.push(
@@ -158,6 +182,11 @@ export function devToolsGuide(on: { browser: boolean; docs: boolean; partners: {
   if (on.rea) {
     lines.push(
       `- Reverse engineering (mcp__${REA_SERVER}__*, REA): to learn how existing software works, with evidence. A partner's website or a saved HAR capture of it gives its real API (endpoints, payloads); an SDK shipped only as a bundle, DLL or APK shows how it's called; a reference app shows how a feature is built; a binary, firmware image or packet capture can be analysed. Use it only on software the project's rules and the owner allow (challenge files, partner-provided apps and sites, your own builds), never on files in private/. Start with static analysis; running the target asks first. Quote REA's evidence and its stated limits in what you write down.`,
+    )
+  }
+  if (on.blender) {
+    lines.push(
+      `- Blender (mcp__${BLENDER_SERVER}__*, MCP for Blender): build and adjust 3D objects and scenes in the user's open Blender window, for the product, the pitch or a 3D clip. If the tools say Blender isn't connected, ask the user to open it (Harness: Settings → Dev tools → Open Blender). Check your work with look after each change. When a model is right, export it as .glb into assets/ (named top-level parts, real scale in metres, Y-up) and keep a script that rebuilds it, as the craft playbook says. Running code in Blender asks first; asset imports and AI model generation may need the user's API keys and also ask.`,
     )
   }
   return lines.join('\n')

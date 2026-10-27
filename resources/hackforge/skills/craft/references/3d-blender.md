@@ -5,7 +5,8 @@
 ## Setup
 - macOS: `brew install --cask blender` → binary `/Applications/Blender.app/Contents/MacOS/Blender`. Linux: `blender` from blender.org (snap/apt versions lag).
 - Always run headless and scripted: `blender -b -P assets-src/<asset>/build.py -- --out assets/<asset>`. Arguments after `--` reach the script via `sys.argv[sys.argv.index("--")+1:]`.
-- Optional: a community Blender MCP server lets Claude drive an open Blender UI. Treat it as a convenience for exploration; the deliverable is still the reproducible script.
+- **Live Blender (optional):** the community MCP for Blender (`mcp__blender__*`) lets Claude work in the user's open Blender window: `get_scene_info`, `look` (the viewport or a render), `execute_blender_code` (asks first), Poly Haven / Sketchfab asset search and import, and AI model generation (some need API keys, all ask first). In the Harness app: Settings → Dev tools → Blender (set up the add-on, then Open Blender; it connects by itself). Use it to explore and iterate quickly; the deliverable is still the reproducible script plus the exported `.glb` and renders.
+- **Look at it in Harness:** the Preview tab opens any `.glb` in the project (turn it, see its named parts, triangle count and size) and reloads it when you re-export. A product `.glb` with named top-level parts can go straight into the 3D kit's `product` clip (an exploded view with callouts).
 
 ## Script skeleton
 ```python

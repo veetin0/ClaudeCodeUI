@@ -28,7 +28,7 @@ export type InspectorTab = 'agents' | 'tasks' | 'files' | 'activity'
 export type MainView = 'chat' | 'board' | 'mission' | 'preview' | 'hackforge'
 
 /** What the Preview view is showing for a project. */
-export type PreviewTarget = { kind: 'server'; id: string } | { kind: 'url'; url: string }
+export type PreviewTarget = { kind: 'server'; id: string } | { kind: 'url'; url: string } | { kind: 'model'; path: string }
 
 interface AppState {
   /** Sessions open in the sidebar (live, or saved ones opened from history). */

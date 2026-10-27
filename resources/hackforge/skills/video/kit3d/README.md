@@ -26,7 +26,11 @@ The scene loads only the modules a clip uses (`uses` in its timeline).
 - Node 20.11+, Python 3.10+ and ffmpeg.
 - A Chrome: `CHROME_PATH`, the installed Google Chrome, or `npx playwright install chromium`.
 - `make.sh` installs the npm packages (`three`, `playwright-core`) and the pip packages (`numpy`,
-  `scipy`, `soundfile`, `pedalboard`, `kokoro-onnx`, `praat-parselmouth`).
+  `scipy`, `soundfile`, `pedalboard`, `kokoro-onnx`, `praat-parselmouth`) into `.venv/`.
+
+**In the Harness app**, the Pitch studio's **3D clips** section does all of this for you: it sets
+the kit up in `video/kit3d/`, lists the clips (`python3 story.py --list`), renders stills, drafts
+and finals with progress, and adds a finished clip to the pitch. Claude only writes the clips.
 - A clip that talks: the Kokoro voice model (~110 MB) downloads from GitHub releases on the first
   `voice.py`.
 

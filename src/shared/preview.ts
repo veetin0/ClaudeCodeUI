@@ -6,6 +6,8 @@ export interface ProjectInfo {
   remotionVersion?: string
   /** package.json scripts that look like dev servers (dev, start, storybook, preview…). */
   devScripts: { name: string; command: string }[]
+  /** 3D models (.glb, .gltf) in the project, absolute paths, for the 3D viewer. */
+  models?: string[]
 }
 
 export interface PreviewServer {
