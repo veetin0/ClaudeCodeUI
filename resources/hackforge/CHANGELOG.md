@@ -1,5 +1,13 @@
 # Changelog
 
+## 2.9.0 — 2026-10-27
+Reverse engineering with REA, when it's available: Harness → Settings → Dev tools → Reverse engineering, or the team's own `npx rea-agents setup`. Without it, nothing changes.
+- **The researcher maps a partner's real API.** It works from their site, a saved HAR capture, or their web or Electron app, writes `.hackforge/research/partner-api.md` with REA's evidence and stated limits, and checks RULES.md and the partner's terms first.
+- **Builders read `partner-api.md`.** When an SDK has no usable docs, they inspect what the partner shipped (bundle, DLL, APK) instead of guessing.
+- **`/hackforge:solve` takes reversing tasks:** binaries, APKs, firmware, packet captures and WASM. It starts with static analysis, runs a target only after asking, and checks every answer with a script that runs.
+- **The possibilities scout** suggests it for integrations other teams give up on, and for hardware captures.
+- **Never on `private/`:** Harness's private-files guard now covers REA's tools.
+
 ## 2.8.0 — 2026-10-24
 A general 3D pitch kit, and the pitch video uses 3D only where it beats 2D.
 - **The 3D pitch kit** (`skills/video/kit3d/`) replaces the mascot's film template. It's one Three.js engine in headless Chrome (no GPU) with several kinds of short clip, each a function in the project's `story.py`:

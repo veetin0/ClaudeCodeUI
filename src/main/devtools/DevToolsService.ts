@@ -1,9 +1,23 @@
-import { spawn } from 'node:child_process'
+import { execFileSync, spawn } from 'node:child_process'
 import { createHash } from 'node:crypto'
-import { existsSync, readdirSync } from 'node:fs'
+import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs'
+import { homedir } from 'node:os'
 import { join } from 'node:path'
 import type { McpServerConfig } from '@anthropic-ai/claude-agent-sdk'
-import { BROWSER_SERVER, DOCS_SERVER, devToolsGuide, type BrowserInfo, type DevToolsSettings, type DevToolsState } from '@shared/devtools'
+import {
+  BROWSER_SERVER,
+  DOCS_SERVER,
+  REA_SERVER,
+  REA_VERSION,
+  devToolsGuide,
+  nodeRunsRea,
+  reaRunsWithoutAsking,
+  type BrowserInfo,
+  type DevToolsSettings,
+  type DevToolsState,
+  type ReaInfo,
+  type ReaTool,
+} from '@shared/devtools'
 import type { ResolvedPartnerMcp } from '@shared/partners'
 
 export interface DevToolsDeps {
@@ -25,6 +39,12 @@ export interface DevToolsDeps {
   resolveModule?(rel: string): string
   /** Who downloaded Chromium, for the browser's label (default Harness). */
   appName?: string
+  /** The user's own Node on PATH (REA needs a newer one than Electron's): its version and path. */
+  findNode?(): { version: string; path: string } | null
+  /** Runs npm with these arguments (installs REA). */
+  runNpm?(args: string[]): Promise<{ code: number; out: string }>
+  /** Claude Code's user config (~/.claude.json), where `npx rea-agents setup` registers REA. */
+  claudeConfigPath?: string
 }
 
 export const PLAYWRIGHT_MCP = join('@playwright', 'mcp', 'cli.js')
@@ -81,6 +101,37 @@ export function downloadedChromium(browsersDir: string): string | undefined {
   return undefined
 }
 
+/** The user's Node: `node` on PATH (Harness fixes PATH from the login shell at startup). */
+function defaultFindNode(): { version: string; path: string } | null {
+  try {
+    const out = execFileSync('node', ['-p', 'process.version + " " + process.execPath'], { encoding: 'utf8', timeout: 10_000, windowsHide: true }).trim()
+    const at = out.indexOf(' ')
+    return at > 0 ? { version: out.slice(0, at), path: out.slice(at + 1) } : null
+  } catch {
+    return null
+  }
+}
+
+function defaultRunNpm(args: string[]) {
+  return new Promise<{ code: number; out: string }>((resolve) => {
+    // npm is npm.cmd on Windows, which Node only spawns through a shell.
+    const win = process.platform === 'win32'
+    const child = spawn(win ? 'npm.cmd' : 'npm', args, { shell: win, windowsHide: true })
+    let out = ''
+    child.stdout?.on('data', (d) => (out = (out + d).slice(-4000)))
+    child.stderr?.on('data', (d) => (out = (out + d).slice(-4000)))
+    const timer = setTimeout(() => child.kill(), 15 * 60_000)
+    child.on('error', (err) => {
+      clearTimeout(timer)
+      resolve({ code: -1, out: err.message })
+    })
+    child.on('close', (code) => {
+      clearTimeout(timer)
+      resolve({ code: code ?? -1, out })
+    })
+  })
+}
+
 function defaultInstall(command: string, baseEnv: Record<string, string>) {
   return (script: string, env: Record<string, string>) =>
     new Promise<{ code: number; out: string }>((resolve) => {
@@ -101,13 +152,18 @@ function defaultInstall(command: string, baseEnv: Record<string, string>) {
 }
 
 /**
- * The dev tools sessions get: Playwright's browser tools (bundled), Context7's library docs (hosted)
- * and partners' own MCP servers. Bundled servers run with Electron as Node, so nothing is downloaded
- * at the event; only the browser itself is, once, when there's no Chrome or Edge.
+ * The dev tools sessions get: Playwright's browser tools (bundled), Context7's library docs (hosted),
+ * partners' own MCP servers and REA's reverse engineering (installed on demand). Bundled servers run
+ * with Electron as Node, so nothing is downloaded at the event; only the browser itself is, once,
+ * when there's no Chrome or Edge. REA runs on the user's own Node: Electron's is older than it needs.
  */
 export class DevToolsService {
   private installing = false
   private installError?: string
+  private reaInstalling = false
+  private reaError?: string
+  private nodeSeen?: { at: number; node: { version: string; path: string } | null }
+  private reaTools?: { mtime: number; names: string[] }
 
   constructor(private readonly deps: DevToolsDeps) {}
 
@@ -133,7 +189,93 @@ export class DevToolsService {
     return this.installError ? { status: 'failed', error: this.installError } : { status: 'missing' }
   }
 
-  state(): DevToolsState {
+  private get reaDir() {
+    return join(this.deps.dataDir, 'rea')
+  }
+
+  private get reaPackage() {
+    return join(this.reaDir, 'node_modules', 'rea-agents')
+  }
+
+  /** The user's Node, looked up at most once a minute (it runs a process). */
+  private userNode(fresh = false) {
+    if (fresh || !this.nodeSeen || Date.now() - this.nodeSeen.at > 60_000) {
+      this.nodeSeen = { at: Date.now(), node: (this.deps.findNode ?? defaultFindNode)() }
+    }
+    return this.nodeSeen.node
+  }
+
+  /** The REA version installed in Harness's data folder, if any. */
+  private reaInstalled(): string | undefined {
+    try {
+      if (!existsSync(join(this.reaPackage, 'scripts', 'rea.mjs'))) return undefined
+      return JSON.parse(readFileSync(join(this.reaPackage, 'package.json'), 'utf8')).version
+    } catch {
+      return undefined
+    }
+  }
+
+  /** REA registered in the user's Claude Code config (user scope, this folder's local scope, or .mcp.json). */
+  private reaExternal(cwd?: string): boolean {
+    const has = (o: unknown) => !!o && typeof o === 'object' && REA_SERVER in (o as Record<string, unknown>)
+    const read = (path: string) => {
+      try {
+        return JSON.parse(readFileSync(path, 'utf8'))
+      } catch {
+        return undefined
+      }
+    }
+    const configDir = process.env.CLAUDE_CONFIG_DIR
+    const cfg = read(this.deps.claudeConfigPath ?? (configDir ? join(configDir, '.claude.json') : join(homedir(), '.claude.json')))
+    if (has(cfg?.mcpServers)) return true
+    if (cwd && has(cfg?.projects?.[cwd]?.mcpServers)) return true
+    return cwd ? has(read(join(cwd, '.mcp.json'))?.mcpServers) : false
+  }
+
+  rea(cwd?: string, fresh = false): ReaInfo {
+    if (!this.deps.settings().rea) return { status: 'off' }
+    if (this.reaExternal(cwd)) return { status: 'external' }
+    if (this.reaInstalling) return { status: 'installing', version: REA_VERSION }
+    const node = this.userNode(fresh)
+    if (!node || !nodeRunsRea(node.version)) return { status: 'needs-node', ...(node ? { node: node.version } : {}) }
+    if (this.reaInstalled() === REA_VERSION) return { status: 'ready', version: REA_VERSION, node: node.version }
+    if (this.reaError) return { status: 'failed', error: this.reaError, node: node.version }
+    return { status: 'not-installed', version: REA_VERSION, node: node.version }
+  }
+
+  /** Installs REA (pinned) into Harness's data folder with the user's npm. */
+  async installRea(): Promise<DevToolsState> {
+    if (this.reaInstalling) return this.state()
+    this.reaInstalling = true
+    this.reaError = undefined
+    this.publish()
+    const run = this.deps.runNpm ?? defaultRunNpm
+    const { code, out } = await run(['install', '--prefix', this.reaDir, '--no-audit', '--no-fund', '--loglevel=error', `rea-agents@${REA_VERSION}`])
+    this.reaInstalling = false
+    if (code !== 0 || this.reaInstalled() !== REA_VERSION) {
+      this.reaError = out.trim().split('\n').filter(Boolean).slice(-2).join(' ').slice(0, 300) || `exit ${code}`
+    }
+    this.userNode(true)
+    return this.publish()
+  }
+
+  /** REA's tools that may run without a prompt, from the installed release's own catalog. */
+  private reaQuietTools(): string[] {
+    const file = join(this.reaPackage, 'dist', 'mcp-catalog.json')
+    try {
+      const mtime = statSync(file).mtimeMs
+      if (this.reaTools?.mtime !== mtime) {
+        const tools: ReaTool[] = JSON.parse(readFileSync(file, 'utf8')).tools ?? []
+        this.reaTools = { mtime, names: tools.filter(reaRunsWithoutAsking).map((t) => t.name) }
+      }
+      return this.reaTools.names
+    } catch {
+      return []
+    }
+  }
+
+  /** fresh: look for the user's Node again (Settings opening: they may have just installed it). */
+  state(fresh = false): DevToolsState {
     const s = this.deps.settings()
     return {
       browser: this.browser(),
@@ -148,6 +290,7 @@ export class DevToolsService {
               hosting: 'missing' in p.server ? 'hosted' : p.server.hosting,
             }))
         : [],
+      rea: this.rea(undefined, fresh),
       eventProject: this.deps.eventProject(),
     }
   }
@@ -210,19 +353,34 @@ export class DevToolsService {
             : { type: 'stdio', command: this.node.command, args: [this.module(server.module), ...server.args], env: { ...this.node.env, ...server.env } }
       }
     }
+    const node = this.rea(cwd).status === 'ready' ? this.userNode() : null
+    if (node) {
+      out[REA_SERVER] = {
+        type: 'stdio',
+        command: node.path,
+        args: [join(this.reaPackage, 'scripts', 'rea.mjs'), 'mcp'],
+        // REA still validates every result against its contract; the list just leaves the output schemas out.
+        env: { REA_MCP_OUTPUT_SCHEMA_PROFILE: 'off' },
+      }
+    }
     return out
   }
 
-  /** Tools sessions may use without a permission prompt: docs lookups and the isolated browser (partner servers still ask). */
-  allowedTools(): string[] {
+  /**
+   * Tools sessions may use without a permission prompt: docs lookups, the isolated browser and REA's
+   * read-only analysis (partner servers, and REA running a target or touching a device, still ask).
+   */
+  allowedTools(cwd?: string): string[] {
     const s = this.deps.settings()
-    return [...(s.browser ? [`mcp__${BROWSER_SERVER}`] : []), ...(s.docs ? [`mcp__${DOCS_SERVER}`] : [])]
+    const rea = cwd && this.rea(cwd).status === 'ready' ? this.reaQuietTools().map((t) => `mcp__${REA_SERVER}__${t}`) : []
+    return [...(s.browser ? [`mcp__${BROWSER_SERVER}`] : []), ...(s.docs ? [`mcp__${DOCS_SERVER}`] : []), ...rea]
   }
 
   /** The system-prompt guide for a session in this folder (only the tools it actually gets). */
   guide(cwd: string): string | undefined {
     const servers = this.mcpServers(cwd)
     const partners = this.deps.partnerServers(cwd).filter((p) => !('missing' in p.server) && servers[p.id])
-    return devToolsGuide({ browser: Boolean(servers[BROWSER_SERVER]), docs: Boolean(servers[DOCS_SERVER]), partners })
+    const rea = Boolean(servers[REA_SERVER]) || this.rea(cwd).status === 'external'
+    return devToolsGuide({ browser: Boolean(servers[BROWSER_SERVER]), docs: Boolean(servers[DOCS_SERVER]), partners, rea })
   }
 }

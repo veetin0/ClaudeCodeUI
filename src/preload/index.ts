@@ -153,6 +153,7 @@ const api: HarnessApi = {
   },
   devToolsState: () => ipcRenderer.invoke(IPC.devToolsState),
   devToolsInstallBrowser: () => ipcRenderer.invoke(IPC.devToolsInstallBrowser),
+  devToolsInstallRea: () => ipcRenderer.invoke(IPC.devToolsInstallRea),
   onDevTools: (cb) => {
     const l = (_: unknown, s: import('../shared/devtools').DevToolsState) => cb(s)
     ipcRenderer.on(IPC.devToolsPush, l)

@@ -52,7 +52,7 @@ mkdir my-hack && cd my-hack && claude
 | `/hackforge:mascot` | Optional, for a product whose AI talks to people: a character that is the assistant's face in the app, the logo, and the star of a short film: it says hello, talks about the problem, jumps into the app and lives there (walks the real screens, types into fields, presses buttons; every action changes the screen), talks with a moving mouth and expressions, and dives into the logo |
 | `/hackforge:craft <asset>` | 3D (Blender), CAD, audio, video, hardware, interactive, pitch assets — scripted and reproducible |
 | `/hackforge:eval` | Real metric, honest split, baseline, run log |
-| `/hackforge:solve` | Algorithmic problems with brute-force stress testing |
+| `/hackforge:solve` | Algorithmic problems with brute-force stress testing; reversing tasks (binaries, APKs, firmware, packet captures) with REA when available, each answer checked by a script |
 | `/hackforge:focus "…"` | Steer mid-run; saved to `challenge/prompts/` |
 | `/hackforge:rules` | Fold in announcements from `challenge/brief/` |
 | `/hackforge:status` | Where things stand, integrity, advisor, next best action |
@@ -81,7 +81,7 @@ When [impeccable](https://github.com/pbakaus/impeccable) and [ui-ux-pro-max](htt
 
 ## Dev tools (optional)
 
-With browser tools (the Harness app's built-in Playwright, `mcp__browser__*`, or your own Playwright MCP) the verifier walks the demo path click by click and saves screenshots as evidence, and frontend builders check their screens in a real browser. With Context7 (`mcp__context7__*`) builders look up current library and SDK docs instead of guessing APIs.
+With browser tools (the Harness app's built-in Playwright, `mcp__browser__*`, or your own Playwright MCP) the verifier walks the demo path click by click and saves screenshots as evidence, and frontend builders check their screens in a real browser. With Context7 (`mcp__context7__*`) builders look up current library and SDK docs instead of guessing APIs. With REA (`mcp__rea__*`, reverse engineering: Harness → Settings → Dev tools, or `npx rea-agents setup`) the researcher maps a partner's real API from their site, a HAR capture or their app (`.hackforge/research/partner-api.md`, with evidence), builders inspect an SDK that has no docs, and solve takes on reversing tasks. Only on software the rules and the owner allow, and never on `private/`.
 
 ## Crew mode (Harness)
 

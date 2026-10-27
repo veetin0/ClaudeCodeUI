@@ -255,10 +255,12 @@ export interface HarnessApi {
   /** Downloads impeccable's engine if it isn't on this computer yet. */
   designPrepare(): Promise<DesignState>
   onDesign(cb: (state: DesignState) => void): () => void
-  /** Browser, library docs and partner servers sessions get. */
+  /** Browser, library docs, partner servers and reverse engineering (REA) sessions get. */
   devToolsState(): Promise<DevToolsState>
   /** Downloads Chromium for the browser tools when there's no Chrome or Edge. */
   devToolsInstallBrowser(): Promise<DevToolsState>
+  /** Installs REA (reverse engineering) with the user's npm. */
+  devToolsInstallRea(): Promise<DevToolsState>
   onDevTools(cb: (state: DevToolsState) => void): () => void
   /** Crew mode: teammates' Claudes (harness-crew), their missions and questions. */
   crewState(): Promise<import('./crew').CrewState>
@@ -402,6 +404,7 @@ export const IPC = {
   designPush: 'design:push',
   devToolsState: 'devtools:state',
   devToolsInstallBrowser: 'devtools:install-browser',
+  devToolsInstallRea: 'devtools:install-rea',
   devToolsPush: 'devtools:push',
   crewState: 'crew:state',
   crewAnswer: 'crew:answer',

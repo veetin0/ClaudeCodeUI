@@ -149,7 +149,7 @@ async function main() {
   const devTools = new DevToolsService({
     appPath: here,
     dataDir: home,
-    settings: () => ({ browser: !a.noBrowser, showBrowser: false, docs: true, partnerServers: false }),
+    settings: () => ({ browser: !a.noBrowser, showBrowser: false, docs: true, partnerServers: false, rea: false }),
     context7Key: () => process.env.CONTEXT7_API_KEY,
     partnerServers: () => [],
     eventProject: () => undefined,

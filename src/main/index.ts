@@ -43,7 +43,7 @@ import { CREW_GUIDE } from '@shared/crew'
 import { makeJoinCode } from '@shared/team'
 import { RUN_ALLOW, RUN_GUIDE, type ClaudePlan, type FileKind, type RunStage } from '@shared/run'
 import { RunService } from './run/RunService'
-import { ghCli } from './run/project'
+import { ghCli, hasPrivateGuard, privateGuard } from './run/project'
 
 // Tests (and a second, throwaway profile) can keep everything out of the real profile folder.
 if (process.env.HARNESS_USER_DATA) app.setPath('userData', process.env.HARNESS_USER_DATA)
@@ -369,8 +369,9 @@ function registerIpc() {
   ipcMain.handle(IPC.teamTestServer, (_e, url: string) => team.testServer(url))
   ipcMain.handle(IPC.designState, () => design.state())
   ipcMain.handle(IPC.designPrepare, () => design.prepare())
-  ipcMain.handle(IPC.devToolsState, () => devTools.state())
+  ipcMain.handle(IPC.devToolsState, () => devTools.state(true))
   ipcMain.handle(IPC.devToolsInstallBrowser, () => devTools.installBrowser())
+  ipcMain.handle(IPC.devToolsInstallRea, () => devTools.installRea())
 
   // Handoffs: put work on the team board, or take a teammate's.
   ipcMain.handle(IPC.handoffPlan, async (_e, sessionId: string) => {
@@ -521,7 +522,11 @@ async function start() {
     hackforgeLean,
     teamRadar: (abs) => team?.radarFor(abs),
     extraEnv: (cwd) => ({ ...design.env(), ...partners.envFor(cwd) }),
-    mcp: (cwd) => ({ servers: devTools.mcpServers(cwd), allow: [...devTools.allowedTools(), ...(run?.isRunProject(cwd) ? RUN_ALLOW : [])] }),
+    mcp: (cwd) => {
+      // A project with private files gets the guard's latest rules (they now cover REA too) before REA can read anything.
+      if (settings.get().devTools.rea && hasPrivateGuard(cwd)) privateGuard(cwd)
+      return { servers: devTools.mcpServers(cwd), allow: [...devTools.allowedTools(cwd), ...(run?.isRunProject(cwd) ? RUN_ALLOW : [])] }
+    },
     // Crew tools for every session: they explain how to get a team when there's none.
     harnessTools: (s) => driverCrewTools({ ...crew.toolsFor(s.id, s.cwd), askDriver: run?.isRunProject(s.cwd) ? (q) => run.ask(q) : undefined }),
     getEnv: () => {

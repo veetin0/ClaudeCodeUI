@@ -239,6 +239,10 @@ elif tool in ("Read", "NotebookRead", "NotebookEdit", "Edit", "Write"):
 elif tool in ("Grep", "Glob"):
     if PRIVATE.search(" ".join(str(ti.get(k, "")) for k in ("path", "pattern", "glob"))):
         deny(WHY)
+elif tool.startswith("mcp__rea__"):
+    # REA (reverse engineering) reads whatever path it's given and returns what it finds.
+    if PRIVATE.search(" ".join(str(v) for v in ti.values())):
+        deny(WHY)
 `
 
 const GUARD_NOTE = `
@@ -248,6 +252,11 @@ Files in \`private/\` must never be shown to you: the challenge's terms forbid g
 Don't read, search, print, copy or upload them, and don't look at images made from them. Work on
 them only through scripts that read them and print scores and aggregate counts. A hook enforces it.
 `
+
+/** Whether Harness set up private files in this folder (so its guard should stay current). */
+export function hasPrivateGuard(dir: string): boolean {
+  return existsSync(join(dir, '.claude', 'hooks', 'protect_private.py'))
+}
 
 /** Permission rules, a hook and a CLAUDE.md note that keep private/ away from Claude. Idempotent. */
 export function privateGuard(dir: string) {
@@ -264,7 +273,7 @@ export function privateGuard(dir: string) {
   for (const r of [`Read(./${PRIVATE_DIR}/**)`, `Edit(./${PRIVATE_DIR}/**)`, `Write(./${PRIVATE_DIR}/**)`]) deny.add(r)
   settings.permissions = { ...settings.permissions, deny: [...deny] }
   const hook = {
-    matcher: 'Bash|Read|Grep|Glob|NotebookRead|NotebookEdit|Edit|Write',
+    matcher: 'Bash|Read|Grep|Glob|NotebookRead|NotebookEdit|Edit|Write|mcp__rea__.*',
     hooks: [{ type: 'command', command: 'python3 "$CLAUDE_PROJECT_DIR/.claude/hooks/protect_private.py"', timeout: 10 }],
   }
   const pre = (settings.hooks?.PreToolUse ?? []).filter((h) => !JSON.stringify(h).includes('protect_private.py'))

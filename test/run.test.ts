@@ -9,7 +9,7 @@ import type { PermissionDecision } from '@shared/ipc'
 import { PLAN_PROMPT, RUN_ALLOW, pickContract, taskBrief, type Contract, type RunState } from '@shared/run'
 import type { PlanUsage } from '@shared/team'
 import type { AssignResult, MissionEvent, MissionSpec } from '../src/main/crew/CrewDriver'
-import { addFiles, createProject, hasChallenge, prepareProject, privateGuard, projectSlug, readContracts } from '../src/main/run/project'
+import { addFiles, createProject, hasChallenge, hasPrivateGuard, prepareProject, privateGuard, projectSlug, readContracts } from '../src/main/run/project'
 import { RunService } from '../src/main/run/RunService'
 
 const sh = (cmd: string, cwd?: string) => execSync(cmd, { cwd, stdio: 'pipe' }).toString().trim()
@@ -73,6 +73,13 @@ describe('team run project', () => {
     expect(run({ tool_name: 'Grep', tool_input: { pattern: 'x', path: 'private' } })).toContain('"deny"')
     expect(run({ tool_name: 'Bash', tool_input: { command: 'python3 score.py private/matches.csv' } })).toBe('')
     expect(run({ tool_name: 'Read', tool_input: { file_path: `${dir}/src/app.ts` } })).toBe('')
+    // REA (reverse engineering) reads whatever path it's handed, so it's guarded too.
+    expect(again.hooks.PreToolUse[0].matcher).toMatch(/mcp__rea__\.\*/)
+    expect(run({ tool_name: 'mcp__rea__analyze_javascript_application', tool_input: { path: `${dir}/private/app.asar` } })).toContain('"deny"')
+    expect(run({ tool_name: 'mcp__rea__open_binary', tool_input: { source_paths: ['private/matches.bin'] } })).toContain('"deny"')
+    expect(run({ tool_name: 'mcp__rea__analyze_javascript_application', tool_input: { path: `${dir}/challenge/partner-app` } })).toBe('')
+    expect(hasPrivateGuard(dir)).toBe(true)
+    expect(hasPrivateGuard(mkdtempSync(join(tmpdir(), 'hrun-none-')))).toBe(false)
   })
 
   it('lets the lead’s Claude run routine dev and HackForge commands without asking, nothing crew-only', () => {

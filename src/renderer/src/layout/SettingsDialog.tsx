@@ -3,7 +3,7 @@ import type { UsageSaverSettings } from '@shared/usageSaver'
 import { newAlertTopic, subscribeUrl, type PhoneAlertSettings } from '@shared/alerts'
 import { AlarmClock, Leaf, Palette, Server, Smartphone, SquareTerminal, Wrench, X } from 'lucide-react'
 import type { DesignSkillsSettings, DesignState } from '@shared/design'
-import type { DevToolsSettings, DevToolsState } from '@shared/devtools'
+import { REA_NODE, type DevToolsSettings, type DevToolsState, type ReaInfo } from '@shared/devtools'
 import { useEffect, useMemo, useState } from 'react'
 import qrcode from 'qrcode-generator'
 import type { ObserveStatus } from '@shared/ipc'
@@ -472,7 +472,60 @@ function DevToolsSection({
             ))}
           </div>
         )}
+        <label className="flex items-start gap-2.5">
+          <input type="checkbox" className="mt-0.5" checked={s.rea} onChange={(e) => onChange({ rea: e.target.checked })} />
+          <span>
+            <span className="font-medium">Reverse engineering</span>
+            <span className="text-[11px] text-muted"> · REA, installed on demand</span>
+            <span className="mt-0.5 block text-[11px] text-muted">
+              Claude works out how existing software works, with evidence: a partner's site or a saved HAR capture becomes its real API, an SDK shipped as a
+              bundle, DLL or APK shows how it's called, and binaries, firmware and packet captures can be analysed. Running a target still asks first. Only for
+              software you own or are allowed to analyse.
+            </span>
+          </span>
+        </label>
+        {s.rea && state && <ReaStatus rea={state.rea} onInstall={() => void window.harness.devToolsInstallRea().then(setState)} />}
       </div>
+    </div>
+  )
+}
+
+function ReaStatus({ rea, onInstall }: { rea: ReaInfo; onInstall: () => void }) {
+  const warn = 'text-amber-700 dark:text-amber-300'
+  return (
+    // Inline text, not flex items: a long status wraps as one sentence in the narrow panel.
+    <div className="pl-6 text-[11px] leading-5 text-muted [&_button]:ml-1.5">
+      REA:{' '}
+      {rea.status === 'ready' ? (
+        <span className="text-emerald-600 dark:text-emerald-400">
+          {rea.version} ready (Node {rea.node?.replace(/^v/, '')})
+        </span>
+      ) : rea.status === 'external' ? (
+        <span className="text-emerald-600 dark:text-emerald-400">using your own setup (Claude Code config)</span>
+      ) : rea.status === 'installing' ? (
+        `installing ${rea.version}…`
+      ) : rea.status === 'needs-node' ? (
+        <>
+          <span className={warn}>
+            needs Node {REA_NODE}
+            {rea.node ? ` (this computer has ${rea.node.replace(/^v/, '')})` : ' (none found)'}
+          </span>
+          <button onClick={() => void window.harness.openExternal('https://nodejs.org/en/download')} className="underline hover:text-fg">
+            Get Node
+          </button>
+        </>
+      ) : rea.status === 'failed' ? (
+        <span className={warn} title={rea.error}>
+          install failed: {rea.error}
+        </span>
+      ) : (
+        'not installed'
+      )}
+      {(rea.status === 'not-installed' || rea.status === 'failed') && (
+        <button onClick={onInstall} className="rounded border border-line px-1.5 py-px text-fg hover:bg-surface-2">
+          Install REA (about 280 MB)
+        </button>
+      )}
     </div>
   )
 }
