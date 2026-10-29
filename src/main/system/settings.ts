@@ -73,7 +73,8 @@ export class SettingsStore {
     return {
       ...rest,
       hasApiKey: Boolean(apiKeyEnc),
-      hasElevenLabsKey: Boolean(elevenLabsKeyEnc),
+      // A key from the shell works for narration too, so the Pitch studio shouldn't ask for one.
+      hasElevenLabsKey: Boolean(elevenLabsKeyEnc || process.env.ELEVENLABS_API_KEY),
       hasContext7Key: Boolean(context7KeyEnc || process.env.CONTEXT7_API_KEY),
     }
   }

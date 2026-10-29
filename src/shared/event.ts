@@ -191,6 +191,24 @@ export function eventClock(config: EventConfig, now: number): EventClock {
   }
 }
 
+/** When a checklist item is due: its date at 23:59, or its exact time, in the event's zone. */
+export function checklistDue(item: ChecklistItem, zone: string): number | undefined {
+  if (!item.due) return undefined
+  return zonedTime(/\d\d:\d\d/.test(item.due) ? item.due : `${item.due} 23:59`, zone)
+}
+
+/**
+ * The checklist group that matters now: the one holding the open item due soonest (overdue
+ * first), else the first group with open items, else the last group.
+ */
+export function currentChecklistGroup(config: EventConfig, progress: EventProgress): ChecklistGroup {
+  const open = config.checklist.filter((c) => !progress.done[c.id])
+  const timed = open.map((c) => ({ c, t: checklistDue(c, config.timezone) })).filter((x): x is { c: ChecklistItem; t: number } => x.t !== undefined)
+  if (timed.length) return timed.reduce((a, b) => (b.t < a.t ? b : a)).c.group
+  const groups = GROUPS.filter((g) => config.checklist.some((c) => c.group === g))
+  return groups.find((g) => open.some((c) => c.group === g)) ?? groups.at(-1) ?? 'prep'
+}
+
 // ---------- parsing ----------
 
 const str = (v: unknown) => (v instanceof Date ? v.toISOString() : typeof v === 'string' ? v.trim() : typeof v === 'number' ? String(v) : '')

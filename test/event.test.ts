@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import YAML from 'yaml'
-import { eventClock, formatInZone, formatSpan, pickEvent, pickProgress, zonedTime, zoneLabel } from '@shared/event'
+import { currentChecklistGroup, eventClock, formatInZone, formatSpan, pickEvent, pickProgress, zonedTime, zoneLabel } from '@shared/event'
 import { JUNCTION_2026_EVENT_YAML } from '@shared/presets/junction2026'
 
 const junction = pickEvent(YAML.parse(JUNCTION_2026_EVENT_YAML))
@@ -90,5 +90,20 @@ describe('Junction 2026 preset', () => {
     expect(formatInZone(clock.start, cfg.timezone)).toMatch(/16:00/)
     expect(zoneLabel(clock.start, cfg.timezone)).toBe('UTC+0')
     expect(junction.invalidTimezone).toBeUndefined()
+  })
+})
+
+describe('the checklist that matters now', () => {
+  const none = { done: {}, partners: {} }
+  it('is the group with the open item due soonest', () => {
+    expect(currentChecklistGroup(junction, none)).toBe('prep')
+  })
+
+  it('moves on as items are ticked off', () => {
+    const prepDone = Object.fromEntries(junction.checklist.filter((c) => c.group === 'prep').map((c) => [c.id, true]))
+    const next = currentChecklistGroup(junction, { done: prepDone, partners: {} })
+    expect(next).not.toBe('prep')
+    const allDone = Object.fromEntries(junction.checklist.map((c) => [c.id, true]))
+    expect(currentChecklistGroup(junction, { done: allDone, partners: {} })).toBe('final')
   })
 })

@@ -1,14 +1,14 @@
-import { CalendarClock, Check, ExternalLink, FolderOpen, FolderPlus, MapPin, MessageSquare, Moon, Square, SquareCheck } from 'lucide-react'
-import { useMemo } from 'react'
+import { CalendarClock, Check, ChevronRight, ExternalLink, FolderOpen, FolderPlus, MapPin, MessageSquare, Moon, Square, SquareCheck } from 'lucide-react'
+import { useMemo, useState } from 'react'
 import {
-  CHECKLIST_GROUPS,
+  checklistDue,
+  currentChecklistGroup,
   eventClock,
   formatInZone,
   formatSpan,
   zonedTime,
   zoneLabel,
   type ChecklistGroup,
-  type ChecklistItem,
   type EventState,
   type TimedMilestone,
 } from '@shared/event'
@@ -17,6 +17,7 @@ import { useApp } from '@/stores/app'
 import { useEvent, useNow } from '@/stores/event'
 import { sessionIn } from '@/lib/projects'
 import { TeamPanel } from './TeamPanel'
+import { Segmented } from '@/ui/Segmented'
 
 /** Hackathon › Schedule: the clock, the team, the weekend timeline, project setup, checklists, partners. */
 export function EventSchedule({ state }: { state: EventState }) {
@@ -62,11 +63,7 @@ export function EventSchedule({ state }: { state: EventState }) {
         <TeamPanel timezone={config.timezone} now={now} suggestedNames={config.team} />
         <Weekend state={state} now={now} />
         <ProjectCard state={state} />
-        <div className="grid gap-4 lg:grid-cols-2">
-          {(['prep', 'logistics', 'preliminary', 'final'] as ChecklistGroup[]).map((g) => (
-            <Checklist key={g} group={g} state={state} now={now} />
-          ))}
-        </div>
+        <Checklists state={state} now={now} />
         <Partners state={state} />
         <p className="pb-2 text-[11px] text-muted">
           Settings come from {state.source === 'project' ? <code>challenge/event.yaml</code> : 'the built-in preset'}. Checklist ticks are saved to{' '}
@@ -343,57 +340,83 @@ function ProjectCard({ state }: { state: EventState }) {
   )
 }
 
-function dueTime(item: ChecklistItem, tz: string): number | undefined {
-  if (!item.due) return undefined
-  return zonedTime(/\d\d:\d\d/.test(item.due) ? item.due : `${item.due} 23:59`, tz)
-}
+const GROUP_TAB: Record<ChecklistGroup, string> = { prep: 'Preparation', logistics: 'Event day', preliminary: 'Preliminary', final: 'Final' }
 
-function Checklist({ group, state, now }: { group: ChecklistGroup; state: EventState; now: number }) {
+/**
+ * The checklists as one card: the group that matters now (the open item due soonest), its open
+ * items, and the done ones folded away. The other groups are a tab away.
+ */
+function Checklists({ state, now }: { state: EventState; now: number }) {
   const update = useEvent((s) => s.update)
-  const items = state.config.checklist.filter((c) => c.group === group)
-  if (!items.length) return null
+  const [picked, setPicked] = useState<ChecklistGroup | null>(null)
+  const [showDone, setShowDone] = useState(false)
+  const all = state.config.checklist
+  if (!all.length) return null
+  const groups = (Object.keys(GROUP_TAB) as ChecklistGroup[]).filter((g) => all.some((c) => c.group === g))
+  const group = picked ?? currentChecklistGroup(state.config, state.progress)
+  const items = all.filter((c) => c.group === group)
+  const isDone = (id: string) => !!state.progress.done[id]
+  const open = items.filter((c) => !isDone(c.id))
+  const done = items.filter((c) => isDone(c.id))
   const tz = state.config.timezone
-  const doneCount = items.filter((c) => state.progress.done[c.id]).length
   const linked = !!state.projectDir
+  const totalDone = all.filter((c) => isDone(c.id)).length
+  const row = (c: (typeof items)[number]) => {
+    const ticked = isDone(c.id)
+    const due = checklistDue(c, tz)
+    const overdue = !ticked && due !== undefined && now > due
+    const Icon = ticked ? SquareCheck : Square
+    return (
+      <button
+        key={c.id}
+        disabled={!linked}
+        onClick={() => void update({ done: { [c.id]: !ticked } })}
+        title={linked ? c.note : 'Set up or link the event project to tick items (they are shared with the team through git)'}
+        className="flex w-full items-start gap-2 rounded px-1 py-1 text-left text-[12.5px] hover:bg-surface-2 disabled:cursor-default disabled:hover:bg-transparent"
+      >
+        <Icon className={cn('mt-0.5 size-3.5 shrink-0', ticked ? 'text-emerald-500' : 'text-muted')} />
+        <span className={cn('min-w-0 flex-1', ticked && 'text-muted line-through decoration-muted/50')}>
+          {c.label}
+          {c.note && !ticked && <span className="block text-[11px] text-muted">{c.note}</span>}
+        </span>
+        {due !== undefined && (
+          <span className={cn('shrink-0 text-[11px] tabular-nums', overdue ? 'font-medium text-red-500' : 'text-muted')}>
+            {/\d\d:\d\d/.test(c.due!)
+              ? formatInZone(due, tz, { weekday: 'short', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' })
+              : formatInZone(due, tz, { day: 'numeric', month: 'short' })}
+          </span>
+        )}
+      </button>
+    )
+  }
   return (
     <section className="rounded-2xl border border-line p-4">
-      <div className="mb-2 flex items-center gap-2">
-        <h2 className="text-[13px] font-semibold">{CHECKLIST_GROUPS[group]}</h2>
+      <div className="mb-2 flex flex-wrap items-center gap-2">
+        <h2 className="text-[13px] font-semibold">Checklists</h2>
         <span className="text-[11px] tabular-nums text-muted">
-          {doneCount} / {items.length}
+          {totalDone} / {all.length} done
         </span>
-        <div className="ml-auto h-1.5 w-24 overflow-hidden rounded-full bg-line">
-          <div className="h-full rounded-full bg-emerald-500" style={{ width: `${(doneCount / items.length) * 100}%` }} />
-        </div>
+        <Segmented
+          className="ml-auto"
+          label="Checklist"
+          value={group}
+          onChange={(g) => {
+            setPicked(g)
+            setShowDone(false)
+          }}
+          options={groups.map((g) => ({ id: g, label: GROUP_TAB[g], badge: all.filter((c) => c.group === g && !isDone(c.id)).length || undefined }))}
+        />
       </div>
-      {items.map((c) => {
-        const done = !!state.progress.done[c.id]
-        const due = dueTime(c, tz)
-        const overdue = !done && due !== undefined && now > due
-        const Icon = done ? SquareCheck : Square
-        return (
-          <button
-            key={c.id}
-            disabled={!linked}
-            onClick={() => void update({ done: { [c.id]: !done } })}
-            title={linked ? c.note : 'Set up or link the event project to tick items (they are shared with the team through git)'}
-            className="flex w-full items-start gap-2 rounded px-1 py-1 text-left text-[12.5px] hover:bg-surface-2 disabled:cursor-default disabled:hover:bg-transparent"
-          >
-            <Icon className={cn('mt-0.5 size-3.5 shrink-0', done ? 'text-emerald-500' : 'text-muted')} />
-            <span className={cn('min-w-0 flex-1', done && 'text-muted line-through decoration-muted/50')}>
-              {c.label}
-              {c.note && !done && <span className="block text-[11px] text-muted">{c.note}</span>}
-            </span>
-            {due !== undefined && (
-              <span className={cn('shrink-0 text-[11px] tabular-nums', overdue ? 'font-medium text-red-500' : 'text-muted')}>
-                {/\d\d:\d\d/.test(c.due!)
-                  ? formatInZone(due, tz, { weekday: 'short', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' })
-                  : formatInZone(due, tz, { day: 'numeric', month: 'short' })}
-              </span>
-            )}
+      {open.length ? open.map(row) : <div className="px-1 py-2 text-[12.5px] text-emerald-600 dark:text-emerald-400">All done here.</div>}
+      {done.length > 0 && (
+        <>
+          <button onClick={() => setShowDone(!showDone)} className="mt-1 flex items-center gap-1 px-1 text-[11.5px] text-muted hover:text-fg">
+            <ChevronRight className={cn('size-3.5 transition-transform', showDone && 'rotate-90')} />
+            {showDone ? 'Hide' : 'Show'} {done.length} done
           </button>
-        )
-      })}
+          {showDone && done.map(row)}
+        </>
+      )}
     </section>
   )
 }
@@ -404,10 +427,15 @@ function Partners({ state }: { state: EventState }) {
   const groups = new Map<string, typeof state.config.partners>()
   for (const p of state.config.partners) groups.set(p.category, [...(groups.get(p.category) ?? []), p])
   const ready = state.config.partners.filter((p) => state.progress.partners[p.name]?.keys && state.progress.partners[p.name]?.kit).length
+  const [open, setOpen] = useState(false)
+  if (!state.config.partners.length) return null
   return (
     <section className="rounded-2xl border border-line p-4">
-      <div className="mb-3 flex items-center gap-2">
-        <h2 className="text-[13px] font-semibold">Partners</h2>
+      <div className="flex items-center gap-2">
+        <button onClick={() => setOpen(!open)} className="flex items-center gap-1 text-[13px] font-semibold hover:text-[var(--accent)]">
+          <ChevronRight className={cn('size-4 transition-transform', open && 'rotate-90')} />
+          Partners
+        </button>
         <span className="text-[11px] text-muted">
           {ready} / {state.config.partners.length} ready (keys + tested starter kit)
         </span>
@@ -415,7 +443,8 @@ function Partners({ state }: { state: EventState }) {
           Paste API keys under Challenges →
         </button>
       </div>
-      <div className="grid gap-x-6 gap-y-3 md:grid-cols-2">
+      {open && (
+      <div className="mt-3 grid gap-x-6 gap-y-3 md:grid-cols-2">
         {[...groups].map(([cat, ps]) => (
           <div key={cat}>
             <div className="mb-1 text-[11px] font-semibold uppercase tracking-wide text-muted">{cat}</div>
@@ -455,6 +484,7 @@ function Partners({ state }: { state: EventState }) {
           </div>
         ))}
       </div>
+      )}
     </section>
   )
 }

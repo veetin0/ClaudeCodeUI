@@ -256,8 +256,8 @@ HackForge's hooks run Python 3 (macOS has it with the Xcode command-line tools; 
   - `challenge/event.yaml` (schedule, partners, checklists; edit it freely)
   - an event brief and a strategy directive that HackForge reads
   - HackForge settings for the event: 40 h, team of 4, the real deadline, the loop stopping 4 h before it, cheaper models for builders and stronger ones for the architect and judges
-- **Checklists:** preparation (week by week up to the event), event-day logistics, the preliminary submission and the final submission. Each has a due time, and overdue items turn red.
-- **Partners board:** all 16 Junction partners by category, each with *Keys* (account and API key ready) and *Kit* (starter kit tested) toggles.
+- **Checklists:** preparation (week by week up to the event), event-day logistics, the preliminary submission and the final submission, in one card that opens on the list that matters now (the open item due soonest). Done items fold away, each item has a due time, and overdue ones turn red.
+- **Partners board:** all 16 Junction partners by category, each with *Keys* (account and API key ready) and *Kit* (starter kit tested) toggles. It stays folded to a ready count until you open it.
 - Ticks are saved to `challenge/event-checklist.json`. Commit it, and the team shares one checklist through git.
 
 ![The event schedule during Junction 2026 (simulated clock)](docs/screenshots/event-mode.png)
