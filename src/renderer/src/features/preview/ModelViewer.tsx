@@ -305,7 +305,7 @@ export default function ModelViewer({ path, session, version, blender }: { path:
         {loading && <div className="absolute inset-0 flex items-center justify-center text-[12px] text-muted">Loading the model…</div>}
         {error && (
           <div className="absolute inset-0 flex items-center justify-center p-6">
-            <div className="selectable max-w-md rounded-lg border border-red-500/40 bg-surface px-3 py-2 text-[12px] text-red-500">Couldn't open this model: {error}</div>
+            <div className="selectable max-w-md rounded-lg border border-danger/40 bg-surface px-3 py-2 text-[12px] text-danger-ink">Couldn't open this model: {error}</div>
           </div>
         )}
         {asking && (
@@ -318,10 +318,10 @@ export default function ModelViewer({ path, session, version, blender }: { path:
                 if (e.key === 'Escape') setAsking(false)
               }}
               placeholder={selected ? `What should change about ${selected.name}?` : 'What should change? e.g. rounder edges, a brushed metal shell, the screen glowing'}
-              className="selectable min-w-0 flex-1 rounded-lg border border-line bg-surface-2 px-2.5 py-1.5 text-[12px] outline-none focus:border-[var(--accent)]/60"
+              className="selectable min-w-0 flex-1 rounded-lg border border-line bg-surface-2 px-2.5 py-1.5 text-[12px] outline-none focus:border-accent-ink/60"
               autoFocus
             />
-            <button onClick={() => void ask()} disabled={!text.trim()} className="rounded-md bg-[var(--accent)] px-3 text-[12px] font-medium text-white hover:brightness-110 disabled:opacity-40">
+            <button onClick={() => void ask()} disabled={!text.trim()} className="rounded-md bg-accent px-3 text-[12px] font-medium text-white hover:brightness-110 disabled:opacity-40">
               Send with screenshot
             </button>
             <button onClick={() => setAsking(false)} className="rounded p-1 text-muted hover:text-fg">
@@ -331,18 +331,18 @@ export default function ModelViewer({ path, session, version, blender }: { path:
         )}
         {note && (
           <div className="absolute inset-x-0 bottom-14 flex justify-center">
-            <button onClick={() => setNote(null)} className="rounded-full bg-surface px-3 py-1 text-[11.5px] shadow">
+            <button onClick={() => setNote(null)} className="rounded-sm bg-surface px-3 py-1 text-[12px] shadow">
               {note}
             </button>
           </div>
         )}
       </div>
-      <aside className="w-56 shrink-0 overflow-y-auto border-l border-line p-3 text-[11.5px]">
+      <aside className="w-56 shrink-0 overflow-y-auto border-l border-line p-3 text-[12px]">
         <div className="font-medium">Model</div>
         {stats ? (
           <dl className="mt-1 grid grid-cols-[auto_1fr] gap-x-2 gap-y-0.5 text-muted">
             <dt>Triangles</dt>
-            <dd className={cn('text-fg', stats.tris > MAX_TRIS && 'text-amber-600')}>{stats.tris.toLocaleString()}</dd>
+            <dd className={cn('text-fg', stats.tris > MAX_TRIS && 'text-warn-ink')}>{stats.tris.toLocaleString()}</dd>
             <dt>Meshes</dt>
             <dd className="text-fg">{stats.meshes}</dd>
             <dt>Materials</dt>
@@ -352,12 +352,12 @@ export default function ModelViewer({ path, session, version, blender }: { path:
             <dt>Size</dt>
             <dd className="text-fg">{stats.size.map(fmtSize).join(' × ')}</dd>
             <dt>File</dt>
-            <dd className={cn('text-fg', stats.bytes > MAX_BYTES && 'text-amber-600')}>{fmtBytes(stats.bytes)}</dd>
+            <dd className={cn('text-fg', stats.bytes > MAX_BYTES && 'text-warn-ink')}>{fmtBytes(stats.bytes)}</dd>
           </dl>
         ) : (
           <div className="mt-1 text-muted">…</div>
         )}
-        {heavy && <div className="mt-2 rounded-md bg-amber-500/10 px-2 py-1 text-amber-700 dark:text-amber-300">Heavy for a web viewer or a 3D clip: aim for under 100k triangles and 10 MB.</div>}
+        {heavy && <div className="mt-2 rounded-md bg-warn/10 px-2 py-1 text-warn-ink">Heavy for a web viewer or a 3D clip: aim for under 100k triangles and 10 MB.</div>}
         <div className="mt-3 flex items-center font-medium">
           Parts <span className="ml-1 font-normal text-muted">({parts.length})</span>
           {selected && (
@@ -366,16 +366,16 @@ export default function ModelViewer({ path, session, version, blender }: { path:
             </button>
           )}
         </div>
-        <p className="mt-0.5 text-[10.5px] text-muted">Named top-level parts: a 3D clip's exploded view separates these.</p>
+        <p className="mt-0.5 text-[11px] text-muted">Named top-level parts: a 3D clip's exploded view separates these.</p>
         <ul className="mt-1 space-y-px">
           {parts.map((p) => (
             <li key={p.object.uuid}>
               <button
                 onClick={() => setSelected(selected?.object === p.object ? null : p)}
-                className={cn('flex w-full items-center gap-1 rounded px-1.5 py-0.5 text-left hover:bg-surface-2', selected?.object === p.object && 'bg-[var(--accent)]/10 text-[var(--accent)]')}
+                className={cn('flex w-full items-center gap-1 rounded px-1.5 py-0.5 text-left hover:bg-surface-2', selected?.object === p.object && 'bg-accent/10 text-accent-ink')}
               >
                 <span className="min-w-0 flex-1 truncate">{p.name}</span>
-                <span className="shrink-0 text-[10.5px] text-muted">{p.tris.toLocaleString()}</span>
+                <span className="shrink-0 text-[11px] text-muted">{p.tris.toLocaleString()}</span>
               </button>
             </li>
           ))}

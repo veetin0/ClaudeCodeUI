@@ -28,7 +28,7 @@ export function GeneralTab() {
               value={key}
               onChange={(e) => setKey(e.target.value)}
               placeholder={settings.hasApiKey ? '••••••••••••' : 'sk-ant-…'}
-              className="selectable w-full rounded-md border border-line bg-surface-2 py-1.5 pl-8 pr-2.5 outline-none focus:border-[var(--accent)]/60"
+              className="selectable w-full rounded-md border border-line bg-surface-2 py-1.5 pl-8 pr-2.5 outline-none focus:border-accent-ink/60"
             />
           </div>
           <button
@@ -42,7 +42,7 @@ export function GeneralTab() {
                 setError(e instanceof Error ? e.message : String(e))
               }
             }}
-            className="rounded-md bg-[var(--accent)] px-3 text-[12px] font-medium text-white disabled:opacity-40"
+            className="rounded-md bg-accent px-3 text-[12px] font-medium text-white disabled:opacity-40"
           >
             Save
           </button>
@@ -52,7 +52,7 @@ export function GeneralTab() {
             </button>
           )}
         </div>
-        {error && <div className="mt-1 text-[11px] text-red-500">{error}</div>}
+        {error && <div className="mt-1 text-[11px] text-danger-ink">{error}</div>}
       </Field>
 
       <div className="grid gap-4 sm:grid-cols-2">
@@ -128,7 +128,7 @@ function PhoneSection({ s, onChange }: { s: PhoneAlertSettings; onChange: (patch
     >
           <div className="flex gap-3">
             <div className="size-[116px] shrink-0 rounded-lg bg-white p-1" dangerouslySetInnerHTML={{ __html: qr }} title={url} />
-            <ol className="list-decimal space-y-1 pl-4 text-[11.5px] text-muted">
+            <ol className="list-decimal space-y-1 pl-4 text-[12px] text-muted">
               <li>
                 Install <b className="text-fg">ntfy</b> on your phone (App Store or Google Play).
               </li>
@@ -142,7 +142,7 @@ function PhoneSection({ s, onChange }: { s: PhoneAlertSettings; onChange: (patch
                       (e: unknown) => setTest(ipcErrorMessage(e)),
                     )
                   }}
-                  className="rounded-md border border-line px-2 py-0.5 text-[11.5px] text-fg hover:bg-surface-2"
+                  className="rounded-md border border-line px-2 py-0.5 text-[12px] text-fg hover:bg-surface-2"
                 >
                   Send a test
                 </button>
@@ -162,17 +162,17 @@ function PhoneSection({ s, onChange }: { s: PhoneAlertSettings; onChange: (patch
               New topic
             </button>
           </div>
-          <p className="mt-1 text-[10.5px] text-muted">
+          <p className="mt-1 text-[11px] text-muted">
             Anyone who knows the topic can read the alerts, so it’s long and random, and alerts never contain code or keys.
           </p>
-          <div className="mt-2.5 grid grid-cols-2 gap-x-3 gap-y-1 text-[11.5px]">
+          <div className="mt-2.5 grid grid-cols-2 gap-x-3 gap-y-1 text-[12px]">
             {PHONE_KINDS.map((k) => (
               <label key={k.key} className="flex items-center gap-1.5">
                 <input type="checkbox" checked={s[k.key]} onChange={(e) => onChange({ [k.key]: e.target.checked })} /> {k.label}
               </label>
             ))}
           </div>
-          <label className="mt-2 flex items-center gap-1.5 text-[11.5px]">
+          <label className="mt-2 flex items-center gap-1.5 text-[12px]">
             <input type="checkbox" checked={s.onlyWhenAway} onChange={(e) => onChange({ onlyWhenAway: e.target.checked })} /> Only when I’m away (screen locked
             or idle 90 s)
           </label>
@@ -181,7 +181,7 @@ function PhoneSection({ s, onChange }: { s: PhoneAlertSettings; onChange: (patch
             <input
               defaultValue={s.server}
               onBlur={(e) => /^https?:\/\//.test(e.target.value.trim()) && e.target.value.trim() !== s.server && onChange({ server: e.target.value.trim() })}
-              className="selectable mt-0.5 w-full rounded-md border border-line bg-surface-2 px-2 py-1 text-[11.5px] text-fg outline-none"
+              className="selectable mt-0.5 w-full rounded-md border border-line bg-surface-2 px-2 py-1 text-[12px] text-fg outline-none"
             />
           </label>
     </Row>

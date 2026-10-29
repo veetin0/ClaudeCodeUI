@@ -2,6 +2,7 @@ import { Loader2 } from 'lucide-react'
 import type { ButtonHTMLAttributes, ReactNode } from 'react'
 import { cn } from '@/lib/format'
 import { useRunStore } from '@/stores/run'
+import { SectorMeter } from '@/ui/Sectors'
 
 /** The one obvious next action on a step. */
 export function Primary({ busy, children, className, ...rest }: ButtonHTMLAttributes<HTMLButtonElement> & { busy?: boolean }) {
@@ -10,7 +11,7 @@ export function Primary({ busy, children, className, ...rest }: ButtonHTMLAttrib
       {...rest}
       disabled={rest.disabled || busy}
       className={cn(
-        'inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-lg bg-[var(--accent)] px-4 py-2 font-medium text-white hover:brightness-110 disabled:opacity-40',
+        'inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-lg bg-accent px-4 py-2 font-medium text-white hover:brightness-110 disabled:opacity-40',
         className,
       )}
     >
@@ -26,7 +27,7 @@ export function Secondary({ busy, children, className, ...rest }: ButtonHTMLAttr
       {...rest}
       disabled={rest.disabled || busy}
       className={cn(
-        'inline-flex items-center justify-center gap-1.5 whitespace-nowrap rounded-lg border border-line px-3 py-1.5 text-[12.5px] hover:bg-surface-2 disabled:opacity-40',
+        'inline-flex items-center justify-center gap-1.5 whitespace-nowrap rounded-lg border border-line px-3 py-1.5 text-[13px] hover:bg-surface-2 disabled:opacity-40',
         className,
       )}
     >
@@ -65,8 +66,8 @@ export function Card({
 
 export function Working({ children }: { children: ReactNode }) {
   return (
-    <div className="flex items-center gap-2 text-[12.5px] text-muted">
-      <Loader2 className="size-4 animate-spin text-[var(--accent)]" />
+    <div className="flex items-center gap-2 text-[13px] text-muted">
+      <Loader2 className="size-4 animate-spin text-accent-ink" />
       {children}
     </div>
   )
@@ -75,14 +76,7 @@ export function Working({ children }: { children: ReactNode }) {
 /** The busy label of the action running now, if it's this one. */
 export const useBusy = (label: string) => useRunStore((s) => s.busy === label)
 
-/** Usage left as a thin bar. */
+/** Usage left as sectors. */
 export function UsageBar({ pct }: { pct: number }) {
-  return (
-    <div className="h-1 overflow-hidden rounded-full bg-line">
-      <div
-        className={cn('h-full rounded-full', pct <= 10 ? 'bg-red-500' : pct <= 30 ? 'bg-amber-500' : 'bg-emerald-500')}
-        style={{ width: `${Math.max(0, Math.min(100, pct))}%` }}
-      />
-    </div>
-  )
+  return <SectorMeter value={pct / 100} tone={pct <= 10 ? 'fail' : pct <= 30 ? 'wait' : 'done'} height={3} label="Plan usage left" />
 }

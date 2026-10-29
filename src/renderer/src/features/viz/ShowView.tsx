@@ -43,7 +43,7 @@ function Table({ columns, rows, more }: { columns: string[]; rows: (string | num
   const numeric = columns.map((_, j) => rows.length > 0 && rows.every((r) => typeof r[j] === 'number'))
   return (
     <div className="selectable overflow-auto">
-      <table className="w-full text-[11.5px] tabular-nums">
+      <table className="w-full text-[12px] num">
         <thead>
           <tr>
             {columns.map((c, j) => (

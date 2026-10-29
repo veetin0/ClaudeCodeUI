@@ -44,7 +44,7 @@ function TeamServerSection({ value, onChange }: { value: string; onChange: (url:
           onChange={(e) => setUrl(e.target.value)}
           onBlur={(e) => save(e.target.value)}
           placeholder="https://harness-relay-xxxx.onrender.com"
-          className="selectable min-w-0 flex-1 rounded-md border border-line bg-surface-2 px-2.5 py-1.5 font-mono text-[12px] outline-none focus:border-[var(--accent)]/60"
+          className="selectable min-w-0 flex-1 rounded-md border border-line bg-surface-2 px-2.5 py-1.5 font-mono text-[12px] outline-none focus:border-accent-ink/60"
         />
         <button
           disabled={!url.trim() || test?.busy}
@@ -60,11 +60,11 @@ function TeamServerSection({ value, onChange }: { value: string; onChange: (url:
         </button>
       </div>
       {test?.text && (
-        <div className={cn('mt-1 text-[11px]', test.busy ? 'text-muted' : test.ok ? 'text-emerald-600' : 'text-amber-700 dark:text-amber-300')}>
+        <div className={cn('mt-1 text-[11px]', test.busy ? 'text-muted' : test.ok ? 'text-ok-ink' : 'text-warn-ink')}>
           {test.text}
         </div>
       )}
-      <button onClick={() => void window.harness.openExternal(RENDER_DEPLOY)} className="mt-2 text-[11.5px] text-[var(--accent)] hover:underline">
+      <button onClick={() => void window.harness.openExternal(RENDER_DEPLOY)} className="mt-2 text-[12px] text-accent-ink hover:underline">
         Deploy a free team server on Render (one click, sign in with GitHub) →
       </button>
     </div>
@@ -108,7 +108,7 @@ function ObserveSection() {
             Adds a small hook to <code>{status.settingsPath}</code> so watched sessions show “needs approval”, “done” and “ended” instantly. A backup of the
             file is saved first; removing takes out only Harness’s entries.
           </p>
-          {status.hookPort === null && <p className="mb-2 text-amber-600">Port 47821 is busy, so hooks can’t reach Harness right now.</p>}
+          {status.hookPort === null && <p className="mb-2 text-warn-ink">Port 47821 is busy, so hooks can’t reach Harness right now.</p>}
           {status.hooksInstalled ? (
             <button
               onClick={() => void run(window.harness.removeObserveHooks)}
@@ -122,12 +122,12 @@ function ObserveSection() {
                 if (window.confirm(`Add Harness status hooks to ${status.settingsPath}? A backup is saved next to it.`))
                   void run(window.harness.installObserveHooks)
               }}
-              className="rounded-md bg-[var(--accent)] px-2.5 py-1 text-[12px] font-medium text-white hover:brightness-110"
+              className="rounded-md bg-accent px-2.5 py-1 text-[12px] font-medium text-white hover:brightness-110"
             >
               Install hooks
             </button>
           )}
-          {error && <p className="mt-1.5 text-red-500">{error}</p>}
+          {error && <p className="mt-1.5 text-danger-ink">{error}</p>}
       </div>
     </Row>
   )

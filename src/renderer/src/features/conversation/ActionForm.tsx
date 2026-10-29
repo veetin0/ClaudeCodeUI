@@ -63,9 +63,9 @@ export function ActionForm({ action, cwd, onClose }: { action: QuickAction; cwd:
       }}
     >
       <div className="mb-1 flex items-center gap-2">
-        <Icon className="size-4 text-[var(--accent)]" />
+        <Icon className="size-4 text-accent-ink" />
         <span className="font-semibold">{action.label}</span>
-        <button onClick={onClose} className="ml-auto rounded p-1 text-muted hover:bg-black/5 dark:hover:bg-white/10" title="Close (Esc)">
+        <button onClick={onClose} className="ml-auto rounded p-1 text-muted hover:bg-hover" title="Close (Esc)">
           <X className="size-3.5" />
         </button>
       </div>
@@ -74,7 +74,7 @@ export function ActionForm({ action, cwd, onClose }: { action: QuickAction; cwd:
       <div className="grid grid-cols-[repeat(auto-fit,minmax(200px,1fr))] gap-3">
         {action.params.map((p, i) => (
           <label key={p.key} className={cn('block', p.multiline && 'col-span-full')}>
-            <div className="mb-1 flex items-baseline gap-2 text-[11.5px] font-medium">
+            <div className="mb-1 flex items-baseline gap-2 text-[12px] font-medium">
               {p.label}
               {p.hint && <span className="font-normal text-muted">{p.hint}</span>}
             </div>
@@ -86,7 +86,7 @@ export function ActionForm({ action, cwd, onClose }: { action: QuickAction; cwd:
                     onClick={() => setValues({ ...values, [p.key]: o })}
                     className={cn(
                       'rounded-md border px-2.5 py-1 text-[12px]',
-                      values[p.key] === o ? 'border-[var(--accent)]/60 bg-[var(--accent)]/10 font-medium' : 'border-line text-muted hover:text-fg',
+                      values[p.key] === o ? 'border-accent-ink/60 bg-accent/10 font-medium' : 'border-line text-muted hover:text-fg',
                     )}
                   >
                     {o || 'default'}
@@ -100,7 +100,7 @@ export function ActionForm({ action, cwd, onClose }: { action: QuickAction; cwd:
                 value={values[p.key]}
                 placeholder={p.example}
                 onChange={(e) => setValues({ ...values, [p.key]: e.target.value })}
-                className="selectable w-full resize-none rounded-md border border-line bg-surface-2 px-2.5 py-1.5 outline-none focus:border-[var(--accent)]/60"
+                className="selectable w-full resize-none rounded-md border border-line bg-surface-2 px-2.5 py-1.5 outline-none focus:border-accent-ink/60"
               />
             ) : (
               <input
@@ -108,7 +108,7 @@ export function ActionForm({ action, cwd, onClose }: { action: QuickAction; cwd:
                 value={values[p.key]}
                 placeholder={p.example}
                 onChange={(e) => setValues({ ...values, [p.key]: e.target.value })}
-                className="selectable w-full rounded-md border border-line bg-surface-2 px-2.5 py-1.5 outline-none focus:border-[var(--accent)]/60"
+                className="selectable w-full rounded-md border border-line bg-surface-2 px-2.5 py-1.5 outline-none focus:border-accent-ink/60"
               />
             )}
           </label>
@@ -116,12 +116,12 @@ export function ActionForm({ action, cwd, onClose }: { action: QuickAction; cwd:
       </div>
 
       <div className="mt-3 rounded-lg bg-surface-2 px-3 py-2">
-        <div className="mb-0.5 text-[10.5px] font-semibold uppercase tracking-wide text-muted">Will send</div>
+        <div className="mb-0.5 text-[11px] font-semibold uppercase tracking-wide text-muted">Will send</div>
         <div className="selectable whitespace-pre-wrap text-[12px] leading-relaxed">{prompt}</div>
       </div>
 
       <div className="mt-3 flex items-center gap-2">
-        <button onClick={run} className="flex items-center gap-1.5 rounded-md bg-[var(--accent)] px-3 py-1.5 text-[12px] font-medium text-white hover:brightness-110">
+        <button onClick={run} className="flex items-center gap-1.5 rounded-md bg-accent px-3 py-1.5 text-[12px] font-medium text-white hover:brightness-110">
           <Play className="size-3.5 fill-current" /> Run <kbd className="opacity-70">{shortcut('⌘⏎')}</kbd>
         </button>
         <button

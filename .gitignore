@@ -6,3 +6,7 @@ dist/
 *.tsbuildinfo
 test-results/
 __pycache__/
+
+# impeccable: review captures and the local roll record stay on this machine
+.impeccable/review/
+.impeccable/questions/

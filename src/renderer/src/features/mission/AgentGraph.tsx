@@ -14,9 +14,9 @@ import { layoutTree } from './layout'
 type AgentNodeData = { agent: AgentView }
 
 const STATE_RING: Record<string, string> = {
-  running: 'border-emerald-500/70 shadow-[0_0_0_4px_rgb(16_185_129/0.12)]',
-  waiting: 'border-amber-500/80 shadow-[0_0_0_4px_rgb(245_158_11/0.15)]',
-  failed: 'border-red-500/60',
+  running: 'border-ok/70 shadow-[0_0_0_4px_rgb(16_185_129/0.12)]',
+  waiting: 'border-warn/80 shadow-[0_0_0_4px_rgb(245_158_11/0.15)]',
+  failed: 'border-danger/60',
 }
 
 function AgentNode({ data }: NodeProps<Node<AgentNodeData>>) {
@@ -30,11 +30,11 @@ function AgentNode({ data }: NodeProps<Node<AgentNodeData>>) {
 
   return (
     <div className={cn('w-[260px] rounded-xl border bg-surface p-3 text-[12px] shadow-sm', STATE_RING[a.state] ?? 'border-line')}>
-      <Handle type="target" position={Position.Top} className="!size-1.5 !border-0 !bg-[var(--muted)]" />
+      <Handle type="target" position={Position.Top} className="!size-1.5 !border-0 !bg-muted" />
       <div className="flex items-center gap-2">
-        <Icon className={cn('size-4 shrink-0', a.id === null ? 'text-[var(--accent)]' : 'text-pink-600 dark:text-pink-400', a.state === 'running' && 'animate-soft-pulse')} />
+        <Icon className={cn('size-4 shrink-0', a.id === null ? 'text-accent-ink' : 'text-info-ink', a.state === 'running' && 'animate-soft-pulse')} />
         <span className="min-w-0 flex-1 truncate font-medium">{a.name}</span>
-        {duration > 0 && <span className="shrink-0 text-[10.5px] tabular-nums text-muted">{formatDuration(duration)}</span>}
+        {duration > 0 && <span className="shrink-0 text-[12px] num text-muted">{formatDuration(duration)}</span>}
       </div>
       <div className="mt-1.5 truncate text-muted">{a.visuals.status ?? activity.title}</div>
       {progress && (
@@ -42,20 +42,20 @@ function AgentNode({ data }: NodeProps<Node<AgentNodeData>>) {
           <ProgressBar p={progress} compact />
         </div>
       )}
-      <div className="mt-2 flex items-center gap-2 text-[10.5px] tabular-nums text-muted">
+      <div className="mt-2 flex items-center gap-2 text-[12px] num text-muted">
         <span className="flex gap-[2px]">
           {recent.map((t) => (
             <span
               key={t.id}
               className={cn('h-2 w-1.5 rounded-sm', t.status === 'running' && 'animate-soft-pulse')}
-              style={{ background: t.status === 'error' ? '#e34948' : KIND_COLOR[toolKind(t.name)] }}
+              style={{ background: t.status === 'error' ? 'var(--danger)' : KIND_COLOR[toolKind(t.name)] }}
             />
           ))}
         </span>
         <span className="ml-auto">{a.tools.length} calls</span>
         {a.totalTokens !== undefined && <span>{formatTokens(a.totalTokens)}</span>}
       </div>
-      <Handle type="source" position={Position.Bottom} className="!size-1.5 !border-0 !bg-[var(--muted)]" />
+      <Handle type="source" position={Position.Bottom} className="!size-1.5 !border-0 !bg-muted" />
     </div>
   )
 }

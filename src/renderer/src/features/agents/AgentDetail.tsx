@@ -44,23 +44,23 @@ export function AgentDetail({ session }: { session: SessionState }) {
         onClick={(e) => e.stopPropagation()}
       >
         <header className="flex items-center gap-3 border-b border-line px-5 py-3">
-          {agent.id === null ? <Sparkles className="size-5 text-[var(--accent)]" /> : <Bot className="size-5 text-pink-600 dark:text-pink-400" />}
+          {agent.id === null ? <Sparkles className="size-5 text-accent-ink" /> : <Bot className="size-5 text-info-ink" />}
           <div className="min-w-0 flex-1">
             <div className="truncate text-[14px] font-semibold">{agent.name}</div>
-            <div className="truncate text-[11.5px] text-muted">
+            <div className="truncate text-[12px] text-muted">
               {agent.role} · {agent.tools.length} tool calls
               {agent.totalTokens !== undefined && ` · ${formatTokens(agent.totalTokens)} tokens`}
               {duration > 0 && ` · ${formatDuration(duration)}`}
             </div>
           </div>
-          <button onClick={closeAgent} className="rounded p-1 text-muted hover:bg-black/5 dark:hover:bg-white/10" title="Close (Esc)">
+          <button onClick={closeAgent} className="rounded p-1 text-muted hover:bg-hover" title="Close (Esc)">
             <X className="size-4" />
           </button>
         </header>
 
         <div className="min-h-0 flex-1 space-y-6 overflow-y-auto px-5 py-4">
           <Section title="Now">
-            <div className="mb-2 text-[12.5px] font-medium">{agent.visuals.status ?? activity.title}</div>
+            <div className="mb-2 text-[13px] font-medium">{agent.visuals.status ?? activity.title}</div>
             <NowWidget agent={agent} activity={activity} lines={14} />
           </Section>
 
@@ -110,8 +110,8 @@ export function AgentDetail({ session }: { session: SessionState }) {
                       selectedTool === f.last.id && 'bg-surface-2',
                     )}
                   >
-                    <FileText className={cn('size-3.5 shrink-0', f.writes ? 'text-orange-500' : 'text-sky-500')} />
-                    <span className="truncate font-mono text-[11.5px]" title={f.path}>
+                    <FileText className={cn('size-3.5 shrink-0', f.writes ? 'text-forge' : 'text-info-ink')} />
+                    <span className="truncate font-mono text-[12px]" title={f.path}>
                       {relTo(f.path, session.cwd) ?? f.path}
                     </span>
                     <span className="ml-auto shrink-0 text-[11px] text-muted">
@@ -165,7 +165,7 @@ function Timeline({ tools, selected, onSelect }: { tools: ToolCall[]; selected: 
     <ol className="space-y-1">
       {tools.map((t) => (
         <li key={t.id} className="flex items-center gap-2">
-          <span className="w-12 shrink-0 text-right text-[10.5px] tabular-nums text-muted">+{formatDuration(t.startedAt - t0)}</span>
+          <span className="w-12 shrink-0 text-right text-[12px] num text-muted">+{formatDuration(t.startedAt - t0)}</span>
           <ToolChip tool={t} selected={selected === t.id} onClick={() => onSelect(selected === t.id ? null : t.id)} />
         </li>
       ))}

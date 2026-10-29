@@ -89,9 +89,9 @@ export function HandoffDialog() {
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-[2px]" onClick={close}>
       <div className="flex max-h-[90vh] w-[620px] flex-col rounded-2xl border border-line bg-surface p-5 shadow-2xl" onClick={(e) => e.stopPropagation()}>
         <div className="mb-1 flex items-center gap-2">
-          <Handshake className="size-4 text-[var(--accent)]" />
+          <Handshake className="size-4 text-accent-ink" />
           <h2 className="text-[15px] font-semibold">Hand off to the team</h2>
-          <button onClick={close} className="ml-auto rounded p-1 text-muted hover:bg-black/5 dark:hover:bg-white/10">
+          <button onClick={close} className="ml-auto rounded p-1 text-muted hover:bg-hover">
             <X className="size-4" />
           </button>
         </div>
@@ -100,22 +100,22 @@ export function HandoffDialog() {
           this note and your files, and continue in their own Claude session.
         </p>
         {!inTeam ? (
-          <div className="rounded-lg bg-amber-500/[0.08] px-3 py-2 text-[12px]">
+          <div className="rounded-lg bg-warn/[0.08] px-3 py-2 text-[12px]">
             Handoffs go through the team board. Create or join the team first (Hackathon › Schedule → Team).
-            <button onClick={() => (close(), useApp.getState().openHackathon('schedule'))} className="ml-2 font-medium text-[var(--accent)] hover:underline">
+            <button onClick={() => (close(), useApp.getState().openHackathon('schedule'))} className="ml-2 font-medium text-accent-ink hover:underline">
               Open the team
             </button>
           </div>
         ) : done ? (
-          <div className="rounded-lg bg-emerald-500/[0.08] px-3 py-2 text-[12px]">{done}</div>
+          <div className="rounded-lg bg-ok/[0.08] px-3 py-2 text-[12px]">{done}</div>
         ) : (
           <>
-            <label className="mb-1 text-[11.5px] font-medium">Handoff note (edit anything)</label>
+            <label className="mb-1 text-[12px] font-medium">Handoff note (edit anything)</label>
             <textarea
               value={note}
               onChange={(e) => setNote(e.target.value)}
               rows={14}
-              className="selectable min-h-0 flex-1 resize-none rounded-lg border border-line bg-surface-2 p-2.5 font-mono text-[11px] leading-relaxed outline-none focus:border-[var(--accent)]/60"
+              className="selectable min-h-0 flex-1 resize-none rounded-lg border border-line bg-surface-2 p-2.5 font-mono text-[11px] leading-relaxed outline-none focus:border-accent-ink/60"
               placeholder="Loading…"
             />
             <div className="mt-3 rounded-lg border border-line p-2.5 text-[12px]">
@@ -132,7 +132,7 @@ export function HandoffDialog() {
                       </span>
                     </span>
                   </label>
-                  {plan.problem && <div className="mt-1.5 text-[11px] text-amber-700 dark:text-amber-300">{plan.problem}</div>}
+                  {plan.problem && <div className="mt-1.5 text-[11px] text-warn-ink">{plan.problem}</div>}
                 </>
               ) : (
                 <span className="text-muted">Checking the folder…</span>
@@ -140,7 +140,7 @@ export function HandoffDialog() {
             </div>
           </>
         )}
-        {error && <div className="selectable mt-2 text-[12px] text-red-500">{error}</div>}
+        {error && <div className="selectable mt-2 text-[12px] text-danger-ink">{error}</div>}
         <div className="mt-4 flex justify-end gap-2">
           <button onClick={close} className="rounded-md border border-line px-3 py-1.5 text-[12px] hover:bg-surface-2">
             {done ? 'Close' : 'Cancel'}
@@ -149,7 +149,7 @@ export function HandoffDialog() {
             <button
               disabled={busy || !plan || !note.trim()}
               onClick={() => void submit()}
-              className="rounded-md bg-[var(--accent)] px-3 py-1.5 text-[12px] font-medium text-white hover:brightness-110 disabled:opacity-40"
+              className="rounded-md bg-accent px-3 py-1.5 text-[12px] font-medium text-white hover:brightness-110 disabled:opacity-40"
             >
               {busy ? 'Handing off…' : 'Hand off'}
             </button>

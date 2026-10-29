@@ -17,7 +17,7 @@ export function CheckpointBar({ session }: { session: SessionState }) {
   return (
     <div className="mx-auto mb-2 flex w-full max-w-3xl items-center gap-2 px-6 text-[12px]">
       <span className="text-muted">HackForge is waiting at a checkpoint.</span>
-      <button onClick={() => void send('go')} className="ml-auto flex items-center gap-1.5 rounded-md bg-[var(--accent)] px-3 py-1 font-medium text-white hover:brightness-110">
+      <button onClick={() => void send('go')} className="ml-auto flex items-center gap-1.5 rounded-md bg-accent px-3 py-1 font-medium text-white hover:brightness-110">
         <Check className="size-3.5" /> Go
       </button>
       <button

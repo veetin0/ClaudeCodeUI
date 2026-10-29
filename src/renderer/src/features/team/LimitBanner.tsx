@@ -28,20 +28,20 @@ export function LimitBanner({ session }: { session: SessionState }) {
   const on = queue?.enabled ?? true
   return (
     <div className="mx-auto mb-2 w-full max-w-3xl px-6">
-      <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 rounded-xl border border-red-500/30 bg-red-500/[0.06] px-3 py-2 text-[12px]">
-        <Hourglass className="size-3.5 text-red-500" />
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 rounded-xl border border-danger/30 bg-danger/[0.06] px-3 py-2 text-[12px]">
+        <Hourglass className="size-3.5 text-danger-ink" />
         <span className="font-medium">Usage limit reached{resetsAt ? ` until ${clock(resetsAt)}` : ''}.</span>
         <span className="text-muted">{on ? 'Messages you send now wait and run at the reset.' : 'Run-at-reset is off: messages are sent now and will fail.'}</span>
         <div className="ml-auto flex items-center gap-1.5">
           <button
             onClick={() => void setEnabled(!on)}
             title="Run queued messages automatically when the limit resets"
-            className={cn('flex items-center gap-1 rounded-md border px-2 py-0.5 text-[11.5px]', on ? 'border-emerald-500/40 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300' : 'border-line text-muted')}
+            className={cn('flex items-center gap-1 rounded-md border px-2 py-0.5 text-[12px]', on ? 'border-ok/40 bg-ok/10 text-ok-ink' : 'border-line text-muted')}
           >
             <AlarmClock className="size-3" /> Run at reset: {on ? 'on' : 'off'}
           </button>
           {inTeam && (
-            <button onClick={() => useApp.getState().openHandoff(session.id)} className="flex items-center gap-1 rounded-md bg-[var(--accent)] px-2 py-0.5 text-[11.5px] font-medium text-white hover:brightness-110">
+            <button onClick={() => useApp.getState().openHandoff(session.id)} className="flex items-center gap-1 rounded-md bg-accent px-2 py-0.5 text-[12px] font-medium text-white hover:brightness-110">
               <Handshake className="size-3" /> Hand off to the team
             </button>
           )}
@@ -61,11 +61,11 @@ export function QueuedMessages({ session }: { session: SessionState }) {
     <div className="mx-auto mb-2 w-full max-w-3xl px-6">
       <div className="rounded-xl border border-line bg-surface-2/60 px-3 py-2 text-[12px]">
         <div className="mb-1 flex items-center gap-2">
-          <AlarmClock className="size-3.5 text-[var(--accent)]" />
+          <AlarmClock className="size-3.5 text-accent-ink" />
           <span className="font-medium">
             {mine.length} message{mine.length === 1 ? '' : 's'} {queue.enabled ? `run${mine.length === 1 ? 's' : ''} ${queue.runsAt ? `at ${clock(queue.runsAt)}` : 'when the limit resets'}` : 'waiting (run-at-reset is off)'}
           </span>
-          <label className="ml-auto flex items-center gap-1.5 text-[11.5px] text-muted">
+          <label className="ml-auto flex items-center gap-1.5 text-[12px] text-muted">
             <input type="checkbox" checked={queue.enabled} onChange={(e) => void setEnabled(e.target.checked)} /> Run at reset
           </label>
         </div>
@@ -74,7 +74,7 @@ export function QueuedMessages({ session }: { session: SessionState }) {
             <span className="selectable min-w-0 flex-1 truncate text-muted" title={i.text}>
               {i.text}
             </span>
-            <button onClick={() => void remove(i.id)} title="Remove from the queue" className="rounded p-0.5 text-muted hover:bg-black/5 hover:text-fg dark:hover:bg-white/10">
+            <button onClick={() => void remove(i.id)} title="Remove from the queue" className="rounded p-0.5 text-muted hover:bg-hover hover:text-fg">
               <X className="size-3" />
             </button>
           </div>

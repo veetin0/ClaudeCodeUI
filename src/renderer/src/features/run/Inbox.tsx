@@ -22,10 +22,10 @@ export function Inbox({ empty }: { empty?: string }) {
   if (!count && !empty) return null
   return (
     <Card
-      icon={<InboxIcon className="size-4 text-[var(--accent)]" />}
+      icon={<InboxIcon className="size-4 text-accent-ink" />}
       title="Inbox"
-      aside={count > 0 && <span className="rounded-full bg-[var(--accent)] px-2 text-[11px] font-semibold text-white">{count}</span>}
-      className={cn(count > 0 && 'border-[var(--accent)]/40')}
+      aside={count > 0 && <span className="rounded-sm bg-accent px-2 text-[11px] font-semibold text-white">{count}</span>}
+      className={cn(count > 0 && 'border-accent-ink/40')}
     >
       {!count && <div className="text-[12px] text-muted">{empty}</div>}
       <div className="space-y-3">
@@ -46,9 +46,9 @@ const answer = (id: string, a: Parameters<typeof window.harness.runAnswer>[1]) =
 function Item({ item }: { item: InboxItem }) {
   const Icon = item.kind === 'approval' ? ShieldQuestion : item.kind === 'question' ? HelpCircle : item.kind === 'decision' ? Sparkles : MessageSquare
   return (
-    <div className="rounded-lg border border-line bg-surface-2/60 p-3 text-[12.5px]">
+    <div className="rounded-lg border border-line bg-surface-2/60 p-3 text-[13px]">
       <div className="mb-1 flex items-start gap-2">
-        <Icon className="mt-0.5 size-4 shrink-0 text-[var(--accent)]" />
+        <Icon className="mt-0.5 size-4 shrink-0 text-accent-ink" />
         <div className="min-w-0 flex-1">
           <div className="font-medium">{item.title}</div>
           <div className="text-[11px] text-muted">
@@ -68,7 +68,7 @@ function Approval({ item }: { item: InboxItem }) {
   return (
     <>
       {item.detail && (
-        <code className="selectable mt-1 block whitespace-pre-wrap break-all rounded bg-surface px-2 py-1 font-mono text-[11.5px]">{item.detail}</code>
+        <code className="selectable mt-1 block whitespace-pre-wrap break-all rounded bg-surface px-2 py-1 font-mono text-[12px]">{item.detail}</code>
       )}
       <div className="mt-2 flex gap-1.5">
         <Btn primary onClick={() => void answer(item.id, { allow: true })}>
@@ -103,7 +103,7 @@ function Questions({ item }: { item: InboxItem }) {
                 onClick={() => toggle(q.question, o, q.multiSelect)}
                 className={cn(
                   'rounded-md border px-2.5 py-1 text-[12px]',
-                  picked[q.question]?.includes(o) ? 'border-[var(--accent)] bg-[var(--accent)]/10 font-medium' : 'border-line hover:bg-surface',
+                  picked[q.question]?.includes(o) ? 'border-accent-ink bg-accent/10 font-medium' : 'border-line hover:bg-surface',
                 )}
               >
                 {o}
@@ -114,7 +114,7 @@ function Questions({ item }: { item: InboxItem }) {
             value={other[q.question] ?? ''}
             onChange={(e) => setOther((p) => ({ ...p, [q.question]: e.target.value }))}
             placeholder="Or type an answer"
-            className="selectable mt-1.5 w-full rounded-md border border-line bg-surface px-2 py-1 text-[12px] outline-none focus:border-[var(--accent)]"
+            className="selectable mt-1.5 w-full rounded-md border border-line bg-surface px-2 py-1 text-[12px] outline-none focus:border-accent-ink"
           />
         </div>
       ))}
@@ -131,8 +131,8 @@ function Decision({ item }: { item: InboxItem }) {
     <div className="mt-1.5 space-y-2">
       {item.detail && <div className="selectable whitespace-pre-wrap text-[12px] text-muted">{item.detail}</div>}
       {item.suggestion && (
-        <div className="rounded-md border border-[var(--accent)]/30 bg-[var(--accent)]/[0.06] px-2.5 py-1.5">
-          <span className="text-[11px] font-semibold uppercase tracking-wide text-[var(--accent)]">Suggested</span>
+        <div className="rounded-md border border-accent-ink/30 bg-accent/[0.06] px-2.5 py-1.5">
+          <span className="text-[11px] font-semibold uppercase tracking-wide text-accent-ink">Suggested</span>
           <div className="selectable">{item.suggestion}</div>
         </div>
       )}
@@ -155,7 +155,7 @@ function Decision({ item }: { item: InboxItem }) {
           onChange={(e) => setText(e.target.value)}
           onKeyDown={(e) => e.key === 'Enter' && text.trim() && void answer(item.id, { text: text.trim() })}
           placeholder="Or write your own answer"
-          className="selectable min-w-0 flex-1 rounded-md border border-line bg-surface px-2 py-1 text-[12px] outline-none focus:border-[var(--accent)]"
+          className="selectable min-w-0 flex-1 rounded-md border border-line bg-surface px-2 py-1 text-[12px] outline-none focus:border-accent-ink"
         />
         <Btn disabled={!text.trim()} onClick={() => void answer(item.id, { text: text.trim() })}>
           Send
@@ -179,7 +179,7 @@ function Reply({ item }: { item: InboxItem }) {
         onChange={(e) => setText(e.target.value)}
         placeholder="Reply to your Claude"
         rows={2}
-        className="selectable w-full resize-y rounded-md border border-line bg-surface px-2 py-1.5 text-[12px] outline-none focus:border-[var(--accent)]"
+        className="selectable w-full resize-y rounded-md border border-line bg-surface px-2 py-1.5 text-[12px] outline-none focus:border-accent-ink"
       />
       <Btn primary disabled={!text.trim()} onClick={() => void answer(item.id, { text: text.trim() })}>
         Send
@@ -195,12 +195,12 @@ function CrewAsk({ a }: { a: CrewAskView }) {
     void window.harness.crewAnswer(a.id, allow, always)
   }
   return (
-    <div className="rounded-lg border border-amber-500/40 bg-amber-500/[0.06] p-3 text-[12.5px]">
+    <div className="rounded-lg border border-warn/40 bg-warn/[0.06] p-3 text-[13px]">
       <div className="flex items-start gap-2">
-        <ShieldQuestion className="mt-0.5 size-4 shrink-0 text-amber-600" />
+        <ShieldQuestion className="mt-0.5 size-4 shrink-0 text-warn-ink" />
         <div className="min-w-0 flex-1">
           <div className="font-medium">{a.fromName}’s Claude wants to run</div>
-          <code className="selectable mt-1 block break-all rounded bg-surface px-2 py-1 font-mono text-[11.5px]">{a.summary}</code>
+          <code className="selectable mt-1 block break-all rounded bg-surface px-2 py-1 font-mono text-[12px]">{a.summary}</code>
           {a.missionTitle && <div className="mt-1 text-[11px] text-muted">{a.missionTitle}</div>}
         </div>
       </div>
@@ -222,7 +222,7 @@ function Btn({ primary, className, ...rest }: React.ButtonHTMLAttributes<HTMLBut
       {...rest}
       className={cn(
         'rounded-md px-2.5 py-1 text-[12px] disabled:opacity-40',
-        primary ? 'bg-[var(--accent)] font-medium text-white hover:brightness-110' : 'border border-line hover:bg-surface',
+        primary ? 'bg-accent font-medium text-white hover:brightness-110' : 'border border-line hover:bg-surface',
         className,
       )}
     />

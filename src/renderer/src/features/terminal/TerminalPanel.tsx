@@ -31,11 +31,11 @@ export function TerminalPanel() {
             key={t.id}
             onClick={() => selectTerminal(t.id)}
             className={cn(
-              'group flex cursor-default items-center gap-1.5 rounded-md px-2 py-0.5 text-[11.5px]',
+              'group flex cursor-default items-center gap-1.5 rounded-md px-2 py-0.5 text-[12px]',
               t.id === activeTerminal ? 'bg-surface-2 font-medium' : 'text-muted hover:text-fg',
             )}
           >
-            {t.title === 'claude' ? <span className="text-[var(--accent)]">✳︎</span> : <SquareTerminal className="size-3" />}
+            {t.title === 'claude' ? <span className="text-accent-ink">✳︎</span> : <SquareTerminal className="size-3" />}
             {t.title}
             {t.exitCode !== undefined && <span className="text-muted">(exited)</span>}
             <button
@@ -44,7 +44,7 @@ export function TerminalPanel() {
                 disposeTerminal(t.id)
                 closeTerminal(t.id)
               }}
-              className="invisible rounded p-0.5 hover:bg-black/10 group-hover:visible dark:hover:bg-white/10"
+              className="invisible rounded p-0.5 hover:bg-active group-hover:visible"
               title="Close terminal"
             >
               <X className="size-3" />
@@ -56,10 +56,10 @@ export function TerminalPanel() {
         </button>
         <button
           onClick={() => void openTerminal('claude')}
-          className="flex items-center gap-1 rounded-md px-2 py-0.5 text-[11.5px] text-muted hover:bg-surface-2 hover:text-fg"
+          className="flex items-center gap-1 rounded-md px-2 py-0.5 text-[12px] text-muted hover:bg-surface-2 hover:text-fg"
           title="Run the interactive Claude Code CLI here; it shows up as a watched session"
         >
-          <span className="text-[var(--accent)]">✳︎</span> Claude
+          <span className="text-accent-ink">✳︎</span> Claude
         </button>
         <button onClick={toggleTerminalPanel} className="ml-auto rounded p-1 text-muted hover:bg-surface-2 hover:text-fg" title={shortcut('Hide (⌘J)')}>
           <X className="size-3.5" />

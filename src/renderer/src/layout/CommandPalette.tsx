@@ -144,7 +144,7 @@ export function CommandPalette() {
                 }
               >
                 {a.label}
-                <span className="ml-2 truncate text-[11.5px] text-muted">{a.description}</span>
+                <span className="ml-2 truncate text-[12px] text-muted">{a.description}</span>
               </Row>
             ))}
           </Command.Group>
@@ -155,7 +155,7 @@ export function CommandPalette() {
             {order.map((id) => (
               <Row key={id} value={`open ${sessions[id].title} ${sessions[id].cwd}`} icon={MessageSquare} onSelect={() => run(() => runCommand({ id: 'select-session', sessionId: id }))}>
                 {sessions[id].title || 'New session'}
-                <span className="ml-2 text-[11.5px] text-muted">{basename(sessions[id].cwd)}</span>
+                <span className="ml-2 text-[12px] text-muted">{basename(sessions[id].cwd)}</span>
               </Row>
             ))}
           </Command.Group>
@@ -166,7 +166,7 @@ export function CommandPalette() {
             {saved.map((h) => (
               <Row key={h.id} value={`history ${h.title} ${h.cwd}`} icon={History} onSelect={() => run(() => runCommand({ id: 'select-session', sessionId: h.id }))}>
                 {h.title}
-                <span className="ml-2 text-[11.5px] text-muted">
+                <span className="ml-2 text-[12px] text-muted">
                   {basename(h.cwd)} · {relativeTime(h.updatedAt)}
                 </span>
               </Row>
@@ -179,7 +179,7 @@ export function CommandPalette() {
             {projects.map((dir) => (
               <Row key={dir} value={`project ${dir}`} icon={FolderOpen} onSelect={() => run(() => void startSession(dir))}>
                 {basename(dir)}
-                <span className="ml-2 truncate text-[11.5px] text-muted">{dir}</span>
+                <span className="ml-2 truncate text-[12px] text-muted">{dir}</span>
               </Row>
             ))}
           </Command.Group>
@@ -194,7 +194,7 @@ function Row({ value, icon: Icon, keys, onSelect, children }: { value: string; i
     <Command.Item
       value={value}
       onSelect={onSelect}
-      className="flex cursor-default items-center gap-2.5 rounded-lg px-2.5 py-2 text-[13px] data-[selected=true]:bg-[var(--accent)]/10"
+      className="flex cursor-default items-center gap-2.5 rounded-lg px-2.5 py-2 text-[13px] data-[selected=true]:bg-accent/10"
     >
       <Icon className="size-4 shrink-0 text-muted" />
       <span className="flex min-w-0 flex-1 items-baseline truncate">{children}</span>

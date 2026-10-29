@@ -35,7 +35,7 @@ export function AdvancedTab() {
   return (
     <div className="space-y-4">
       <Row
-        icon={<Leaf className="size-3.5 text-emerald-500" />}
+        icon={<Leaf className="size-3.5 text-ok-ink" />}
         title="Usage saver"
         description="Spends your Claude plan where it buys quality and cuts what buys nothing. The mode chip in the prompt box shows whether each turn is saving, and the chat notes every switch."
         on={saver.enabled}
@@ -69,7 +69,7 @@ export function AdvancedTab() {
             checked={settings.resetQueue.keepAwake}
             onChange={(e) => void updateSettings({ resetQueue: { ...settings.resetQueue, keepAwake: e.target.checked } })}
           />
-          <span className="text-[11.5px]">
+          <span className="text-[12px]">
             Keep this computer awake while messages wait <span className="text-muted">(closing a laptop’s lid still puts it to sleep; it catches up on wake)</span>
           </span>
         </label>

@@ -19,11 +19,11 @@ export function TopBar() {
   return (
     <header className={cn('flex h-12 shrink-0 items-center gap-3 border-b border-line px-4 text-[12px]', isMac && 'drag', isMac && focusMode && 'pl-20')}>
       {focusMode && (
-        <button onClick={() => runCommand({ id: 'focus-mode' })} className="no-drag rounded p-1 text-muted hover:bg-black/5 dark:hover:bg-white/10" title={shortcut('Show the sidebar (⌘\\)')}>
+        <button onClick={() => runCommand({ id: 'focus-mode' })} className="no-drag rounded p-1 text-muted hover:bg-hover" title={shortcut('Show the sidebar (⌘\\)')}>
           <PanelLeft className="size-4" />
         </button>
       )}
-      {place === 'hackathon' ? <HackathonBar /> : place === 'session' && session ? <SessionBar session={session} /> : <div className="font-semibold">Home</div>}
+      {place === 'hackathon' ? <HackathonBar /> : place === 'session' && session ? <SessionBar session={session} /> : <div className="text-[13px] font-semibold">Home</div>}
     </header>
   )
 }
@@ -42,9 +42,9 @@ function SessionBar({ session }: { session: SessionState }) {
           <StatusDot status={session.status} />
           <span className="truncate">{session.title || 'New session'}</span>
         </div>
-        <div className="truncate text-[11px] text-muted" title={session.cwd}>
+        <div className="truncate text-[12px] text-muted" title={session.cwd}>
           {basename(session.cwd)} · {session.live ? STATUS_LABEL[session.status] : 'Saved'}
-          {elapsed > 0 && <span className="tabular-nums"> · {formatDuration(elapsed)}</span>}
+          {elapsed > 0 && <span className="num text-[12px] text-fg/80"> · {formatDuration(elapsed)}</span>}
         </div>
       </div>
       <Segmented
@@ -80,10 +80,10 @@ function PanelChip({ session }: { session: SessionState }) {
       onClick={() => togglePanel()}
       title={shortcut('Side panel: tasks, changed files, agents (⌘I)')}
       aria-pressed={open}
-      className={cn('no-drag flex items-center gap-1.5 rounded-md px-2 py-1 hover:bg-black/5 dark:hover:bg-white/10', open ? 'bg-black/5 text-fg dark:bg-white/10' : 'text-muted')}
+      className={cn('no-drag flex h-7 items-center gap-1.5 rounded-md px-2 hover:bg-hover', open ? 'bg-active text-fg' : 'text-muted')}
     >
       <PanelRight className="size-4" />
-      {parts.length > 0 && <span className="tabular-nums">{parts.join(' · ')}</span>}
+      {parts.length > 0 && <span className="num text-[13px]">{parts.join(' · ')}</span>}
     </button>
   )
 }

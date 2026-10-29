@@ -60,7 +60,7 @@ export function MessageList({ session }: { session: SessionState }) {
         )}
         {working && !session.streamingText && !session.streamingThinking && (
           <div className="flex items-center gap-2 text-[12px] text-muted">
-            <span className="size-1.5 animate-soft-pulse rounded-full bg-[var(--accent)]" />
+            <span className="size-1.5 animate-soft-pulse rounded-[2px] bg-accent" />
             {session.status === 'compacting' ? 'Compacting conversation…' : 'Working…'}
           </div>
         )}
@@ -76,8 +76,8 @@ function BlockView({ block, session }: { block: Block; session: SessionState }) 
         // A crew report, a teammate's Claude or a team run step, delivered by Harness: not something you typed.
         const Icon = block.via === 'run' ? Route : Bot
         return (
-          <div className="selectable flex gap-2 rounded-xl border border-[var(--accent)]/25 bg-[var(--accent)]/[0.05] px-3 py-2 text-[12.5px] leading-relaxed">
-            <Icon className="mt-0.5 size-4 shrink-0 text-[var(--accent)]" />
+          <div className="selectable flex gap-2 rounded-xl border border-accent-ink/25 bg-accent/[0.05] px-3 py-2 text-[13px] leading-relaxed">
+            <Icon className="mt-0.5 size-4 shrink-0 text-accent-ink" />
             <div className="min-w-0 whitespace-pre-wrap">{block.text.replace(/^\[(crew|run)\] ?/gm, '')}</div>
           </div>
         )
@@ -102,7 +102,7 @@ function BlockView({ block, session }: { block: Block; session: SessionState }) 
       return (
         <div className="flex items-center gap-3 text-[11px] text-muted">
           <div className="h-px flex-1 bg-line" />
-          <span className="tabular-nums">
+          <span className="num">
             {block.isError ? 'Stopped' : 'Done'} · {formatDuration(block.durationMs)}
             {block.costUsd > 0 && ` · ${formatCost(block.costUsd)}`}
           </span>
@@ -111,7 +111,7 @@ function BlockView({ block, session }: { block: Block; session: SessionState }) 
       )
     case 'compact':
       return (
-        <div className="flex items-center gap-2 rounded-lg border border-sky-500/20 bg-sky-500/5 px-3 py-2 text-[12px] text-sky-700 dark:text-sky-300">
+        <div className="flex items-center gap-2 rounded-lg border border-info/20 bg-info/5 px-3 py-2 text-[12px] text-info-ink">
           <Archive className="size-3.5" />
           Conversation compacted ({block.trigger}) — {block.preTokens.toLocaleString()} tokens summarized
         </div>
@@ -122,8 +122,8 @@ function BlockView({ block, session }: { block: Block; session: SessionState }) 
         <div
           data-saver-note={block.tone}
           className={cn(
-            'flex items-start gap-2 px-1 text-[11.5px] leading-relaxed',
-            block.tone === 'saving' ? 'text-emerald-700 dark:text-emerald-300' : block.tone === 'power' ? 'text-amber-700 dark:text-amber-300' : 'text-muted',
+            'flex items-start gap-2 px-1 text-[12px] leading-relaxed',
+            block.tone === 'saving' ? 'text-ok-ink' : block.tone === 'power' ? 'text-warn-ink' : 'text-muted',
           )}
         >
           <Icon className="mt-[3px] size-3 shrink-0" />
@@ -140,7 +140,7 @@ function BlockView({ block, session }: { block: Block; session: SessionState }) 
           data-notice={block.tone}
           className={cn(
             'flex items-start gap-2 rounded-lg px-3 py-2 text-[12px] leading-relaxed',
-            block.tone === 'warn' ? 'border border-amber-500/30 bg-amber-500/[0.06] text-amber-800 dark:text-amber-200' : 'text-muted',
+            block.tone === 'warn' ? 'border border-warn/30 bg-warn/[0.06] text-warn-ink' : 'text-muted',
           )}
         >
           <Icon className="mt-[3px] size-3.5 shrink-0" />
@@ -150,7 +150,7 @@ function BlockView({ block, session }: { block: Block; session: SessionState }) 
     }
     case 'error':
       return (
-        <div className="selectable flex gap-2 rounded-lg border border-red-500/30 bg-red-500/5 px-3 py-2.5 text-[12px] text-red-700 dark:text-red-300">
+        <div className="selectable flex gap-2 rounded-lg border border-danger/30 bg-danger/5 px-3 py-2.5 text-[12px] text-danger-ink">
           <AlertTriangle className="mt-0.5 size-3.5 shrink-0" />
           <pre className="whitespace-pre-wrap font-sans">{block.message}</pre>
         </div>

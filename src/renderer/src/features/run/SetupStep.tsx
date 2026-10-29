@@ -132,7 +132,7 @@ function Inputs() {
         <h1 className="text-xl font-semibold">{project.name}</h1>
         <button
           onClick={() => void window.harness.revealFile(project.dir)}
-          className="selectable truncate font-mono text-[11.5px] text-muted hover:text-fg"
+          className="selectable truncate font-mono text-[12px] text-muted hover:text-fg"
           title="Show in folder"
         >
           {project.dir}
@@ -141,22 +141,22 @@ function Inputs() {
       <p className="mt-1.5 text-muted">Paste the challenge and drop in what the organisers gave you. Claude reads all of it when it plans.</p>
 
       <div className="mt-6 grid gap-4 lg:grid-cols-[3fr_2fr]">
-        <Card icon={<FileText className="size-4 text-[var(--accent)]" />} title="The challenge" className="flex flex-col">
+        <Card icon={<FileText className="size-4 text-accent-ink" />} title="The challenge" className="flex flex-col">
           <ChallengeText initial={setup?.challenge ?? ''} saveRef={saveChallenge} />
           <Drop kind="challenge" files={setup?.files.challenge ?? []} hint="The brief, rules, judging criteria: PDFs, docs, screenshots" />
         </Card>
         <div className="grid content-start gap-4">
-          <Card icon={<Paperclip className="size-4 text-[var(--accent)]" />} title="Files">
+          <Card icon={<Paperclip className="size-4 text-accent-ink" />} title="Files">
             <p className="mb-2 text-[12px] text-muted">Data, APIs docs, brand kits, assets. Claude reads them and so do teammates’ Claudes.</p>
             <Drop kind="files" files={setup?.files.files ?? []} hint="Drop files or folders here" />
           </Card>
-          <Card icon={<Lock className="size-4 text-amber-600" />} title="Private files">
+          <Card icon={<Lock className="size-4 text-warn-ink" />} title="Private files">
             <p className="mb-2 text-[12px] text-muted">
               For data the rules say must not go to an AI. Claude can’t read or show them, only run scripts on them that print totals. They stay on this laptop.
             </p>
             <Drop kind="private" files={setup?.files.private ?? []} hint="Drop private files here" />
             {(setup?.files.private.length ?? 0) > 0 && (
-              <div className="mt-2 flex items-center gap-1.5 text-[11.5px] text-emerald-700 dark:text-emerald-400">
+              <div className="mt-2 flex items-center gap-1.5 text-[12px] text-ok-ink">
                 <ShieldCheck className="size-3.5" /> Guard on: blocked for Claude, kept out of git
               </div>
             )}
@@ -165,7 +165,7 @@ function Inputs() {
             {project.github ? (
               <button
                 onClick={() => void window.harness.openExternal(project.github!)}
-                className="selectable truncate text-left font-mono text-[12px] text-[var(--accent)] hover:underline"
+                className="selectable truncate text-left font-mono text-[12px] text-accent-ink hover:underline"
               >
                 {project.github}
               </button>
@@ -177,7 +177,7 @@ function Inputs() {
                 </Secondary>
               </>
             )}
-            {project.githubProblem && <p className="selectable mt-2 text-[12px] text-amber-700 dark:text-amber-300">{project.githubProblem}</p>}
+            {project.githubProblem && <p className="selectable mt-2 text-[12px] text-warn-ink">{project.githubProblem}</p>}
           </Card>
         </div>
       </div>
@@ -224,7 +224,7 @@ function ChallengeText({ initial, saveRef }: { initial: string; saveRef: React.M
       }}
       onBlur={() => void save()}
       placeholder="Paste the challenge here: what to build, the rules, how it’s judged, the deadline, links…"
-      className="selectable mb-3 min-h-64 w-full flex-1 resize-y rounded-lg border border-line bg-surface-2 p-3 font-mono text-[12px] leading-relaxed outline-none focus:border-[var(--accent)]"
+      className="selectable mb-3 min-h-64 w-full flex-1 resize-y rounded-lg border border-line bg-surface-2 p-3 font-mono text-[12px] leading-relaxed outline-none focus:border-accent-ink"
     />
   )
 }
@@ -253,14 +253,14 @@ function Drop({ kind, files, hint }: { kind: FileKind; files: string[]; hint: st
       onDrop={onDrop}
       className={cn(
         'rounded-lg border border-dashed p-3 text-[12px] transition-colors',
-        over ? 'border-[var(--accent)] bg-[var(--accent)]/[0.06]' : 'border-line',
-        kind === 'private' && !over && 'border-amber-500/40',
+        over ? 'border-accent-ink bg-accent/[0.06]' : 'border-line',
+        kind === 'private' && !over && 'border-warn/40',
       )}
     >
       {files.length > 0 && (
         <ul className="mb-2 space-y-0.5">
           {files.map((f) => (
-            <li key={f} className="selectable truncate font-mono text-[11.5px]">
+            <li key={f} className="selectable truncate font-mono text-[12px]">
               {f}
             </li>
           ))}
@@ -270,7 +270,7 @@ function Drop({ kind, files, hint }: { kind: FileKind; files: string[]; hint: st
         <span className="min-w-0 flex-1">{hint}</span>
         <button
           onClick={async () => add(await window.harness.runPickFiles())}
-          className="flex shrink-0 items-center gap-1 rounded-md border border-line px-2 py-0.5 text-[11.5px] hover:bg-surface-2 hover:text-fg"
+          className="flex shrink-0 items-center gap-1 rounded-md border border-line px-2 py-0.5 text-[12px] hover:bg-surface-2 hover:text-fg"
         >
           <Plus className="size-3" /> Add…
         </button>
@@ -299,4 +299,4 @@ function BackToTeam() {
   )
 }
 
-const inputCls = 'selectable w-full rounded-lg border border-line bg-surface-2 px-3 py-2 outline-none focus:border-[var(--accent)]'
+const inputCls = 'selectable w-full rounded-lg border border-line bg-surface-2 px-3 py-2 outline-none focus:border-accent-ink'

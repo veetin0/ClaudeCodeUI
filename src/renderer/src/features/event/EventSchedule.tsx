@@ -29,19 +29,19 @@ export function EventSchedule({ state }: { state: EventState }) {
         <header className="flex flex-wrap items-start gap-x-6 gap-y-2">
           <div className="min-w-0">
             <div className="flex items-center gap-2">
-              <CalendarClock className="size-5 text-[var(--accent)]" />
+              <CalendarClock className="size-5 text-accent-ink" />
               <h1 className="text-[18px] font-semibold">{config.name}</h1>
-              {config.theme && <span className="rounded-full bg-[var(--accent)]/10 px-2 py-0.5 text-[11px] font-medium text-[var(--accent)]">{config.theme}</span>}
+              {config.theme && <span className="rounded-sm bg-accent/10 px-2 py-0.5 text-[11px] font-medium text-accent-ink">{config.theme}</span>}
             </div>
             {config.tagline && <div className="mt-0.5 text-[13px] italic text-muted">“{config.tagline}”</div>}
             {config.location && (
-              <div className="mt-1 flex items-center gap-1 text-[11.5px] text-muted" title={config.address}>
+              <div className="mt-1 flex items-center gap-1 text-[12px] text-muted" title={config.address}>
                 <MapPin className="size-3" /> {config.location}
               </div>
             )}
           </div>
-          <div className="ml-auto text-right text-[11.5px] text-muted">
-            <div className="text-[13px] font-medium tabular-nums text-fg">
+          <div className="ml-auto text-right text-[12px] text-muted">
+            <div className="text-[13px] font-medium num text-fg">
               {formatInZone(now, config.timezone, { weekday: 'short', hour: '2-digit', minute: '2-digit', second: '2-digit', hourCycle: 'h23' })}
             </div>
             {config.timezone.split('/').at(-1)?.replace('_', ' ')} · {zoneLabel(now, config.timezone)}
@@ -54,7 +54,7 @@ export function EventSchedule({ state }: { state: EventState }) {
         </header>
 
         {config.invalidTimezone && (
-          <div className="selectable rounded-lg border border-amber-500/50 bg-amber-500/[0.08] px-3 py-2 text-[12px]">
+          <div className="selectable rounded-lg border border-warn/50 bg-warn/[0.08] px-3 py-2 text-[12px]">
             <code>challenge/event.yaml</code> names the time zone “{config.invalidTimezone}”, which this computer doesn't know, so all times are shown in UTC. Use an IANA
             name such as <code>Europe/Helsinki</code>.
           </div>
@@ -95,13 +95,13 @@ function Countdown({ state, now }: { state: EventState; now: number }) {
       <div
         className={cn(
           'rounded-2xl border p-4',
-          big?.tone === 'urgent' ? 'border-red-500/50 bg-red-500/[0.06]' : big?.tone === 'warn' ? 'border-amber-500/50 bg-amber-500/[0.06]' : 'border-line bg-surface-2/40',
+          big?.tone === 'urgent' ? 'border-danger/50 bg-danger/[0.06]' : big?.tone === 'warn' ? 'border-warn/50 bg-warn/[0.06]' : 'border-line bg-surface-2/40',
         )}
       >
         {big ? (
           <>
             <div className="text-[11px] font-semibold uppercase tracking-wide text-muted">{big.label}</div>
-            <div className={cn('mt-1 text-[34px] font-semibold leading-none tabular-nums', big.tone === 'urgent' && 'text-red-600 dark:text-red-400')}>{formatSpan(big.at - now)}</div>
+            <div className={cn('mt-1 text-[34px] font-semibold leading-none num', big.tone === 'urgent' && 'text-danger-ink')}>{formatSpan(big.at - now)}</div>
             <div className="mt-1.5 text-[12px] text-muted">{formatInZone(big.at, config.timezone, { weekday: 'long', day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' })}</div>
           </>
         ) : clock.stage === 'after' ? (
@@ -110,14 +110,14 @@ function Countdown({ state, now }: { state: EventState; now: number }) {
           <div className="text-[20px] font-semibold">All deadlines passed — judging and finals</div>
         )}
         {clock.stage === 'during' && clock.next && clock.next.id !== clock.nextDeadline?.id && (
-          <div className="mt-2 text-[12.5px]">
+          <div className="mt-2 text-[13px]">
             <span className="text-muted">Next: </span>
             <span className="font-medium">{clock.next.label}</span>
-            <span className="tabular-nums text-muted"> · in {formatSpan(clock.next.t - now)}</span>
+            <span className="num text-muted"> · in {formatSpan(clock.next.t - now)}</span>
           </div>
         )}
         {clock.ongoing.map((m) => (
-          <div key={m.id} className="mt-1 flex items-center gap-1.5 text-[12px] text-indigo-600 dark:text-indigo-400">
+          <div key={m.id} className="mt-1 flex items-center gap-1.5 text-[12px] text-(--series-7)">
             <Moon className="size-3.5" /> {m.label} until {formatInZone(m.tEnd!, config.timezone, { hour: '2-digit', minute: '2-digit', hourCycle: 'h23' })}
           </div>
         ))}
@@ -140,8 +140,8 @@ function Tile({ label, value, sub }: { label: string; value: string; sub?: strin
   return (
     <div className="rounded-2xl border border-line p-4">
       <div className="text-[11px] font-semibold uppercase tracking-wide text-muted">{label}</div>
-      <div className="mt-1 text-[22px] font-semibold tabular-nums">{value}</div>
-      {sub && <div className="mt-0.5 line-clamp-2 text-[11.5px] text-muted">{sub}</div>}
+      <div className="mt-1 text-[22px] font-semibold num">{value}</div>
+      {sub && <div className="mt-0.5 line-clamp-2 text-[12px] text-muted">{sub}</div>}
     </div>
   )
 }
@@ -177,19 +177,19 @@ function Weekend({ state, now }: { state: EventState; now: number }) {
         <h2 className="text-[13px] font-semibold">The weekend</h2>
         <span className="text-[11px] text-muted">{zoneLabel(clock.start, tz)} · hover a marker for details</span>
         <span className="ml-auto flex items-center gap-3 text-[11px] text-muted">
-          <Legend className="bg-red-500" label="Deadline" />
+          <Legend className="bg-danger" label="Deadline" />
           <Legend className="bg-fg/50" label="Official" />
-          <Legend className="bg-[var(--accent)]" label="Our plan" />
-          <Legend className="bg-indigo-500/60" label="Sleep" />
+          <Legend className="bg-accent" label="Our plan" />
+          <Legend className="bg-(--series-7)/60" label="Sleep" />
         </span>
       </div>
       <div className="relative h-[92px] select-none">
         {nights.map(([a, b]) => (
-          <div key={a} className="absolute inset-y-0 bg-indigo-500/[0.05]" style={{ left: pct(a), width: `calc(${pct(b)} - ${pct(a)})` }} />
+          <div key={a} className="absolute inset-y-0 bg-(--series-7)/[0.05]" style={{ left: pct(a), width: `calc(${pct(b)} - ${pct(a)})` }} />
         ))}
         {ticks.map((t) => (
           <div key={t} className="absolute inset-y-0 border-l border-[var(--grid)]" style={{ left: pct(t) }}>
-            <span className="absolute -bottom-0.5 left-1 text-[9.5px] tabular-nums text-muted">
+            <span className="absolute -bottom-0.5 left-1 text-[12px] num text-muted">
               {formatInZone(t, tz, { hour: '2-digit', hourCycle: 'h23' }) === '00' ? formatInZone(t, tz, { weekday: 'short' }) : formatInZone(t, tz, { hour: '2-digit', minute: '2-digit', hourCycle: 'h23' })}
             </span>
           </div>
@@ -198,29 +198,29 @@ function Weekend({ state, now }: { state: EventState; now: number }) {
         {ms
           .filter((m) => m.kind === 'official' || m.kind === 'deadline')
           .map((m) => (
-            <Marker key={m.id} m={m} tz={tz} left={pct(m.t)} top={6} className={m.kind === 'deadline' ? 'h-5 w-1 bg-red-500' : 'h-3.5 w-0.5 bg-fg/50'} label={m.kind === 'deadline' ? m.label : undefined} />
+            <Marker key={m.id} m={m} tz={tz} left={pct(m.t)} top={6} className={m.kind === 'deadline' ? 'h-5 w-1 bg-danger' : 'h-3.5 w-0.5 bg-fg/50'} label={m.kind === 'deadline' ? m.label : undefined} />
           ))}
         {/* lane 2: plan */}
         {ms
           .filter((m) => m.kind === 'plan')
           .map((m) =>
             m.tEnd ? (
-              <div key={m.id} title={tip(m, tz)} className="absolute top-[40px] h-2 rounded-full bg-[var(--accent)]/40" style={{ left: pct(m.t), width: `calc(${pct(m.tEnd)} - ${pct(m.t)})` }} />
+              <div key={m.id} title={tip(m, tz)} className="absolute top-[40px] h-2 rounded-full bg-accent/40" style={{ left: pct(m.t), width: `calc(${pct(m.tEnd)} - ${pct(m.t)})` }} />
             ) : (
-              <Marker key={m.id} m={m} tz={tz} left={pct(m.t)} top={38} className={cn('size-2.5 rounded-full bg-[var(--accent)]', next?.id === m.id && 'ring-4 ring-[var(--accent)]/25')} />
+              <Marker key={m.id} m={m} tz={tz} left={pct(m.t)} top={38} className={cn('size-2.5 rounded-[2px] bg-accent', next?.id === m.id && 'ring-4 ring-accent-ink/25')} />
             ),
           )}
         {/* lane 3: sleep */}
         {ms
           .filter((m) => m.kind === 'sleep' && m.tEnd)
           .map((m) => (
-            <div key={m.id} title={tip(m, tz)} className="absolute top-[58px] flex h-3 items-center overflow-hidden rounded bg-indigo-500/40 px-1 text-[8.5px] text-white" style={{ left: pct(m.t), width: `calc(${pct(m.tEnd!)} - ${pct(m.t)})` }}>
+            <div key={m.id} title={tip(m, tz)} className="absolute top-[58px] flex h-3 items-center overflow-hidden rounded bg-(--series-7)/40 px-1 text-[8.5px] text-white" style={{ left: pct(m.t), width: `calc(${pct(m.tEnd!)} - ${pct(m.t)})` }}>
               {m.label.replace('Sleep: ', '')}
             </div>
           ))}
         {now > t0 && now < t1 && (
-          <div className="absolute inset-y-0 w-0.5 bg-[var(--accent)]" style={{ left: pct(now) }}>
-            <span className="absolute -top-1 left-1 rounded bg-[var(--accent)] px-1 text-[9px] font-semibold text-white">now</span>
+          <div className="absolute inset-y-0 w-0.5 bg-accent" style={{ left: pct(now) }}>
+            <span className="absolute -top-1 left-1 rounded bg-accent px-1 text-[9px] font-semibold text-white">now</span>
           </div>
         )}
       </div>
@@ -245,7 +245,7 @@ function Marker({ m, tz, left, top, className, label }: { m: TimedMilestone; tz:
   return (
     <div className="absolute -translate-x-1/2" style={{ left, top }} title={tip(m, tz)}>
       <div className={className} />
-      {label && <div className="absolute left-1/2 top-5 -translate-x-1/2 whitespace-nowrap text-[9.5px] font-semibold text-red-600 dark:text-red-400">{label.split(' ')[0]}</div>}
+      {label && <div className="absolute left-1/2 top-5 -translate-x-1/2 whitespace-nowrap text-[11px] font-semibold text-danger-ink">{label.split(' ')[0]}</div>}
     </div>
   )
 }
@@ -268,19 +268,19 @@ function Agenda({ state, now }: { state: EventState; now: number }) {
             const past = (m.tEnd ?? m.t) < now
             const isNext = clock.next?.id === m.id
             return (
-              <div key={m.id} title={m.note} className={cn('flex items-start gap-2 rounded px-1 py-0.5 text-[12px]', past && 'opacity-45', isNext && 'bg-[var(--accent)]/10')}>
-                <span className="w-10 shrink-0 tabular-nums text-muted">{formatInZone(m.t, tz, { hour: '2-digit', minute: '2-digit', hourCycle: 'h23' })}</span>
+              <div key={m.id} title={m.note} className={cn('flex items-start gap-2 rounded px-1 py-0.5 text-[12px]', past && 'opacity-45', isNext && 'bg-accent/10')}>
+                <span className="w-10 shrink-0 num text-muted">{formatInZone(m.t, tz, { hour: '2-digit', minute: '2-digit', hourCycle: 'h23' })}</span>
                 <span
                   className={cn(
-                    'mt-1.5 size-1.5 shrink-0 rounded-full',
-                    m.kind === 'deadline' ? 'bg-red-500' : m.kind === 'official' ? 'bg-fg/50' : m.kind === 'sleep' ? 'bg-indigo-500/60' : 'bg-[var(--accent)]',
+                    'mt-1.5 size-1.5 shrink-0 rounded-[2px]',
+                    m.kind === 'deadline' ? 'bg-danger' : m.kind === 'official' ? 'bg-fg/50' : m.kind === 'sleep' ? 'bg-(--series-7)/60' : 'bg-accent',
                   )}
                 />
                 <span className={cn('min-w-0 flex-1', m.kind === 'deadline' && 'font-semibold', m.kind === 'sleep' && 'text-muted')}>
                   {m.label}
                   {m.tEnd && <span className="text-muted"> → {formatInZone(m.tEnd, tz, { hour: '2-digit', minute: '2-digit', hourCycle: 'h23' })}</span>}
                 </span>
-                {isNext && <span className="shrink-0 text-[10.5px] tabular-nums text-[var(--accent)]">in {formatSpan(m.t - now)}</span>}
+                {isNext && <span className="shrink-0 text-[12px] num text-accent-ink">in {formatSpan(m.t - now)}</span>}
               </div>
             )
           })}
@@ -295,9 +295,9 @@ function ProjectCard({ state }: { state: EventState }) {
   const dir = state.projectDir
   if (!dir) {
     return (
-      <section className="rounded-2xl border border-dashed border-[var(--accent)]/50 p-4">
+      <section className="rounded-2xl border border-dashed border-accent-ink/50 p-4">
         <div className="flex items-start gap-3">
-          <FolderPlus className="mt-0.5 size-5 shrink-0 text-[var(--accent)]" />
+          <FolderPlus className="mt-0.5 size-5 shrink-0 text-accent-ink" />
           <div className="min-w-0 flex-1">
             <h2 className="text-[13px] font-semibold">Set up the team's event project</h2>
             <p className="mt-1 text-[12px] text-muted">
@@ -306,7 +306,7 @@ function ProjectCard({ state }: { state: EventState }) {
               judges). Make the folder a git repo and share it, so all four laptops work on the same project.
             </p>
             <div className="mt-3 flex flex-wrap gap-2">
-              <button onClick={() => void setupProject()} className="flex items-center gap-1.5 rounded-md bg-[var(--accent)] px-3 py-1.5 text-[12px] font-medium text-white hover:brightness-110">
+              <button onClick={() => void setupProject()} className="flex items-center gap-1.5 rounded-md bg-accent px-3 py-1.5 text-[12px] font-medium text-white hover:brightness-110">
                 <FolderPlus className="size-3.5" /> Create or pick a folder…
               </button>
               <button onClick={() => void linkExisting()} className="flex items-center gap-1.5 rounded-md border border-line px-3 py-1.5 text-[12px] hover:bg-surface-2">
@@ -320,16 +320,16 @@ function ProjectCard({ state }: { state: EventState }) {
   }
   return (
     <section className="flex flex-wrap items-center gap-3 rounded-2xl border border-line p-4">
-      <FolderOpen className="size-5 shrink-0 text-[var(--accent)]" />
+      <FolderOpen className="size-5 shrink-0 text-accent-ink" />
       <div className="min-w-0 flex-1">
         <div className="text-[13px] font-semibold">{basename(dir)}</div>
-        <div className="truncate text-[11.5px] text-muted" title={dir}>
+        <div className="truncate text-[12px] text-muted" title={dir}>
           {dir}
           {state.projectReady ? ' · set up for the event' : ' · not set up for the event yet'}
         </div>
       </div>
       {!state.projectReady && (
-        <button onClick={() => void setupProject(dir)} className="flex items-center gap-1.5 rounded-md bg-[var(--accent)] px-3 py-1.5 text-[12px] font-medium text-white hover:brightness-110">
+        <button onClick={() => void setupProject(dir)} className="flex items-center gap-1.5 rounded-md bg-accent px-3 py-1.5 text-[12px] font-medium text-white hover:brightness-110">
           <FolderPlus className="size-3.5" /> Apply {state.config.name} setup
         </button>
       )}
@@ -372,15 +372,15 @@ function Checklists({ state, now }: { state: EventState; now: number }) {
         disabled={!linked}
         onClick={() => void update({ done: { [c.id]: !ticked } })}
         title={linked ? c.note : 'Set up or link the event project to tick items (they are shared with the team through git)'}
-        className="flex w-full items-start gap-2 rounded px-1 py-1 text-left text-[12.5px] hover:bg-surface-2 disabled:cursor-default disabled:hover:bg-transparent"
+        className="flex w-full items-start gap-2 rounded px-1 py-1 text-left text-[13px] hover:bg-surface-2 disabled:cursor-default disabled:hover:bg-transparent"
       >
-        <Icon className={cn('mt-0.5 size-3.5 shrink-0', ticked ? 'text-emerald-500' : 'text-muted')} />
+        <Icon className={cn('mt-0.5 size-3.5 shrink-0', ticked ? 'text-ok-ink' : 'text-muted')} />
         <span className={cn('min-w-0 flex-1', ticked && 'text-muted line-through decoration-muted/50')}>
           {c.label}
           {c.note && !ticked && <span className="block text-[11px] text-muted">{c.note}</span>}
         </span>
         {due !== undefined && (
-          <span className={cn('shrink-0 text-[11px] tabular-nums', overdue ? 'font-medium text-red-500' : 'text-muted')}>
+          <span className={cn('shrink-0 text-[12px] num', overdue ? 'font-medium text-danger-ink' : 'text-muted')}>
             {/\d\d:\d\d/.test(c.due!)
               ? formatInZone(due, tz, { weekday: 'short', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' })
               : formatInZone(due, tz, { day: 'numeric', month: 'short' })}
@@ -393,7 +393,7 @@ function Checklists({ state, now }: { state: EventState; now: number }) {
     <section className="rounded-2xl border border-line p-4">
       <div className="mb-2 flex flex-wrap items-center gap-2">
         <h2 className="text-[13px] font-semibold">Checklists</h2>
-        <span className="text-[11px] tabular-nums text-muted">
+        <span className="text-[12px] num text-muted">
           {totalDone} / {all.length} done
         </span>
         <Segmented
@@ -407,10 +407,10 @@ function Checklists({ state, now }: { state: EventState; now: number }) {
           options={groups.map((g) => ({ id: g, label: GROUP_TAB[g], badge: all.filter((c) => c.group === g && !isDone(c.id)).length || undefined }))}
         />
       </div>
-      {open.length ? open.map(row) : <div className="px-1 py-2 text-[12.5px] text-emerald-600 dark:text-emerald-400">All done here.</div>}
+      {open.length ? open.map(row) : <div className="px-1 py-2 text-[13px] text-ok-ink">All done here.</div>}
       {done.length > 0 && (
         <>
-          <button onClick={() => setShowDone(!showDone)} className="mt-1 flex items-center gap-1 px-1 text-[11.5px] text-muted hover:text-fg">
+          <button onClick={() => setShowDone(!showDone)} className="mt-1 flex items-center gap-1 px-1 text-[12px] text-muted hover:text-fg">
             <ChevronRight className={cn('size-3.5 transition-transform', showDone && 'rotate-90')} />
             {showDone ? 'Hide' : 'Show'} {done.length} done
           </button>
@@ -432,14 +432,14 @@ function Partners({ state }: { state: EventState }) {
   return (
     <section className="rounded-2xl border border-line p-4">
       <div className="flex items-center gap-2">
-        <button onClick={() => setOpen(!open)} className="flex items-center gap-1 text-[13px] font-semibold hover:text-[var(--accent)]">
+        <button onClick={() => setOpen(!open)} className="flex items-center gap-1 text-[13px] font-semibold hover:text-accent-ink">
           <ChevronRight className={cn('size-4 transition-transform', open && 'rotate-90')} />
           Partners
         </button>
         <span className="text-[11px] text-muted">
           {ready} / {state.config.partners.length} ready (keys + tested starter kit)
         </span>
-        <button onClick={() => useApp.getState().openHackathon('challenges')} className="ml-auto text-[11.5px] font-medium text-[var(--accent)] hover:underline">
+        <button onClick={() => useApp.getState().openHackathon('challenges')} className="ml-auto text-[12px] font-medium text-accent-ink hover:underline">
           Paste API keys under Challenges →
         </button>
       </div>
@@ -451,7 +451,7 @@ function Partners({ state }: { state: EventState }) {
             {ps.map((p) => {
               const st = state.progress.partners[p.name] ?? {}
               return (
-                <div key={p.name} className="flex items-center gap-2 py-1 text-[12.5px]">
+                <div key={p.name} className="flex items-center gap-2 py-1 text-[13px]">
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-1">
                       <span className="font-medium">{p.name}</span>
@@ -470,8 +470,8 @@ function Partners({ state }: { state: EventState }) {
                       onClick={() => void update({ partner: { name: p.name, [k]: !st[k] } })}
                       title={k === 'keys' ? 'Account and API key ready' : 'Starter kit tested'}
                       className={cn(
-                        'flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10.5px] disabled:opacity-60',
-                        st[k] ? 'border-emerald-500/50 bg-emerald-500/10 text-emerald-700 dark:text-emerald-400' : 'border-line text-muted hover:text-fg',
+                        'flex items-center gap-1 rounded-sm border px-2 py-0.5 text-[11px] disabled:opacity-60',
+                        st[k] ? 'border-ok/50 bg-ok/10 text-ok-ink' : 'border-line text-muted hover:text-fg',
                       )}
                     >
                       {st[k] && <Check className="size-3" />}

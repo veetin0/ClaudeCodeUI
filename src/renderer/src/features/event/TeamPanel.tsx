@@ -8,6 +8,7 @@ import { useApp } from '@/stores/app'
 import { StatusDot } from '@/layout/StatusDot'
 import { useTeam, useTeamState } from '@/stores/team'
 import { CrewPanel } from '../team/CrewPanel'
+import { SectorMeter } from '@/ui/Sectors'
 
 /**
  * The team board: every teammate's Harness reports what they're on, their sessions, plan usage and
@@ -28,11 +29,11 @@ function Setup({ suggestedNames }: { suggestedNames: string[] }) {
   const [url, setUrl] = useState('')
   const [code, setCode] = useState('')
   const names = suggestedNames.filter((n) => !/^Member \d+$/.test(n))
-  const field = 'selectable w-full rounded-md border border-line bg-surface-2 px-2.5 py-1.5 text-[12.5px] outline-none focus:border-[var(--accent)]/60'
+  const field = 'selectable w-full rounded-md border border-line bg-surface-2 px-2.5 py-1.5 text-[13px] outline-none focus:border-accent-ink/60'
   return (
-    <section className="rounded-2xl border border-dashed border-[var(--accent)]/50 p-4">
+    <section className="rounded-2xl border border-dashed border-accent-ink/50 p-4">
       <div className="mb-1 flex items-center gap-2">
-        <Users className="size-4 text-[var(--accent)]" />
+        <Users className="size-4 text-accent-ink" />
         <h2 className="text-[13px] font-semibold">Team board</h2>
       </div>
       <p className="mb-3 text-[12px] text-muted">
@@ -40,7 +41,7 @@ function Setup({ suggestedNames }: { suggestedNames: string[] }) {
         the most room. Everyone keeps using their own login.
       </p>
       <label className="mb-3 block max-w-xs">
-        <div className="mb-1 text-[11.5px] font-medium">Your name</div>
+        <div className="mb-1 text-[12px] font-medium">Your name</div>
         <input value={name} onChange={(e) => setName(e.target.value)} placeholder={names[0] ?? 'e.g. Veeti'} list="team-names" className={field} />
         <datalist id="team-names">
           {names.map((n) => (
@@ -50,7 +51,7 @@ function Setup({ suggestedNames }: { suggestedNames: string[] }) {
       </label>
       <div className="grid gap-3 md:grid-cols-2">
         <div className="rounded-xl border border-line p-3">
-          <div className="mb-2 text-[12.5px] font-semibold">Create the team</div>
+          <div className="mb-2 text-[13px] font-semibold">Create the team</div>
           {(['host', 'relay'] as const).map((m) => (
             <label key={m} className="mb-1.5 flex items-start gap-2 text-[12px]">
               <input type="radio" className="mt-0.5" checked={mode === m} onChange={() => setMode(m)} />
@@ -71,24 +72,24 @@ function Setup({ suggestedNames }: { suggestedNames: string[] }) {
           <button
             disabled={busy || !name.trim() || (mode === 'relay' && !url.trim())}
             onClick={() => void create({ name, host: mode === 'host', relayUrl: url })}
-            className="mt-3 rounded-md bg-[var(--accent)] px-3 py-1.5 text-[12px] font-medium text-white hover:brightness-110 disabled:opacity-40"
+            className="mt-3 rounded-md bg-accent px-3 py-1.5 text-[12px] font-medium text-white hover:brightness-110 disabled:opacity-40"
           >
             Create team
           </button>
         </div>
         <div className="rounded-xl border border-line p-3">
-          <div className="mb-2 text-[12.5px] font-semibold">Join with a code</div>
+          <div className="mb-2 text-[13px] font-semibold">Join with a code</div>
           <textarea value={code} onChange={(e) => setCode(e.target.value)} rows={3} placeholder="HT1.… (the team creator copies it from their board)" className={cn(field, 'resize-none font-mono text-[11px]')} />
           <button
             disabled={busy || !name.trim() || !code.trim()}
             onClick={() => void join(code, name)}
-            className="mt-2 rounded-md bg-[var(--accent)] px-3 py-1.5 text-[12px] font-medium text-white hover:brightness-110 disabled:opacity-40"
+            className="mt-2 rounded-md bg-accent px-3 py-1.5 text-[12px] font-medium text-white hover:brightness-110 disabled:opacity-40"
           >
             Join team
           </button>
         </div>
       </div>
-      {error && <div className="selectable mt-3 text-[12px] text-red-500">{error}</div>}
+      {error && <div className="selectable mt-3 text-[12px] text-danger-ink">{error}</div>}
     </section>
   )
 }
@@ -104,12 +105,12 @@ function Board({ timezone, now }: { timezone: string; now: number }) {
   return (
     <section className="rounded-2xl border border-line p-4">
       <div className="mb-3 flex flex-wrap items-center gap-2">
-        <Users className="size-4 text-[var(--accent)]" />
+        <Users className="size-4 text-accent-ink" />
         <h2 className="text-[13px] font-semibold">Team</h2>
         <span className="text-[11px] text-muted">
           {online.length} / {state.members.length} online
         </span>
-        <span className={cn('flex items-center gap-1 text-[11px]', state.connected ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-500')} title={state.error}>
+        <span className={cn('flex items-center gap-1 text-[11px]', state.connected ? 'text-ok-ink' : 'text-danger-ink')} title={state.error}>
           {state.connected ? <Wifi className="size-3" /> : <WifiOff className="size-3" />}
           {state.connected ? (config.hosting ? 'hosting the relay' : 'connected') : state.error ?? 'not connected'}
         </span>
@@ -121,21 +122,21 @@ function Board({ timezone, now }: { timezone: string; now: number }) {
               setTimeout(() => setCopied(false), 1500)
             }}
             title={code}
-            className="flex items-center gap-1 rounded-md border border-line px-2 py-1 text-[11.5px] hover:bg-surface-2"
+            className="flex items-center gap-1 rounded-md border border-line px-2 py-1 text-[12px] hover:bg-surface-2"
           >
             {copied ? <Check className="size-3" /> : <Copy className="size-3" />} {copied ? 'Copied' : 'Copy join code'}
           </button>
           <button
             onClick={() => window.confirm('Leave the team? You can join again with the code.') && void leave()}
             title="Leave the team"
-            className="rounded-md p-1.5 text-muted hover:bg-black/5 hover:text-fg dark:hover:bg-white/10"
+            className="rounded-md p-1.5 text-muted hover:bg-hover hover:text-fg"
           >
             <LogOut className="size-3.5" />
           </button>
         </div>
       </div>
       {config.hosting && (
-        <div className="mb-3 flex items-start gap-2 rounded-lg bg-surface-2 px-3 py-2 text-[11.5px] text-muted">
+        <div className="mb-3 flex items-start gap-2 rounded-lg bg-surface-2 px-3 py-2 text-[12px] text-muted">
           <Radio className="mt-0.5 size-3.5 shrink-0" />
           <span>
             This computer hosts the relay at {state.hostUrls?.join(', ') || 'no network address'}. Keep Harness open. If teammates can't connect (venue wifi often
@@ -143,20 +144,20 @@ function Board({ timezone, now }: { timezone: string; now: number }) {
           </span>
         </div>
       )}
-      {error && <div className="selectable mb-2 text-[12px] text-red-500">{error}</div>}
+      {error && <div className="selectable mb-2 text-[12px] text-danger-ink">{error}</div>}
       {(advice.best || advice.warnings.length > 0) && (
         <div className="mb-3 space-y-1">
           {advice.best && (
-            <div className="flex items-center gap-2 rounded-lg bg-emerald-500/[0.08] px-3 py-1.5 text-[12px]">
-              <Sparkles className="size-3.5 text-emerald-600" />
+            <div className="flex items-center gap-2 rounded-lg bg-ok/[0.08] px-3 py-1.5 text-[12px]">
+              <Sparkles className="size-3.5 text-ok-ink" />
               <span>
                 <b>{advice.best.name}</b> has the most usage left, so give them the next milestone.
               </span>
             </div>
           )}
           {advice.warnings.map((w) => (
-            <div key={w.member.id} className={cn('flex items-center gap-2 rounded-lg px-3 py-1.5 text-[12px]', w.severity === 'stop' ? 'bg-red-500/[0.08]' : 'bg-amber-500/[0.08]')}>
-              <AlertTriangle className={cn('size-3.5', w.severity === 'stop' ? 'text-red-500' : 'text-amber-600')} />
+            <div key={w.member.id} className={cn('flex items-center gap-2 rounded-lg px-3 py-1.5 text-[12px]', w.severity === 'stop' ? 'bg-danger/[0.08]' : 'bg-warn/[0.08]')}>
+              <AlertTriangle className={cn('size-3.5', w.severity === 'stop' ? 'text-danger-ink' : 'text-warn-ink')} />
               {w.text}
             </div>
           ))}
@@ -178,9 +179,9 @@ function Board({ timezone, now }: { timezone: string; now: number }) {
 function Conflicts({ conflicts }: { conflicts: Conflict[] }) {
   if (!conflicts.length) return null
   return (
-    <div className="mb-3 rounded-xl border border-amber-500/40 bg-amber-500/[0.05] p-3">
-      <div className="mb-1.5 flex items-center gap-2 text-[12.5px] font-semibold">
-        <GitMerge className="size-3.5 text-amber-600" /> Conflict radar
+    <div className="mb-3 rounded-xl border border-warn/40 bg-warn/[0.05] p-3">
+      <div className="mb-1.5 flex items-center gap-2 text-[13px] font-semibold">
+        <GitMerge className="size-3.5 text-warn-ink" /> Conflict radar
         <span className="text-[11px] font-normal text-muted">
           {conflicts.length} file{conflicts.length === 1 ? '' : 's'} changed by more than one person
         </span>
@@ -189,12 +190,12 @@ function Conflicts({ conflicts }: { conflicts: Conflict[] }) {
         {conflicts.slice(0, 12).map((c) => (
           <div key={c.path} data-conflict={c.overlap} className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[12px]">
             <span
-              className={cn('rounded px-1.5 py-px text-[10.5px] font-medium', c.overlap === 'lines' ? 'bg-red-500/15 text-red-700 dark:text-red-300' : 'bg-amber-500/15 text-amber-700 dark:text-amber-300')}
+              className={cn('rounded px-1.5 py-px text-[11px] font-medium', c.overlap === 'lines' ? 'bg-danger/15 text-danger-ink' : 'bg-warn/15 text-warn-ink')}
               title={c.overlap === 'lines' ? 'The same lines (or both created the file): merging will conflict' : 'Different parts of the same file: usually merges cleanly'}
             >
               {c.overlap === 'lines' ? 'same lines' : 'same file'}
             </span>
-            <code className={cn('selectable font-mono text-[11.5px]', c.involvesMe && 'font-semibold')}>{c.path}</code>
+            <code className={cn('selectable font-mono text-[12px]', c.involvesMe && 'font-semibold')}>{c.path}</code>
             <span className="text-muted">
               {c.members.map((m) => `${m.name} (${m.uncommitted ? 'uncommitted' : 'on branch'}, ${describeRanges(m.ranges)})`).join(' · ')}
             </span>
@@ -227,11 +228,11 @@ function Handoffs({ handoffs, meId }: { handoffs: OpenHandoff[]; meId: string })
   }
   return (
     <div className="mb-3">
-      <div className="mb-1.5 flex items-center gap-2 text-[12.5px] font-semibold">
-        <Handshake className="size-3.5 text-[var(--accent)]" /> Handoffs
+      <div className="mb-1.5 flex items-center gap-2 text-[13px] font-semibold">
+        <Handshake className="size-3.5 text-accent-ink" /> Handoffs
         {handoffs.length === 0 && <span className="text-[11px] font-normal text-muted">Nothing handed off. When someone hits their limit, their work shows up here.</span>}
         {activeId && active?.live && !active.observed && (
-          <button onClick={() => useApp.getState().openHandoff(activeId)} className="ml-auto rounded-md border border-line px-2 py-0.5 text-[11.5px] font-normal hover:bg-surface-2">
+          <button onClick={() => useApp.getState().openHandoff(activeId)} className="ml-auto rounded-md border border-line px-2 py-0.5 text-[12px] font-normal hover:bg-surface-2">
             Hand off my current session…
           </button>
         )}
@@ -251,22 +252,22 @@ function Handoffs({ handoffs, meId }: { handoffs: OpenHandoff[]; meId: string })
                 {h.reason === 'limit' && ' · hit the limit'}
               </span>
               {h.branch && (
-                <span className="flex items-center gap-1 rounded bg-surface-2 px-1.5 py-0.5 font-mono text-[10.5px] text-muted">
+                <span className="flex items-center gap-1 rounded bg-surface-2 px-1.5 py-0.5 font-mono text-[11px] text-muted">
                   <GitBranch className="size-3" /> {h.branch}
                 </span>
               )}
               <div className="ml-auto flex items-center gap-1.5">
                 {h.takenBy ? (
-                  <span className="rounded-full bg-emerald-500/10 px-2 py-0.5 text-[11px] text-emerald-700 dark:text-emerald-300">Taken by {h.takenBy}</span>
+                  <span className="rounded-sm bg-ok/10 px-2 py-0.5 text-[11px] text-ok-ink">Taken by {h.takenBy}</span>
                 ) : mine ? (
-                  <button onClick={() => void window.harness.handoffWithdraw(h.id).then((s) => useTeam.setState({ state: s }))} className="rounded-md border border-line px-2 py-0.5 text-[11.5px] hover:bg-surface-2">
+                  <button onClick={() => void window.harness.handoffWithdraw(h.id).then((s) => useTeam.setState({ state: s }))} className="rounded-md border border-line px-2 py-0.5 text-[12px] hover:bg-surface-2">
                     Withdraw
                   </button>
                 ) : (
                   <button
                     disabled={busy === h.id}
                     onClick={() => void take(h)}
-                    className="rounded-md bg-[var(--accent)] px-2.5 py-0.5 text-[11.5px] font-medium text-white hover:brightness-110 disabled:opacity-50"
+                    className="rounded-md bg-accent px-2.5 py-0.5 text-[12px] font-medium text-white hover:brightness-110 disabled:opacity-50"
                   >
                     {busy === h.id ? 'Checking out…' : 'Take over'}
                   </button>
@@ -277,7 +278,7 @@ function Handoffs({ handoffs, meId }: { handoffs: OpenHandoff[]; meId: string })
           </div>
         )
       })}
-      {error && <div className="selectable text-[12px] text-red-500">{error}</div>}
+      {error && <div className="selectable text-[12px] text-danger-ink">{error}</div>}
     </div>
   )
 }
@@ -285,22 +286,22 @@ function Handoffs({ handoffs, meId }: { handoffs: OpenHandoff[]; meId: string })
 function MemberCard({ m, me, now, fmt }: { m: MemberStatus; me: boolean; now: number; fmt: (ms: number) => string }) {
   const online = me || isOnline(m, now)
   return (
-    <div className={cn('rounded-xl border p-3', me ? 'border-[var(--accent)]/40' : 'border-line', !online && 'opacity-55')}>
+    <div className={cn('rounded-xl border p-3', me ? 'border-accent-ink/40' : 'border-line', !online && 'opacity-55')}>
       <div className="flex items-center gap-2">
-        <span className={cn('size-2 rounded-full', online ? 'bg-emerald-500' : 'bg-fg/30')} />
+        <span className={cn('size-2 rounded-[2px]', online ? 'bg-ok' : 'bg-fg/30')} />
         <span className="font-semibold">{m.name}</span>
         {me && <span className="text-[11px] text-muted">(you)</span>}
         {!online && <span className="text-[11px] text-muted">last seen {relativeTime(m.updatedAt)}</span>}
         {m.branch && (
-          <span className="ml-auto flex max-w-[45%] items-center gap-1 truncate rounded bg-surface-2 px-1.5 py-0.5 font-mono text-[10.5px] text-muted" title={m.branch}>
+          <span className="ml-auto flex max-w-[45%] items-center gap-1 truncate rounded bg-surface-2 px-1.5 py-0.5 font-mono text-[11px] text-muted" title={m.branch}>
             <GitBranch className="size-3 shrink-0" /> {m.branch}
           </span>
         )}
       </div>
-      {me ? <FocusInput value={m.focus ?? ''} /> : <div className="mt-1 text-[12.5px]">{m.focus || <span className="text-muted">No focus set</span>}</div>}
+      {me ? <FocusInput value={m.focus ?? ''} /> : <div className="mt-1 text-[13px]">{m.focus || <span className="text-muted">No focus set</span>}</div>}
       <Usage u={m.usage} now={now} fmt={fmt} />
       {m.hackforge && (m.hackforge.phase || m.hackforge.milestone) && (
-        <div className="mt-1.5 truncate text-[11.5px] text-muted">
+        <div className="mt-1.5 truncate text-[12px] text-muted">
           HackForge: {[m.hackforge.phase, m.hackforge.milestone, m.hackforge.mockScore !== undefined && `score ${m.hackforge.mockScore.toFixed(1)}`, m.hackforge.loopActive && `loop #${m.hackforge.loopIteration}`]
             .filter(Boolean)
             .join(' · ')}
@@ -308,7 +309,7 @@ function MemberCard({ m, me, now, fmt }: { m: MemberStatus; me: boolean; now: nu
       )}
       <div className="mt-2 space-y-1">
         {m.sessions.length === 0 ? (
-          <div className="text-[11.5px] text-muted">No open sessions</div>
+          <div className="text-[12px] text-muted">No open sessions</div>
         ) : (
           m.sessions.map((s, i) => (
             <div key={i} className="flex items-center gap-2 text-[12px]">
@@ -317,7 +318,7 @@ function MemberCard({ m, me, now, fmt }: { m: MemberStatus; me: boolean; now: nu
                 {s.title}
                 {s.activity && <span className="text-muted"> · {s.activity}</span>}
               </span>
-              {s.subagents > 0 && <span className="shrink-0 rounded-full bg-emerald-500 px-1.5 text-[10px] leading-4 text-white">{s.subagents}</span>}
+              {s.subagents > 0 && <span className="shrink-0 rounded-sm bg-ok px-1.5 text-[11px] leading-4 text-white">{s.subagents}</span>}
             </div>
           ))
         )}
@@ -338,26 +339,26 @@ function FocusInput({ value }: { value: string }) {
       onBlur={save}
       onKeyDown={(e) => e.key === 'Enter' && (e.currentTarget as HTMLInputElement).blur()}
       placeholder="What are you working on? e.g. M2 backend"
-      className="selectable mt-1 w-full rounded-md border border-transparent bg-transparent px-1 py-0.5 text-[12.5px] outline-none hover:border-line focus:border-[var(--accent)]/60"
+      className="selectable mt-1 w-full rounded-md border border-transparent bg-transparent px-1 py-0.5 text-[13px] outline-none hover:border-line focus:border-accent-ink/60"
     />
   )
 }
 
 function Usage({ u, now, fmt }: { u: PlanUsage; now: number; fmt: (ms: number) => string }) {
-  if (u.source === 'api-key') return <div className="mt-1.5 flex items-center gap-1 text-[11.5px] text-muted"><Server className="size-3" /> API key: billed per token, no plan limits</div>
+  if (u.source === 'api-key') return <div className="mt-1.5 flex items-center gap-1 text-[12px] text-muted"><Server className="size-3" /> API key: billed per token, no plan limits</div>
   if (!u.fiveHour && !u.sevenDay && !u.status)
-    return <div className="mt-1.5 text-[11.5px] text-muted">Plan usage shows up once a session has run on this laptop.</div>
+    return <div className="mt-1.5 text-[12px] text-muted">Plan usage shows up once a session has run on this laptop.</div>
   return (
     <div className="mt-1.5 space-y-1">
       {u.fiveHour && <Bar label="5 h" w={u.fiveHour} now={now} fmt={fmt} />}
       {u.sevenDay && <Bar label="Week" w={u.sevenDay} now={now} fmt={fmt} />}
       {u.status && u.status !== 'allowed' && (
-        <div className={cn('text-[11px] font-medium', u.status === 'rejected' ? 'text-red-500' : 'text-amber-600')}>
+        <div className={cn('text-[11px] font-medium', u.status === 'rejected' ? 'text-danger-ink' : 'text-warn-ink')}>
           {u.status === 'rejected' ? 'Limit reached' : 'Approaching a limit'}
           {u.resetsAt && u.resetsAt > now && ` · resets ${fmt(u.resetsAt)}`}
         </div>
       )}
-      {u.at && now - u.at > 15 * 60_000 && <div className="text-[10.5px] text-muted">reading from {relativeTime(u.at)}</div>}
+      {u.at && now - u.at > 15 * 60_000 && <div className="text-[11px] text-muted">reading from {relativeTime(u.at)}</div>}
     </div>
   )
 }
@@ -368,10 +369,8 @@ function Bar({ label, w, now, fmt }: { label: string; w: UsageWindow; now: numbe
   return (
     <div className="flex items-center gap-2 text-[11px]">
       <span className="w-9 text-muted">{label}</span>
-      <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-line">
-        <div className={cn('h-full rounded-full', pct >= 90 ? 'bg-red-500' : pct >= 70 ? 'bg-amber-500' : 'bg-emerald-500')} style={{ width: `${pct}%` }} />
-      </div>
-      <span className="w-9 text-right tabular-nums">{Math.round(pct)}%</span>
+      <SectorMeter value={pct / 100} tone={pct >= 90 ? 'fail' : pct >= 70 ? 'wait' : 'done'} className="flex-1" label={`${label} plan usage`} />
+      <span className="num w-9 text-right font-semibold">{Math.round(pct)}%</span>
       <span className="w-24 whitespace-nowrap text-right text-muted">{reset ? 'reset' : w.resetsAt ? `resets ${fmt(w.resetsAt)}` : ''}</span>
     </div>
   )

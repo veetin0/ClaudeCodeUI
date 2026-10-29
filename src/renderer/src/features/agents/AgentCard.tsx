@@ -10,12 +10,12 @@ import { currentActivity, isActive, type AgentRunState, type AgentView } from '.
 import { NowWidget } from './NowWidget'
 
 const STATE_STYLE: Record<AgentRunState, { label: string; dot: string; border: string }> = {
-  running: { label: 'Working', dot: 'bg-emerald-500 animate-soft-pulse', border: 'border-emerald-500/40' },
-  waiting: { label: 'Needs you', dot: 'bg-amber-500 animate-soft-pulse', border: 'border-amber-500/50' },
-  idle: { label: 'Idle', dot: 'bg-zinc-400', border: 'border-line' },
-  completed: { label: 'Done', dot: 'bg-zinc-400', border: 'border-line' },
-  failed: { label: 'Failed', dot: 'bg-red-500', border: 'border-red-500/40' },
-  stopped: { label: 'Stopped', dot: 'bg-zinc-400', border: 'border-line' },
+  running: { label: 'Working', dot: 'bg-ok animate-soft-pulse', border: 'border-ok/40' },
+  waiting: { label: 'Needs you', dot: 'bg-warn animate-soft-pulse', border: 'border-warn/50' },
+  idle: { label: 'Idle', dot: 'bg-idle', border: 'border-line' },
+  completed: { label: 'Done', dot: 'bg-idle', border: 'border-line' },
+  failed: { label: 'Failed', dot: 'bg-danger', border: 'border-danger/40' },
+  stopped: { label: 'Stopped', dot: 'bg-idle', border: 'border-line' },
 }
 
 /**
@@ -40,30 +40,30 @@ export function AgentCard({ agent, compact = false }: { agent: AgentView; compac
       onClick={() => openAgent(agent.key)}
       onKeyDown={(e) => e.key === 'Enter' && openAgent(agent.key)}
       className={cn(
-        'group flex w-full min-w-0 cursor-default flex-col gap-2.5 rounded-xl border bg-surface p-3 text-left outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]/40 shadow-[0_1px_2px_rgb(0_0_0/0.04)] transition hover:shadow-md',
+        'group flex w-full min-w-0 cursor-default flex-col gap-2.5 rounded-lg border bg-surface p-3 text-left outline-none transition-shadow focus-visible:ring-2 focus-visible:ring-accent-ink/40 hover:shadow-[0_8px_24px_-10px_rgb(21_22_29/0.25)]',
         st.border,
         !isActive(agent) && agent.state !== 'idle' && 'opacity-85',
       )}
     >
       <div className="flex w-full items-center gap-2">
-        <Icon className={cn('size-4 shrink-0', agent.id === null ? 'text-[var(--accent)]' : 'text-pink-600 dark:text-pink-400')} />
+        <Icon className={cn('size-4 shrink-0', agent.id === null ? 'text-accent-ink' : 'text-info-ink')} aria-hidden />
         <div className="min-w-0 flex-1">
           <div className="truncate font-medium">{agent.name}</div>
           {!compact && (
-            <div className="truncate text-[11px] text-muted">
+            <div className="truncate text-[12px] text-muted">
               {agent.role}
               {agent.background && ' · background'}
             </div>
           )}
         </div>
-        <span className="flex shrink-0 items-center gap-1.5 text-[11px] text-muted">
-          <span className={cn('size-2 rounded-full', st.dot)} />
+        <span className="flex shrink-0 items-center gap-1.5 text-[12px] text-muted">
+          <span className={cn('size-2 rounded-[2px]', st.dot)} />
           {st.label}
         </span>
         <ChevronRight className="size-3.5 shrink-0 text-muted opacity-0 transition group-hover:opacity-100" />
       </div>
 
-      <div className="w-full truncate text-[12px] font-medium">{agent.visuals.status && activity.kind !== 'waiting' ? agent.visuals.status : activity.title}</div>
+      <div className="w-full truncate text-[13px] font-medium">{agent.visuals.status && activity.kind !== 'waiting' ? agent.visuals.status : activity.title}</div>
       {(!compact || isActive(agent)) && <NowWidget agent={agent} activity={activity} lines={compact ? 3 : 6} />}
 
       {progress.slice(0, compact ? 1 : 3).map((p) => (
@@ -86,11 +86,11 @@ export function AgentCard({ agent, compact = false }: { agent: AgentView; compac
         </div>
       )}
 
-      <div className="flex w-full items-center gap-3 text-[11px] tabular-nums text-muted">
+      <div className="num flex w-full items-center gap-3 text-[12px] text-muted">
         <ActivityStrip tools={agent.tools} max={compact ? 24 : 40} />
         <span className="ml-auto">{agent.tools.length} calls</span>
         {agent.totalTokens !== undefined && <span>{formatTokens(agent.totalTokens)} tok</span>}
-        {duration > 0 && <span>{formatDuration(duration)}</span>}
+        {duration > 0 && <span className="font-semibold text-fg">{formatDuration(duration)}</span>}
       </div>
     </div>
   )

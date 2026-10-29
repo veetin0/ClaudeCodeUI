@@ -38,8 +38,8 @@ export function ToolDetail({ tool }: { tool: ToolCall }) {
 function Code({ text, label, error }: { text: string; label?: string; error?: boolean }) {
   return (
     <div>
-      {label && <div className={`mb-1 text-[10px] font-semibold uppercase tracking-wide ${error ? 'text-red-500' : 'text-muted'}`}>{label}</div>}
-      <pre className="selectable max-h-72 overflow-auto whitespace-pre-wrap break-words font-mono text-[11.5px] leading-relaxed">{text}</pre>
+      {label && <div className={`mb-1 text-[11px] font-semibold uppercase tracking-wide ${error ? 'text-danger-ink' : 'text-muted'}`}>{label}</div>}
+      <pre className="selectable max-h-72 overflow-auto whitespace-pre-wrap break-words font-mono text-[12px] leading-relaxed">{text}</pre>
     </div>
   )
 }
@@ -48,15 +48,15 @@ function Diff({ path, before, after }: { path: string; before: string; after: st
   return (
     <div>
       {path && <div className="mb-1 font-mono text-[11px] text-muted">{path}</div>}
-      <pre className="selectable max-h-80 overflow-auto rounded border border-line font-mono text-[11.5px] leading-relaxed">
+      <pre className="selectable max-h-80 overflow-auto rounded border border-line font-mono text-[12px] leading-relaxed">
         {before &&
           before.split('\n').map((l, i) => (
-            <div key={`b${i}`} className="bg-red-500/10 px-2 text-red-700 dark:text-red-300">
+            <div key={`b${i}`} className="bg-danger/10 px-2 text-danger-ink">
               - {l}
             </div>
           ))}
         {after.split('\n').map((l, i) => (
-          <div key={`a${i}`} className="bg-emerald-500/10 px-2 text-emerald-700 dark:text-emerald-300">
+          <div key={`a${i}`} className="bg-ok/10 px-2 text-ok-ink">
             + {l}
           </div>
         ))}

@@ -7,8 +7,9 @@ import { useEvent } from '@/stores/event'
 import { useKit3d } from '@/stores/kit3d'
 import { menuItems, type MenuItem } from '@/ui/Menu'
 import { NextButton } from '@/ui/NextButton'
+import { SectorMeter } from '@/ui/Sectors'
 
-const field = 'selectable w-full rounded-md border border-line bg-surface-2 px-2.5 py-1.5 text-[12.5px] outline-none focus:border-[var(--accent)]/60'
+const field = 'selectable w-full rounded-md border border-line bg-surface-2 px-2.5 py-1.5 text-[13px] outline-none focus:border-accent-ink/60'
 const mmss = (s: number) => (s >= 60 ? `${Math.floor(s / 60)} min ${Math.round(s % 60)} s` : `${Math.round(s)} s`)
 
 /**
@@ -35,18 +36,18 @@ export function Kit3dPanel() {
   return (
     <section className="rounded-2xl border border-line p-3">
       <div className="flex items-center gap-2">
-        <Box className="size-4 text-[var(--accent)]" />
+        <Box className="size-4 text-accent-ink" />
         <span className="text-[13px] font-semibold">3D clips</span>
         {state.ready && (
-          <button onClick={() => setAdding(!adding)} className="ml-auto flex items-center gap-1.5 rounded-md bg-[var(--accent)] px-2.5 py-1 text-[12px] font-medium text-white hover:brightness-110">
+          <button onClick={() => setAdding(!adding)} className="ml-auto flex items-center gap-1.5 rounded-md bg-accent px-2.5 py-1 text-[12px] font-medium text-white hover:brightness-110">
             <Plus className="size-3.5" /> New 3D clip
           </button>
         )}
       </div>
-      <p className="mt-0.5 text-[11.5px] text-muted">Short 3D shots for the pitch: your app with a 3D cursor, a laptop or phone, a product, problem cards, a logo sting.</p>
+      <p className="mt-0.5 text-[12px] text-muted">Short 3D shots for the pitch: your app with a 3D cursor, a laptop or phone, a product, problem cards, a logo sting.</p>
 
       {job && <JobLine job={job} onCancel={() => void cancel()} onCapture={() => void capture()} />}
-      {error && <div className="selectable mt-2 text-[12px] text-red-500">{error}</div>}
+      {error && <div className="selectable mt-2 text-[12px] text-danger-ink">{error}</div>}
 
       {!state.ready ? (
         <div className="mt-3 rounded-xl border border-dashed border-line p-3 text-[12px]">
@@ -57,9 +58,9 @@ export function Kit3dPanel() {
           <ul className="mt-2 space-y-1">
             {state.requirements.map((r) => (
               <li key={r.id} className="flex items-start gap-1.5">
-                {r.ok ? <Check className="mt-px size-3.5 shrink-0 text-emerald-600" /> : <CircleAlert className="mt-px size-3.5 shrink-0 text-amber-600" />}
+                {r.ok ? <Check className="mt-px size-3.5 shrink-0 text-ok-ink" /> : <CircleAlert className="mt-px size-3.5 shrink-0 text-warn-ink" />}
                 <span className="font-medium">{REQ_LABEL[r.id]}</span>
-                <span className={cn('selectable min-w-0 truncate', r.ok ? 'text-muted' : 'text-amber-700 dark:text-amber-300')} title={r.ok ? r.found : r.hint}>
+                <span className={cn('selectable min-w-0 truncate', r.ok ? 'text-muted' : 'text-warn-ink')} title={r.ok ? r.found : r.hint}>
                   {r.ok ? r.found : r.found ? `${r.found} is too old. ${r.hint}` : r.hint}
                 </span>
               </li>
@@ -68,7 +69,7 @@ export function Kit3dPanel() {
           <button
             onClick={() => void setup()}
             disabled={running || !canSetup}
-            className="mt-3 rounded-md bg-[var(--accent)] px-3 py-1.5 text-[12px] font-medium text-white hover:brightness-110 disabled:opacity-40"
+            className="mt-3 rounded-md bg-accent px-3 py-1.5 text-[12px] font-medium text-white hover:brightness-110 disabled:opacity-40"
           >
             {state.exists ? 'Finish setting up the 3D kit' : 'Set up the 3D kit'}
           </button>
@@ -85,7 +86,7 @@ export function Kit3dPanel() {
               onClose={() => setAdding(false)}
             />
           )}
-          {state.listError && <div className="selectable mt-2 text-[12px] text-amber-600">{state.listError}</div>}
+          {state.listError && <div className="selectable mt-2 text-[12px] text-warn-ink">{state.listError}</div>}
           <div className="mt-2 space-y-2">
             {state.clips.map((c) => (
               <ClipRow key={c.name} clip={c} busy={running} activeJob={job?.clip === c.name && running ? (job.kind === 'render' ? (job.quality ?? 'final') : job.kind) : undefined} />
@@ -108,15 +109,15 @@ function JobLine({ job, onCancel, onCapture }: { job: Kit3dJob; onCancel: () => 
       <div
         className={cn(
           'flex items-center gap-2 text-[12px]',
-          job.status === 'error' ? 'text-red-500' : job.status === 'done' ? 'text-emerald-600 dark:text-emerald-400' : 'text-muted',
+          job.status === 'error' ? 'text-danger-ink' : job.status === 'done' ? 'text-ok-ink' : 'text-muted',
         )}
       >
-        {running && <Loader2 className="size-3.5 shrink-0 animate-spin text-[var(--accent)]" />}
+        {running && <Loader2 className="size-3.5 shrink-0 animate-spin text-accent-ink" />}
         <span className="selectable min-w-0 flex-1 truncate" title={job.message}>
           {job.message}
         </span>
         {job.total !== undefined && (
-          <span className="shrink-0 tabular-nums">
+          <span className="shrink-0 num">
             {job.done ?? 0}/{job.total} frames{job.etaSeconds !== undefined ? ` · about ${mmss(job.etaSeconds)} left` : ''}
           </span>
         )}
@@ -132,9 +133,7 @@ function JobLine({ job, onCancel, onCapture }: { job: Kit3dJob; onCancel: () => 
         )}
       </div>
       {pct !== undefined && running && (
-        <div className="mt-1 h-1 overflow-hidden rounded-full bg-surface-2">
-          <div className="h-full bg-[var(--accent)] transition-[width] duration-700" style={{ width: `${pct}%` }} />
-        </div>
+        <SectorMeter value={pct / 100} count={24} tone="live" height={3} className="mt-1.5" label="Render progress" />
       )}
     </div>
   )
@@ -145,9 +144,9 @@ function NewClip({ onAsk, onClose }: { onAsk: (type: Kit3dType, text: string) =>
   const [text, setText] = useState('')
   const hint = KIT3D_TYPES.find((t) => t.id === type)?.hint
   return (
-    <div className="mt-3 rounded-xl border border-[var(--accent)]/40 bg-[var(--accent)]/[0.04] p-3 text-[12px]">
+    <div className="mt-3 rounded-xl border border-accent-ink/40 bg-accent/[0.04] p-3 text-[12px]">
       <div className="flex items-center gap-2">
-        <Wand2 className="size-3.5 text-[var(--accent)]" />
+        <Wand2 className="size-3.5 text-accent-ink" />
         <span className="font-medium">New 3D clip</span>
         <span className="text-muted">Claude writes it for your app and brand; then render it here.</span>
         <button onClick={onClose} className="ml-auto rounded p-1 text-muted hover:text-fg" title="Close">
@@ -159,13 +158,13 @@ function NewClip({ onAsk, onClose }: { onAsk: (type: Kit3dType, text: string) =>
           <button
             key={t.id}
             onClick={() => setType(t.id)}
-            className={cn('rounded-full border px-2.5 py-0.5', type === t.id ? 'border-[var(--accent)] bg-[var(--accent)]/10 font-medium' : 'border-line hover:bg-surface-2')}
+            className={cn('rounded-sm border px-2.5 py-0.5', type === t.id ? 'border-accent-ink bg-accent/10 font-medium' : 'border-line hover:bg-surface-2')}
           >
             {t.label}
           </button>
         ))}
       </div>
-      <div className="mt-1.5 text-[11.5px] text-muted">{hint}</div>
+      <div className="mt-1.5 text-[12px] text-muted">{hint}</div>
       <div className="mt-2 flex gap-1.5">
         <input
           value={text}
@@ -175,7 +174,7 @@ function NewClip({ onAsk, onClose }: { onAsk: (type: Kit3dType, text: string) =>
           className={field}
           autoFocus
         />
-        <button onClick={() => onAsk(type, text)} className="shrink-0 rounded-md bg-[var(--accent)] px-3 font-medium text-white hover:brightness-110">
+        <button onClick={() => onAsk(type, text)} className="shrink-0 rounded-md bg-accent px-3 font-medium text-white hover:brightness-110">
           Ask Claude to write it
         </button>
       </div>
@@ -213,24 +212,24 @@ function ClipRow({ clip, busy, activeJob }: { clip: Kit3dClip; busy: boolean; ac
       <div className="flex flex-wrap items-start gap-2">
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-1.5">
-            <span className="font-mono text-[12.5px] font-medium">{clip.name}</span>
-            {clip.seconds !== undefined && <span className="rounded bg-surface-2 px-1.5 text-[10.5px] text-muted">{clip.seconds.toFixed(1)} s</span>}
+            <span className="font-mono text-[13px] font-medium">{clip.name}</span>
+            {clip.seconds !== undefined && <span className="rounded bg-surface-2 px-1.5 text-[11px] text-muted">{clip.seconds.toFixed(1)} s</span>}
             {clip.uses
               ?.filter((u) => ['screen', 'device', 'product', 'cards', 'logo', 'hero', 'cursor'].includes(u))
               .map((u) => (
-                <span key={u} className="rounded bg-surface-2 px-1.5 text-[10.5px] text-muted">
+                <span key={u} className="rounded bg-surface-2 px-1.5 text-[11px] text-muted">
                   {u}
                 </span>
               ))}
-            {clip.talks && <span className="rounded bg-surface-2 px-1.5 text-[10.5px] text-muted">speaks</span>}
-            {clip.video && <span className="rounded bg-emerald-500/10 px-1.5 text-[10.5px] text-emerald-700 dark:text-emerald-300">{KIT3D_QUALITY[clip.video.quality].label} rendered</span>}
+            {clip.talks && <span className="rounded bg-surface-2 px-1.5 text-[11px] text-muted">speaks</span>}
+            {clip.video && <span className="rounded bg-ok/10 px-1.5 text-[11px] text-ok-ink">{KIT3D_QUALITY[clip.video.quality].label} rendered</span>}
             {clip.pitch === 'current' && (
-              <span className="flex items-center gap-0.5 rounded bg-emerald-500/10 px-1.5 text-[10.5px] text-emerald-700 dark:text-emerald-300">
+              <span className="flex items-center gap-0.5 rounded bg-ok/10 px-1.5 text-[11px] text-ok-ink">
                 <Check className="size-3" /> in the pitch
               </span>
             )}
           </div>
-          <div className="mt-0.5 text-[11.5px] text-muted">{clip.doc}</div>
+          <div className="mt-0.5 text-[12px] text-muted">{clip.doc}</div>
         </div>
         <NextButton
           tone="secondary"
@@ -247,7 +246,7 @@ function ClipRow({ clip, busy, activeJob }: { clip: Kit3dClip; busy: boolean; ac
       {!!clip.stills.length && (
         <div className="mt-2 flex gap-1 overflow-x-auto pb-1">
           {clip.stills.map((s) => (
-            <button key={s} onClick={() => setZoom(s)} className="shrink-0 overflow-hidden rounded border border-line hover:border-[var(--accent)]">
+            <button key={s} onClick={() => setZoom(s)} className="shrink-0 overflow-hidden rounded border border-line hover:border-accent-ink">
               <img src={fileUrl(s)} alt="" className="h-16 w-auto" loading="lazy" />
             </button>
           ))}
@@ -280,7 +279,7 @@ function ClipRow({ clip, busy, activeJob }: { clip: Kit3dClip; busy: boolean; ac
               setChange('')
               setChanging(false)
             }}
-            className="shrink-0 rounded-md bg-[var(--accent)] px-3 text-[12px] font-medium text-white hover:brightness-110 disabled:opacity-40"
+            className="shrink-0 rounded-md bg-accent px-3 text-[12px] font-medium text-white hover:brightness-110 disabled:opacity-40"
           >
             Ask Claude
           </button>

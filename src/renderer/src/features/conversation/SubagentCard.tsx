@@ -26,13 +26,13 @@ export function SubagentCard({ sub, session }: { sub: Subagent; session: Session
   const progress = Object.values(session.visuals[sub.id]?.progress ?? {})
 
   return (
-    <div className={cn('rounded-xl border bg-pink-500/[0.04]', running ? 'border-pink-500/40' : 'border-line')}>
+    <div className={cn('rounded-xl border bg-info/[0.04]', running ? 'border-info/40' : 'border-line')}>
       <button onClick={() => setOpen(!open)} className="flex w-full items-center gap-2.5 px-3 py-2.5 text-left">
         <ChevronRight className={cn('size-3.5 text-muted transition-transform', open && 'rotate-90')} />
-        <Bot className={cn('size-4 text-pink-600 dark:text-pink-400', running && 'animate-soft-pulse')} />
+        <Bot className={cn('size-4 text-info-ink', running && 'animate-soft-pulse')} />
         <div className="min-w-0 flex-1">
           <div className="truncate font-medium">{sub.description}</div>
-          <div className="truncate text-[11.5px] text-muted">
+          <div className="truncate text-[12px] text-muted">
             {sub.subagentType ?? 'subagent'} · {tools.length} tool calls
             {sub.background && <> · background</>}
             {running && (sub.progress ? <> · {sub.progress}</> : current && <> · now: {current.name}</>)}
@@ -46,11 +46,11 @@ export function SubagentCard({ sub, session }: { sub: Subagent; session: Session
             e.stopPropagation()
             openAgent(sub.id)
           }}
-          className="rounded p-1 text-muted hover:bg-black/5 hover:text-fg dark:hover:bg-white/10"
+          className="rounded p-1 text-muted hover:bg-hover hover:text-fg"
         >
           <Maximize2 className="size-3.5" />
         </span>
-        <div className="shrink-0 text-right text-[11px] tabular-nums text-muted">
+        <div className="shrink-0 text-right text-[12px] num text-muted">
           {duration > 0 && <div>{formatDuration(duration)}</div>}
           {sub.totalTokens !== undefined && <div>{formatTokens(sub.totalTokens)} tok</div>}
         </div>

@@ -28,7 +28,7 @@ export function HackathonView() {
   return (
     <div className="min-h-0 flex-1 overflow-y-auto">
       <div className="mx-auto max-w-5xl space-y-4 px-6 py-5">
-        {error && <div className="selectable rounded-lg border border-red-500/40 bg-red-500/5 px-3 py-2 text-[12px] text-red-600">{error}</div>}
+        {error && <div className="selectable rounded-lg border border-danger/40 bg-danger/5 px-3 py-2 text-[12px] text-danger-ink">{error}</div>}
         <Notice />
         {!event ? (
           <div className="py-10 text-center text-[12px] text-muted">Loading the event…</div>
@@ -87,12 +87,12 @@ export function HackathonBar() {
     <>
       <div className="min-w-0 max-w-[260px]">
         <div className="flex items-center gap-1.5 truncate text-[13px] font-semibold">
-          <Rocket className="size-3.5 shrink-0 text-[var(--accent)]" />
+          <Rocket className="size-3.5 shrink-0 text-accent-ink" aria-hidden />
           <span className="truncate">{h.name}</span>
         </div>
-        <div className={cn('truncate text-[11px] tabular-nums', h.urgent ? 'font-medium text-red-500' : 'text-muted')}>
+        <div className="truncate text-[12px] text-muted">
           {h.status}
-          {h.countdown && ` · ${h.countdown}`}
+          {h.countdown && <span className={cn('num font-semibold', h.urgent ? 'text-danger-ink' : 'text-fg/80')}> · {h.countdown}</span>}
         </div>
       </div>
       <Segmented
@@ -103,7 +103,8 @@ export function HackathonBar() {
         options={TABS.map((t) => ({
           ...t,
           title: t.id === 'build' ? shortcut(`${t.title} (⌘4)`) : t.title,
-          badge: t.id === 'build' ? h.inbox || undefined : t.id === 'challenges' && chosen ? '★' : undefined,
+          badge: t.id === 'build' ? h.inbox || undefined : undefined,
+          dot: t.id === 'challenges' && chosen ? ('ready' as const) : undefined,
         }))}
       />
       <div className="ml-auto flex min-w-0 items-center gap-2">

@@ -21,14 +21,14 @@ export function NextStep({ session }: { session: SessionState }) {
       <button
         onClick={() => setForm(action.id)}
         title={next.why}
-        className="flex items-center gap-1.5 rounded-full border border-[var(--accent)]/40 bg-[var(--accent)]/[0.07] px-3 py-1 text-[12px] hover:bg-[var(--accent)]/15"
+        className="flex items-center gap-1.5 rounded-sm border border-accent-ink/40 bg-accent/[0.07] px-3 py-1 text-[12px] hover:bg-accent/15"
       >
-        <action.icon className="size-3.5 text-[var(--accent)]" />
+        <action.icon className="size-3.5 text-accent-ink" />
         <span className="text-muted">Next:</span>
         <span className="font-medium">{action.label}</span>
         <ArrowRight className="size-3.5 text-muted" />
       </button>
-      <button onClick={() => setHidden(`${session.id}:${action.id}`)} title="Hide this suggestion" className="rounded-full p-1 text-muted hover:bg-black/5 hover:text-fg dark:hover:bg-white/10">
+      <button onClick={() => setHidden(`${session.id}:${action.id}`)} title="Hide this suggestion" className="rounded-full p-1 text-muted hover:bg-hover hover:text-fg">
         <X className="size-3" />
       </button>
     </div>

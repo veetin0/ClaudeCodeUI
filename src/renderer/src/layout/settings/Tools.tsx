@@ -56,11 +56,11 @@ export function ToolsTab() {
 
   return (
     <div className="space-y-3">
-      <p className="text-[11.5px] text-muted">Claude uses these by itself when they help. Their definitions load only when needed, so unused tools cost little. Changes apply to new sessions.</p>
-      {error && <div className="selectable rounded-lg border border-red-500/40 bg-red-500/5 px-3 py-2 text-[12px] text-red-600">{error}</div>}
+      <p className="text-[12px] text-muted">Claude uses these by itself when they help. Their definitions load only when needed, so unused tools cost little. Changes apply to new sessions.</p>
+      {error && <div className="selectable rounded-lg border border-danger/40 bg-danger/5 px-3 py-2 text-[12px] text-danger-ink">{error}</div>}
 
       <Row
-        icon={<Flame className="size-3.5 text-orange-500" />}
+        icon={<Flame className="size-3.5 text-forge" />}
         title="HackForge"
         description="Sessions get the /hackforge:* skills, the Next step suggestion and the HackForge actions in the / menu."
         control={
@@ -77,7 +77,7 @@ export function ToolsTab() {
       />
 
       <Row
-        icon={<Palette className="size-3.5 text-[var(--accent)]" />}
+        icon={<Palette className="size-3.5 text-accent-ink" />}
         title="impeccable"
         via={pluginInfo(design, 'impeccable')}
         description="Builds, polishes, critiques and audits UI. Its detector checks every UI edit for “AI slop” (cramped spacing, gradient text, low contrast…) and does a deeper pass when Claude finishes."
@@ -91,7 +91,7 @@ export function ToolsTab() {
         }
       />
       <Row
-        icon={<Sparkles className="size-3.5 text-[var(--accent)]" />}
+        icon={<Sparkles className="size-3.5 text-accent-ink" />}
         title="UI/UX Pro Max"
         via={pluginInfo(design, 'uiUxProMax')}
         description="Picks a design system for the product (style, palette, fonts) once and writes DESIGN.md, plus UX and accessibility rules. Needs Python 3."
@@ -136,7 +136,7 @@ export function ToolsTab() {
               {dev.partners.map((p) => (
                 <span
                   key={p.id}
-                  className={p.status === 'ready' ? 'rounded-full bg-emerald-500/10 px-2 text-emerald-700 dark:text-emerald-300' : 'rounded-full bg-surface-2 px-2'}
+                  className={p.status === 'ready' ? 'rounded-sm bg-ok/10 px-2 text-ok-ink' : 'rounded-sm bg-surface-2 px-2'}
                   title={p.status === 'ready' ? `Sessions in the event project get mcp__${p.id}__*` : 'Set its key under Hackathon › Challenges'}
                 >
                   {p.name} {p.status === 'ready' ? '· ready' : '· needs key'}
@@ -200,7 +200,7 @@ function EngineStatus({ design, onRetry }: { design: DesignState | null; onRetry
           </button>
         </>
       )}
-      <span className="block text-[10.5px]">Downloaded once per computer from impeccable’s GitHub releases; do it before the event, not on venue wifi.</span>
+      <span className="block text-[11px]">Downloaded once per computer from impeccable’s GitHub releases; do it before the event, not on venue wifi.</span>
     </>
   )
 }
@@ -244,21 +244,21 @@ function Context7Key({ hasKey }: { hasKey: boolean }) {
           onChange={(e) => setKey(e.target.value)}
           onKeyDown={(e) => e.key === 'Enter' && key.trim() && void save(key)}
           placeholder={hasKey ? 'Context7 key saved (paste to replace)' : 'Context7 API key (optional, from context7.com)'}
-          className="selectable min-w-0 flex-1 rounded-md border border-line bg-surface-2 px-2 py-1 font-mono text-[11.5px] outline-none focus:border-[var(--accent)]/60"
+          className="selectable min-w-0 flex-1 rounded-md border border-line bg-surface-2 px-2 py-1 font-mono text-[12px] outline-none focus:border-accent-ink/60"
         />
         {key.trim() ? (
-          <button onClick={() => void save(key)} className="rounded-md bg-[var(--accent)] px-2.5 text-[11.5px] font-medium text-white hover:brightness-110">
+          <button onClick={() => void save(key)} className="rounded-md bg-accent px-2.5 text-[12px] font-medium text-white hover:brightness-110">
             Save
           </button>
         ) : (
           hasKey && (
-            <button onClick={() => void save(null)} className="rounded-md border border-line px-2 text-[11.5px]">
+            <button onClick={() => void save(null)} className="rounded-md border border-line px-2 text-[12px]">
               Remove
             </button>
           )
         )}
       </div>
-      {error && <div className="mt-1 text-[11px] text-red-500">{error}</div>}
+      {error && <div className="mt-1 text-[11px] text-danger-ink">{error}</div>}
     </div>
   )
 }

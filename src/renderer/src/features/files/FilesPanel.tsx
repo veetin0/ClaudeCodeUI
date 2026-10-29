@@ -70,11 +70,11 @@ export function FilesPanel({ session }: { session: SessionState }) {
         <section>
           <div className="mb-1.5 flex items-baseline gap-2 px-1">
             <h3 className="text-[11px] font-semibold uppercase tracking-wide text-muted">Changes</h3>
-            <span className="text-[11px] tabular-nums text-muted">
-              {session.changes.length} files · <span className="text-emerald-600 dark:text-emerald-400">+{totals.add}</span>{' '}
-              <span className="text-red-600 dark:text-red-400">−{totals.del}</span>
+            <span className="text-[12px] num text-muted">
+              {session.changes.length} files · <span className="text-ok-ink">+{totals.add}</span>{' '}
+              <span className="text-danger-ink">−{totals.del}</span>
             </span>
-            <button onClick={() => openDiff(session.changes[0].path)} className="ml-auto text-[11px] text-[var(--accent)] hover:underline">
+            <button onClick={() => openDiff(session.changes[0].path)} className="ml-auto text-[11px] text-accent-ink hover:underline">
               Review all
             </button>
           </div>
@@ -87,17 +87,17 @@ export function FilesPanel({ session }: { session: SessionState }) {
               >
                 <span
                   className={cn(
-                    'w-3 shrink-0 text-center font-mono text-[10.5px] font-bold',
-                    c.status === 'added' ? 'text-emerald-600' : c.status === 'deleted' ? 'text-red-600' : 'text-amber-600',
+                    'w-3 shrink-0 text-center font-mono text-[11px] font-bold',
+                    c.status === 'added' ? 'text-ok-ink' : c.status === 'deleted' ? 'text-danger-ink' : 'text-warn-ink',
                   )}
                   title={c.status}
                 >
                   {c.status[0].toUpperCase()}
                 </span>
-                <span className="min-w-0 flex-1 truncate font-mono text-[11.5px]">{relPath(c.path, session.cwd)}</span>
-                <span className="shrink-0 text-[10.5px] tabular-nums">
-                  <span className="text-emerald-600 dark:text-emerald-400">+{c.additions}</span>{' '}
-                  <span className="text-red-600 dark:text-red-400">−{c.deletions}</span>
+                <span className="min-w-0 flex-1 truncate font-mono text-[12px]">{relPath(c.path, session.cwd)}</span>
+                <span className="shrink-0 text-[12px] num">
+                  <span className="text-ok-ink">+{c.additions}</span>{' '}
+                  <span className="text-danger-ink">−{c.deletions}</span>
                 </span>
               </button>
             ))}
@@ -113,7 +113,7 @@ export function FilesPanel({ session }: { session: SessionState }) {
             Touched only
           </label>
         </div>
-        <div className="mb-2 flex flex-wrap gap-x-3 gap-y-1 px-1 text-[10.5px] text-muted">
+        <div className="mb-2 flex flex-wrap gap-x-3 gap-y-1 px-1 text-[11px] text-muted">
           <Legend color={HEAT_COLOR.read} label="Read" />
           <Legend color={HEAT_COLOR.write} label="Written" />
           <Legend color={HEAT_COLOR.disk} label="Changed by a command" />
@@ -123,7 +123,7 @@ export function FilesPanel({ session }: { session: SessionState }) {
         ) : tree.root.children.length === 0 ? (
           <p className="px-1 text-[12px] text-muted">{showTouchedOnly ? 'No files touched yet.' : 'No files.'}</p>
         ) : (
-          <div className="font-mono text-[11.5px]">
+          <div className="font-mono text-[12px]">
             {tree.root.children.map((n) => (
               <Row key={n.rel} node={n} depth={0} session={session} now={now} changed={changed} isOpen={isOpen} toggle={toggle} onOpenFile={openDiff} />
             ))}
@@ -163,7 +163,7 @@ function Row({ node, depth, session, now, changed, isOpen, toggle, onOpenFile }:
     const Icon = open ? FolderOpen : Folder
     return (
       <>
-        <button onClick={() => toggle(node.rel)} style={{ ...pad, ...glow(hottest.f, hottest.h * 0.6) }} className="flex w-full items-center gap-1 rounded py-[3px] pr-1.5 text-left hover:bg-black/[0.04] dark:hover:bg-white/5">
+        <button onClick={() => toggle(node.rel)} style={{ ...pad, ...glow(hottest.f, hottest.h * 0.6) }} className="flex w-full items-center gap-1 rounded py-[3px] pr-1.5 text-left hover:bg-hover">
           <ChevronRight className={cn('size-3 shrink-0 text-muted transition-transform', open && 'rotate-90')} />
           <Icon className="size-3.5 shrink-0 text-muted" />
           <span className="truncate">{node.name}</span>
@@ -183,10 +183,10 @@ function Row({ node, depth, session, now, changed, isOpen, toggle, onOpenFile }:
       onClick={() => onOpenFile(node.abs!)}
       title={f ? `${f.reads} reads · ${f.writes} writes${f.diskChanges ? ` · ${f.diskChanges} changes by commands` : ''}` : node.rel}
       style={{ ...pad, ...glow(f, h) }}
-      className="group flex w-full items-center gap-1 rounded py-[3px] pr-1.5 text-left hover:bg-black/[0.04] dark:hover:bg-white/5"
+      className="group flex w-full items-center gap-1 rounded py-[3px] pr-1.5 text-left hover:bg-hover"
     >
       <span className="w-3 shrink-0" />
-      {ch ? <FileDiff className="size-3.5 shrink-0 text-amber-600" /> : <File className="size-3.5 shrink-0 text-muted" />}
+      {ch ? <FileDiff className="size-3.5 shrink-0 text-warn-ink" /> : <File className="size-3.5 shrink-0 text-muted" />}
       <span className={cn('truncate', !f && !ch && 'text-muted')}>{node.name}</span>
       {f && (
         <span className="ml-1 flex shrink-0 gap-0.5" aria-hidden>
@@ -196,15 +196,15 @@ function Row({ node, depth, session, now, changed, isOpen, toggle, onOpenFile }:
         </span>
       )}
       {ch && (
-        <span className="ml-auto shrink-0 text-[10px] tabular-nums">
-          <span className="text-emerald-600 dark:text-emerald-400">+{ch.additions}</span> <span className="text-red-600 dark:text-red-400">−{ch.deletions}</span>
+        <span className="ml-auto shrink-0 text-[12px] num">
+          <span className="text-ok-ink">+{ch.additions}</span> <span className="text-danger-ink">−{ch.deletions}</span>
         </span>
       )}
     </button>
   )
 }
 
-const Dot = ({ color }: { color: string }) => <span className="size-1.5 rounded-full" style={{ background: color }} />
+const Dot = ({ color }: { color: string }) => <span className="size-1.5 rounded-[2px]" style={{ background: color }} />
 
 function glow(f: FileActivity | undefined, h: number): React.CSSProperties {
   if (!f || h < 0.02) return {}

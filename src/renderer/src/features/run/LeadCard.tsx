@@ -27,19 +27,19 @@ export function LeadCard({ compact }: { compact?: boolean }) {
       <div className="flex items-center gap-2">
         <span
           className={cn(
-            'size-2 rounded-full',
-            !run.sessionLive ? 'bg-fg/25' : working ? 'animate-pulse bg-sky-500' : run.lead.status === 'waiting' ? 'bg-amber-500' : 'bg-emerald-500',
+            'size-2 rounded-[2px]',
+            !run.sessionLive ? 'bg-fg/25' : working ? 'animate-pulse bg-info' : run.lead.status === 'waiting' ? 'bg-warn' : 'bg-ok',
           )}
         />
-        <Crown className="size-3.5 text-[var(--accent)]" />
+        <Crown className="size-3.5 text-accent-ink" />
         <span className="font-semibold">Your Claude</span>
-        <span className="text-[11.5px] text-muted">
+        <span className="text-[12px] text-muted">
           {run.sessionLive ? (STATUS[(run.lead.status ?? 'idle') as SessionStatus] ?? run.lead.status) : 'Not connected'}
         </span>
         {run.sessionId && run.sessionLive && (
           <button
             onClick={() => useApp.getState().select(run.sessionId!)}
-            className="ml-auto flex items-center gap-1 text-[11.5px] text-muted hover:text-fg"
+            className="ml-auto flex items-center gap-1 text-[12px] text-muted hover:text-fg"
             title="Open the full conversation"
           >
             Watch <ExternalLink className="size-3" />
@@ -51,10 +51,10 @@ export function LeadCard({ compact }: { compact?: boolean }) {
           <div className="flex-1">
             <UsageBar pct={pct} />
           </div>
-          <span className="text-[11px] tabular-nums text-muted">{pct}% usage left</span>
+          <span className="text-[12px] num text-muted">{pct}% usage left</span>
         </div>
       )}
-      {run.sessionLive && run.lead.activity && <div className="selectable mt-2 truncate font-mono text-[11.5px] text-muted">{run.lead.activity}</div>}
+      {run.sessionLive && run.lead.activity && <div className="selectable mt-2 truncate font-mono text-[12px] text-muted">{run.lead.activity}</div>}
       {!compact && run.sessionLive && run.lead.lastText && (
         <div className="selectable mt-2 line-clamp-4 whitespace-pre-wrap text-[12px] text-muted">{run.lead.lastText.slice(-600)}</div>
       )}

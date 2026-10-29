@@ -20,7 +20,7 @@ export function Switch({ on, onChange, label, disabled }: { on: boolean; onChang
       aria-label={label}
       disabled={disabled}
       onClick={() => onChange(!on)}
-      className={cn('relative h-5 w-9 shrink-0 rounded-full transition-colors disabled:opacity-50', on ? 'bg-[var(--accent)]' : 'bg-black/15 dark:bg-white/20')}
+      className={cn('relative h-5 w-9 shrink-0 rounded-full transition-colors disabled:opacity-50', on ? 'bg-accent' : 'bg-muted/35')}
     >
       <span className={cn('absolute top-0.5 size-4 rounded-full bg-white shadow transition-[left]', on ? 'left-[18px]' : 'left-0.5')} />
     </button>
@@ -76,14 +76,14 @@ export function Row({
         </div>
         {control ?? (onToggle && <Switch on={!!on} onChange={onToggle} label={title} />)}
       </div>
-      {active && options && showOptions && <div className="mt-2 space-y-2 border-t border-line pt-2 text-[11.5px]">{options}</div>}
+      {active && options && showOptions && <div className="mt-2 space-y-2 border-t border-line pt-2 text-[12px]">{options}</div>}
       {active && children && <div className="mt-3 border-t border-line pt-3">{children}</div>}
     </div>
   )
 }
 
-export const warn = 'text-amber-700 dark:text-amber-300'
-export const ok = 'text-emerald-600 dark:text-emerald-400'
+export const warn = 'text-warn-ink'
+export const ok = 'text-ok-ink'
 export const smallBtn = 'rounded border border-line px-1.5 py-px text-fg hover:bg-surface-2'
 
 export function ExtLink({ url, children }: { url: string; children: React.ReactNode }) {

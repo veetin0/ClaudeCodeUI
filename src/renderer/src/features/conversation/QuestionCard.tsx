@@ -35,16 +35,16 @@ export function QuestionCard({ req }: { req: PermissionRequest }) {
   }
 
   return (
-    <div className="rounded-xl border border-[var(--accent)]/40 bg-[var(--accent)]/[0.05] p-3 shadow-sm">
+    <div className="rounded-xl border border-accent-ink/40 bg-accent/[0.05] p-3 shadow-sm">
       <div className="mb-2 flex items-center gap-2">
-        <MessageCircleQuestion className="size-4 text-[var(--accent)]" />
+        <MessageCircleQuestion className="size-4 text-accent-ink" />
         <span className="font-medium">Claude has {questions.length === 1 ? 'a question' : `${questions.length} questions`}</span>
-        {req.agentId && <span className="rounded bg-pink-500/10 px-1.5 py-0.5 text-[10.5px] text-pink-600 dark:text-pink-400">subagent</span>}
+        {req.agentId && <span className="rounded bg-info/10 px-1.5 py-0.5 text-[11px] text-info-ink">subagent</span>}
       </div>
       <div className="space-y-3">
         {questions.map((q) => (
           <div key={q.question}>
-            {q.header && <div className="mb-0.5 text-[10.5px] font-semibold uppercase tracking-wide text-muted">{q.header}</div>}
+            {q.header && <div className="mb-0.5 text-[11px] font-semibold uppercase tracking-wide text-muted">{q.header}</div>}
             <div className="mb-1.5 text-[13px]">{q.question}</div>
             <div className="flex flex-wrap gap-1.5">
               {(q.options ?? []).map((o) => {
@@ -56,7 +56,7 @@ export function QuestionCard({ req }: { req: PermissionRequest }) {
                     title={o.description}
                     className={cn(
                       'max-w-[280px] rounded-lg border px-2.5 py-1.5 text-left text-[12px]',
-                      on ? 'border-[var(--accent)]/60 bg-[var(--accent)]/10' : 'border-line bg-surface hover:bg-surface-2',
+                      on ? 'border-accent-ink/60 bg-accent/10' : 'border-line bg-surface hover:bg-surface-2',
                     )}
                   >
                     <div className="font-medium">{o.label}</div>
@@ -73,7 +73,7 @@ export function QuestionCard({ req }: { req: PermissionRequest }) {
               }}
               onKeyDown={(e) => e.key === 'Enter' && complete && submit()}
               placeholder="Or type your own answer…"
-              className="selectable mt-1.5 w-full rounded-md border border-line bg-surface px-2.5 py-1.5 text-[12px] outline-none focus:border-[var(--accent)]/60"
+              className="selectable mt-1.5 w-full rounded-md border border-line bg-surface px-2.5 py-1.5 text-[12px] outline-none focus:border-accent-ink/60"
             />
           </div>
         ))}
@@ -82,13 +82,13 @@ export function QuestionCard({ req }: { req: PermissionRequest }) {
         <button
           onClick={submit}
           disabled={!complete}
-          className="rounded-md bg-[var(--accent)] px-3 py-1.5 text-[12px] font-medium text-white hover:brightness-110 disabled:opacity-40"
+          className="rounded-md bg-accent px-3 py-1.5 text-[12px] font-medium text-white hover:brightness-110 disabled:opacity-40"
         >
           Answer
         </button>
         <button
           onClick={() => void respond(req.requestId, { behavior: 'deny', message: 'The user skipped these questions.' })}
-          className="ml-auto rounded-md px-3 py-1.5 text-[12px] text-muted hover:bg-black/5 hover:text-fg dark:hover:bg-white/10"
+          className="ml-auto rounded-md px-3 py-1.5 text-[12px] text-muted hover:bg-hover hover:text-fg"
         >
           Skip
         </button>

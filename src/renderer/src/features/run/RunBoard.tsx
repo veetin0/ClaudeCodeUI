@@ -26,7 +26,7 @@ export function RunBoard() {
           {run.step === 'finishing' ? 'Finishing: pitch, verify, improve' : current ? `${current.id}: ${current.goal}` : 'Running'}
         </h1>
         {current?.startedAt && (
-          <span className="text-[12px] tabular-nums text-muted">
+          <span className="text-[12px] num text-muted">
             {formatDuration(now - current.startedAt)}
             {current.budgetMs ? ` of ${formatDuration(current.budgetMs)}` : ''}
             {current.status === 'integrating' && ' · integrating'}
@@ -61,8 +61,8 @@ export function RunBoard() {
       </div>
 
       {paused && (
-        <div className="flex items-center gap-2 rounded-lg border border-amber-500/40 bg-amber-500/[0.07] px-3 py-2 text-[12.5px]">
-          <TriangleAlert className="size-4 text-amber-600" />
+        <div className="flex items-center gap-2 rounded-lg border border-warn/40 bg-warn/[0.07] px-3 py-2 text-[13px]">
+          <TriangleAlert className="size-4 text-warn-ink" />
           <span>
             {run.pausedReason}
             {run.resumeAt && ` · carries on at ${new Date(run.resumeAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`}
@@ -95,23 +95,23 @@ function Timeline({ milestones, current, finishing }: { milestones: RunMilestone
             className={cn(
               'h-1.5 rounded-full',
               m.status === 'done'
-                ? 'bg-emerald-500'
+                ? 'bg-ok'
                 : m.id === current
-                  ? 'animate-pulse bg-[var(--accent)]'
+                  ? 'animate-pulse bg-accent'
                   : m.status === 'stuck'
-                    ? 'bg-amber-500'
+                    ? 'bg-warn'
                     : 'bg-line',
             )}
           />
           <div className={cn('mt-1 flex items-center gap-1 truncate text-[11px]', m.id === current ? 'font-semibold' : 'text-muted')}>
-            {m.status === 'done' ? <Check className="size-3 text-emerald-600" /> : m.id === current ? <Loader2 className="size-3 animate-spin" /> : null}
+            {m.status === 'done' ? <Check className="size-3 text-ok-ink" /> : m.id === current ? <Loader2 className="size-3 animate-spin" /> : null}
             {m.id}
             <span className="truncate font-normal"> {m.goal}</span>
           </div>
         </div>
       ))}
       <div className="w-28 shrink-0" title="Pitch, final verification and the improvement loop">
-        <div className={cn('h-1.5 rounded-full', finishing ? 'animate-pulse bg-[var(--accent)]' : 'bg-line')} />
+        <div className={cn('h-1.5 rounded-full', finishing ? 'animate-pulse bg-accent' : 'bg-line')} />
         <div className={cn('mt-1 truncate text-[11px]', finishing ? 'font-semibold' : 'text-muted')}>Finish</div>
       </div>
     </div>
@@ -133,25 +133,25 @@ function People() {
             <div className="flex items-center gap-2">
               <span
                 className={cn(
-                  'size-2 rounded-full',
-                  !m.online ? 'bg-fg/25' : m.problem ? 'bg-amber-500' : m.current ? 'animate-pulse bg-sky-500' : 'bg-emerald-500',
+                  'size-2 rounded-[2px]',
+                  !m.online ? 'bg-fg/25' : m.problem ? 'bg-warn' : m.current ? 'animate-pulse bg-info' : 'bg-ok',
                 )}
               />
               <Bot className="size-3.5 text-muted" />
               <span className="font-semibold">{m.name}’s Claude</span>
-              <span className="text-[11.5px] text-muted">{!m.online ? 'Offline' : m.problem ? 'Not ready' : m.current ? 'Working' : 'Free'}</span>
+              <span className="text-[12px] text-muted">{!m.online ? 'Offline' : m.problem ? 'Not ready' : m.current ? 'Working' : 'Free'}</span>
             </div>
             <div className="mt-2 flex items-center gap-2">
               <div className="flex-1">
                 <UsageBar pct={m.usage.source === 'api-key' ? 100 : m.headroom} />
               </div>
-              <span className="text-[11px] tabular-nums text-muted">{m.usage.source === 'api-key' ? 'API key' : `${m.headroom}% usage left`}</span>
+              <span className="text-[12px] num text-muted">{m.usage.source === 'api-key' ? 'API key' : `${m.headroom}% usage left`}</span>
             </div>
-            {m.problem && <div className="selectable mt-2 text-[12px] text-amber-700 dark:text-amber-300">{m.problem}</div>}
+            {m.problem && <div className="selectable mt-2 text-[12px] text-warn-ink">{m.problem}</div>}
             {m.current && (
               <div className="mt-2 text-[12px]">
                 <div className="truncate font-medium">{task?.id ?? m.current.title}</div>
-                <div className="truncate font-mono text-[11.5px] text-muted">
+                <div className="truncate font-mono text-[12px] text-muted">
                   {m.current.activity ?? 'starting'}
                   {m.current.since && ` · ${formatDuration(now - m.current.since)}`}
                 </div>
@@ -171,18 +171,18 @@ function Tasks({ tasks, current }: { tasks: RunTask[]; current?: string }) {
   return (
     <Card
       title="Tasks"
-      aside={earlier.length > 0 && <span className="text-[11.5px] text-muted">{earlier.filter((t) => t.state === 'done').length} done earlier</span>}
+      aside={earlier.length > 0 && <span className="text-[12px] text-muted">{earlier.filter((t) => t.state === 'done').length} done earlier</span>}
     >
       <div className="divide-y divide-line">
         {(shown.length ? shown : earlier.slice(-8)).map((t) => (
-          <div key={t.id} className="flex items-start gap-3 py-2 text-[12.5px]">
+          <div key={t.id} className="flex items-start gap-3 py-2 text-[13px]">
             <span className="mt-0.5">
               {t.state === 'done' ? (
-                <Check className="size-4 text-emerald-600" />
+                <Check className="size-4 text-ok-ink" />
               ) : t.state === 'failed' ? (
-                <TriangleAlert className="size-4 text-amber-600" />
+                <TriangleAlert className="size-4 text-warn-ink" />
               ) : t.state === 'working' ? (
-                <Loader2 className="size-4 animate-spin text-sky-600" />
+                <Loader2 className="size-4 animate-spin text-info-ink" />
               ) : (
                 <CircleDashed className="size-4 text-muted" />
               )}
@@ -191,14 +191,14 @@ function Tasks({ tasks, current }: { tasks: RunTask[]; current?: string }) {
               <div className="flex flex-wrap items-center gap-x-2">
                 <span className="font-mono font-medium">{t.id}</span>
                 {t.role && <span className="text-muted">{t.role}</span>}
-                <span className="flex items-center gap-1 text-[11.5px] text-muted">
+                <span className="flex items-center gap-1 text-[12px] text-muted">
                   {t.assignee.kind === 'lead' ? <Crown className="size-3" /> : <Bot className="size-3" />}
                   {t.assignee.kind === 'lead' ? 'your Claude' : t.assignee.name}
                 </span>
               </div>
               {t.owned.length > 0 && <div className="truncate font-mono text-[11px] text-muted">{t.owned.join('  ')}</div>}
               {t.note && (
-                <div className="selectable mt-0.5 flex items-center gap-1 text-[11.5px] text-muted">
+                <div className="selectable mt-0.5 flex items-center gap-1 text-[12px] text-muted">
                   {t.note.includes('crew/') && <GitBranch className="size-3" />}
                   {t.note}
                 </div>
@@ -219,8 +219,8 @@ function Log() {
       <ol className="selectable max-h-96 space-y-1.5 overflow-y-auto text-[12px]">
         {[...run.log].reverse().map((e, i) => (
           <li key={`${e.at}-${i}`} className="flex gap-2">
-            <span className="w-14 shrink-0 text-right text-[11px] tabular-nums text-muted">{relativeTime(e.at, now)}</span>
-            <span className={cn(e.tone === 'good' ? 'text-emerald-700 dark:text-emerald-400' : e.tone === 'warn' ? 'text-amber-700 dark:text-amber-300' : '')}>
+            <span className="w-14 shrink-0 text-right text-[12px] num text-muted">{relativeTime(e.at, now)}</span>
+            <span className={cn(e.tone === 'good' ? 'text-ok-ink' : e.tone === 'warn' ? 'text-warn-ink' : '')}>
               {e.text}
             </span>
           </li>

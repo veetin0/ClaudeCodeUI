@@ -1,13 +1,14 @@
 import type { SessionStatus } from '@shared/events'
 import { cn } from '@/lib/format'
 
+/** Timing flags: green running, yellow waiting for you, grey ready, red ended. */
 const COLORS: Record<SessionStatus, string> = {
-  starting: 'bg-zinc-400 animate-soft-pulse',
-  idle: 'bg-zinc-400',
-  running: 'bg-emerald-500 animate-soft-pulse',
-  waiting: 'bg-amber-500 animate-soft-pulse',
-  compacting: 'bg-sky-500 animate-soft-pulse',
-  closed: 'bg-red-500/60',
+  starting: 'bg-idle animate-soft-pulse',
+  idle: 'bg-idle',
+  running: 'bg-ok animate-soft-pulse',
+  waiting: 'bg-warn animate-soft-pulse',
+  compacting: 'bg-info animate-soft-pulse',
+  closed: 'bg-danger/60',
 }
 
 export const STATUS_LABEL: Record<SessionStatus, string> = {
@@ -20,5 +21,5 @@ export const STATUS_LABEL: Record<SessionStatus, string> = {
 }
 
 export function StatusDot({ status, className }: { status: SessionStatus; className?: string }) {
-  return <span className={cn('inline-block size-2 shrink-0 rounded-full', COLORS[status], className)} />
+  return <span role="img" aria-label={STATUS_LABEL[status]} className={cn('inline-block size-2 shrink-0 rounded-[2px]', COLORS[status], className)} />
 }

@@ -24,7 +24,7 @@ export function PartnerKits() {
     <div className="space-y-4">
       <section className="rounded-2xl border border-line p-4">
         <div className="flex flex-wrap items-center gap-2">
-          <KeyRound className="size-4 text-[var(--accent)]" />
+          <KeyRound className="size-4 text-accent-ink" />
           <h2 className="text-[13px] font-semibold">Partner APIs</h2>
           <span className="text-[11px] text-muted">
             {ready} / {apiKits.length} have keys
@@ -42,8 +42,8 @@ export function PartnerKits() {
           and every Claude session in the project, and Claude gets a kit note per partner in <code>challenge/partners/</code> with the variable names, install
           command and a working example. Share a key and teammates get it too, encrypted with your team code.
         </p>
-        {state.writeError && <div className="selectable mt-2 text-[12px] text-red-500">{state.writeError}</div>}
-        {error && <div className="selectable mt-2 text-[12px] text-red-500">{error}</div>}
+        {state.writeError && <div className="selectable mt-2 text-[12px] text-danger-ink">{state.writeError}</div>}
+        {error && <div className="selectable mt-2 text-[12px] text-danger-ink">{error}</div>}
       </section>
       <div className="grid gap-3 lg:grid-cols-2">
         {apiKits.map((k) => (
@@ -53,7 +53,7 @@ export function PartnerKits() {
       <AddCustom />
       {infoKits.length > 0 && (
         <section className="rounded-2xl border border-line p-4 text-[12px]">
-          <div className="mb-1.5 text-[12.5px] font-semibold">Other partners (no API)</div>
+          <div className="mb-1.5 text-[13px] font-semibold">Other partners (no API)</div>
           {infoKits.map((k) => (
             <div key={k.id} className="py-0.5">
               <button onClick={() => open(k.site)} className="font-medium hover:underline">
@@ -74,19 +74,19 @@ function KitCard({ kit, state }: { kit: PartnerKit; state: PartnersState }) {
   const check = state.checks[kit.id]
   const hasAny = kit.keys.some((k) => state.keys[k.env])
   return (
-    <div data-kit={kit.id} className={cn('rounded-xl border p-3', hasAny ? 'border-emerald-500/40' : 'border-line')}>
+    <div data-kit={kit.id} className={cn('rounded-xl border p-3', hasAny ? 'border-ok/40' : 'border-line')}>
       <div className="flex flex-wrap items-center gap-2">
         <span className="text-[13px] font-semibold">{kit.name}</span>
         {kit.unverified && (
           <span
-            className="rounded-full bg-amber-500/10 px-1.5 text-[10.5px] text-amber-700 dark:text-amber-300"
+            className="rounded-sm bg-warn/10 px-1.5 text-[11px] text-warn-ink"
             title="Some details weren’t publicly confirmed before the event"
           >
             check at the event
           </span>
         )}
         {check && (
-          <span className={cn('flex items-center gap-1 text-[11px]', check.ok ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-500')} title={new Date(check.at).toLocaleString()}>
+          <span className={cn('flex items-center gap-1 text-[11px]', check.ok ? 'text-ok-ink' : 'text-danger-ink')} title={new Date(check.at).toLocaleString()}>
             {check.ok ? <Check className="size-3" /> : <X className="size-3" />} {check.message}
           </span>
         )}
@@ -107,7 +107,7 @@ function KitCard({ kit, state }: { kit: PartnerKit; state: PartnersState }) {
           />
         </div>
       </div>
-      <div className="mt-0.5 text-[11.5px] text-muted">{kit.what}</div>
+      <div className="mt-0.5 text-[12px] text-muted">{kit.what}</div>
       <div className="mt-2 space-y-1.5">
         {kit.keys.map((k) => (
           <KeyField
@@ -171,7 +171,7 @@ function KeyField({
       <div className="mb-0.5 flex items-center gap-2 text-[11px]">
         <span className="font-medium">{label}</span>
         <code className="text-muted">{env}</code>
-        {info?.source === 'team' && <span className="text-emerald-600 dark:text-emerald-400">from {info.from}</span>}
+        {info?.source === 'team' && <span className="text-ok-ink">from {info.from}</span>}
         {info?.source === 'me' && inTeam && (
           <label className="ml-auto flex items-center gap-1 text-muted" title="Teammates get this key too (encrypted with your team code)">
             <input type="checkbox" checked={info.share} onChange={(e) => void run(() => window.harness.partnerSetShare(env, e.target.checked))} /> share with
@@ -186,10 +186,10 @@ function KeyField({
           onChange={(e) => setValue(e.target.value)}
           onKeyDown={(e) => e.key === 'Enter' && void save()}
           placeholder={info ? `${info.preview}  (saved${info.source === 'team' ? ` by ${info.from}` : ''}; paste to replace)` : (placeholder ?? 'Paste here')}
-          className="selectable min-w-0 flex-1 rounded-md border border-line bg-surface-2 px-2 py-1 font-mono text-[11.5px] outline-none focus:border-[var(--accent)]/60"
+          className="selectable min-w-0 flex-1 rounded-md border border-line bg-surface-2 px-2 py-1 font-mono text-[12px] outline-none focus:border-accent-ink/60"
         />
         {value.trim() ? (
-          <button onClick={() => void save()} className="rounded-md bg-[var(--accent)] px-2.5 text-[11.5px] font-medium text-white hover:brightness-110">
+          <button onClick={() => void save()} className="rounded-md bg-accent px-2.5 text-[12px] font-medium text-white hover:brightness-110">
             Save
           </button>
         ) : (
@@ -197,7 +197,7 @@ function KeyField({
             <button
               onClick={() => void run(() => window.harness.partnerSetKey(env, null))}
               title="Remove this key"
-              className="rounded-md px-1.5 text-muted hover:bg-black/5 hover:text-red-500 dark:hover:bg-white/10"
+              className="rounded-md px-1.5 text-muted hover:bg-hover hover:text-danger-ink"
             >
               <X className="size-3.5" />
             </button>
@@ -219,7 +219,7 @@ function DocsField({ kitId, value }: { kitId: string; value: string }) {
         onChange={(e) => setV(e.target.value)}
         onBlur={() => v.trim() !== value && void run(() => window.harness.partnerSetDocs(kitId, v))}
         placeholder="https://… (from their booth or Discord)"
-        className="selectable mt-0.5 w-full rounded-md border border-line bg-surface-2 px-2 py-1 text-[11.5px] outline-none focus:border-[var(--accent)]/60"
+        className="selectable mt-0.5 w-full rounded-md border border-line bg-surface-2 px-2 py-1 text-[12px] outline-none focus:border-accent-ink/60"
       />
     </label>
   )
@@ -239,7 +239,7 @@ function McpField({ kitId, value }: { kitId: string; value: string }) {
         onChange={(e) => setV(e.target.value)}
         onBlur={() => v.trim() !== value && void run(() => window.harness.partnerSetMcp(kitId, v))}
         placeholder="https://… (if they announce one)"
-        className="selectable mt-0.5 w-full rounded-md border border-line bg-surface-2 px-2 py-1 text-[11.5px] outline-none focus:border-[var(--accent)]/60"
+        className="selectable mt-0.5 w-full rounded-md border border-line bg-surface-2 px-2 py-1 text-[12px] outline-none focus:border-accent-ink/60"
       />
     </label>
   )
@@ -251,7 +251,7 @@ function AddCustom() {
   const [name, setName] = useState('')
   const [env, setEnv] = useState('')
   const [docs, setDocs] = useState('')
-  const field = 'selectable rounded-md border border-line bg-surface-2 px-2 py-1 text-[12px] outline-none focus:border-[var(--accent)]/60'
+  const field = 'selectable rounded-md border border-line bg-surface-2 px-2 py-1 text-[12px] outline-none focus:border-accent-ink/60'
   if (!openForm)
     return (
       <button
@@ -285,7 +285,7 @@ function AddCustom() {
             },
           )
         }
-        className="rounded-md bg-[var(--accent)] px-3 py-1 text-[12px] font-medium text-white hover:brightness-110 disabled:opacity-40"
+        className="rounded-md bg-accent px-3 py-1 text-[12px] font-medium text-white hover:brightness-110 disabled:opacity-40"
       >
         Add
       </button>

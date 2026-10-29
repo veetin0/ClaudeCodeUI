@@ -121,7 +121,7 @@ export function PromptBox({ session }: { session: SessionState }) {
 
   return (
     <div className="mx-auto w-full max-w-3xl px-6 pb-5">
-      <div className="relative rounded-2xl border border-line bg-surface shadow-[0_1px_8px_rgb(0_0_0/0.06)] focus-within:border-[var(--accent)]/50">
+      <div className="relative rounded-xl border border-line bg-surface shadow-[0_6px_20px_-8px_rgb(21_22_29/0.18)] focus-within:border-accent-ink/60">
         {menuOpen && (
           <ActionMenu
             groups={groups}
@@ -166,8 +166,8 @@ export function PromptBox({ session }: { session: SessionState }) {
               title="Actions and commands (or type /)"
               aria-label="Actions"
               className={cn(
-                'flex size-7 items-center justify-center rounded-full text-muted hover:bg-black/5 hover:text-fg dark:hover:bg-white/10',
-                plus !== null && 'bg-black/5 text-fg dark:bg-white/10',
+                'flex size-7 items-center justify-center rounded-md text-muted hover:bg-hover hover:text-fg',
+                plus !== null && 'bg-active text-fg',
               )}
             >
               <Plus className="size-4" />
@@ -176,7 +176,7 @@ export function PromptBox({ session }: { session: SessionState }) {
           <ModeChip session={session} />
           <div className="ml-auto flex items-center gap-2">
             {busy && !watching && (
-              <button onClick={() => void interrupt()} title="Stop (Esc)" className="flex size-7 items-center justify-center rounded-full bg-fg text-surface hover:opacity-80">
+              <button onClick={() => void interrupt()} title="Stop (Esc)" aria-label="Stop" className="flex size-7 items-center justify-center rounded-md bg-fg text-surface hover:opacity-80">
                 <Square className="size-3 fill-current" />
               </button>
             )}
@@ -185,7 +185,7 @@ export function PromptBox({ session }: { session: SessionState }) {
                 onClick={queue}
                 disabled={!text.trim()}
                 title={`Run this when your usage limit resets${resetLabel ? ` (${resetLabel})` : ''}`}
-                className="flex size-7 items-center justify-center rounded-full text-muted hover:bg-black/5 hover:text-fg disabled:opacity-40 dark:hover:bg-white/10"
+                aria-label="Queue for the reset" className="flex size-7 items-center justify-center rounded-md text-muted hover:bg-hover hover:text-fg disabled:opacity-40"
               >
                 <AlarmClock className="size-4" />
               </button>
@@ -195,8 +195,8 @@ export function PromptBox({ session }: { session: SessionState }) {
               disabled={!text.trim()}
               title={queueing ? 'Queue for the reset (⏎)' : 'Send (⏎)'}
               className={cn(
-                'flex size-7 items-center justify-center rounded-full text-white transition-opacity',
-                text.trim() ? 'bg-[var(--accent)] hover:brightness-110' : 'bg-zinc-400/40',
+                'flex size-7 items-center justify-center rounded-md text-white transition-opacity',
+                text.trim() ? 'bg-accent hover:brightness-110' : 'bg-idle/50',
               )}
             >
               <ArrowUp className="size-4" />

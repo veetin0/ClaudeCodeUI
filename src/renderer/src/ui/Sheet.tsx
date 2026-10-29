@@ -19,19 +19,19 @@ export function Sheet({
   wide?: boolean
 }) {
   return (
-    <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/30 p-6" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
+    <div className="fixed inset-0 z-40 flex items-center justify-center bg-[rgb(14_15_20/0.45)] p-6" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
       <div
         role="dialog"
         aria-label={title}
-        className={cn('flex max-h-full w-full flex-col overflow-hidden rounded-2xl bg-surface shadow-2xl', wide ? 'h-[min(860px,100%)] max-w-5xl' : 'max-h-[min(820px,100%)] max-w-2xl')}
+        className={cn('flex max-h-full w-full flex-col overflow-hidden rounded-xl border border-line bg-surface shadow-[var(--shadow-pop)]', wide ? 'h-[min(860px,100%)] max-w-5xl' : 'max-h-[min(820px,100%)] max-w-2xl')}
       >
         <header className="flex shrink-0 flex-wrap items-center gap-3 border-b border-line px-5 py-3">
-          <h2 className="flex items-center gap-2 text-[14px] font-semibold">
+          <h2 className="flex items-center gap-2 text-[15px] font-semibold">
             {icon}
             {title}
           </h2>
           {header}
-          <button onClick={onClose} className="ml-auto rounded-md p-1 text-muted hover:bg-black/5 hover:text-fg dark:hover:bg-white/10" title="Close (Esc)" aria-label="Close">
+          <button onClick={onClose} className="ml-auto rounded-md p-1 text-muted hover:bg-hover hover:text-fg" title="Close (Esc)" aria-label="Close">
             <X className="size-4" />
           </button>
         </header>

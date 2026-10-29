@@ -18,7 +18,7 @@ export function ToolChip({ tool, selected, onClick }: { tool: ToolCall; selected
       className={cn(
         'inline-flex max-w-full items-center gap-1.5 rounded-md border px-2 py-1 text-[12px] transition-colors',
         'kind-tint',
-        selected && 'ring-2 ring-[var(--accent)]/40',
+        selected && 'ring-2 ring-accent-ink/40',
         tool.status === 'running' && 'animate-soft-pulse',
       )}
     >
@@ -28,11 +28,11 @@ export function ToolChip({ tool, selected, onClick }: { tool: ToolCall; selected
       {tool.status === 'running' ? (
         <Loader2 className="size-3 shrink-0 animate-spin" />
       ) : tool.status === 'error' ? (
-        <X className="size-3 shrink-0 text-red-500" />
+        <X className="size-3 shrink-0 text-danger-ink" />
       ) : (
         <Check className="size-3 shrink-0 opacity-60" />
       )}
-      {duration > 1500 && <span className="shrink-0 tabular-nums text-[10.5px] opacity-70">{formatDuration(duration)}</span>}
+      {duration > 1500 && <span className="shrink-0 num text-[12px] opacity-70">{formatDuration(duration)}</span>}
     </button>
   )
 }

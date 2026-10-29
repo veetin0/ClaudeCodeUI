@@ -43,8 +43,8 @@ export function PlanStep() {
         )}
 
         {snap?.decision && (
-          <Card icon={<Flag className="size-4 text-[var(--accent)]" />} title={snap.decision.title ?? 'What we’re building'}>
-            <div className="max-h-[420px] overflow-y-auto text-[12.5px]">
+          <Card icon={<Flag className="size-4 text-accent-ink" />} title={snap.decision.title ?? 'What we’re building'}>
+            <div className="max-h-[420px] overflow-y-auto text-[13px]">
               {/* The title is on the card already. */}
               <Markdown text={snap.decision.text.replace(/^\s*#{1,3} .*\n+/, '')} />
             </div>
@@ -52,10 +52,10 @@ export function PlanStep() {
         )}
 
         {snap && snap.milestones.length > 0 && (
-          <Card title="Milestones" aside={<span className="text-[11.5px] text-muted">built one after another, each split across the team</span>}>
+          <Card title="Milestones" aside={<span className="text-[12px] text-muted">built one after another, each split across the team</span>}>
             <ol className="space-y-1.5">
               {snap.milestones.map((m) => (
-                <li key={m.id} className="flex gap-2 text-[12.5px]">
+                <li key={m.id} className="flex gap-2 text-[13px]">
                   <span className="w-8 shrink-0 font-mono text-muted">{m.id}</span>
                   <span className="min-w-0 flex-1">
                     {m.goal}
@@ -89,7 +89,7 @@ export function PlanStep() {
                   rows={2}
                   autoFocus
                   placeholder="What should change? e.g. “Skip the mobile app, put the time into the live demo.”"
-                  className="selectable min-w-0 flex-1 resize-y rounded-lg border border-line bg-surface-2 px-3 py-2 text-[12.5px] outline-none focus:border-[var(--accent)]"
+                  className="selectable min-w-0 flex-1 resize-y rounded-lg border border-line bg-surface-2 px-3 py-2 text-[13px] outline-none focus:border-accent-ink"
                 />
                 <Secondary
                   busy={revising}

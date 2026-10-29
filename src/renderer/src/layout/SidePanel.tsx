@@ -41,7 +41,7 @@ function Section({ title, count, countLabel, children, defaultOpen = true }: { t
         <ChevronRight className={cn('size-3.5 transition-transform', open && 'rotate-90')} />
         {title}
         {!!count && (
-          <span className="ml-auto rounded-full bg-[var(--accent)] px-1.5 text-[10px] font-semibold normal-case leading-4 tracking-normal text-white">
+          <span className="ml-auto rounded-sm bg-accent px-1.5 text-[11px] font-semibold normal-case leading-4 tracking-normal text-white">
             {count}
             {countLabel && ` ${countLabel}`}
           </span>
@@ -68,31 +68,31 @@ function HackforgeSection({ session }: { session: SessionState }) {
     <Section title="HackForge">
       <div className="space-y-2 rounded-xl border border-line bg-surface p-3 text-[12px]">
         <div className="flex items-center gap-2">
-          <Flame className="size-4 text-orange-500" />
+          <Flame className="size-4 text-forge" />
           <span className="font-medium">{hf.initialized ? (hf.state.phase ? `Phase: ${hf.state.phase}` : 'Kicked off') : 'Ready for kickoff'}</span>
-          {phase !== undefined && <span className="ml-auto tabular-nums text-muted">{phase + 1} / {HACKFORGE_PHASES.length}</span>}
+          {phase !== undefined && <span className="ml-auto num text-muted">{phase + 1} / {HACKFORGE_PHASES.length}</span>}
         </div>
         {phase !== undefined && (
           <div className="flex gap-0.5">
             {HACKFORGE_PHASES.map((p, i) => (
-              <span key={p} title={p} className={cn('h-1 flex-1 rounded-full', i < phase ? 'bg-[var(--accent)]' : i === phase ? 'bg-[var(--accent)]/60' : 'bg-line')} />
+              <span key={p} title={p} className={cn('h-1 flex-1 rounded-full', i < phase ? 'bg-accent' : i === phase ? 'bg-accent/60' : 'bg-line')} />
             ))}
           </div>
         )}
         {hf.initialized && (
           <div className="flex gap-4 text-muted">
             <span>
-              Score <b className="text-fg tabular-nums">{(hf.verify?.mockScore ?? hf.state.latestMockScore)?.toFixed(1) ?? '—'}</b>
+              Score <b className="text-fg num">{(hf.verify?.mockScore ?? hf.state.latestMockScore)?.toFixed(1) ?? '—'}</b>
             </span>
             {hf.milestones.length > 0 && (
               <span>
-                Milestones <b className="text-fg tabular-nums">{done}/{hf.milestones.length}</b>
+                Milestones <b className="text-fg num">{done}/{hf.milestones.length}</b>
               </span>
             )}
           </div>
         )}
         {hf.loop?.active && (
-          <div className="flex items-center gap-2 rounded-lg bg-orange-500/[0.08] px-2 py-1.5">
+          <div className="flex items-center gap-2 rounded-lg bg-forge/[0.08] px-2 py-1.5">
             <span className="min-w-0 flex-1">
               Loop #{hf.loop.iteration} of {hf.loop.maxIterations}
               {hf.loop.bestScore !== undefined && <span className="text-muted"> · best {hf.loop.bestScore.toFixed(1)}</span>}
@@ -101,13 +101,13 @@ function HackforgeSection({ session }: { session: SessionState }) {
               disabled={hf.stopRequested}
               onClick={() => window.harness.hackforgeStopLoop(hf.cwd).catch((err: unknown) => setStopError(`Couldn't stop the loop: ${ipcErrorMessage(err)}`))}
               title="The loop finishes its iteration, writes a summary and stops"
-              className="flex items-center gap-1 rounded-md px-1.5 py-0.5 text-red-600 hover:bg-red-500/10 disabled:opacity-50 dark:text-red-400"
+              className="flex items-center gap-1 rounded-md px-1.5 py-0.5 text-danger-ink hover:bg-danger/10 disabled:opacity-50"
             >
               <OctagonX className="size-3.5" /> {hf.stopRequested ? 'Stopping…' : 'Stop'}
             </button>
           </div>
         )}
-        {stopError && <div className="selectable text-red-500">{stopError}</div>}
+        {stopError && <div className="selectable text-danger-ink">{stopError}</div>}
         {action && (
           <button
             onClick={() => {
@@ -115,14 +115,14 @@ function HackforgeSection({ session }: { session: SessionState }) {
               useApp.getState().setActionForm(action.id)
             }}
             title={next!.why}
-            className="flex w-full items-center gap-2 rounded-lg bg-[var(--accent)] px-2.5 py-1.5 font-medium text-white hover:brightness-110"
+            className="flex w-full items-center gap-2 rounded-lg bg-accent px-2.5 py-1.5 font-medium text-white hover:brightness-110"
           >
             <action.icon className="size-3.5" /> Next: {action.label}
           </button>
         )}
         <button
           onClick={() => (isEvent ? useApp.getState().openHackathon('build') : void useEvent.getState().link(session.cwd).then(() => useApp.getState().openHackathon('build')))}
-          className="flex w-full items-center gap-1.5 text-[11.5px] text-muted hover:text-fg"
+          className="flex w-full items-center gap-1.5 text-[12px] text-muted hover:text-fg"
           title={isEvent ? 'The full dashboard: rules, milestones, fix order, the loop' : 'Make this the hackathon project: team run, challenges and pitch work on it'}
         >
           <Rocket className="size-3.5" /> {isEvent ? 'Open in Hackathon' : 'Use for the hackathon'}

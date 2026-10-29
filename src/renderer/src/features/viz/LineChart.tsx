@@ -102,7 +102,7 @@ export function LineChart({
           niceTicks(yMin, yMax).map((t) => (
             <g key={t}>
               <line x1={pad.l} x2={pad.l + w} y1={sy(t)} y2={sy(t)} stroke="var(--grid)" />
-              <text x={pad.l - 6} y={sy(t)} dy="0.32em" textAnchor="end" fontSize="10" fill="var(--muted)" className="tabular-nums">
+              <text x={pad.l - 6} y={sy(t)} dy="0.32em" textAnchor="end" fontSize="10" fill="var(--muted)" className="num">
                 {formatValue(t)}
               </text>
             </g>
@@ -159,8 +159,8 @@ export function LineChart({
             {xLabel ?? 'step'} {formatValue(hovered[0][0])}
           </div>
           {hovered.map((p, i) => (
-            <div key={i} className="flex items-center gap-1.5 tabular-nums">
-              <span className="size-2 rounded-full" style={{ background: seriesColor(i) }} />
+            <div key={i} className="flex items-center gap-1.5 num">
+              <span className="size-2 rounded-[2px]" style={{ background: seriesColor(i) }} />
               <span className="text-muted">{shown[i].name}</span>
               <span className="ml-auto pl-2 font-medium">{formatValue(p[1])}</span>
             </div>

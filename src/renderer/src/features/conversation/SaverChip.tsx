@@ -16,7 +16,7 @@ export function SaverDetails({ session }: { session: SessionState }) {
   return (
     <div className="text-[12px]" data-saver={status.tone}>
       <div className="mb-1 flex items-center gap-1.5 font-semibold">
-        <Icon className={cn('size-3.5', status.tone === 'saving' ? 'text-emerald-500' : status.tone === 'power' ? 'text-amber-500' : 'text-muted')} />
+        <Icon className={cn('size-3.5', status.tone === 'saving' ? 'text-ok-ink' : status.tone === 'power' ? 'text-warn-ink' : 'text-muted')} />
         Usage saver · {status.label}
       </div>
       <p className="mb-2.5 leading-relaxed text-muted">{status.detail}</p>
@@ -46,7 +46,7 @@ export function SaverDetails({ session }: { session: SessionState }) {
       )}
       <button
         onClick={() => useApp.getState().setSettingsOpen(true, 'advanced')}
-        className="flex items-center gap-1.5 rounded-md border border-line px-2 py-1 text-[11.5px] hover:bg-surface-2"
+        className="flex items-center gap-1.5 rounded-md border border-line px-2 py-1 text-[12px] hover:bg-surface-2"
       >
         <Settings2 className="size-3.5" /> Saver settings
       </button>
@@ -57,7 +57,7 @@ export function SaverDetails({ session }: { session: SessionState }) {
 function Feature({ on, label }: { on: boolean; label: string }) {
   return (
     <span className={cn('flex items-center gap-1', on ? 'text-fg' : 'text-muted line-through')}>
-      <Check className={cn('size-3', on ? 'text-emerald-500' : 'opacity-0')} />
+      <Check className={cn('size-3', on ? 'text-ok-ink' : 'opacity-0')} />
       {label}
     </span>
   )

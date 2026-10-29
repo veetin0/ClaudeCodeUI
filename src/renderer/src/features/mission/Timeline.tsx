@@ -94,7 +94,7 @@ export function Timeline({ session }: { session: SessionState }) {
         {ticks.map((t) => (
           <g key={t}>
             <line x1={x(t)} x2={x(t)} y1={18} y2="100%" stroke="var(--grid)" />
-            <text x={x(t)} y={12} fontSize="10" textAnchor="middle" fill="var(--muted)" className="tabular-nums">
+            <text x={x(t)} y={12} fontSize="10" textAnchor="middle" fill="var(--muted)" className="num">
               {formatOffset(t - first)}
             </text>
           </g>
@@ -112,11 +112,11 @@ export function Timeline({ session }: { session: SessionState }) {
               <foreignObject x={8} y={laneY} width={LABEL_W - 16} height={height}>
                 <button
                   onClick={() => openAgent(a.key)}
-                  className="flex h-full w-full flex-col justify-center text-left text-[11.5px] hover:text-[var(--accent)]"
+                  className="flex h-full w-full flex-col justify-center text-left text-[12px] hover:text-accent-ink"
                   title={a.name}
                 >
                   <span className="truncate font-medium">{a.name}</span>
-                  <span className="truncate text-[10.5px] text-muted">{a.tools.length} calls</span>
+                  <span className="truncate text-[11px] text-muted">{a.tools.length} calls</span>
                 </button>
               </foreignObject>
               {/* agent lifetime */}
@@ -138,7 +138,7 @@ export function Timeline({ session }: { session: SessionState }) {
                       height={ROW_H}
                       rx={3}
                       fill={KIND_COLOR[toolKind(t.name)]}
-                      stroke={t.status === 'error' ? '#e34948' : hover?.tool.id === t.id ? 'var(--fg)' : 'none'}
+                      stroke={t.status === 'error' ? 'var(--danger)' : hover?.tool.id === t.id ? 'var(--fg)' : 'none'}
                       strokeWidth={t.status === 'error' || hover?.tool.id === t.id ? 2 : 0}
                       className={cn('cursor-pointer', t.status === 'running' && 'animate-soft-pulse')}
                       onMouseEnter={(e) => {
@@ -162,7 +162,7 @@ export function Timeline({ session }: { session: SessionState }) {
           <div className="flex items-center gap-1.5">
             <span className="size-2 rounded-sm" style={{ background: KIND_COLOR[toolKind(hover.tool.name)] }} />
             <span className="font-medium">{toolDisplayName(hover.tool.name)}</span>
-            <span className={cn('ml-auto tabular-nums', hover.tool.status === 'error' ? 'text-red-500' : 'text-muted')}>
+            <span className={cn('ml-auto num', hover.tool.status === 'error' ? 'text-danger-ink' : 'text-muted')}>
               {hover.tool.status === 'running' ? 'running' : hover.tool.status === 'error' ? 'failed' : formatDuration((hover.tool.endedAt ?? now) - hover.tool.startedAt)}
             </span>
           </div>

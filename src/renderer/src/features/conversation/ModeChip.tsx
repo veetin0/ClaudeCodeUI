@@ -29,9 +29,9 @@ export function ModeChip({ session }: { session: SessionState }) {
         <button
           onClick={toggle}
           title="Permissions, model and Usage saver"
-          className={cn('flex items-center gap-1.5 rounded-md px-1.5 py-1 text-[11.5px] text-muted hover:bg-black/5 hover:text-fg dark:hover:bg-white/10', open && 'bg-black/5 text-fg dark:bg-white/10')}
+          className={cn('flex items-center gap-1.5 rounded-md px-1.5 py-1 text-[12px] text-muted hover:bg-hover hover:text-fg', open && 'bg-hover text-fg')}
         >
-          {status && status.tone !== 'off' && <Icon className={cn('size-3', status.tone === 'saving' ? 'text-emerald-500' : status.tone === 'power' ? 'text-amber-500' : '')} />}
+          {status && status.tone !== 'off' && <Icon className={cn('size-3', status.tone === 'saving' ? 'text-ok-ink' : status.tone === 'power' ? 'text-warn-ink' : '')} />}
           {SHORT[session.permissionMode]} · {modelLabel}
         </button>
       )}
@@ -62,7 +62,7 @@ export function ModeChip({ session }: { session: SessionState }) {
 function Group({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div className="mb-1">
-      <div className="px-2 pb-0.5 pt-1 text-[10.5px] font-semibold uppercase tracking-wide text-muted">{label}</div>
+      <div className="px-2 pb-0.5 pt-1 text-[11px] font-semibold uppercase tracking-wide text-muted">{label}</div>
       <div className="grid grid-cols-2 gap-0.5">{children}</div>
     </div>
   )
@@ -70,8 +70,8 @@ function Group({ label, children }: { label: string; children: React.ReactNode }
 
 function Choice({ on, onClick, children }: { on: boolean; onClick: () => void; children: React.ReactNode }) {
   return (
-    <button onClick={onClick} className={cn('flex items-center gap-1.5 rounded-md px-2 py-1 text-left text-[12px] hover:bg-black/5 dark:hover:bg-white/10', on && 'font-medium')}>
-      <Check className={cn('size-3.5 shrink-0 text-[var(--accent)]', !on && 'opacity-0')} />
+    <button onClick={onClick} className={cn('flex items-center gap-1.5 rounded-md px-2 py-1 text-left text-[12px] hover:bg-hover', on && 'font-medium')}>
+      <Check className={cn('size-3.5 shrink-0 text-accent-ink', !on && 'opacity-0')} />
       {children}
     </button>
   )

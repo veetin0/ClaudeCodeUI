@@ -125,18 +125,12 @@ const hackforge = new HackforgeService(hackforgePlugin, (snap) => {
   }
 })
 
-/** macOS: inset traffic lights over a translucent sidebar. Windows/Linux: the standard frame and menu bar. */
+/** macOS: inset traffic lights over the graphite rail. Windows/Linux: the standard frame and menu bar. */
 function windowChrome(): Electron.BrowserWindowConstructorOptions {
-  if (process.platform === 'darwin') {
-    return {
-      titleBarStyle: 'hiddenInset',
-      trafficLightPosition: { x: 16, y: 16 },
-      vibrancy: 'sidebar',
-      visualEffectState: 'followWindow',
-      backgroundColor: '#00000000',
-    }
-  }
-  return { backgroundColor: nativeTheme.shouldUseDarkColors ? '#1c1c1e' : '#f4f3f1', autoHideMenuBar: false }
+  // The rail's colour (styles.css --rail), so the window never flashes another one while loading.
+  const backgroundColor = nativeTheme.shouldUseDarkColors ? '#0e0f14' : '#15161d'
+  if (process.platform === 'darwin') return { titleBarStyle: 'hiddenInset', trafficLightPosition: { x: 16, y: 16 }, backgroundColor }
+  return { backgroundColor, autoHideMenuBar: false }
 }
 
 function createWindow() {

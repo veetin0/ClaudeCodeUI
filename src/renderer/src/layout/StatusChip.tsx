@@ -1,5 +1,6 @@
 import { BarChart3 } from 'lucide-react'
-import { ContextGauge } from '@/features/meters/ContextGauge'
+import { ContextGauge, contextTone } from '@/features/meters/ContextGauge'
+import { SectorMeter } from '@/ui/Sectors'
 import { cn, formatCost, formatTokens } from '@/lib/format'
 import { shortcut } from '@/lib/keys'
 import { useApp } from '@/stores/app'
@@ -40,15 +41,15 @@ export function StatusChip({ session }: { session: SessionState }) {
           onClick={toggle}
           title="Context, plan usage and cost"
           className={cn(
-            'flex items-center gap-1.5 rounded-md px-2 py-1 tabular-nums hover:bg-black/5 dark:hover:bg-white/10',
-            open && 'bg-black/5 dark:bg-white/10',
-            tone === 'hot' ? 'text-red-500' : tone === 'warm' ? 'text-amber-600 dark:text-amber-400' : 'text-muted',
+            'num flex h-7 items-center gap-2 rounded-md px-2 text-[13px] hover:bg-hover',
+            open && 'bg-hover',
+            tone === 'hot' ? 'text-danger-ink' : tone === 'warm' ? 'text-warn-ink' : 'text-muted',
           )}
         >
-          <Ring pct={ctx} />
+          <SectorMeter value={ctx} count={10} tone={contextTone(ctx)} height={3} className="w-10" label="Context used" />
           {Math.round(ctx * 100)}%
           {plan && (plan.hot || plan.warm) && <span>· {plan.label}</span>}
-          <span className="font-medium text-fg">· {formatCost(session.totalCostUsd)}</span>
+          <span className="font-semibold text-fg">· {formatCost(session.totalCostUsd)}</span>
         </button>
       )}
     >
@@ -59,7 +60,7 @@ export function StatusChip({ session }: { session: SessionState }) {
           </Row>
           {plan && (
             <Row label="Plan usage">
-              <span className={cn('tabular-nums', plan.hot ? 'font-medium text-red-500' : plan.warm ? 'text-amber-600 dark:text-amber-400' : '')}>
+              <span className={cn('num', plan.hot ? 'font-semibold text-danger-ink' : plan.warm ? 'text-warn-ink' : '')}>
                 {plan.label}
                 {plan.week !== undefined && <span className="text-muted"> · week {plan.week}%</span>}
                 {plan.resetsAt && (
@@ -70,20 +71,20 @@ export function StatusChip({ session }: { session: SessionState }) {
           )}
           {session.model && <Row label="Model">{session.saver?.auto ? `Auto · ${session.model}` : session.model}</Row>}
           <Row label="Output tokens">
-            <span className="tabular-nums">{formatTokens(session.outputTokens)}</span>
+            <span className="num">{formatTokens(session.outputTokens)}</span>
           </Row>
           <Row label="Cost this session">
-            <span className="font-medium tabular-nums">{formatCost(session.totalCostUsd)}</span>
+            <span className="num font-semibold">{formatCost(session.totalCostUsd)}</span>
           </Row>
           <button
             onClick={() => {
               close()
               useApp.getState().setUsageOpen(true)
             }}
-            className="flex w-full items-center gap-2 rounded-md border border-line px-2.5 py-1.5 hover:bg-surface-2"
+            className="flex w-full items-center gap-2 rounded-md border border-line px-2.5 py-1.5 hover:bg-hover"
           >
             <BarChart3 className="size-3.5 text-muted" /> Usage history
-            <kbd className="ml-auto text-[11px] text-muted">{shortcut('⌘5')}</kbd>
+            <kbd className="num ml-auto text-[12px] text-muted">{shortcut('⌘5')}</kbd>
           </button>
         </div>
       )}
@@ -97,17 +98,5 @@ function Row({ label, children }: { label: string; children: React.ReactNode }) 
       <span className="text-muted">{label}</span>
       <span className="text-right">{children}</span>
     </div>
-  )
-}
-
-function Ring({ pct }: { pct: number }) {
-  const r = 5.5
-  const c = 2 * Math.PI * r
-  const color = pct > 0.85 ? '#ef4444' : pct > 0.65 ? '#f59e0b' : 'var(--accent)'
-  return (
-    <svg width="14" height="14" viewBox="0 0 14 14" className="-rotate-90">
-      <circle cx="7" cy="7" r={r} fill="none" stroke="var(--line)" strokeWidth="2.2" />
-      <circle cx="7" cy="7" r={r} fill="none" stroke={color} strokeWidth="2.2" strokeLinecap="round" strokeDasharray={`${c * Math.min(1, pct)} ${c}`} />
-    </svg>
   )
 }

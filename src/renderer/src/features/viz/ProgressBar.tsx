@@ -1,7 +1,8 @@
 import { formatDuration } from '@/lib/format'
 import type { ProgressState } from '@/stores/reducer'
+import { SectorMeter } from '@/ui/Sectors'
 
-/** Progress with rate-based ETA once there's enough signal. */
+/** Progress as sectors, with a rate-based ETA once there's enough signal. */
 export function ProgressBar({ p, compact }: { p: ProgressState; compact?: boolean }) {
   const pct = Math.max(0, Math.min(1, p.current / p.total))
   const done = p.current >= p.total
@@ -10,22 +11,18 @@ export function ProgressBar({ p, compact }: { p: ProgressState; compact?: boolea
 
   return (
     <div>
-      <div className="mb-1 flex items-baseline gap-2 text-[11.5px]">
+      <div className="mb-1.5 flex items-baseline gap-2 text-[12px]">
         <span className="truncate font-medium capitalize">{p.label}</span>
-        <span className="tabular-nums text-muted">
+        <span className="num text-muted">
           {fmt(p.current)}/{fmt(p.total)}
           {p.unit ? ` ${p.unit}` : ''}
         </span>
-        <span className="ml-auto tabular-nums text-muted">
-          {Math.round(pct * 100)}%{!compact && eta !== null && ` · ~${formatDuration(eta)} left`}
+        <span className="num ml-auto text-muted">
+          <span className="font-semibold text-fg">{Math.round(pct * 100)}%</span>
+          {!compact && eta !== null && ` · ~${formatDuration(eta)} left`}
         </span>
       </div>
-      <div className="h-1.5 overflow-hidden rounded-full bg-line" role="progressbar" aria-valuenow={p.current} aria-valuemax={p.total} aria-label={p.label}>
-        <div
-          className={done ? 'h-full rounded-full bg-emerald-500' : 'h-full rounded-full bg-[var(--accent)]'}
-          style={{ width: `${pct * 100}%`, transition: 'width 400ms ease' }}
-        />
-      </div>
+      <SectorMeter value={pct} count={compact ? 16 : 24} tone={done ? 'done' : 'live'} label={p.label} />
     </div>
   )
 }

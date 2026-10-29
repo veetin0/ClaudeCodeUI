@@ -1,4 +1,4 @@
-import { AlertTriangle, CheckCircle2, ChevronDown, Circle, CircleDot, Copy, Flame, FolderPlus, OctagonX, Play, ShieldAlert, XCircle } from 'lucide-react'
+import { AlertTriangle, CheckCircle2, ChevronDown, Circle, CircleDot, Copy, Flame, FolderPlus, OctagonX, Play, ShieldAlert, Timer, XCircle } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { HACKFORGE_PHASES, HACKFORGE_PROFILES, loopRunId, loopStopPending, type HackforgeSnapshot, type LoopEntry, type RuleItem } from '@shared/hackforge'
 import { cn } from '@/lib/format'
@@ -7,6 +7,8 @@ import { useApp } from '@/stores/app'
 import { useHackforge } from '@/stores/hackforge'
 import { openActionIn } from '@/lib/projects'
 import { Markdown } from '../conversation/Markdown'
+import { SectorMeter } from '@/ui/Sectors'
+import { SectorSteps } from '@/ui/Sectors'
 
 const INSTALL = 'claude plugin marketplace add ./hackforge-marketplace\nclaude plugin install hackforge@veeti-tools'
 
@@ -64,14 +66,14 @@ export function HackforgeView({ cwd }: { cwd: string }) {
                 <MilestonesPanel hf={hf} />
                 {(hf.verify?.findings.length ?? 0) > 0 && (
                   <Panel title="Fix order" sub={hf.verify!.source === 'json' ? 'from verify.json' : 'from VERIFY.md'}>
-                    <ol className="list-decimal space-y-1 pl-5 text-[12.5px]">
+                    <ol className="list-decimal space-y-1 pl-5 text-[13px]">
                       {hf.verify!.findings.map((f, i) => (
                         <li key={i}>
                           {f.severity && (
                             <span
                               className={cn(
-                                'mr-1.5 rounded px-1 py-px text-[10px] font-semibold uppercase',
-                                f.severity === 'critical' ? 'bg-red-500/15 text-red-600' : f.severity === 'major' ? 'bg-amber-500/15 text-amber-700 dark:text-amber-400' : 'bg-surface-2 text-muted',
+                                'mr-1.5 rounded px-1 py-px text-[11px] font-semibold uppercase',
+                                f.severity === 'critical' ? 'bg-danger/15 text-danger-ink' : f.severity === 'major' ? 'bg-warn/15 text-warn-ink' : 'bg-surface-2 text-muted',
                               )}
                             >
                               {f.severity}
@@ -87,16 +89,16 @@ export function HackforgeView({ cwd }: { cwd: string }) {
                 {hf.verify && (hf.verify.unverified.length > 0 || hf.verify.blind) && (
                   <Panel title="Judges' blind spots" sub="from the last verify">
                     {hf.verify.blind && (
-                      <div className="mb-2 text-[12.5px]">
+                      <div className="mb-2 text-[13px]">
                         <span className="text-muted">Blind first impression{hf.verify.blind.vote ? ` (vote: ${hf.verify.blind.vote})` : ''}: </span>
                         {hf.verify.blind.impression && hf.verify.blind.impression !== '...' ? hf.verify.blind.impression : '—'}
-                        {hf.verify.blind.divergence && <div className="text-[11.5px] text-muted">{hf.verify.blind.divergence}</div>}
+                        {hf.verify.blind.divergence && <div className="text-[12px] text-muted">{hf.verify.blind.divergence}</div>}
                       </div>
                     )}
                     {hf.verify.unverified.length > 0 && (
                       <>
                         <div className="text-[11px] font-semibold uppercase tracking-wide text-muted">Not observed</div>
-                        <ul className="mt-0.5 list-disc space-y-0.5 pl-5 text-[12.5px]">
+                        <ul className="mt-0.5 list-disc space-y-0.5 pl-5 text-[13px]">
                           {hf.verify.unverified.map((u, i) => (
                             <li key={i}>{u}</li>
                           ))}
@@ -107,7 +109,7 @@ export function HackforgeView({ cwd }: { cwd: string }) {
                 )}
                 {hf.directives.length > 0 && (
                   <Panel title="Team directives" sub="DIRECTIVES.md">
-                    <ul className="space-y-1 text-[12.5px]">
+                    <ul className="space-y-1 text-[13px]">
                       {hf.directives.map((d, i) => (
                         <li key={i} className="flex gap-2">
                           <span className="text-muted">{i + 1}.</span>
@@ -122,7 +124,7 @@ export function HackforgeView({ cwd }: { cwd: string }) {
             {hf.decision && (
               <Panel title={hf.decision.title ? `Decision: ${hf.decision.title}` : 'Decision'} sub="DECISION.md">
                 <Collapsible>
-                  <Markdown text={hf.decision.text.replace(/^#\s+.*\n/, '')} className="text-[12.5px]" />
+                  <Markdown text={hf.decision.text.replace(/^#\s+.*\n/, '')} className="text-[13px]" />
                 </Collapsible>
               </Panel>
             )}
@@ -180,10 +182,10 @@ function Header({ hf }: { hf: HackforgeSnapshot }) {
   return (
     <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
       <div className="flex items-center gap-2">
-        <Flame className="size-5 text-orange-500" />
+        <Flame className="size-5 text-forge" />
         <div>
           <div className="text-[15px] font-semibold">{hf.config.challenge || 'HackForge'}</div>
-          <div className="text-[11.5px] text-muted">
+          <div className="text-[12px] text-muted">
             {[hf.config.team && `team of ${hf.config.team}`, hf.config.hours && `${hf.config.hours} h`, hf.state.milestone].filter(Boolean).join(' · ') || 'challenge/ · .hackforge/'}
           </div>
         </div>
@@ -193,9 +195,9 @@ function Header({ hf }: { hf: HackforgeSnapshot }) {
         {left && (
           <span
             title={deadline}
-            className={cn('rounded-md px-2 py-1 font-medium tabular-nums', left.past ? 'bg-red-500/10 text-red-600' : left.urgent ? 'bg-amber-500/15 text-amber-700 dark:text-amber-400' : 'bg-surface-2')}
+            className={cn('num flex items-center gap-1.5 rounded-md px-2 py-1 text-[13px] font-semibold', left.past ? 'bg-danger/10 text-danger-ink' : left.urgent ? 'bg-warn/15 text-warn-ink' : 'bg-surface-2')}
           >
-            ⏱ {left.text}
+            <Timer className="size-3.5" aria-hidden /> {left.text}
           </span>
         )}
         {hf.present && (
@@ -216,7 +218,7 @@ function Header({ hf }: { hf: HackforgeSnapshot }) {
           </label>
         )}
       </div>
-      {profileError && <div className="selectable w-full text-right text-[11.5px] text-red-500">{profileError}</div>}
+      {profileError && <div className="selectable w-full text-right text-[12px] text-danger-ink">{profileError}</div>}
     </div>
   )
 }
@@ -245,13 +247,13 @@ function InstallBanner() {
         be found. Rebuild Harness from the repository (it ships HackForge in resources/hackforge), or from the folder that contains hackforge-marketplace, run:
       </div>
       <div className="mt-1.5 flex items-start gap-2">
-        <pre className="selectable flex-1 rounded-md bg-surface-2 px-2.5 py-1.5 font-mono text-[11.5px]">{INSTALL}</pre>
+        <pre className="selectable flex-1 rounded-md bg-surface-2 px-2.5 py-1.5 font-mono text-[12px]">{INSTALL}</pre>
         <button
           onClick={() => {
             void navigator.clipboard.writeText(INSTALL)
             setCopied(true)
           }}
-          className="flex items-center gap-1 rounded-md border border-line px-2 py-1 text-[11.5px] hover:bg-surface-2"
+          className="flex items-center gap-1 rounded-md border border-line px-2 py-1 text-[12px] hover:bg-surface-2"
         >
           <Copy className="size-3" /> {copied ? 'Copied' : 'Copy'}
         </button>
@@ -263,8 +265,8 @@ function InstallBanner() {
 
 function Note({ icon: Icon, children }: { icon: typeof Flame; children: React.ReactNode }) {
   return (
-    <div className="flex gap-2.5 rounded-xl border border-amber-500/40 bg-amber-500/[0.06] p-3 text-[12.5px]">
-      <Icon className="mt-0.5 size-4 shrink-0 text-amber-600 dark:text-amber-400" />
+    <div className="flex gap-2.5 rounded-xl border border-warn/40 bg-warn/[0.06] p-3 text-[13px]">
+      <Icon className="mt-0.5 size-4 shrink-0 text-warn-ink" />
       <div className="min-w-0 flex-1">{children}</div>
     </div>
   )
@@ -272,11 +274,11 @@ function Note({ icon: Icon, children }: { icon: typeof Flame; children: React.Re
 
 function Empty({ icon: Icon, title, text, action }: { icon: typeof Flame; title: string; text: string; action: { label: string; onClick: () => void } }) {
   return (
-    <div className="flex flex-col items-center rounded-2xl border border-dashed border-line px-6 py-12 text-center">
-      <Icon className="mb-2 size-6 text-orange-500" />
+    <div className="flex flex-col items-center rounded-lg border border-dashed border-line px-6 py-12 text-center">
+      <Icon className="mb-2 size-6 text-forge" />
       <div className="font-semibold">{title}</div>
-      <p className="mt-1 max-w-md text-[12.5px] text-muted">{text}</p>
-      <button onClick={action.onClick} className="mt-4 rounded-md bg-[var(--accent)] px-3 py-1.5 text-[12px] font-medium text-white hover:brightness-110">
+      <p className="mt-1 max-w-md text-[13px] text-muted">{text}</p>
+      <button onClick={action.onClick} className="mt-4 h-7 rounded-md bg-accent px-3 text-[13px] font-medium text-white hover:brightness-110">
         {action.label}
       </button>
     </div>
@@ -284,25 +286,16 @@ function Empty({ icon: Icon, title, text, action }: { icon: typeof Flame; title:
 }
 
 function PhaseStepper({ index }: { index: number | undefined }) {
+  const labels = Object.fromEntries(HACKFORGE_PHASES.map((p) => [p, p])) as Record<(typeof HACKFORGE_PHASES)[number], string>
   return (
-    <div className="flex items-center gap-1 overflow-x-auto rounded-xl border border-line px-3 py-2.5 [scrollbar-width:none]">
-      {HACKFORGE_PHASES.map((p, i) => {
-        const state = index === undefined ? 'todo' : i < index ? 'done' : i === index ? 'now' : 'todo'
-        return (
-          <div key={p} className="flex shrink-0 items-center gap-1">
-            {i > 0 && <span className={cn('h-px w-4', state === 'todo' ? 'bg-line' : 'bg-[var(--accent)]')} />}
-            <span
-              className={cn(
-                'flex items-center gap-1 rounded-full px-2 py-0.5 text-[11.5px]',
-                state === 'now' ? 'bg-[var(--accent)] font-medium text-white' : state === 'done' ? 'text-fg' : 'text-muted',
-              )}
-            >
-              {state === 'done' ? <CheckCircle2 className="size-3 text-[var(--accent)]" /> : state === 'now' ? <CircleDot className="size-3" /> : <Circle className="size-3" />}
-              {p}
-            </span>
-          </div>
-        )
-      })}
+    <div className="overflow-x-auto rounded-lg border border-line px-3 pb-2 pt-3 [scrollbar-width:none]">
+      <SectorSteps
+        steps={HACKFORGE_PHASES}
+        current={index === undefined ? undefined : HACKFORGE_PHASES[index]}
+        labels={labels}
+        label="HackForge phases"
+        className="min-w-[640px]"
+      />
     </div>
   )
 }
@@ -311,13 +304,13 @@ function Tile({ label, children, sub, tone }: { label: string; children: React.R
   return (
     <div
       className={cn(
-        'rounded-xl border p-3',
-        tone === 'good' ? 'border-emerald-500/40 bg-emerald-500/[0.06]' : tone === 'bad' ? 'border-red-500/40 bg-red-500/[0.05]' : tone === 'warn' ? 'border-amber-500/40 bg-amber-500/[0.06]' : 'border-line',
+        'rounded-lg border p-3',
+        tone === 'good' ? 'border-ok/40 bg-ok/[0.06]' : tone === 'bad' ? 'border-danger/40 bg-danger/[0.05]' : tone === 'warn' ? 'border-warn/40 bg-warn/[0.06]' : 'border-line',
       )}
     >
-      <div className="text-[10.5px] font-semibold uppercase tracking-wide text-muted">{label}</div>
-      <div className="mt-0.5 text-[20px] font-semibold tabular-nums">{children}</div>
-      {sub && <div className="text-[11.5px] text-muted">{sub}</div>}
+      <div className="label-caps">{label}</div>
+      <div className="num mt-1 text-[26px] font-semibold leading-none">{children}</div>
+      {sub && <div className="text-[12px] text-muted">{sub}</div>}
     </div>
   )
 }
@@ -391,8 +384,8 @@ function ScoreChart({ entries, target }: { entries: LoopEntry[]; target: number 
           </text>
         </g>
       ))}
-      <line x1={pad.l} x2={W - pad.r} y1={y(target)} y2={y(target)} stroke="#10b981" strokeDasharray="4 3" />
-      <text x={W - pad.r} y={y(target) - 3} fontSize="9" textAnchor="end" fill="#10b981">
+      <line x1={pad.l} x2={W - pad.r} y1={y(target)} y2={y(target)} stroke="var(--ok)" strokeDasharray="4 3" />
+      <text x={W - pad.r} y={y(target) - 3} fontSize="9" textAnchor="end" fill="var(--ok-ink)">
         target {target.toFixed(1)}
       </text>
       <polyline points={bestPath} fill="none" stroke="var(--accent)" strokeWidth={2} />
@@ -436,14 +429,14 @@ function LoopPanel({ hf }: { hf: HackforgeSnapshot }) {
               })
             }}
             title="Creates .hackforge/STOP_LOOP: the loop finishes its iteration, writes a summary and stops"
-            className="flex items-center gap-1.5 rounded-md border border-red-500/40 px-2.5 py-1 text-[12px] text-red-600 hover:bg-red-500/10 disabled:opacity-50 dark:text-red-400"
+            className="flex items-center gap-1.5 rounded-md border border-danger/40 px-2.5 py-1 text-[12px] text-danger-ink hover:bg-danger/10 disabled:opacity-50"
           >
             <OctagonX className="size-3.5" /> {stopPending ? 'Stopping after this iteration…' : 'Stop loop'}
           </button>
         )
       }
     >
-      {stopError && <div className="selectable mb-2 text-[12px] text-red-500">{stopError}</div>}
+      {stopError && <div className="selectable mb-2 text-[12px] text-danger-ink">{stopError}</div>}
       <div className="mb-2 flex flex-wrap gap-x-5 gap-y-1 text-[12px]">
         <Stat label="Iteration" value={`${loop.iteration} / ${loop.maxIterations}`} />
         <Stat label="Best" value={loop.bestScore !== undefined ? loop.bestScore.toFixed(1) : '—'} />
@@ -451,16 +444,14 @@ function LoopPanel({ hf }: { hf: HackforgeSnapshot }) {
         {loop.reserveMinutes !== undefined && <Stat label="Reserve" value={`${loop.reserveMinutes} min`} />}
         {loop.maxHours !== undefined && <Stat label="Max hours" value={String(loop.maxHours)} />}
       </div>
-      <div className="mb-2 h-1.5 overflow-hidden rounded-full bg-line">
-        <div className="h-full rounded-full bg-[var(--accent)]" style={{ width: `${Math.min(100, (loop.iteration / Math.max(1, loop.maxIterations)) * 100)}%` }} />
-      </div>
+      <SectorMeter value={loop.iteration / Math.max(1, loop.maxIterations)} count={Math.min(30, Math.max(1, loop.maxIterations))} tone={loop.active ? 'live' : 'best'} className="mb-2" label="Loop iterations" />
       {loop.advisor.length > 0 && (
         <div className="mb-2 space-y-1">
           {loop.advisor.map((a, i) => (
-            <div key={i} className={cn('rounded-lg px-2.5 py-1.5 text-[12px]', a.answered ? 'bg-surface-2' : 'bg-amber-500/[0.08]')}>
+            <div key={i} className={cn('rounded-lg px-2.5 py-1.5 text-[12px]', a.answered ? 'bg-surface-2' : 'bg-warn/[0.08]')}>
               <span className="font-medium">Advisor {a.answered ? (a.decision ?? 'answered') : 'requested'}</span>
               <span className="text-muted"> · {a.reason.replace(/-/g, ' ')}</span>
-              {a.summary && <div className="text-[11.5px]">{a.summary}</div>}
+              {a.summary && <div className="text-[12px]">{a.summary}</div>}
             </div>
           ))}
         </div>
@@ -470,13 +461,13 @@ function LoopPanel({ hf }: { hf: HackforgeSnapshot }) {
         <div className="mt-2 max-h-40 overflow-y-auto text-[12px]">
           {[...loop.entries].reverse().map((e) => (
             <div key={e.iteration} className="flex items-center gap-2 border-t border-line py-1">
-              <span className="w-8 tabular-nums text-muted">#{e.iteration}</span>
+              <span className="w-8 num text-muted">#{e.iteration}</span>
               <span className="min-w-0 flex-1 truncate" title={[e.change, ...(e.findings ?? []).map((f) => `• ${f}`)].filter(Boolean).join('\n')}>
                 {e.change}
               </span>
-              {e.compliance && <span className={cn('text-[11px]', /pass/i.test(e.compliance) ? 'text-emerald-600' : 'text-red-500')}>{e.compliance}</span>}
-              <span className="w-10 text-right tabular-nums">{e.score?.toFixed(1) ?? '—'}</span>
-              <span className={cn('w-16 text-right text-[11px]', e.kept === false ? 'text-muted' : 'text-emerald-600')}>{e.kept === false ? 'reverted' : e.kept ? 'kept' : ''}</span>
+              {e.compliance && <span className={cn('text-[11px]', /pass/i.test(e.compliance) ? 'text-ok-ink' : 'text-danger-ink')}>{e.compliance}</span>}
+              <span className="w-10 text-right num">{e.score?.toFixed(1) ?? '—'}</span>
+              <span className={cn('w-16 text-right text-[11px]', e.kept === false ? 'text-muted' : 'text-ok-ink')}>{e.kept === false ? 'reverted' : e.kept ? 'kept' : ''}</span>
             </div>
           ))}
         </div>
@@ -489,7 +480,7 @@ function Stat({ label, value, warn }: { label: string; value: string; warn?: boo
   return (
     <span>
       <span className="text-muted">{label} </span>
-      <span className={cn('font-medium tabular-nums', warn && 'text-amber-600 dark:text-amber-400')}>{value}</span>
+      <span className={cn('font-medium num', warn && 'text-warn-ink')}>{value}</span>
     </span>
   )
 }
@@ -518,13 +509,13 @@ function RulesPanel({ hf }: { hf: HackforgeSnapshot }) {
                 const c = checks.get(r.id)
                 const s = scores.get(r.id)
                 return (
-                  <div key={r.id} className="flex items-start gap-2 py-1 text-[12.5px]" title={r.detail}>
+                  <div key={r.id} className="flex items-start gap-2 py-1 text-[13px]" title={r.detail}>
                     <span className="w-6 shrink-0 font-mono text-[11px] text-muted">{r.id}</span>
                     {kind !== 'criterion' &&
                       (c?.ok === true ? (
-                        <CheckCircle2 className="mt-0.5 size-3.5 shrink-0 text-emerald-500" />
+                        <CheckCircle2 className="mt-0.5 size-3.5 shrink-0 text-ok-ink" />
                       ) : c?.ok === false ? (
-                        <XCircle className="mt-0.5 size-3.5 shrink-0 text-red-500" />
+                        <XCircle className="mt-0.5 size-3.5 shrink-0 text-danger-ink" />
                       ) : (
                         <Circle className="mt-0.5 size-3.5 shrink-0 text-muted" aria-label={c ? 'not observed' : 'not checked yet'} />
                       ))}
@@ -534,10 +525,8 @@ function RulesPanel({ hf }: { hf: HackforgeSnapshot }) {
                     </div>
                     {kind === 'criterion' && (
                       <div className="flex w-28 shrink-0 items-center gap-1.5">
-                        <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-line" title={s !== undefined ? `mock score ${s}/10` : undefined}>
-                          <div className="h-full rounded-full bg-[var(--accent)]" style={{ width: `${((s ?? 0) / 10) * 100}%` }} />
-                        </div>
-                        <span className="w-7 text-right tabular-nums text-[11px]">{s?.toFixed(1) ?? '—'}</span>
+                        <SectorMeter value={(s ?? 0) / 10} count={10} tone={s !== undefined && s >= 8 ? 'best' : 'done'} className="flex-1" label={s !== undefined ? `Mock score ${s} of 10` : 'Not scored yet'} />
+                        <span className="num w-7 text-right text-[12px] font-semibold">{s?.toFixed(1) ?? '—'}</span>
                         {r.weight !== undefined && <span className="w-8 text-right text-[11px] text-muted">{Math.round(r.weight * 100)}%</span>}
                       </div>
                     )}
@@ -560,11 +549,11 @@ function MilestonesPanel({ hf }: { hf: HackforgeSnapshot }) {
         <div className="text-[12px] text-muted">Build writes the vertical-slice plan here.</div>
       ) : (
         hf.milestones.map((m) => (
-          <div key={m.id} className="flex items-center gap-2 py-1 text-[12.5px]">
+          <div key={m.id} className="flex items-center gap-2 py-1 text-[13px]">
             {m.status === 'done' ? (
-              <CheckCircle2 className="size-3.5 shrink-0 text-emerald-500" />
+              <CheckCircle2 className="size-3.5 shrink-0 text-ok-ink" />
             ) : m.status === 'doing' ? (
-              <CircleDot className="size-3.5 shrink-0 animate-soft-pulse text-[var(--accent)]" />
+              <CircleDot className="size-3.5 shrink-0 animate-soft-pulse text-accent-ink" />
             ) : (
               <Circle className="size-3.5 shrink-0 text-muted" />
             )}
@@ -582,7 +571,7 @@ function Panel({ title, sub, right, children }: { title: string; sub?: string; r
   return (
     <section className="rounded-xl border border-line p-3">
       <div className="mb-2 flex items-center gap-2">
-        <h3 className="text-[12.5px] font-semibold">{title}</h3>
+        <h3 className="text-[13px] font-semibold">{title}</h3>
         {sub && <span className="text-[11px] text-muted">{sub}</span>}
         {right && <div className="ml-auto">{right}</div>}
       </div>
@@ -596,7 +585,7 @@ function Collapsible({ children }: { children: React.ReactNode }) {
   return (
     <div>
       <div className={cn('relative', !open && 'max-h-28 overflow-hidden [mask-image:linear-gradient(black_60%,transparent)]')}>{children}</div>
-      <button onClick={() => setOpen(!open)} className="mt-1 text-[11.5px] text-[var(--accent)] hover:underline">
+      <button onClick={() => setOpen(!open)} className="mt-1 text-[12px] text-accent-ink hover:underline">
         {open ? 'Show less' : 'Show all'}
       </button>
     </div>

@@ -50,7 +50,7 @@ export function Popover({ trigger, children, align = 'end', side = 'bottom', cla
       {open && (
         <div
           className={cn(
-            'absolute z-50 min-w-[200px] rounded-xl border border-line bg-surface p-1 text-[12.5px] text-fg shadow-[0_8px_32px_rgb(0_0_0/0.16)]',
+            'absolute z-50 min-w-[200px] rounded-lg border border-line bg-surface p-1 text-[13px] text-fg shadow-[var(--shadow-pop)]',
             side === 'bottom' ? 'top-full mt-1.5' : 'bottom-full mb-1.5',
             align === 'end' ? 'right-0' : 'left-0',
             className,

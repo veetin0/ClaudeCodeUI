@@ -58,7 +58,7 @@ export function UsageSheet() {
     <Sheet
       wide
       title="Usage on this laptop"
-      icon={<BarChart3 className="size-4 text-[var(--accent)]" />}
+      icon={<BarChart3 className="size-4 text-accent-ink" />}
       onClose={close}
       header={
         <Segmented
@@ -93,7 +93,7 @@ export function UsageSheet() {
             <section className="rounded-2xl border border-line p-4">
               <div className="mb-2 flex flex-wrap items-center gap-x-4 gap-y-1">
                 <h2 className="text-[13px] font-semibold">Tokens per day, by model</h2>
-                <div className="flex flex-wrap items-center gap-3 text-[11.5px] text-muted">
+                <div className="flex flex-wrap items-center gap-3 text-[12px] text-muted">
                   {FAMILIES.map((f) => (
                     <span key={f} className="flex items-center gap-1.5">
                       <span className="size-2.5 rounded-sm" style={{ background: COLOR[f] }} /> {FAMILY_LABEL[f]}
@@ -102,7 +102,7 @@ export function UsageSheet() {
                 </div>
                 <button
                   onClick={() => setTable(!table)}
-                  className="ml-auto flex items-center gap-1 rounded-md px-2 py-0.5 text-[11.5px] text-muted hover:bg-surface-2 hover:text-fg"
+                  className="ml-auto flex items-center gap-1 rounded-md px-2 py-0.5 text-[12px] text-muted hover:bg-surface-2 hover:text-fg"
                 >
                   {table ? <BarChart3 className="size-3.5" /> : <Table2 className="size-3.5" />} {table ? 'Chart' : 'Table'}
                 </button>
@@ -144,7 +144,7 @@ function TeamToday({ team }: { team: TeamState }) {
               <div className="flex items-center gap-2">
                 <span className="font-medium">{m.name}</span>
                 <span className="text-muted">{t ? `${formatTokens(t.tokens)} tokens` : 'no reading yet'}</span>
-                <span className="ml-auto tabular-nums text-muted">{m.usage.source === 'api-key' ? 'API key' : five !== undefined ? `5 h ${five}%` : ''}</span>
+                <span className="ml-auto num text-muted">{m.usage.source === 'api-key' ? 'API key' : five !== undefined ? `5 h ${five}%` : ''}</span>
               </div>
               {t && t.tokens > 0 && (
                 <div className="mt-1 flex h-2 gap-[2px] overflow-hidden" style={{ width: `${Math.max(4, (t.tokens / max) * 100)}%` }}>
@@ -174,8 +174,8 @@ function TeamToday({ team }: { team: TeamState }) {
 function Tile({ label, value, sub }: { label: string; value: string; sub: string }) {
   return (
     <div className="rounded-2xl border border-line p-3">
-      <div className="text-[11.5px] text-muted">{label}</div>
-      <div className="mt-0.5 text-[22px] font-semibold tabular-nums">{value}</div>
+      <div className="text-[12px] text-muted">{label}</div>
+      <div className="mt-0.5 text-[22px] font-semibold num">{value}</div>
       <div className="mt-0.5 truncate text-[11px] text-muted" title={sub}>
         {sub}
       </div>
@@ -242,7 +242,7 @@ function DayBars({ days }: { days: DayUsage[] }) {
       )}
       {h && hover !== null && (
         <div
-          className="pointer-events-none absolute z-10 min-w-[150px] rounded-lg border border-line bg-surface px-2.5 py-2 text-[11.5px] shadow-lg"
+          className="pointer-events-none absolute z-10 min-w-[150px] rounded-lg border border-line bg-surface px-2.5 py-2 text-[12px] shadow-lg"
           style={{
             left: Math.min(Math.max(0, pad.l + band * hover + band / 2 - 75), Math.max(0, width - 160)),
             top: 4,
@@ -253,16 +253,16 @@ function DayBars({ days }: { days: DayUsage[] }) {
             <div key={f} className="flex items-center gap-1.5">
               <span className="size-2 rounded-sm" style={{ background: COLOR[f] }} />
               <span className="text-muted">{FAMILY_LABEL[f]}</span>
-              <span className="ml-auto tabular-nums">{formatTokens(h.tokens[f])}</span>
+              <span className="ml-auto num">{formatTokens(h.tokens[f])}</span>
             </div>
           ))}
           <div className="mt-1 flex border-t border-line pt-1">
             <span className="text-muted">Total</span>
-            <span className="ml-auto font-medium tabular-nums">{formatTokens(sumFamilies(h.tokens))}</span>
+            <span className="ml-auto font-medium num">{formatTokens(sumFamilies(h.tokens))}</span>
           </div>
           <div className="flex text-muted">
             <span>Cache re-reads</span>
-            <span className="ml-auto tabular-nums">{formatTokens(h.cacheRead)}</span>
+            <span className="ml-auto num">{formatTokens(h.cacheRead)}</span>
           </div>
         </div>
       )}
@@ -281,7 +281,7 @@ function roundedTop(x: number, y: number, w: number, h: number, r: number) {
 function DayTable({ days }: { days: DayUsage[] }) {
   return (
     <div className="max-h-72 overflow-auto">
-      <table className="w-full text-[11.5px] tabular-nums">
+      <table className="w-full text-[12px] num">
         <thead className="sticky top-0 bg-surface text-muted">
           <tr>
             <th className="py-1 text-left font-medium">Day</th>
@@ -333,7 +333,7 @@ function PlanLine({ samples }: { samples: UsageHistory['samples'] }) {
     <section className="rounded-2xl border border-line p-4">
       <div className="mb-1 flex items-baseline gap-2">
         <h2 className="text-[13px] font-semibold">5-hour window used, last 48 h</h2>
-        {latestWeek !== undefined && <span className="ml-auto text-[11.5px] text-muted">week: {Math.round(latestWeek)}%</span>}
+        {latestWeek !== undefined && <span className="ml-auto text-[12px] text-muted">week: {Math.round(latestWeek)}%</span>}
       </div>
       <div
         ref={ref}
@@ -381,7 +381,7 @@ function PlanLine({ samples }: { samples: UsageHistory['samples'] }) {
         )}
         {h && (
           <div
-            className="pointer-events-none absolute top-0 rounded-md border border-line bg-surface px-2 py-1 text-[11.5px] shadow"
+            className="pointer-events-none absolute top-0 rounded-md border border-line bg-surface px-2 py-1 text-[12px] shadow"
             style={{
               left: Math.min(Math.max(0, x(h.ts) - 50), Math.max(0, width - 110)),
             }}
@@ -391,7 +391,7 @@ function PlanLine({ samples }: { samples: UsageHistory['samples'] }) {
               hour: '2-digit',
               minute: '2-digit',
             })}{' '}
-            · <b className="tabular-nums">{Math.round(h.fivePct!)}%</b>
+            · <b className="num">{Math.round(h.fivePct!)}%</b>
           </div>
         )}
         {!pts.length && (
@@ -410,7 +410,7 @@ function SaverCard({ s }: { s: UsageHistory['saver'] }) {
   return (
     <section className="rounded-2xl border border-line p-4">
       <h2 className="mb-2 flex items-center gap-1.5 text-[13px] font-semibold">
-        <Leaf className="size-3.5 text-emerald-500" /> What the Usage saver did
+        <Leaf className="size-3.5 text-ok-ink" /> What the Usage saver did
       </h2>
       {turns || s.compactions || s.skipped ? (
         <div className="space-y-2 text-[12px]">
@@ -420,7 +420,7 @@ function SaverCard({ s }: { s: UsageHistory['saver'] }) {
                 <span>
                   {s.sonnetTurns} of {turns} Auto turns on Sonnet
                 </span>
-                <span className="ml-auto tabular-nums text-muted">{share}%</span>
+                <span className="ml-auto num text-muted">{share}%</span>
               </div>
               <div className="mt-1 flex h-2 gap-[2px] overflow-hidden rounded">
                 {s.sonnetTurns > 0 && <div style={{ flex: s.sonnetTurns, background: COLOR.sonnet }} className="h-full" title={`Sonnet: ${s.sonnetTurns}`} />}
@@ -431,13 +431,13 @@ function SaverCard({ s }: { s: UsageHistory['saver'] }) {
           )}
           <div className="flex">
             <span>Compactions between tasks</span>
-            <span className="ml-auto tabular-nums text-muted">
+            <span className="ml-auto num text-muted">
               {s.compactions}× · {formatTokens(s.compactedTokens)} tokens trimmed
             </span>
           </div>
           <div className="flex">
             <span>Generated files skipped</span>
-            <span className="ml-auto tabular-nums text-muted">
+            <span className="ml-auto num text-muted">
               {s.skipped} · ~{formatTokens(s.skippedTokens)} tokens
             </span>
           </div>
@@ -472,8 +472,8 @@ function TopSessions({ list }: { list: UsageHistory['topSessions'] }) {
               <span className="min-w-0 flex-1 truncate">
                 {s.title || 'Untitled'} <span className="text-muted">· {basename(s.cwd)}</span>
               </span>
-              <span className="shrink-0 tabular-nums">{formatTokens(s.tokens)}</span>
-              <span className="w-14 shrink-0 text-right tabular-nums text-muted">{formatCost(s.costUsd)}</span>
+              <span className="shrink-0 num">{formatTokens(s.tokens)}</span>
+              <span className="w-14 shrink-0 text-right num text-muted">{formatCost(s.costUsd)}</span>
             </button>
           ))}
         </div>

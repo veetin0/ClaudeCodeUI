@@ -5,14 +5,15 @@ import { cn } from '@/lib/format'
 import { relativeTime } from '@/lib/time'
 import { useApp } from '@/stores/app'
 import { useCrew } from '@/stores/crew'
+import { SectorMeter } from '@/ui/Sectors'
 
 const STATE_STYLE: Record<MissionView['state'], string> = {
   queued: 'bg-fg/10 text-muted',
-  working: 'bg-sky-500/15 text-sky-700 dark:text-sky-300',
-  done: 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300',
-  blocked: 'bg-amber-500/15 text-amber-700 dark:text-amber-300',
-  limited: 'bg-amber-500/15 text-amber-700 dark:text-amber-300',
-  failed: 'bg-red-500/15 text-red-600 dark:text-red-300',
+  working: 'bg-info/15 text-info-ink',
+  done: 'bg-ok/15 text-ok-ink',
+  blocked: 'bg-warn/15 text-warn-ink',
+  limited: 'bg-warn/15 text-warn-ink',
+  failed: 'bg-danger/15 text-danger-ink',
   stopped: 'bg-fg/10 text-muted',
 }
 const STATE_LABEL: Record<MissionView['state'], string> = {
@@ -41,8 +42,8 @@ export function CrewPanel({ joinCode, now }: { joinCode: string; now: number }) 
   return (
     <div className="mb-3 rounded-xl border border-line p-3">
       <div className="mb-2 flex flex-wrap items-center gap-2">
-        <Bot className="size-4 text-[var(--accent)]" />
-        <span className="text-[12.5px] font-semibold">Crew</span>
+        <Bot className="size-4 text-accent-ink" />
+        <span className="text-[13px] font-semibold">Crew</span>
         <span className="text-[11px] text-muted">
           {crew.members.length
             ? `${crew.members.filter((m) => m.online && m.accepting && !m.problem).length} of ${crew.members.length} ready`
@@ -70,7 +71,7 @@ export function CrewPanel({ joinCode, now }: { joinCode: string; now: number }) 
               <Member key={m.id} m={m} now={now} />
             ))}
           </div>
-          <details className="mt-2 text-[11.5px] text-muted">
+          <details className="mt-2 text-[12px] text-muted">
             <summary className="cursor-pointer">Add another teammate</summary>
             <Invite command={command} compact />
           </details>
@@ -86,10 +87,10 @@ export function CrewPanel({ joinCode, now }: { joinCode: string; now: number }) 
 function ProjectLine({ crew }: { crew: ReturnType<typeof useCrew> }) {
   const note = crew.projectNote
   return (
-    <div className="mb-2 space-y-1 text-[11.5px]">
+    <div className="mb-2 space-y-1 text-[12px]">
       {crew.project && (
         <div className="flex items-center gap-1.5 text-muted">
-          <Check className="size-3.5 text-emerald-600" />
+          <Check className="size-3.5 text-ok-ink" />
           <span className="selectable truncate">
             Project for the crew: <span className="font-mono">{crew.project.name}</span> · {crew.project.base} at{' '}
             <span className="font-mono">{crew.project.head.slice(0, 7)}</span> (shared through the team server)
@@ -97,7 +98,7 @@ function ProjectLine({ crew }: { crew: ReturnType<typeof useCrew> }) {
         </div>
       )}
       {note && (
-        <div className={cn('selectable flex items-start gap-1.5', note.tone === 'warn' ? 'text-amber-700 dark:text-amber-300' : 'text-muted')}>
+        <div className={cn('selectable flex items-start gap-1.5', note.tone === 'warn' ? 'text-warn-ink' : 'text-muted')}>
           <AlertTriangle className="mt-0.5 size-3.5 shrink-0" />
           <span>{note.text}</span>
         </div>
@@ -127,7 +128,7 @@ function Invite({ command, compact }: { command: string; compact?: boolean }) {
             setCopied(true)
             setTimeout(() => setCopied(false), 1500)
           }}
-          className="flex shrink-0 items-center gap-1 rounded-md border border-line px-2 py-1 text-[11.5px] hover:bg-surface"
+          className="flex shrink-0 items-center gap-1 rounded-md border border-line px-2 py-1 text-[12px] hover:bg-surface"
         >
           {copied ? <Check className="size-3" /> : <Copy className="size-3" />} {copied ? 'Copied' : 'Copy'}
         </button>
@@ -152,28 +153,23 @@ function Member({ m, now }: { m: CrewMemberView; now: number }) {
           : m.current
             ? 'Working'
             : 'Ready'
-  const tone = !m.online || m.waiting || !m.accepting ? 'bg-fg/30' : m.problem ? 'bg-amber-500' : m.current ? 'bg-sky-500' : 'bg-emerald-500'
+  const tone = !m.online || m.waiting || !m.accepting ? 'bg-fg/30' : m.problem ? 'bg-warn' : m.current ? 'bg-info' : 'bg-ok'
   return (
     <div className={cn('rounded-lg border border-line p-2.5 text-[12px]', !m.online && 'opacity-55')}>
       <div className="flex items-center gap-2">
-        <span className={cn('size-2 rounded-full', tone)} />
+        <span className={cn('size-2 rounded-[2px]', tone)} />
         <span className="font-semibold">{m.name}</span>
         <span className="text-[11px] text-muted">
           {status} · {m.app === 'cli' ? 'terminal' : 'Harness'}
         </span>
-        <span className="ml-auto text-[11px] tabular-nums" title="Plan usage left (the lower of the 5-hour and weekly windows)">
+        <span className="num ml-auto text-[12px] font-semibold" title="Plan usage left (the lower of the 5-hour and weekly windows)">
           {m.usage.source === 'api-key' ? 'API key' : `${m.headroom}% left`}
         </span>
       </div>
-      <div className="mt-1.5 h-1 overflow-hidden rounded-full bg-line">
-        <div
-          className={cn('h-full rounded-full', m.headroom <= 10 ? 'bg-red-500' : m.headroom <= 30 ? 'bg-amber-500' : 'bg-emerald-500')}
-          style={{ width: `${m.headroom}%` }}
-        />
-      </div>
-      {m.problem && <div className="selectable mt-1.5 text-[11.5px] text-amber-700 dark:text-amber-300">{m.problem}</div>}
+      <SectorMeter value={m.headroom / 100} tone={m.headroom <= 10 ? 'fail' : m.headroom <= 30 ? 'wait' : 'done'} height={3} className="mt-1.5" label="Plan usage left" />
+      {m.problem && <div className="selectable mt-1.5 text-[12px] text-warn-ink">{m.problem}</div>}
       {m.waiting && m.online && (
-        <div className="mt-1.5 text-[11.5px] text-muted">
+        <div className="mt-1.5 text-[12px] text-muted">
           They get a copy of your project through the team server once the event project is linked (and committed) or your Claude checks the crew.
         </div>
       )}
@@ -198,8 +194,8 @@ function Ask({ a }: { a: CrewAskView }) {
     void window.harness.crewAnswer(a.id, allow, always)
   }
   return (
-    <div className="mb-2 flex flex-wrap items-center gap-2 rounded-lg border border-amber-500/40 bg-amber-500/[0.07] px-3 py-2 text-[12px]">
-      <ShieldQuestion className="size-4 shrink-0 text-amber-600" />
+    <div className="mb-2 flex flex-wrap items-center gap-2 rounded-lg border border-warn/40 bg-warn/[0.07] px-3 py-2 text-[12px]">
+      <ShieldQuestion className="size-4 shrink-0 text-warn-ink" />
       <span className="min-w-0 flex-1">
         <b>{a.fromName}’s Claude</b> wants to run <code className="selectable break-all">{a.summary}</code>
         {a.missionTitle && <span className="text-muted"> · {a.missionTitle}</span>}
@@ -208,19 +204,19 @@ function Ask({ a }: { a: CrewAskView }) {
         <button
           disabled={sent}
           onClick={() => answer(true)}
-          className="rounded-md bg-[var(--accent)] px-2.5 py-1 text-[11.5px] font-medium text-white disabled:opacity-40"
+          className="rounded-md bg-accent px-2.5 py-1 text-[12px] font-medium text-white disabled:opacity-40"
         >
           Allow
         </button>
         <button
           disabled={sent}
           onClick={() => answer(true, true)}
-          className="rounded-md border border-line px-2.5 py-1 text-[11.5px] disabled:opacity-40"
+          className="rounded-md border border-line px-2.5 py-1 text-[12px] disabled:opacity-40"
           title="Allow this kind of call for the rest of the mission"
         >
           Always
         </button>
-        <button disabled={sent} onClick={() => answer(false)} className="rounded-md border border-line px-2.5 py-1 text-[11.5px] disabled:opacity-40">
+        <button disabled={sent} onClick={() => answer(false)} className="rounded-md border border-line px-2.5 py-1 text-[12px] disabled:opacity-40">
           Deny
         </button>
       </div>
@@ -233,7 +229,7 @@ function Missions({ missions, now }: { missions: MissionView[]; now: number }) {
   const shown = all ? missions : missions.slice(0, 6)
   return (
     <div className="mt-3">
-      <div className="mb-1 text-[11.5px] font-medium text-muted">Missions</div>
+      <div className="mb-1 text-[12px] font-medium text-muted">Missions</div>
       <div className="divide-y divide-line rounded-lg border border-line">
         {shown.map((m) => (
           <MissionRow key={m.id} m={m} now={now} />
@@ -258,7 +254,7 @@ function MissionRow({ m, now }: { m: MissionView; now: number }) {
         <button onClick={() => setOpen(!open)} className="text-muted">
           {open ? <ChevronDown className="size-3.5" /> : <ChevronRight className="size-3.5" />}
         </button>
-        <span className={cn('shrink-0 rounded px-1.5 py-0.5 text-[10.5px] font-medium', STATE_STYLE[m.state])}>{STATE_LABEL[m.state]}</span>
+        <span className={cn('shrink-0 rounded px-1.5 py-0.5 text-[11px] font-medium', STATE_STYLE[m.state])}>{STATE_LABEL[m.state]}</span>
         <span className="min-w-0 flex-1 truncate">
           <b className="font-medium">{m.title}</b>
           <span className="text-muted">
@@ -268,19 +264,19 @@ function MissionRow({ m, now }: { m: MissionView; now: number }) {
             {line && ` · ${line}`}
           </span>
         </span>
-        <span className="shrink-0 text-[10.5px] text-muted">{relativeTime(p?.endedAt ?? p?.startedAt ?? m.createdAt, now)}</span>
+        <span className="shrink-0 text-[11px] text-muted">{relativeTime(p?.endedAt ?? p?.startedAt ?? m.createdAt, now)}</span>
         {!isFinal(m.state) && (
           <button
             onClick={() => window.confirm(`Stop “${m.title}”? ${m.toName}’s Claude pushes what it has so far.`) && void window.harness.crewCancel(m.id)}
             title="Stop this mission"
-            className="rounded p-1 text-muted hover:bg-black/5 hover:text-fg dark:hover:bg-white/10"
+            className="rounded p-1 text-muted hover:bg-hover hover:text-fg"
           >
             <Square className="size-3" />
           </button>
         )}
       </div>
       {open && (
-        <div className="selectable mt-1.5 space-y-1.5 pl-6 text-[11.5px]">
+        <div className="selectable mt-1.5 space-y-1.5 pl-6 text-[12px]">
           <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-muted">
             <span>{m.id}</span>
             <span className="flex items-center gap-1 font-mono">
@@ -292,9 +288,9 @@ function MissionRow({ m, now }: { m: MissionView; now: number }) {
             {p?.costUsd ? <span>${p.costUsd.toFixed(2)} equivalent</span> : null}
             {m.model && <span>{m.model}</span>}
           </div>
-          {p?.sendError && <div className="text-red-500">Didn’t arrive: {p.sendError}</div>}
+          {p?.sendError && <div className="text-danger-ink">Didn’t arrive: {p.sendError}</div>}
           {p?.summary && <div className="whitespace-pre-wrap">{p.summary}</div>}
-          {p?.files?.length ? <div className="font-mono text-[10.5px] text-muted">{p.files.slice(0, 30).join('  ')}</div> : null}
+          {p?.files?.length ? <div className="font-mono text-[11px] text-muted">{p.files.slice(0, 30).join('  ')}</div> : null}
           <details>
             <summary className="cursor-pointer text-muted">Brief</summary>
             <div className="mt-1 whitespace-pre-wrap text-muted">{m.brief}</div>
@@ -309,7 +305,7 @@ function Messages({ crew }: { crew: ReturnType<typeof useCrew> }) {
   const names = new Map(crew.members.map((m) => [m.id, m.name]))
   return (
     <details className="mt-3 text-[12px]">
-      <summary className="flex cursor-pointer items-center gap-1.5 text-[11.5px] font-medium text-muted">
+      <summary className="flex cursor-pointer items-center gap-1.5 text-[12px] font-medium text-muted">
         <MessageSquare className="size-3.5" /> Messages between the Claudes ({crew.messages.length})
       </summary>
       <div className="selectable mt-1.5 max-h-64 space-y-1.5 overflow-y-auto">
@@ -317,8 +313,8 @@ function Messages({ crew }: { crew: ReturnType<typeof useCrew> }) {
           <div key={m.id}>
             <span className="font-medium">{m.fromName}</span>
             <span className="text-muted"> → {m.to === '*' ? 'everyone' : (names.get(m.to) ?? 'you')}</span>
-            <span className="text-[10.5px] text-muted"> · {relativeTime(m.at)}</span>
-            <div className="whitespace-pre-wrap text-[11.5px]">{m.text}</div>
+            <span className="text-[11px] text-muted"> · {relativeTime(m.at)}</span>
+            <div className="whitespace-pre-wrap text-[12px]">{m.text}</div>
           </div>
         ))}
       </div>

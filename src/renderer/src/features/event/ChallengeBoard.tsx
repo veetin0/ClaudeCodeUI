@@ -19,7 +19,7 @@ import { Markdown } from '../conversation/Markdown'
 import { Menu, menuItems } from '@/ui/Menu'
 import { NextButton } from '@/ui/NextButton'
 
-const field = 'selectable w-full rounded-md border border-line bg-surface-2 px-2.5 py-1.5 text-[12.5px] outline-none focus:border-[var(--accent)]/60'
+const field = 'selectable w-full rounded-md border border-line bg-surface-2 px-2.5 py-1.5 text-[13px] outline-none focus:border-accent-ink/60'
 const STATUS_LABEL: Record<Challenge['status'], string> = { candidate: 'Candidate', shortlist: 'Shortlist', chosen: 'Chosen', dropped: 'Dropped' }
 
 /** Rank the partner challenges (team + Claude scores), research them, and pick one. */
@@ -34,7 +34,7 @@ export function ChallengeBoard({ state }: { state: EventState }) {
     <div className="space-y-3">
       <section className="rounded-2xl border border-line p-4">
         <div className="flex flex-wrap items-center gap-2">
-          <Trophy className="size-4 text-[var(--accent)]" />
+          <Trophy className="size-4 text-accent-ink" />
           <h2 className="text-[13px] font-semibold">Challenges</h2>
           <span className="text-[11px] text-muted">{state.challenges.length ? `${state.challenges.length} in challenges/` : 'paste them in when they are presented'}</span>
           <div className="ml-auto">
@@ -78,7 +78,7 @@ export function ChallengeBoard({ state }: { state: EventState }) {
 }
 
 function Empty({ text }: { text: string }) {
-  return <div className="rounded-2xl border border-dashed border-line px-6 py-10 text-center text-[12.5px] text-muted">{text}</div>
+  return <div className="rounded-2xl border border-dashed border-line px-6 py-10 text-center text-[13px] text-muted">{text}</div>
 }
 
 function AddForm({ partners, onDone }: { partners: string[]; onDone: () => void }) {
@@ -99,7 +99,7 @@ function AddForm({ partners, onDone }: { partners: string[]; onDone: () => void 
         <button
           disabled={!v.title.trim() || !v.description.trim()}
           onClick={() => void add(v).then((ok) => ok && onDone())}
-          className="rounded-md bg-[var(--accent)] px-3 py-1.5 text-[12px] font-medium text-white hover:brightness-110 disabled:opacity-40"
+          className="rounded-md bg-accent px-3 py-1.5 text-[12px] font-medium text-white hover:brightness-110 disabled:opacity-40"
         >
           Save challenge
         </button>
@@ -128,7 +128,7 @@ function ImportForm({ onDone }: { onDone: () => void }) {
             void askClaude(importPrompt(text), 'Challenge import')
             onDone()
           }}
-          className="rounded-md bg-[var(--accent)] px-3 py-1.5 text-[12px] font-medium text-white hover:brightness-110 disabled:opacity-40"
+          className="rounded-md bg-accent px-3 py-1.5 text-[12px] font-medium text-white hover:brightness-110 disabled:opacity-40"
         >
           Split into challenges with Claude
         </button>
@@ -155,25 +155,25 @@ function ChallengeCard({ c, rank }: { c: Challenge; rank: number }) {
     { label: 'Delete', icon: Trash2, danger: true, onSelect: () => window.confirm(`Delete “${c.title}”? Its file in challenges/ is removed.`) && void deleteChallenge(c.id) },
   )
   return (
-    <section className={cn('rounded-2xl border p-4', c.status === 'chosen' ? 'border-emerald-500/50 bg-emerald-500/[0.04]' : 'border-line', dropped && 'opacity-55')}>
+    <section className={cn('rounded-2xl border p-4', c.status === 'chosen' ? 'border-ok/50 bg-ok/[0.04]' : 'border-line', dropped && 'opacity-55')}>
       <div className="flex items-start gap-3">
         <div className="flex w-12 shrink-0 flex-col items-center">
-          <span className="text-[10.5px] text-muted">#{rank}</span>
-          <span className={cn('text-[22px] font-semibold tabular-nums', score.total >= 70 ? 'text-emerald-600 dark:text-emerald-400' : score.total < 45 && 'text-muted')}>{score.total}</span>
-          {score.coverage < 1 && <span className="text-[9.5px] text-muted" title="Share of the criteria that have a score">{Math.round(score.coverage * 100)}% scored</span>}
+          <span className="text-[11px] text-muted">#{rank}</span>
+          <span className={cn('text-[22px] font-semibold num', score.total >= 70 ? 'text-ok-ink' : score.total < 45 && 'text-muted')}>{score.total}</span>
+          {score.coverage < 1 && <span className="text-[11px] text-muted" title="Share of the criteria that have a score">{Math.round(score.coverage * 100)}% scored</span>}
         </div>
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">
-            <span className="rounded bg-[var(--accent)]/10 px-1.5 py-0.5 text-[11px] font-medium text-[var(--accent)]">{c.partner}</span>
-            <button onClick={() => setOpen(!open)} className="flex min-w-0 items-center gap-1 text-left text-[14px] font-semibold hover:text-[var(--accent)]">
+            <span className="rounded bg-accent/10 px-1.5 py-0.5 text-[11px] font-medium text-accent-ink">{c.partner}</span>
+            <button onClick={() => setOpen(!open)} className="flex min-w-0 items-center gap-1 text-left text-[14px] font-semibold hover:text-accent-ink">
               {open ? <ChevronDown className="size-4 shrink-0" /> : <ChevronRight className="size-4 shrink-0" />}
               <span className="truncate">{c.title}</span>
             </button>
             {c.prize && <span className="text-[11px] text-muted">🏆 {c.prize}</span>}
-            {c.status !== 'candidate' && c.status !== 'chosen' && <span className="rounded bg-surface-2 px-1.5 py-0.5 text-[10.5px] text-muted">{STATUS_LABEL[c.status]}</span>}
+            {c.status !== 'candidate' && c.status !== 'chosen' && <span className="rounded bg-surface-2 px-1.5 py-0.5 text-[11px] text-muted">{STATUS_LABEL[c.status]}</span>}
             <div className="ml-auto flex items-center gap-1">
               {c.status === 'chosen' ? (
-                <span className="flex items-center gap-1 rounded-md bg-emerald-500 px-2 py-0.5 text-[11.5px] font-medium text-white">
+                <span className="flex items-center gap-1 rounded-md bg-ok px-2 py-0.5 text-[12px] font-medium text-white">
                   <Star className="size-3 fill-current" /> Chosen
                 </span>
               ) : (
@@ -191,9 +191,9 @@ function ChallengeCard({ c, rank }: { c: Challenge; rank: number }) {
               {c.status === 'chosen' && <Menu items={actions} />}
             </div>
           </div>
-          {c.ai?.summary && <div className="mt-1 text-[12.5px]">{c.ai.summary}</div>}
+          {c.ai?.summary && <div className="mt-1 text-[13px]">{c.ai.summary}</div>}
           {c.ai?.idea && (
-            <div className="mt-1 text-[12.5px]">
+            <div className="mt-1 text-[13px]">
               <span className="text-muted">Idea: </span>
               {c.ai.idea}
             </div>
@@ -214,7 +214,7 @@ function Scores({ c, onSet }: { c: Challenge; onSet: (k: CriterionKey, v: number
         const team = c.scores[cr.key]
         const ai = c.ai?.scores[cr.key]
         return (
-          <div key={cr.key} className="flex items-center gap-2 text-[11.5px]" title={cr.hint}>
+          <div key={cr.key} className="flex items-center gap-2 text-[12px]" title={cr.hint}>
             <span className="w-28 shrink-0 truncate text-muted">{cr.label}</span>
             <div className="flex gap-1">
               {[1, 2, 3, 4, 5].map((n) => (
@@ -224,13 +224,13 @@ function Scores({ c, onSet }: { c: Challenge; onSet: (k: CriterionKey, v: number
                   aria-label={`${cr.label}: ${n}`}
                   className={cn(
                     'size-3.5 rounded-full border',
-                    team !== undefined && n <= team ? 'border-[var(--accent)] bg-[var(--accent)]' : 'border-line hover:border-[var(--accent)]/60',
-                    ai === n && 'ring-2 ring-sky-500/70 ring-offset-1 ring-offset-[var(--surface)]',
+                    team !== undefined && n <= team ? 'border-accent-ink bg-accent' : 'border-line hover:border-accent-ink/60',
+                    ai === n && 'ring-2 ring-info/70 ring-offset-1 ring-offset-[var(--surface)]',
                   )}
                 />
               ))}
             </div>
-            {team === undefined && ai !== undefined && <span className="text-[10.5px] text-sky-600 dark:text-sky-400">Claude {ai}</span>}
+            {team === undefined && ai !== undefined && <span className="text-[11px] text-info-ink">Claude {ai}</span>}
           </div>
         )
       })}
@@ -265,10 +265,10 @@ function Details({ c }: { c: Challenge }) {
         </div>
       )}
       <div className="max-h-72 overflow-y-auto rounded-lg border border-line px-3 py-2">
-        <Markdown text={c.description || '_No description._'} className="text-[12.5px]" />
+        <Markdown text={c.description || '_No description._'} className="text-[13px]" />
       </div>
       <label className="block">
-        <div className="mb-1 text-[11.5px] font-medium">Mentor notes (what the partner said, constraints, data/APIs they give)</div>
+        <div className="mb-1 text-[12px] font-medium">Mentor notes (what the partner said, constraints, data/APIs they give)</div>
         <textarea
           value={notes}
           onFocus={() => (base.current = c.notes)}
@@ -300,11 +300,11 @@ function NoticeBar({ text, sessionId, onClose }: { text: string; sessionId: stri
   return (
     <div
       className={cn(
-        'flex items-center gap-2 rounded-lg border px-3 py-2 text-[12.5px]',
-        waiting ? 'border-amber-500/60 bg-amber-500/[0.1]' : 'border-[var(--accent)]/40 bg-[var(--accent)]/[0.06]',
+        'flex items-center gap-2 rounded-lg border px-3 py-2 text-[13px]',
+        waiting ? 'border-warn/60 bg-warn/[0.1]' : 'border-accent-ink/40 bg-accent/[0.06]',
       )}
     >
-      <Bot className={cn('size-4', waiting ? 'text-amber-600' : 'text-[var(--accent)]', status === 'running' && 'animate-pulse')} />
+      <Bot className={cn('size-4', waiting ? 'text-warn-ink' : 'text-accent-ink', status === 'running' && 'animate-pulse')} />
       <span>
         {waiting
           ? 'Claude is waiting for your approval to continue.'
@@ -329,7 +329,7 @@ function WatchButton({ sessionId }: { sessionId: string }) {
         select(sessionId)
         setView('chat')
       }}
-      className="ml-auto rounded-md border border-line bg-surface px-2 py-0.5 text-[11.5px] hover:bg-surface-2"
+      className="ml-auto rounded-md border border-line bg-surface px-2 py-0.5 text-[12px] hover:bg-surface-2"
     >
       Watch in chat
     </button>

@@ -1,4 +1,4 @@
-import { MoreHorizontal, type LucideIcon } from 'lucide-react'
+import { Check, MoreHorizontal, type LucideIcon } from 'lucide-react'
 import { useEffect, useRef } from 'react'
 import { cn } from '@/lib/format'
 import { Popover } from './Popover'
@@ -45,9 +45,9 @@ export function Menu({
           aria-haspopup="menu"
           aria-expanded={open}
           className={cn(
-            'flex items-center gap-1 rounded-md text-muted hover:bg-black/5 hover:text-fg dark:hover:bg-white/10',
+            'flex items-center gap-1 rounded-md text-muted hover:bg-hover hover:text-fg',
             trigger ? 'px-2 py-1 text-[12px]' : 'p-1',
-            open && 'bg-black/5 text-fg dark:bg-white/10',
+            open && 'bg-hover text-fg',
             triggerClassName,
           )}
         >
@@ -79,7 +79,7 @@ function MenuList({ items, close }: { items: MenuItem[]; close: () => void }) {
         item === 'separator' ? (
           <div key={i} className="my-1 h-px bg-line" />
         ) : 'heading' in item ? (
-          <div key={i} className="px-2.5 pb-0.5 pt-1.5 text-[10.5px] font-semibold uppercase tracking-wide text-muted">
+          <div key={i} className="label-caps px-2.5 pb-0.5 pt-1.5 text-[11px]">
             {item.heading}
           </div>
         ) : (
@@ -92,17 +92,17 @@ function MenuList({ items, close }: { items: MenuItem[]; close: () => void }) {
               item.onSelect()
             }}
             className={cn(
-              'flex w-full items-center gap-2.5 rounded-md px-2.5 py-1.5 text-left outline-none hover:bg-black/5 focus-visible:bg-black/5 disabled:opacity-40 dark:hover:bg-white/10 dark:focus-visible:bg-white/10',
-              item.danger && 'text-red-600 dark:text-red-400',
+              'flex w-full items-center gap-2.5 rounded-md px-2.5 py-1.5 text-left outline-none hover:bg-hover focus-visible:bg-hover disabled:opacity-40',
+              item.danger && 'text-danger-ink',
             )}
           >
-            {item.icon ? <item.icon className="size-4 shrink-0 text-muted" /> : item.checked !== undefined ? <span className="size-4" /> : null}
+            {item.icon ? <item.icon className="size-4 shrink-0 text-muted" aria-hidden /> : item.checked !== undefined ? <span className="size-4" /> : null}
             <span className="min-w-0 flex-1">
               <span className="block truncate">{item.label}</span>
               {item.hint && <span className="block truncate text-[11px] text-muted">{item.hint}</span>}
             </span>
-            {item.checked && <span className="text-[var(--accent)]">✓</span>}
-            {item.keys && <kbd className="shrink-0 text-[11px] text-muted">{item.keys}</kbd>}
+            {item.checked && <Check className="size-3.5 shrink-0 text-accent-ink" aria-label="Selected" />}
+            {item.keys && <kbd className="num shrink-0 text-[12px] text-muted">{item.keys}</kbd>}
           </button>
         ),
       )}

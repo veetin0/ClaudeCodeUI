@@ -121,12 +121,12 @@ export default function DiffView({ session }: { session: SessionState }) {
           <ChevronRight className="size-4" />
         </IconButton>
         <div className="min-w-0">
-          <div className="truncate font-mono text-[12.5px] font-medium">{relPath(diffPath, session.cwd)}</div>
+          <div className="truncate font-mono text-[13px] font-medium">{relPath(diffPath, session.cwd)}</div>
           <div className="text-[11px] text-muted">
             {change ? (
               <>
-                {change.status} · <span className="text-emerald-600 dark:text-emerald-400">+{change.additions}</span>{' '}
-                <span className="text-red-600 dark:text-red-400">−{change.deletions}</span>
+                {change.status} · <span className="text-ok-ink">+{change.additions}</span>{' '}
+                <span className="text-danger-ink">−{change.deletions}</span>
                 {changes.length > 1 && ` · file ${index + 1} of ${changes.length}`}
               </>
             ) : diff && !diff.hasBaseline ? (
@@ -152,7 +152,7 @@ export default function DiffView({ session }: { session: SessionState }) {
               </button>
               <button
                 onClick={() => void accept()}
-                className="flex items-center gap-1.5 rounded-md bg-[var(--accent)] px-2.5 py-1 text-[12px] font-medium text-white hover:brightness-110"
+                className="flex items-center gap-1.5 rounded-md bg-accent px-2.5 py-1 text-[12px] font-medium text-white hover:brightness-110"
               >
                 <Check className="size-3.5" /> Accept
               </button>
@@ -163,7 +163,7 @@ export default function DiffView({ session }: { session: SessionState }) {
           </IconButton>
         </div>
       </header>
-      {error && <div className="border-b border-red-500/30 bg-red-500/5 px-4 py-1.5 text-[12px] text-red-600">{error}</div>}
+      {error && <div className="border-b border-danger/30 bg-danger/5 px-4 py-1.5 text-[12px] text-danger-ink">{error}</div>}
       <div ref={host} className="min-h-0 flex-1" />
     </div>
   )
@@ -171,7 +171,7 @@ export default function DiffView({ session }: { session: SessionState }) {
 
 function IconButton({ children, ...props }: React.ButtonHTMLAttributes<HTMLButtonElement>) {
   return (
-    <button {...props} className="rounded p-1 text-muted hover:bg-black/5 disabled:opacity-30 dark:hover:bg-white/10">
+    <button {...props} className="rounded p-1 text-muted hover:bg-hover disabled:opacity-30">
       {children}
     </button>
   )

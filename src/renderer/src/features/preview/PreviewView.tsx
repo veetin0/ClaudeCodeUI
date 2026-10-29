@@ -10,6 +10,7 @@ import { relativeTime } from '@/lib/time'
 import { useApp } from '@/stores/app'
 import { Menu, menuItems } from '@/ui/Menu'
 import type { SessionState } from '@/stores/reducer'
+import { SectorMeter } from '@/ui/Sectors'
 
 // three.js is big: the viewer loads only when a model is opened.
 const ModelViewer = lazy(() => import('./ModelViewer'))
@@ -91,7 +92,7 @@ export function PreviewView({ session }: { session: SessionState }) {
             align="start"
             trigger={
               <>
-                {model ? <Box className="size-3.5" /> : url ? <span className={cn('size-2 rounded-full', server?.status === 'ready' || target?.kind === 'url' ? 'bg-emerald-500' : 'animate-soft-pulse bg-amber-500')} /> : <MonitorPlay className="size-3.5" />}
+                {model ? <Box className="size-3.5" /> : url ? <span className={cn('size-2 rounded-[2px]', server?.status === 'ready' || target?.kind === 'url' ? 'bg-ok' : 'animate-soft-pulse bg-warn')} /> : <MonitorPlay className="size-3.5" />}
                 <span className="max-w-[360px] truncate font-medium text-fg">
                   {model ? basename(model) : server ? (server.kind === 'remotion' ? 'Remotion Studio' : server.label) : url ? url.replace(/^https?:\/\//, '') : 'Choose what to preview'}
                 </span>
@@ -165,12 +166,12 @@ export function PreviewView({ session }: { session: SessionState }) {
                 onChange={(e) => setCustomUrl(e.target.value)}
                 onBlur={() => !customUrl && setUrlInput(false)}
                 placeholder="http://localhost:3000"
-                className="selectable w-48 rounded-md border border-line bg-surface-2 px-2 py-1 text-[11.5px] outline-none focus:border-[var(--accent)]/60"
+                className="selectable w-48 rounded-md border border-line bg-surface-2 px-2 py-1 text-[12px] outline-none focus:border-accent-ink/60"
               />
             </form>
           )}
-          {url && !model && <span className="hidden min-w-0 truncate font-mono text-[11.5px] text-muted lg:inline">{url}</span>}
-          {url && !model && lastWrite > 0 && server?.kind !== 'remotion' && <span className="hidden shrink-0 text-[11.5px] text-muted xl:inline">· files changed {relativeTime(lastWrite)}</span>}
+          {url && !model && <span className="hidden min-w-0 truncate font-mono text-[12px] text-muted lg:inline">{url}</span>}
+          {url && !model && lastWrite > 0 && server?.kind !== 'remotion' && <span className="hidden shrink-0 text-[12px] text-muted xl:inline">· files changed {relativeTime(lastWrite)}</span>}
           {url && !model && (
             <div className="ml-auto flex items-center gap-1">
               <button
@@ -178,7 +179,7 @@ export function PreviewView({ session }: { session: SessionState }) {
                 title="Click an element in the page and tell Claude what to change"
                 className={cn(
                   'flex items-center gap-1 rounded-md px-2.5 py-1 text-[12px] font-medium',
-                  picking ? 'bg-fg text-surface' : 'bg-[var(--accent)] text-white hover:brightness-110',
+                  picking ? 'bg-fg text-surface' : 'bg-accent text-white hover:brightness-110',
                 )}
               >
                 <MousePointerClick className="size-3.5" /> {picking ? 'Cancel' : 'Click to change'}
@@ -219,12 +220,12 @@ export function PreviewView({ session }: { session: SessionState }) {
           {showLog && server && <LogDrawer server={server} onClose={() => setShowLog(false)} />}
           {picking && (
             <div className="pointer-events-none absolute inset-x-0 top-2 flex justify-center">
-              <div className="rounded-full bg-[var(--accent)] px-3 py-1 text-[11.5px] font-medium text-white shadow-lg">Click the element to change · Esc cancels</div>
+              <div className="rounded-sm bg-accent px-3 py-1 text-[12px] font-medium text-white shadow-lg">Click the element to change · Esc cancels</div>
             </div>
           )}
           {pickError && (
             <div className="absolute inset-x-0 top-2 flex justify-center">
-              <div className="flex items-center gap-2 rounded-lg bg-red-500 px-3 py-1 text-[11.5px] text-white shadow-lg">
+              <div className="flex items-center gap-2 rounded-lg bg-danger px-3 py-1 text-[12px] text-white shadow-lg">
                 {pickError}
                 <button onClick={() => setPickError(null)}>
                   <X className="size-3" />
@@ -273,12 +274,12 @@ function ChangeBox({ picked, session, onClose, onAgain }: { picked: { element: P
           </div>
           <div className="truncate text-[11px] text-muted">{el.source ?? el.selector}</div>
         </div>
-        <button onClick={onClose} className="rounded p-0.5 text-muted hover:bg-black/5 hover:text-fg dark:hover:bg-white/10">
+        <button onClick={onClose} className="rounded p-0.5 text-muted hover:bg-hover hover:text-fg">
           <X className="size-3.5" />
         </button>
       </div>
       {sent ? (
-        <div className="rounded-lg bg-emerald-500/10 px-2.5 py-2 text-emerald-700 dark:text-emerald-300">Sent to Claude. Watch it change here.</div>
+        <div className="rounded-lg bg-ok/10 px-2.5 py-2 text-ok-ink">Sent to Claude. Watch it change here.</div>
       ) : (
         <>
           <textarea
@@ -294,22 +295,22 @@ function ChangeBox({ picked, session, onClose, onAgain }: { picked: { element: P
             }}
             rows={2}
             placeholder="What should change? e.g. make it bigger and green"
-            className="selectable w-full resize-none rounded-lg border border-line bg-surface-2 px-2.5 py-1.5 outline-none focus:border-[var(--accent)]/60"
+            className="selectable w-full resize-none rounded-lg border border-line bg-surface-2 px-2.5 py-1.5 outline-none focus:border-accent-ink/60"
           />
           <div className="mt-2 flex items-center gap-2">
-            <button onClick={onAgain} className="text-[11.5px] text-muted hover:text-fg">
+            <button onClick={onAgain} className="text-[12px] text-muted hover:text-fg">
               Pick another
             </button>
-            <span className="ml-auto text-[10.5px] text-muted">to {session.title || 'this session'}</span>
+            <span className="ml-auto text-[11px] text-muted">to {session.title || 'this session'}</span>
             <button
               disabled={!text.trim()}
               onClick={() => void send()}
-              className="flex items-center gap-1 rounded-md bg-[var(--accent)] px-2.5 py-1 text-[11.5px] font-medium text-white hover:brightness-110 disabled:opacity-40"
+              className="flex items-center gap-1 rounded-md bg-accent px-2.5 py-1 text-[12px] font-medium text-white hover:brightness-110 disabled:opacity-40"
             >
               <Send className="size-3" /> Send
             </button>
           </div>
-          {error && <div className="mt-1 text-[11px] text-red-500">{error}</div>}
+          {error && <div className="mt-1 text-[11px] text-danger-ink">{error}</div>}
         </>
       )}
     </div>
@@ -321,12 +322,12 @@ function Starting({ server }: { server: PreviewServer }) {
     <div className="flex h-full flex-col items-center justify-center gap-3 p-6 text-center">
       {server.status === 'error' || server.status === 'exited' ? (
         <>
-          <p className="font-medium text-red-600">{server.label} stopped</p>
+          <p className="font-medium text-danger-ink">{server.label} stopped</p>
           <pre className="selectable max-h-60 max-w-2xl overflow-auto rounded-lg border border-line bg-surface p-3 text-left font-mono text-[11px]">{server.log.slice(-25).join('\n')}</pre>
         </>
       ) : (
         <>
-          <Loader2 className="size-5 animate-spin text-[var(--accent)]" />
+          <Loader2 className="size-5 animate-spin text-accent-ink" />
           <p className="text-muted">Starting {server.label}…</p>
           <p className="max-w-lg truncate font-mono text-[11px] text-muted">{server.log.at(-1)}</p>
         </>
@@ -338,9 +339,9 @@ function Starting({ server }: { server: PreviewServer }) {
 function LogDrawer({ server, onClose }: { server: PreviewServer; onClose: () => void }) {
   return (
     <div className="absolute inset-x-0 bottom-0 h-56 border-t border-line bg-surface shadow-2xl">
-      <div className="flex items-center border-b border-line px-3 py-1 text-[11.5px] text-muted">
+      <div className="flex items-center border-b border-line px-3 py-1 text-[12px] text-muted">
         {server.label} output
-        <button onClick={onClose} className="ml-auto rounded p-0.5 hover:bg-black/5 dark:hover:bg-white/10">
+        <button onClick={onClose} className="ml-auto rounded p-0.5 hover:bg-hover">
           <X className="size-3.5" />
         </button>
       </div>
@@ -355,10 +356,10 @@ function EmptyState({ session, hasRemotion, onStudio }: { session: SessionState;
     <div className="flex h-full flex-col items-center justify-center gap-3 p-8 text-center">
       {hasRemotion ? (
         <>
-          <Clapperboard className="size-7 text-[var(--accent)]" />
+          <Clapperboard className="size-7 text-accent-ink" />
           <p className="text-[14px] font-semibold">Remotion project</p>
           <p className="max-w-sm text-muted">Start Remotion Studio to watch your compositions change live as Claude edits them. Render finished videos from the panel on the right.</p>
-          <button onClick={onStudio} className="mt-1 flex items-center gap-1.5 rounded-lg bg-[var(--accent)] px-3.5 py-1.5 font-medium text-white hover:brightness-110">
+          <button onClick={onStudio} className="mt-1 flex items-center gap-1.5 rounded-lg bg-accent px-3.5 py-1.5 font-medium text-white hover:brightness-110">
             <Play className="size-3.5 fill-current" /> Start Studio
           </button>
         </>
@@ -394,12 +395,12 @@ function RenderPanel({ cwd, renders }: { cwd: string; renders: RenderJob[] }) {
     <aside className="flex w-80 shrink-0 flex-col border-l border-line bg-surface-2/40">
       <div className="flex items-center gap-2 border-b border-line px-3 py-2">
         <h3 className="text-[11px] font-semibold uppercase tracking-wide text-muted">Compositions</h3>
-        <button onClick={() => void loadCompositions(cwd)} className="ml-auto rounded p-1 text-muted hover:bg-black/5 hover:text-fg dark:hover:bg-white/10" title="Reload compositions">
+        <button onClick={() => void loadCompositions(cwd)} className="ml-auto rounded p-1 text-muted hover:bg-hover hover:text-fg" title="Reload compositions">
           <RefreshCw className={cn('size-3.5', comps?.loading && 'animate-spin')} />
         </button>
       </div>
       <div className="min-h-0 flex-1 space-y-4 overflow-y-auto p-3">
-        {comps?.error && <pre className="selectable whitespace-pre-wrap rounded-md bg-red-500/5 p-2 text-[11px] text-red-600">{comps.error}</pre>}
+        {comps?.error && <pre className="selectable whitespace-pre-wrap rounded-md bg-danger/5 p-2 text-[11px] text-danger-ink">{comps.error}</pre>}
         {comps?.loading && !comps.list && <p className="text-[12px] text-muted">Reading compositions…</p>}
         <div className="space-y-1.5">
           {comps?.list?.map((c) => {
@@ -410,18 +411,18 @@ function RenderPanel({ cwd, renders }: { cwd: string; renders: RenderJob[] }) {
                   <FileVideo className="size-4 shrink-0 text-muted" />
                   <div className="min-w-0 flex-1">
                     <div className="truncate font-medium">{c.id}</div>
-                    <div className="text-[11px] tabular-nums text-muted">
+                    <div className="text-[12px] num text-muted">
                       {c.width}×{c.height} · {c.fps}fps · {formatDuration((c.durationInFrames / c.fps) * 1000)}
                     </div>
                   </div>
                   {active ? (
-                    <button onClick={() => void window.harness.cancelRender(active.id)} className="rounded-md border border-line px-2 py-0.5 text-[11.5px] hover:bg-surface-2">
+                    <button onClick={() => void window.harness.cancelRender(active.id)} className="rounded-md border border-line px-2 py-0.5 text-[12px] hover:bg-surface-2">
                       Cancel
                     </button>
                   ) : (
                     <button
                       onClick={() => void window.harness.render(cwd, c.id)}
-                      className="rounded-md bg-[var(--accent)] px-2 py-0.5 text-[11.5px] font-medium text-white hover:brightness-110"
+                      className="rounded-md bg-accent px-2 py-0.5 text-[12px] font-medium text-white hover:brightness-110"
                     >
                       Render
                     </button>
@@ -445,14 +446,14 @@ function RenderPanel({ cwd, renders }: { cwd: string; renders: RenderJob[] }) {
                 <div
                   key={r.id}
                   onClick={() => r.status === 'done' && setPlaying(r.id)}
-                  className={cn('rounded-md px-2 py-1.5 text-[11.5px]', r.status === 'done' && 'cursor-pointer hover:bg-surface', done?.id === r.id && 'bg-surface')}
+                  className={cn('rounded-md px-2 py-1.5 text-[12px]', r.status === 'done' && 'cursor-pointer hover:bg-surface', done?.id === r.id && 'bg-surface')}
                 >
                   <div className="flex items-center gap-1.5">
                     <span className="truncate font-medium">{basename(r.output)}</span>
                     <span
                       className={cn(
                         'ml-auto shrink-0',
-                        r.status === 'done' ? 'text-emerald-600' : r.status === 'error' ? 'text-red-600' : 'text-muted',
+                        r.status === 'done' ? 'text-ok-ink' : r.status === 'error' ? 'text-danger-ink' : 'text-muted',
                       )}
                     >
                       {r.status === 'running' ? `${r.progress?.phase ?? 'starting'}…` : r.status}
@@ -471,7 +472,7 @@ function RenderPanel({ cwd, renders }: { cwd: string; renders: RenderJob[] }) {
                       </button>
                     )}
                   </div>
-                  {r.status === 'error' && r.error && <pre className="selectable mt-1 max-h-24 overflow-auto whitespace-pre-wrap text-[10.5px] text-red-600">{r.error}</pre>}
+                  {r.status === 'error' && r.error && <pre className="selectable mt-1 max-h-24 overflow-auto whitespace-pre-wrap text-[11px] text-danger-ink">{r.error}</pre>}
                 </div>
               ))}
             </div>
@@ -488,13 +489,11 @@ function RenderProgressBar({ job }: { job: RenderJob }) {
   const pct = p ? Math.min(1, p.current / Math.max(1, p.total)) : 0
   return (
     <div className="mt-2">
-      <div className="mb-1 flex justify-between text-[10.5px] tabular-nums text-muted">
+      <div className="num mb-1 flex justify-between text-[12px] text-muted">
         <span className="capitalize">{p ? `${p.phase} ${p.phase === 'bundling' ? `${p.current}%` : `${p.current}/${p.total}`}` : 'Starting…'}</span>
         {p?.etaText && <span>~{p.etaText} left</span>}
       </div>
-      <div className="h-1.5 overflow-hidden rounded-full bg-line" role="progressbar" aria-valuenow={Math.round(pct * 100)} aria-valuemax={100}>
-        <div className="h-full rounded-full bg-[var(--accent)]" style={{ width: `${pct * 100}%`, transition: 'width 300ms ease' }} />
-      </div>
+      <SectorMeter value={pct} count={24} tone="live" label="Render progress" />
     </div>
   )
 }

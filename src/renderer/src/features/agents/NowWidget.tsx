@@ -19,14 +19,14 @@ export function NowWidget({ agent, activity, lines = 6 }: { agent: AgentView; ac
       return <CodeTail text={str('new_string') || JSON.stringify(t?.input.edits ?? '', null, 1)} lines={lines} tone="edit" />
     case 'running':
       return (
-        <div className="rounded-md bg-zinc-900 px-2.5 py-2 font-mono text-[11px] leading-relaxed text-zinc-100 dark:bg-black/40">
+        <div className="rail rounded-md px-2.5 py-2 font-mono text-[12px] leading-relaxed">
           <div className="flex gap-2">
-            <span className="text-emerald-400">$</span>
+            <span className="text-ok-ink">$</span>
             <span className="line-clamp-3 break-all">{str('command') || t?.name}</span>
           </div>
-          <div className="mt-1 flex items-center gap-1.5 text-zinc-400">
-            <span className="size-1.5 animate-soft-pulse rounded-full bg-emerald-400" />
-            running {formatDuration(elapsed)}
+          <div className="mt-1 flex items-center gap-1.5 text-muted">
+            <span className="size-1.5 animate-soft-pulse rounded-[1px] bg-ok" />
+            running <span className="num text-[13px] text-fg">{formatDuration(elapsed)}</span>
           </div>
         </div>
       )
@@ -40,12 +40,12 @@ export function NowWidget({ agent, activity, lines = 6 }: { agent: AgentView; ac
       )
     }
     case 'waiting':
-      return <Line icon={<ShieldQuestion className="size-3.5 text-amber-500" />}>Needs approval to continue</Line>
+      return <Line icon={<ShieldQuestion className="size-3.5 text-warn-ink" />}>Needs approval to continue</Line>
     case 'thinking':
       return agent.text ? (
         <TextTail text={agent.text} lines={Math.min(lines, 4)} live />
       ) : (
-        <Line icon={<Brain className="size-3.5 animate-soft-pulse text-[var(--accent)]" />}>Thinking…</Line>
+        <Line icon={<Brain className="size-3.5 animate-soft-pulse text-accent-ink" />}>Thinking…</Line>
       )
     case 'reading':
     case 'delegating':
@@ -68,13 +68,13 @@ function CodeTail({ text, lines, tone }: { text: string; lines: number; tone?: '
   return (
     <pre
       className={cn(
-        'overflow-hidden rounded-md border border-line px-2 py-1.5 font-mono text-[10.5px] leading-[1.55]',
-        tone === 'edit' ? 'bg-emerald-500/[0.06]' : 'bg-surface-2',
+        'overflow-hidden rounded-md border border-line px-2 py-1.5 font-mono text-[12px] leading-[1.55]',
+        tone === 'edit' ? 'bg-ok/[0.06]' : 'bg-surface-2',
       )}
     >
       {tail.map((l, i) => (
         <div key={i} className={cn('flex gap-2 whitespace-pre', i === tail.length - 1 && 'caret')}>
-          <span className="w-6 shrink-0 select-none text-right text-muted/60">{start + i}</span>
+          <span className="w-6 shrink-0 select-none text-right text-muted">{start + i}</span>
           <span className="truncate">{l || ' '}</span>
         </div>
       ))}

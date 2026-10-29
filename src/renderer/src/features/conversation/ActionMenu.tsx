@@ -57,7 +57,7 @@ export function ActionMenu({
         {flat.length === 0 && <div className="px-3 py-4 text-center text-[12px] text-muted">Nothing matches. Press Enter to send what you typed.</div>}
         {groups.map((g) => (
           <div key={g.heading}>
-            <div className="px-2.5 pb-1 pt-2 text-[10.5px] font-semibold uppercase tracking-wide text-muted">{g.heading}</div>
+            <div className="px-2.5 pb-1 pt-2 text-[11px] font-semibold uppercase tracking-wide text-muted">{g.heading}</div>
             {g.actions.map((a) => {
               const i = flat.indexOf(a)
               const cmd = /^\/([\w:-]+)/.exec(a.template)?.[1]
@@ -70,12 +70,12 @@ export function ActionMenu({
                   onMouseEnter={() => setSelected(i)}
                   onMouseDown={(e) => e.preventDefault()}
                   onClick={() => onPick(a)}
-                  className={cn('flex w-full items-center gap-2.5 rounded-lg px-2.5 py-1.5 text-left', i === selected && 'bg-[var(--accent)]/10')}
+                  className={cn('flex w-full items-center gap-2.5 rounded-lg px-2.5 py-1.5 text-left', i === selected && 'bg-accent/10')}
                 >
-                  <a.icon className={cn('size-4 shrink-0', g.heading === 'Suggested' ? 'text-[var(--accent)]' : 'text-muted')} />
+                  <a.icon className={cn('size-4 shrink-0', g.heading === 'Suggested' ? 'text-accent-ink' : 'text-muted')} />
                   <span className="shrink-0 font-medium">{a.label}</span>
-                  <span className="min-w-0 flex-1 truncate text-[11.5px] text-muted">{a.description}</span>
-                  {cmd && !a.label.startsWith('/') && <span className="shrink-0 font-mono text-[10.5px] text-muted">/{cmd}</span>}
+                  <span className="min-w-0 flex-1 truncate text-[12px] text-muted">{a.description}</span>
+                  {cmd && !a.label.startsWith('/') && <span className="shrink-0 font-mono text-[11px] text-muted">/{cmd}</span>}
                 </button>
               )
             })}

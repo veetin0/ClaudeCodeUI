@@ -23,7 +23,7 @@ import { useEvent } from '@/stores/event'
 import { usePitch } from '@/stores/pitch'
 import { Kit3dPanel } from './Kit3dPanel'
 
-const field = 'selectable w-full rounded-md border border-line bg-surface-2 px-2.5 py-1.5 text-[12.5px] outline-none focus:border-[var(--accent)]/60'
+const field = 'selectable w-full rounded-md border border-line bg-surface-2 px-2.5 py-1.5 text-[13px] outline-none focus:border-accent-ink/60'
 const VISUAL_LABEL: Record<Visual, string> = { title: 'Title card', bullets: 'Bullet points', quote: 'Big statement', screen: 'Demo clip / screenshot', end: 'End card' }
 const fmt = (s: number) => `${Math.floor(s / 60)}:${String(Math.round(s % 60)).padStart(2, '0')}`
 
@@ -38,20 +38,20 @@ export function PitchStudio({ event }: { event: EventState }) {
   if (!state) return <Empty text="Loading…" />
   if (!state.exists) {
     return (
-      <section className="rounded-2xl border border-dashed border-[var(--accent)]/50 p-5">
+      <section className="rounded-2xl border border-dashed border-accent-ink/50 p-5">
         <div className="flex items-start gap-3">
-          <Clapperboard className="mt-0.5 size-5 shrink-0 text-[var(--accent)]" />
+          <Clapperboard className="mt-0.5 size-5 shrink-0 text-accent-ink" />
           <div>
             <h2 className="text-[13px] font-semibold">Create the pitch studio</h2>
-            <p className="mt-1 max-w-2xl text-[12.5px] text-muted">
+            <p className="mt-1 max-w-2xl text-[13px] text-muted">
               Adds <code>pitch/</code> to the event project: a Remotion video driven by <code>pitch/script.json</code>, with title, bullet, statement, demo-clip and
               end scenes, plus a progress bar. Each scene's narration is generated with ElevenLabs, and the video times itself to the voice. It starts from a script
               shaped for this pitch: the inherited model, your flip, the live demo, how it works, and why it matters.
             </p>
-            <button onClick={() => void scaffold(event.config.name)} className="mt-3 rounded-md bg-[var(--accent)] px-3 py-1.5 text-[12px] font-medium text-white hover:brightness-110">
+            <button onClick={() => void scaffold(event.config.name)} className="mt-3 rounded-md bg-accent px-3 py-1.5 text-[12px] font-medium text-white hover:brightness-110">
               Create pitch/
             </button>
-            {error && <div className="selectable mt-2 text-[12px] text-red-500">{error}</div>}
+            {error && <div className="selectable mt-2 text-[12px] text-danger-ink">{error}</div>}
           </div>
         </div>
       </section>
@@ -60,9 +60,9 @@ export function PitchStudio({ event }: { event: EventState }) {
   return (
     <div className="space-y-3">
       <Toolbar />
-      {error && <div className="selectable rounded-lg border border-red-500/40 bg-red-500/5 px-3 py-2 text-[12px] text-red-600">{error}</div>}
+      {error && <div className="selectable rounded-lg border border-danger/40 bg-danger/5 px-3 py-2 text-[12px] text-danger-ink">{error}</div>}
       {state.scriptError && (
-        <div className="flex items-center gap-2 rounded-lg border border-amber-500/40 bg-amber-500/[0.06] px-3 py-2 text-[12px]">
+        <div className="flex items-center gap-2 rounded-lg border border-warn/40 bg-warn/[0.06] px-3 py-2 text-[12px]">
           {state.scriptError}
           <button onClick={() => void usePitch.getState().replace(defaultScript(event.config.name))} className="ml-auto shrink-0 rounded-md border border-line px-2 py-0.5 hover:bg-surface-2">
             Start a fresh script
@@ -83,7 +83,7 @@ export function PitchStudio({ event }: { event: EventState }) {
 }
 
 function Empty({ text }: { text: string }) {
-  return <div className="rounded-2xl border border-dashed border-line px-6 py-10 text-center text-[12.5px] text-muted">{text}</div>
+  return <div className="rounded-2xl border border-dashed border-line px-6 py-10 text-center text-[13px] text-muted">{text}</div>
 }
 
 /**
@@ -140,7 +140,7 @@ function Toolbar() {
           {primary.label}
         </NextButton>
         {!!draft?.scenes.length && (
-          <button onClick={() => setRehearse(true)} className="flex items-center gap-1.5 rounded-lg border border-line px-3 py-1.5 text-[12.5px] hover:bg-surface-2">
+          <button onClick={() => setRehearse(true)} className="flex items-center gap-1.5 rounded-lg border border-line px-3 py-1.5 text-[13px] hover:bg-surface-2">
             <Timer className="size-3.5" /> Rehearse
           </button>
         )}
@@ -148,13 +148,13 @@ function Toolbar() {
         <span className="ml-auto text-[11px] text-muted">{dirty ? 'Saving…' : 'Saved to pitch/script.json'}</span>
       </div>
       {job && (
-        <div className={cn('mt-2 flex items-center gap-2 text-[12px]', job.status === 'error' ? 'text-red-500' : job.status === 'done' ? 'text-emerald-600 dark:text-emerald-400' : 'text-muted')}>
-          {running && <span className="size-2 animate-pulse rounded-full bg-[var(--accent)]" />}
+        <div className={cn('mt-2 flex items-center gap-2 text-[12px]', job.status === 'error' ? 'text-danger-ink' : job.status === 'done' ? 'text-ok-ink' : 'text-muted')}>
+          {running && <span className="size-2 animate-pulse rounded-[2px] bg-accent" />}
           <span className="selectable min-w-0 flex-1 truncate" title={job.message}>
             {job.message}
           </span>
           {job.total !== undefined && (
-            <span className="tabular-nums">
+            <span className="num">
               {job.done ?? 0}/{job.total}
             </span>
           )}
@@ -176,7 +176,7 @@ function VoiceKey() {
       <KeyRound className="size-4 text-muted" />
       <span>Add your ElevenLabs API key for narration (stored in your system keychain).</span>
       <input type="password" value={key} onChange={(e) => setKeyText(e.target.value)} placeholder="xi-…" className={cn(field, 'w-64')} />
-      <button disabled={!key.trim()} onClick={() => void setKey(key.trim())} className="rounded-md bg-[var(--accent)] px-3 py-1.5 font-medium text-white hover:brightness-110 disabled:opacity-40">
+      <button disabled={!key.trim()} onClick={() => void setKey(key.trim())} className="rounded-md bg-accent px-3 py-1.5 font-medium text-white hover:brightness-110 disabled:opacity-40">
         Save key
       </button>
     </section>
@@ -200,7 +200,7 @@ function VoiceChip() {
         align="start"
         trigger={
           <>
-            <AudioLines className="size-3.5 text-[var(--accent)]" />
+            <AudioLines className="size-3.5 text-accent-ink" />
             <span className="max-w-[200px] truncate text-fg">{draft.voiceName ?? (draft.voiceId ? draft.voiceId : 'Pick a narrator')}</span>
           </>
         }
@@ -276,7 +276,7 @@ function TimingBar({ script }: { script: PitchScript }) {
     <section className="rounded-2xl border border-line p-3">
       <div className="mb-2 flex items-center gap-2 text-[12px]">
         <span className="font-medium">Length</span>
-        <span className={cn('tabular-nums', over ? 'font-semibold text-red-500' : 'text-emerald-600 dark:text-emerald-400')}>
+        <span className={cn('num', over ? 'font-semibold text-danger-ink' : 'text-ok-ink')}>
           {fmt(total)} / {fmt(script.targetSeconds)}
         </span>
         <span className="text-muted">{over ? `${Math.ceil(total - script.targetSeconds)} s over: cut words or scenes` : `${Math.floor(script.targetSeconds - total)} s to spare`}</span>
@@ -289,14 +289,14 @@ function TimingBar({ script }: { script: PitchScript }) {
             <div
               key={s.id}
               title={`${s.title || VISUAL_LABEL[s.visual]} · ${sec.toFixed(1)} s`}
-              className={cn('flex items-center overflow-hidden border-r border-surface px-1 text-[10px] text-white', i % 2 ? 'bg-[var(--accent)]/80' : 'bg-[var(--accent)]')}
+              className={cn('flex items-center overflow-hidden border-r border-surface px-1 text-[11px] text-white', i % 2 ? 'bg-accent/80' : 'bg-accent')}
               style={{ width: `${(sec / span) * 100}%` }}
             >
               <span className="truncate">{s.title}</span>
             </div>
           )
         })}
-        <div className="absolute inset-y-0 w-0.5 bg-red-500" style={{ left: `${(script.targetSeconds / span) * 100}%` }} title="Time limit" />
+        <div className="absolute inset-y-0 w-0.5 bg-danger" style={{ left: `${(script.targetSeconds / span) * 100}%` }} title="Time limit" />
       </div>
     </section>
   )
@@ -378,8 +378,8 @@ function SceneEditor({
         </select>
         <span
           className={cn(
-            'rounded-full px-2 py-0.5 text-[10.5px]',
-            audio === 'fresh' ? 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-400' : audio === 'stale' ? 'bg-amber-500/15 text-amber-700 dark:text-amber-400' : 'bg-line/70 text-muted',
+            'rounded-sm px-2 py-0.5 text-[11px]',
+            audio === 'fresh' ? 'bg-ok/10 text-ok-ink' : audio === 'stale' ? 'bg-warn/15 text-warn-ink' : 'bg-line/70 text-muted',
           )}
           title={audio === 'stale' ? 'The text or voice changed since this was narrated; the video ignores the old audio until you regenerate' : undefined}
         >
@@ -398,7 +398,7 @@ function SceneEditor({
       <div className="mt-2 grid gap-2 md:grid-cols-[3fr_2fr]">
         <div>
           <textarea value={s.narration} onChange={(e) => onChange({ narration: e.target.value })} rows={3} placeholder="What the narrator says" className={cn(field, 'resize-y')} />
-          <div className="mt-0.5 text-[10.5px] text-muted">
+          <div className="mt-0.5 text-[11px] text-muted">
             {words(s.narration)} words · ~{est.toFixed(1)} s spoken
           </div>
         </div>
@@ -409,10 +409,10 @@ function SceneEditor({
           {s.visual === 'screen' && (
             <div>
               <input value={s.media ?? ''} onChange={(e) => onChange({ media: e.target.value || undefined })} list="pitch-media" placeholder="demo.mp4 (in pitch/public/)" className={field} />
-              {s.media && !media.includes(s.media) && <div className="mt-0.5 text-[10.5px] text-amber-600">Not in pitch/public/ yet. The video shows a placeholder until it's there.</div>}
+              {s.media && !media.includes(s.media) && <div className="mt-0.5 text-[11px] text-warn-ink">Not in pitch/public/ yet. The video shows a placeholder until it's there.</div>}
             </div>
           )}
-          <label className="flex items-center gap-2 text-[11.5px] text-muted">
+          <label className="flex items-center gap-2 text-[12px] text-muted">
             Minimum length
             <input
               type="number"
@@ -516,7 +516,7 @@ function Rehearsal({ script, onClose }: { script: PitchScript; onClose: () => vo
         <span className="text-white/50">
           Scene {idx + 1} / {script.scenes.length}
         </span>
-        <span className={cn('ml-auto text-[22px] font-semibold tabular-nums', over ? 'text-red-400' : '')}>
+        <span className={cn('ml-auto text-[22px] font-semibold num', over ? 'text-red-400' : '')}>
           {fmt(elapsed)} <span className="text-[14px] text-white/40">/ {fmt(script.targetSeconds)}</span>
         </span>
         <button onClick={onClose} className="rounded p-1.5 text-white/60 hover:bg-white/10 hover:text-white" title="Close (Esc)">
@@ -524,12 +524,12 @@ function Rehearsal({ script, onClose }: { script: PitchScript; onClose: () => vo
         </button>
       </div>
       <div className="mx-6 h-1.5 overflow-hidden rounded-full bg-white/10">
-        <div className="h-full bg-[var(--accent)]" style={{ width: `${Math.min(100, (elapsed / Math.max(total, 1)) * 100)}%` }} />
+        <div className="h-full bg-accent" style={{ width: `${Math.min(100, (elapsed / Math.max(total, 1)) * 100)}%` }} />
       </div>
       <div className="flex flex-1 flex-col items-center justify-center px-16 text-center">
         <div className="text-[14px] uppercase tracking-widest text-white/40">{scene.title}</div>
         <div className="mt-6 max-w-4xl text-[38px] font-medium leading-snug">{scene.narration || <span className="text-white/30">(no narration: let the demo speak)</span>}</div>
-        <div className={cn('mt-8 text-[14px] tabular-nums', sceneLeft < 3 ? 'text-amber-400' : 'text-white/40')}>{Math.max(0, sceneLeft).toFixed(0)} s left in this scene</div>
+        <div className={cn('mt-8 text-[14px] num', sceneLeft < 3 ? 'text-amber-400' : 'text-white/40')}>{Math.max(0, sceneLeft).toFixed(0)} s left in this scene</div>
         {script.scenes[idx + 1] && <div className="mt-10 max-w-3xl text-[16px] text-white/35">Next: {script.scenes[idx + 1].narration.slice(0, 140)}</div>}
       </div>
       <div className="flex items-center justify-center gap-3 pb-8">
@@ -539,7 +539,7 @@ function Rehearsal({ script, onClose }: { script: PitchScript; onClose: () => vo
         <RBtn onClick={() => jump(idx - 1)} title="Previous scene (←)">
           <SkipBack className="size-4" />
         </RBtn>
-        <button onClick={() => setPlaying(!playing)} className="flex size-14 items-center justify-center rounded-full bg-[var(--accent)] text-white hover:brightness-110" title="Start / pause (space)">
+        <button onClick={() => setPlaying(!playing)} className="flex size-14 items-center justify-center rounded-full bg-accent text-white hover:brightness-110" title="Start / pause (space)">
           {playing ? <Pause className="size-6 fill-current" /> : <Play className="size-6 fill-current" />}
         </button>
         <RBtn onClick={() => jump(idx + 1)} title="Next scene (→)">

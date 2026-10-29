@@ -36,9 +36,9 @@ export function NextButton({
         disabled={disabled || busy}
         title={title}
         className={cn(
-          'flex items-center gap-1.5 px-3 py-1.5 text-[12.5px] font-medium disabled:opacity-50',
+          'flex h-7 items-center gap-1.5 px-3 text-[13px] font-medium disabled:opacity-50',
           hasMore ? 'rounded-l-lg' : 'rounded-lg',
-          primary ? 'bg-[var(--accent)] text-white hover:brightness-110' : 'border border-line bg-surface hover:bg-surface-2',
+          primary ? 'bg-accent text-white hover:brightness-110 active:brightness-95' : 'border border-line bg-surface hover:bg-hover',
           !primary && hasMore && 'border-r-0',
         )}
       >
@@ -53,8 +53,8 @@ export function NextButton({
           triggerClassName={cn(
             'h-full rounded-l-none rounded-r-lg px-1.5',
             primary
-              ? 'border-l border-white/25 bg-[var(--accent)] text-white hover:bg-[var(--accent)] hover:text-white hover:brightness-110 dark:hover:bg-[var(--accent)]'
-              : 'border border-line bg-surface text-fg',
+              ? 'border-l border-white/25 bg-accent text-white hover:bg-accent hover:text-white hover:brightness-110'
+              : 'border border-line bg-surface text-fg hover:bg-hover',
           )}
         />
       )}

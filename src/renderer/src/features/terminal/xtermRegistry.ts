@@ -15,8 +15,9 @@ interface Entry {
 const entries = new Map<string, Entry>()
 let listening = false
 
-const LIGHT: ITheme = { background: '#ffffff', foreground: '#1d1d1f', cursor: '#d97757', selectionBackground: '#d9775740' }
-const DARK: ITheme = { background: '#1c1c1e', foreground: '#f5f5f7', cursor: '#d97757', selectionBackground: '#d9775750' }
+// styles.css surface, fg and accent ink; xterm needs literal colours.
+const LIGHT: ITheme = { background: '#ffffff', foreground: '#15161d', cursor: '#7a2fd0', selectionBackground: '#7a2fd040' }
+const DARK: ITheme = { background: '#191a21', foreground: '#edeef3', cursor: '#b794f6', selectionBackground: '#b794f650' }
 const dark = () => window.matchMedia('(prefers-color-scheme: dark)')
 
 function listen() {
