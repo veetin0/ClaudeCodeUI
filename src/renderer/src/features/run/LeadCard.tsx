@@ -28,7 +28,7 @@ export function LeadCard({ compact }: { compact?: boolean }) {
         <span
           className={cn(
             'size-2 rounded-[2px]',
-            !run.sessionLive ? 'bg-fg/25' : working ? 'animate-pulse bg-info' : run.lead.status === 'waiting' ? 'bg-warn' : 'bg-ok',
+            !run.sessionLive ? 'bg-fg/25' : working ? 'bg-ok' : run.lead.status === 'waiting' ? 'bg-warn' : 'bg-idle',
           )}
         />
         <Crown className="size-3.5 text-accent-ink" />

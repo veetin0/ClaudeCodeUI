@@ -13,7 +13,7 @@ export function Board({ session }: { session: SessionState }) {
     <div className="min-h-0 flex-1 overflow-y-auto">
       <div className="mx-auto max-w-6xl px-6 py-5">
         <div className="mb-4 flex items-baseline gap-3">
-          <h2 className="text-[15px] font-semibold">Agents</h2>
+          <h2 className="font-display text-[20px] font-semibold">Agents</h2>
           <span className="text-[12px] text-muted">
             {active.length} working · {agents.length - 1} subagent{agents.length === 2 ? '' : 's'} this session
           </span>

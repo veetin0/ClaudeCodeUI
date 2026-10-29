@@ -1,7 +1,8 @@
 import { ChevronDown, Flame, FolderOpen, Home, Plus, Rocket, Search, Settings, SquareTerminal, Trash2, X } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import type { SessionSummary } from '@shared/ipc'
-import { basename, cn, formatCost } from '@/lib/format'
+import { basename, cn, formatCost, formatDuration } from '@/lib/format'
+import { useElapsed } from '@/features/meters/useElapsed'
 import { dateGroup, relativeTime } from '@/lib/time'
 import { useApp } from '@/stores/app'
 import type { SessionState } from '@/stores/reducer'
@@ -49,7 +50,7 @@ export function Sidebar() {
       </nav>
 
       <div className="mt-4 min-h-0 flex-1 overflow-y-auto px-2 pb-3">
-        {(order.length > 0 || groups.length > 0 || query) && <SectionLabel>Sessions</SectionLabel>}
+        {(order.length > 0 || query) && <SectionLabel>Sessions</SectionLabel>}
         {history.length > 6 && (
           <label className="mb-1.5 flex items-center gap-1.5 rounded-md bg-hover px-2 py-1 focus-within:bg-active">
             <Search className="size-3 text-muted" />
@@ -123,9 +124,13 @@ function HackathonRow() {
         </span>
         <span className="mt-0.5 flex items-baseline gap-2 text-[12px]">
           <span className="min-w-0 flex-1 truncate text-muted">{h.status}</span>
-          {h.countdown && <span className={cn('num shrink-0 font-semibold', h.urgent ? 'text-danger-ink' : 'text-fg/80')}>{h.countdown}</span>}
+          {h.clock && (
+            <span title={h.countdown} className={cn('num shrink-0 font-semibold', h.urgent ? 'text-danger-ink' : 'text-fg/80')}>
+              {h.clock}
+            </span>
+          )}
         </span>
-        {h.active && <Sectors items={sectors} height={3} className="mt-2" label={`Team run: ${h.status}`} />}
+        <Sectors items={sectors} height={3} className="mt-2" label={`Team run: ${h.status}`} />
       </span>
     </button>
   )
@@ -180,7 +185,7 @@ function Footer() {
             </span>
           )}
         </span>
-        {plan && <SectorMeter value={pct / 100} tone={plan.hot ? 'fail' : plan.warm ? 'wait' : 'best'} height={3} label="Plan usage, 5-hour window" />}
+        {plan && <SectorMeter value={pct / 100} tone={plan.hot ? 'fail' : plan.warm ? 'wait' : 'fill'} height={3} label="Plan usage, 5-hour window" />}
       </button>
       <button
         onClick={() => setSettingsOpen(true)}
@@ -214,7 +219,7 @@ function OpenRow({ s, active, onSelect, onClose }: { s: SessionState; active: bo
           {basename(s.cwd)} · {waiting ? `${s.permissions.length} waiting for approval` : !s.live ? 'Saved' : s.observed ? `Terminal · ${STATUS_LABEL[s.status]}` : STATUS_LABEL[s.status]}
         </div>
       </div>
-      {s.totalCostUsd > 0 && <span className="num shrink-0 text-[12px] text-muted group-hover:hidden">{formatCost(s.totalCostUsd)}</span>}
+      <RowReadout s={s} />
       <button
         onClick={(e) => {
           e.stopPropagation()
@@ -228,6 +233,15 @@ function OpenRow({ s, active, onSelect, onClose }: { s: SessionState; active: bo
       </button>
     </div>
   )
+}
+
+/** A live session's elapsed turn time (condensed, like a lap timer); otherwise its cost. */
+function RowReadout({ s }: { s: SessionState }) {
+  const busy = s.status === 'running' || s.status === 'waiting'
+  const elapsed = useElapsed(busy ? s.turnStartedAt : undefined, 1000)
+  if (busy && elapsed > 0) return <span className="num shrink-0 text-[12px] font-semibold text-fg group-hover:hidden">{formatDuration(elapsed)}</span>
+  if (s.totalCostUsd > 0) return <span className="num shrink-0 text-[12px] text-muted group-hover:hidden">{formatCost(s.totalCostUsd)}</span>
+  return null
 }
 
 function HistoryRow({ h, onOpen, onDelete }: { h: SessionSummary; onOpen: () => void; onDelete: () => void }) {

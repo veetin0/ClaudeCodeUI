@@ -3,9 +3,9 @@ import { cn } from '@/lib/format'
 /**
  * Mini-sectors: progress and history as a row of segments, like a lap split into timed
  * sectors. Green is done, the live one sweeps, yellow waits for you, red failed, violet is
- * the best result, grey is still to come.
+ * the best result, ink is a plain amount (usage, context), grey is still to come.
  */
-export type SectorTone = 'done' | 'live' | 'wait' | 'fail' | 'best' | 'todo'
+export type SectorTone = 'done' | 'live' | 'wait' | 'fail' | 'best' | 'fill' | 'todo'
 
 export interface Sector {
   tone: SectorTone
@@ -20,6 +20,7 @@ const TONE: Record<SectorTone, string> = {
   wait: 'bg-warn',
   fail: 'bg-danger',
   best: 'bg-accent',
+  fill: 'bg-fg/70',
   todo: '',
 }
 
@@ -57,7 +58,10 @@ export function SectorMeter({
 }) {
   const v = Math.max(0, Math.min(1, value))
   const filled = v > 0 ? Math.max(1, Math.round(v * count)) : 0
-  const items: Sector[] = Array.from({ length: count }, (_, i) => ({ tone: i < filled ? tone : 'todo' }))
+  // Only the leading sector of a live meter sweeps; the ones behind it are done.
+  const items: Sector[] = Array.from({ length: count }, (_, i) => ({
+    tone: i >= filled ? 'todo' : tone === 'live' && i < filled - 1 ? 'done' : tone,
+  }))
   return (
     <div role="meter" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(v * 100)} aria-label={label} className={className}>
       <Sectors items={items} height={height} />

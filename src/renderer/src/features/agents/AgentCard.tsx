@@ -10,8 +10,8 @@ import { currentActivity, isActive, type AgentRunState, type AgentView } from '.
 import { NowWidget } from './NowWidget'
 
 const STATE_STYLE: Record<AgentRunState, { label: string; dot: string; border: string }> = {
-  running: { label: 'Working', dot: 'bg-ok animate-soft-pulse', border: 'border-ok/40' },
-  waiting: { label: 'Needs you', dot: 'bg-warn animate-soft-pulse', border: 'border-warn/50' },
+  running: { label: 'Working', dot: 'bg-ok', border: 'border-ok/40' },
+  waiting: { label: 'Needs you', dot: 'bg-warn', border: 'border-warn/50' },
   idle: { label: 'Idle', dot: 'bg-idle', border: 'border-line' },
   completed: { label: 'Done', dot: 'bg-idle', border: 'border-line' },
   failed: { label: 'Failed', dot: 'bg-danger', border: 'border-danger/40' },
@@ -87,10 +87,10 @@ export function AgentCard({ agent, compact = false }: { agent: AgentView; compac
       )}
 
       <div className="num flex w-full items-center gap-3 text-[12px] text-muted">
-        <ActivityStrip tools={agent.tools} max={compact ? 24 : 40} />
-        <span className="ml-auto">{agent.tools.length} calls</span>
-        {agent.totalTokens !== undefined && <span>{formatTokens(agent.totalTokens)} tok</span>}
-        {duration > 0 && <span className="font-semibold text-fg">{formatDuration(duration)}</span>}
+        <ActivityStrip tools={agent.tools} max={compact ? 16 : 24} />
+        <span className="shrink-0">{agent.tools.length} calls</span>
+        {agent.totalTokens !== undefined && <span className="shrink-0">{formatTokens(agent.totalTokens)} tok</span>}
+        {duration > 0 && <span className="shrink-0 font-semibold text-fg">{formatDuration(duration)}</span>}
       </div>
     </div>
   )

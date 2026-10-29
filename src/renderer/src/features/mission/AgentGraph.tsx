@@ -32,7 +32,7 @@ function AgentNode({ data }: NodeProps<Node<AgentNodeData>>) {
     <div className={cn('w-[260px] rounded-xl border bg-surface p-3 text-[12px] shadow-sm', STATE_RING[a.state] ?? 'border-line')}>
       <Handle type="target" position={Position.Top} className="!size-1.5 !border-0 !bg-muted" />
       <div className="flex items-center gap-2">
-        <Icon className={cn('size-4 shrink-0', a.id === null ? 'text-accent-ink' : 'text-info-ink', a.state === 'running' && 'animate-soft-pulse')} />
+        <Icon className={cn('size-4 shrink-0', a.id === null ? 'text-accent-ink' : 'text-info-ink')} />
         <span className="min-w-0 flex-1 truncate font-medium">{a.name}</span>
         {duration > 0 && <span className="shrink-0 text-[12px] num text-muted">{formatDuration(duration)}</span>}
       </div>
@@ -47,7 +47,7 @@ function AgentNode({ data }: NodeProps<Node<AgentNodeData>>) {
           {recent.map((t) => (
             <span
               key={t.id}
-              className={cn('h-2 w-1.5 rounded-sm', t.status === 'running' && 'animate-soft-pulse')}
+              className={cn('h-2 w-1.5 rounded-sm')}
               style={{ background: t.status === 'error' ? 'var(--danger)' : KIND_COLOR[toolKind(t.name)] }}
             />
           ))}

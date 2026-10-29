@@ -30,7 +30,7 @@ export function EventSchedule({ state }: { state: EventState }) {
           <div className="min-w-0">
             <div className="flex items-center gap-2">
               <CalendarClock className="size-5 text-accent-ink" />
-              <h1 className="text-[18px] font-semibold">{config.name}</h1>
+              <h1 className="font-display text-[26px] font-semibold leading-tight">{config.name}</h1>
               {config.theme && <span className="rounded-sm bg-accent/10 px-2 py-0.5 text-[11px] font-medium text-accent-ink">{config.theme}</span>}
             </div>
             {config.tagline && <div className="mt-0.5 text-[13px] italic text-muted">“{config.tagline}”</div>}
@@ -105,9 +105,9 @@ function Countdown({ state, now }: { state: EventState; now: number }) {
             <div className="mt-1.5 text-[12px] text-muted">{formatInZone(big.at, config.timezone, { weekday: 'long', day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' })}</div>
           </>
         ) : clock.stage === 'after' ? (
-          <div className="text-[20px] font-semibold">The event is over. 🎉</div>
+          <div className="font-display text-[24px] font-semibold">The event is over.</div>
         ) : (
-          <div className="text-[20px] font-semibold">All deadlines passed — judging and finals</div>
+          <div className="font-display text-[24px] font-semibold">All deadlines passed — judging and finals</div>
         )}
         {clock.stage === 'during' && clock.next && clock.next.id !== clock.nextDeadline?.id && (
           <div className="mt-2 text-[13px]">

@@ -26,7 +26,7 @@ export function Sheet({
         className={cn('flex max-h-full w-full flex-col overflow-hidden rounded-xl border border-line bg-surface shadow-[var(--shadow-pop)]', wide ? 'h-[min(860px,100%)] max-w-5xl' : 'max-h-[min(820px,100%)] max-w-2xl')}
       >
         <header className="flex shrink-0 flex-wrap items-center gap-3 border-b border-line px-5 py-3">
-          <h2 className="flex items-center gap-2 text-[15px] font-semibold">
+          <h2 className="flex items-center gap-2 font-display text-[18px] font-semibold">
             {icon}
             {title}
           </h2>

@@ -26,7 +26,7 @@ export function PlanStep() {
     <div className="mx-auto grid max-w-6xl gap-4 p-8 lg:grid-cols-[3fr_2fr]">
       <div className="space-y-4">
         <div>
-          <h1 className="text-xl font-semibold">{ready ? 'The plan' : run.step === 'contracts' ? 'Getting the build ready' : 'Planning'}</h1>
+          <h1 className="font-display text-[24px] font-semibold leading-tight">{ready ? 'The plan' : run.step === 'contracts' ? 'Getting the build ready' : 'Planning'}</h1>
           <p className="mt-1.5 text-muted">
             {ready
               ? 'Your Claude read the challenge, weighed the options and picked one. Accept it and Harness runs the build across the team.'

@@ -140,7 +140,7 @@ export function Timeline({ session }: { session: SessionState }) {
                       fill={KIND_COLOR[toolKind(t.name)]}
                       stroke={t.status === 'error' ? 'var(--danger)' : hover?.tool.id === t.id ? 'var(--fg)' : 'none'}
                       strokeWidth={t.status === 'error' || hover?.tool.id === t.id ? 2 : 0}
-                      className={cn('cursor-pointer', t.status === 'running' && 'animate-soft-pulse')}
+                      className={cn('cursor-pointer')}
                       onMouseEnter={(e) => {
                         const r = ref.current!.getBoundingClientRect()
                         setHover({ tool: t, lane: a.name, x: e.clientX - r.left, y: e.clientY - r.top + ref.current!.scrollTop })

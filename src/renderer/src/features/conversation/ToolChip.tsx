@@ -1,10 +1,10 @@
-import { Check, Loader2, X } from 'lucide-react'
+import { Check, Loader2, ShieldQuestion, X } from 'lucide-react'
 import { cn, formatDuration } from '@/lib/format'
 import { kindVars, toolDisplayName, toolIcon, toolSummary } from '@/lib/tools'
 import type { ToolCall } from '@/stores/reducer'
 import { useElapsed } from '../meters/useElapsed'
 
-export function ToolChip({ tool, selected, onClick }: { tool: ToolCall; selected?: boolean; onClick?: () => void }) {
+export function ToolChip({ tool, selected, waiting, onClick }: { tool: ToolCall; selected?: boolean; waiting?: boolean; onClick?: () => void }) {
   const Icon = toolIcon(tool.name)
   const summary = toolSummary(tool.name, tool.input)
   const live = useElapsed(tool.status === 'running' ? tool.startedAt : undefined, 500)
@@ -17,15 +17,18 @@ export function ToolChip({ tool, selected, onClick }: { tool: ToolCall; selected
       style={kindVars(tool.name)}
       className={cn(
         'inline-flex max-w-full items-center gap-1.5 rounded-md border px-2 py-1 text-[12px] transition-colors',
-        'kind-tint',
+        waiting ? 'border-warn/60 bg-warn/10' : 'kind-tint',
         selected && 'ring-2 ring-accent-ink/40',
-        tool.status === 'running' && 'animate-soft-pulse',
       )}
     >
       <Icon className="kind-icon size-3.5 shrink-0" />
       <span className="font-medium">{toolDisplayName(tool.name)}</span>
       {summary && <span className="truncate text-fg/70">{summary}</span>}
-      {tool.status === 'running' ? (
+      {waiting ? (
+        <span className="flex shrink-0 items-center gap-1 text-warn-ink">
+          <ShieldQuestion className="size-3" aria-hidden /> waiting for you
+        </span>
+      ) : tool.status === 'running' ? (
         <Loader2 className="size-3 shrink-0 animate-spin" />
       ) : tool.status === 'error' ? (
         <X className="size-3 shrink-0 text-danger-ink" />

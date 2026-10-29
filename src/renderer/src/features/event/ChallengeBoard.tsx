@@ -159,12 +159,12 @@ function ChallengeCard({ c, rank }: { c: Challenge; rank: number }) {
       <div className="flex items-start gap-3">
         <div className="flex w-12 shrink-0 flex-col items-center">
           <span className="text-[11px] text-muted">#{rank}</span>
-          <span className={cn('text-[22px] font-semibold num', score.total >= 70 ? 'text-ok-ink' : score.total < 45 && 'text-muted')}>{score.total}</span>
+          <span className={cn('num text-[24px] font-semibold', rank === 1 ? 'text-accent-ink' : score.total < 45 && 'text-muted')}>{score.total}</span>
           {score.coverage < 1 && <span className="text-[11px] text-muted" title="Share of the criteria that have a score">{Math.round(score.coverage * 100)}% scored</span>}
         </div>
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">
-            <span className="rounded bg-accent/10 px-1.5 py-0.5 text-[11px] font-medium text-accent-ink">{c.partner}</span>
+            <span className="rounded-sm border border-line bg-surface-2 px-1.5 py-0.5 text-[12px] font-medium">{c.partner}</span>
             <button onClick={() => setOpen(!open)} className="flex min-w-0 items-center gap-1 text-left text-[14px] font-semibold hover:text-accent-ink">
               {open ? <ChevronDown className="size-4 shrink-0" /> : <ChevronRight className="size-4 shrink-0" />}
               <span className="truncate">{c.title}</span>
@@ -301,10 +301,10 @@ function NoticeBar({ text, sessionId, onClose }: { text: string; sessionId: stri
     <div
       className={cn(
         'flex items-center gap-2 rounded-lg border px-3 py-2 text-[13px]',
-        waiting ? 'border-warn/60 bg-warn/[0.1]' : 'border-accent-ink/40 bg-accent/[0.06]',
+        waiting ? 'border-warn/60 bg-warn/[0.1]' : 'border-line bg-surface-2',
       )}
     >
-      <Bot className={cn('size-4', waiting ? 'text-warn-ink' : 'text-accent-ink', status === 'running' && 'animate-pulse')} />
+      <Bot className={cn('size-4', waiting ? 'text-warn-ink' : 'text-accent-ink')} />
       <span>
         {waiting
           ? 'Claude is waiting for your approval to continue.'

@@ -24,7 +24,13 @@ export function ToolGroup({ ids, session }: { ids: string[]; session: SessionSta
       {chips.length > 0 && (
         <div className="flex flex-wrap gap-1.5">
           {chips.map((t) => (
-            <ToolChip key={t.id} tool={t} selected={selected === t.id} onClick={() => setSelected(selected === t.id ? null : t.id)} />
+            <ToolChip
+              key={t.id}
+              tool={t}
+              selected={selected === t.id}
+              waiting={session.permissions.some((p) => p.toolUseId === t.id)}
+              onClick={() => setSelected(selected === t.id ? null : t.id)}
+            />
           ))}
         </div>
       )}

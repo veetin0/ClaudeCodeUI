@@ -90,7 +90,7 @@ export function HandoffDialog() {
       <div className="flex max-h-[90vh] w-[620px] flex-col rounded-2xl border border-line bg-surface p-5 shadow-2xl" onClick={(e) => e.stopPropagation()}>
         <div className="mb-1 flex items-center gap-2">
           <Handshake className="size-4 text-accent-ink" />
-          <h2 className="text-[15px] font-semibold">Hand off to the team</h2>
+          <h2 className="font-display text-[18px] font-semibold">Hand off to the team</h2>
           <button onClick={close} className="ml-auto rounded p-1 text-muted hover:bg-hover">
             <X className="size-4" />
           </button>

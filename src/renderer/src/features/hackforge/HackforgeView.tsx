@@ -7,8 +7,7 @@ import { useApp } from '@/stores/app'
 import { useHackforge } from '@/stores/hackforge'
 import { openActionIn } from '@/lib/projects'
 import { Markdown } from '../conversation/Markdown'
-import { SectorMeter } from '@/ui/Sectors'
-import { SectorSteps } from '@/ui/Sectors'
+import { Sectors, SectorMeter, SectorSteps } from '@/ui/Sectors'
 
 const INSTALL = 'claude plugin marketplace add ./hackforge-marketplace\nclaude plugin install hackforge@veeti-tools'
 
@@ -184,7 +183,7 @@ function Header({ hf }: { hf: HackforgeSnapshot }) {
       <div className="flex items-center gap-2">
         <Flame className="size-5 text-forge" />
         <div>
-          <div className="text-[15px] font-semibold">{hf.config.challenge || 'HackForge'}</div>
+          <div className="font-display text-[20px] font-semibold leading-tight">{hf.config.challenge || 'HackForge'}</div>
           <div className="text-[12px] text-muted">
             {[hf.config.team && `team of ${hf.config.team}`, hf.config.hours && `${hf.config.hours} h`, hf.state.milestone].filter(Boolean).join(' · ') || 'challenge/ · .hackforge/'}
           </div>
@@ -335,7 +334,11 @@ function Tiles({ hf }: { hf: HackforgeSnapshot }) {
       >
         {v?.compliance ?? '—'}
       </Tile>
-      <Tile label="Mock score" tone={score === undefined ? undefined : score >= target ? 'good' : undefined} sub={`target ${target.toFixed(1)}`}>
+      <Tile
+        label="Mock score"
+        tone={score === undefined ? undefined : score >= target ? 'good' : undefined}
+        sub={score === undefined ? `target ${target.toFixed(1)}` : score >= target ? `target ${target.toFixed(1)} reached` : `${(score - target).toFixed(1)} to target ${target.toFixed(1)}`}
+      >
         {score !== undefined ? score.toFixed(1) : '—'}
         <span className="text-[13px] font-normal text-muted"> / 10</span>
       </Tile>
@@ -353,6 +356,13 @@ function Tiles({ hf }: { hf: HackforgeSnapshot }) {
   )
 }
 
+/** The iteration with the best kept score (the loop's best result so far). */
+function bestIteration(entries: LoopEntry[]): number | undefined {
+  let best: LoopEntry | undefined
+  for (const e of entries) if (e.score !== undefined && e.kept !== false && (!best || e.score > best.score!)) best = e
+  return best?.iteration
+}
+
 function ScoreChart({ entries, target }: { entries: LoopEntry[]; target: number }) {
   const pts = entries.filter((e) => e.score !== undefined)
   if (pts.length === 0) return <div className="py-6 text-center text-[12px] text-muted">The score chart fills in as loop iterations finish.</div>
@@ -366,7 +376,8 @@ function ScoreChart({ entries, target }: { entries: LoopEntry[]; target: number 
   const span = Math.max(1, Math.max(...pts.map((p) => p.iteration)) - first)
   const x = (it: number) => pad.l + ((it - first) / span) * (W - pad.l - pad.r)
   const y = (s: number) => pad.t + (1 - (s - lo) / Math.max(0.1, hi - lo)) * (H - pad.t - pad.b)
-  // Best kept score so far: what the loop actually keeps.
+  // Best kept score so far: what the loop actually keeps. The best iteration is the violet one.
+  const bestIt = bestIteration(pts)
   let best: number | undefined
   const bestPath = pts
     .map((p) => {
@@ -388,10 +399,17 @@ function ScoreChart({ entries, target }: { entries: LoopEntry[]; target: number 
       <text x={W - pad.r} y={y(target) - 3} fontSize="9" textAnchor="end" fill="var(--ok-ink)">
         target {target.toFixed(1)}
       </text>
-      <polyline points={bestPath} fill="none" stroke="var(--accent)" strokeWidth={2} />
+      <polyline points={bestPath} fill="none" stroke="var(--fg)" strokeOpacity={0.55} strokeWidth={1.5} />
       {pts.map((p) => (
         <g key={p.iteration}>
-          <circle cx={x(p.iteration)} cy={y(p.score!)} r={3.5} fill={p.kept === false ? 'var(--surface)' : 'var(--accent)'} stroke={p.kept === false ? 'var(--muted)' : 'var(--accent)'} strokeWidth={1.5}>
+          <circle
+            cx={x(p.iteration)}
+            cy={y(p.score!)}
+            r={p.iteration === bestIt ? 5 : 3}
+            fill={p.kept === false ? 'var(--surface)' : p.iteration === bestIt ? 'var(--accent)' : 'var(--fg)'}
+            stroke={p.kept === false ? 'var(--muted)' : p.iteration === bestIt ? 'var(--accent)' : 'var(--fg)'}
+            strokeWidth={1.5}
+          >
             <title>{`#${p.iteration} ${p.change} — ${p.score} (${p.kept === false ? 'reverted' : 'kept'})`}</title>
           </circle>
           <text x={x(p.iteration)} y={H - 6} fontSize="9" textAnchor="middle" fill="var(--muted)">
@@ -405,6 +423,7 @@ function ScoreChart({ entries, target }: { entries: LoopEntry[]; target: number 
 
 function LoopPanel({ hf }: { hf: HackforgeSnapshot }) {
   const loop = hf.loop!
+  const bestRow = bestIteration(loop.entries)
   const [clickedFor, setClickedFor] = useState<string | null>(null)
   const [stopError, setStopError] = useState<string | null>(null)
   const stopPending = loopStopPending(loop, hf.stopRequested, clickedFor)
@@ -466,7 +485,7 @@ function LoopPanel({ hf }: { hf: HackforgeSnapshot }) {
                 {e.change}
               </span>
               {e.compliance && <span className={cn('text-[11px]', /pass/i.test(e.compliance) ? 'text-ok-ink' : 'text-danger-ink')}>{e.compliance}</span>}
-              <span className="w-10 text-right num">{e.score?.toFixed(1) ?? '—'}</span>
+              <span className={cn('num w-10 text-right', e.iteration === bestRow && 'font-semibold text-accent-ink')}>{e.score?.toFixed(1) ?? '—'}</span>
               <span className={cn('w-16 text-right text-[11px]', e.kept === false ? 'text-muted' : 'text-ok-ink')}>{e.kept === false ? 'reverted' : e.kept ? 'kept' : ''}</span>
             </div>
           ))}
@@ -548,12 +567,18 @@ function MilestonesPanel({ hf }: { hf: HackforgeSnapshot }) {
       {hf.milestones.length === 0 ? (
         <div className="text-[12px] text-muted">Build writes the vertical-slice plan here.</div>
       ) : (
-        hf.milestones.map((m) => (
+        <>
+        <Sectors
+          items={hf.milestones.map((m) => ({ tone: m.status === 'done' ? 'done' : m.status === 'doing' ? 'live' : 'todo', title: `${m.id}: ${m.goal}` }))}
+          className="mb-2"
+          label={`Milestones: ${done} of ${hf.milestones.length} done`}
+        />
+        {hf.milestones.map((m) => (
           <div key={m.id} className="flex items-center gap-2 py-1 text-[13px]">
             {m.status === 'done' ? (
               <CheckCircle2 className="size-3.5 shrink-0 text-ok-ink" />
             ) : m.status === 'doing' ? (
-              <CircleDot className="size-3.5 shrink-0 animate-soft-pulse text-accent-ink" />
+              <CircleDot className="size-3.5 shrink-0 text-accent-ink" />
             ) : (
               <Circle className="size-3.5 shrink-0 text-muted" />
             )}
@@ -561,7 +586,8 @@ function MilestonesPanel({ hf }: { hf: HackforgeSnapshot }) {
             <span className={cn('min-w-0 flex-1 truncate', m.status === 'done' && 'text-muted line-through decoration-muted/50')}>{m.goal}</span>
             {m.covers && <span className="shrink-0 text-[11px] text-muted">{m.covers}</span>}
           </div>
-        ))
+        ))}
+        </>
       )}
     </Panel>
   )
@@ -572,7 +598,7 @@ function Panel({ title, sub, right, children }: { title: string; sub?: string; r
     <section className="rounded-xl border border-line p-3">
       <div className="mb-2 flex items-center gap-2">
         <h3 className="text-[13px] font-semibold">{title}</h3>
-        {sub && <span className="text-[11px] text-muted">{sub}</span>}
+        {sub && <span className="text-[12px] text-muted">{sub}</span>}
         {right && <div className="ml-auto">{right}</div>}
       </div>
       {children}

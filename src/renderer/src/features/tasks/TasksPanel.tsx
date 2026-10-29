@@ -25,7 +25,7 @@ export function TasksPanel({ todos }: { todos: TodoItem[] }) {
             {t.status === 'completed' ? (
               <CheckCircle2 className="mt-px size-4 shrink-0 text-ok-ink" />
             ) : t.status === 'in_progress' ? (
-              <CircleDot className="mt-px size-4 shrink-0 animate-soft-pulse text-accent-ink" />
+              <CircleDot className="mt-px size-4 shrink-0 text-accent-ink" />
             ) : (
               <Circle className="mt-px size-4 shrink-0 text-muted" />
             )}

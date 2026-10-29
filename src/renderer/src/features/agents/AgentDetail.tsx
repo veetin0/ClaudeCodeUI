@@ -127,7 +127,7 @@ export function AgentDetail({ session }: { session: SessionState }) {
 
           <Section title={`Timeline (${agent.tools.length})`}>
             <div className="mb-2">
-              <ActivityStrip tools={agent.tools} max={120} />
+              <ActivityStrip tools={agent.tools} max={80} />
             </div>
             <Timeline tools={agent.tools} selected={selectedTool} onSelect={setSelectedTool} />
           </Section>

@@ -46,7 +46,7 @@ export function StatusChip({ session }: { session: SessionState }) {
             tone === 'hot' ? 'text-danger-ink' : tone === 'warm' ? 'text-warn-ink' : 'text-muted',
           )}
         >
-          <SectorMeter value={ctx} count={10} tone={contextTone(ctx)} height={3} className="w-10" label="Context used" />
+          <SectorMeter value={ctx} count={8} tone={contextTone(ctx)} className="w-16" label="Context used" />
           {Math.round(ctx * 100)}%
           {plan && (plan.hot || plan.warm) && <span>· {plan.label}</span>}
           <span className="font-semibold text-fg">· {formatCost(session.totalCostUsd)}</span>

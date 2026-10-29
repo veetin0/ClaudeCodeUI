@@ -3,11 +3,11 @@ import { cn } from '@/lib/format'
 
 /** Timing flags: green running, yellow waiting for you, grey ready, red ended. */
 const COLORS: Record<SessionStatus, string> = {
-  starting: 'bg-idle animate-soft-pulse',
+  starting: 'bg-idle',
   idle: 'bg-idle',
-  running: 'bg-ok animate-soft-pulse',
-  waiting: 'bg-warn animate-soft-pulse',
-  compacting: 'bg-info animate-soft-pulse',
+  running: 'bg-ok',
+  waiting: 'bg-warn',
+  compacting: 'bg-info',
   closed: 'bg-danger/60',
 }
 

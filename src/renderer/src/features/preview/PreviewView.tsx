@@ -92,7 +92,7 @@ export function PreviewView({ session }: { session: SessionState }) {
             align="start"
             trigger={
               <>
-                {model ? <Box className="size-3.5" /> : url ? <span className={cn('size-2 rounded-[2px]', server?.status === 'ready' || target?.kind === 'url' ? 'bg-ok' : 'animate-soft-pulse bg-warn')} /> : <MonitorPlay className="size-3.5" />}
+                {model ? <Box className="size-3.5" /> : url ? <span className={cn('size-2 rounded-[2px]', server?.status === 'ready' || target?.kind === 'url' ? 'bg-ok' : ' bg-warn')} /> : <MonitorPlay className="size-3.5" />}
                 <span className="max-w-[360px] truncate font-medium text-fg">
                   {model ? basename(model) : server ? (server.kind === 'remotion' ? 'Remotion Studio' : server.label) : url ? url.replace(/^https?:\/\//, '') : 'Choose what to preview'}
                 </span>

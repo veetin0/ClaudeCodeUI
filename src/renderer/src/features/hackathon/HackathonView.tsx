@@ -108,7 +108,7 @@ export function HackathonBar() {
         }))}
       />
       <div className="ml-auto flex min-w-0 items-center gap-2">
-        {run.next && <span className="hidden min-w-0 truncate text-muted xl:inline">{run.next}</span>}
+        {run.next && !sameText(run.next, h.status) && <span className="hidden min-w-0 truncate text-muted xl:inline">{run.next}</span>}
         <Menu
           items={menuItems(
             dir && { label: 'Open the project in a session', icon: MessageSquare, hint: dir, onSelect: () => void sessionIn(dir) },
@@ -123,3 +123,5 @@ export function HackathonBar() {
     </>
   )
 }
+
+const sameText = (a: string, b: string) => a.replace(/[.\s]+$/, '').toLowerCase() === b.replace(/[.\s]+$/, '').toLowerCase()

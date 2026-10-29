@@ -3,7 +3,7 @@ import { SectorMeter, type SectorTone } from '@/ui/Sectors'
 
 /** How full the context window is, as sectors that turn yellow, then red, before auto-compact. */
 export function contextTone(pct: number): SectorTone {
-  return pct > 0.85 ? 'fail' : pct > 0.65 ? 'wait' : 'best'
+  return pct > 0.85 ? 'fail' : pct > 0.65 ? 'wait' : 'fill'
 }
 
 export function ContextGauge({ used, total }: { used: number; total: number }) {

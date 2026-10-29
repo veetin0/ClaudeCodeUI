@@ -29,7 +29,7 @@ export function SubagentCard({ sub, session }: { sub: Subagent; session: Session
     <div className={cn('rounded-xl border bg-info/[0.04]', running ? 'border-info/40' : 'border-line')}>
       <button onClick={() => setOpen(!open)} className="flex w-full items-center gap-2.5 px-3 py-2.5 text-left">
         <ChevronRight className={cn('size-3.5 text-muted transition-transform', open && 'rotate-90')} />
-        <Bot className={cn('size-4 text-info-ink', running && 'animate-soft-pulse')} />
+        <Bot className={cn('size-4 text-info-ink')} />
         <div className="min-w-0 flex-1">
           <div className="truncate font-medium">{sub.description}</div>
           <div className="truncate text-[12px] text-muted">

@@ -25,7 +25,7 @@ export function NowWidget({ agent, activity, lines = 6 }: { agent: AgentView; ac
             <span className="line-clamp-3 break-all">{str('command') || t?.name}</span>
           </div>
           <div className="mt-1 flex items-center gap-1.5 text-muted">
-            <span className="size-1.5 animate-soft-pulse rounded-[1px] bg-ok" />
+            <span className="size-1.5 rounded-[1px] bg-ok" />
             running <span className="num text-[13px] text-fg">{formatDuration(elapsed)}</span>
           </div>
         </div>
@@ -34,7 +34,7 @@ export function NowWidget({ agent, activity, lines = 6 }: { agent: AgentView; ac
     case 'browsing': {
       const Icon = activity.kind === 'searching' ? Search : Globe
       return (
-        <Line icon={<Icon className="size-3.5 animate-soft-pulse" />}>
+        <Line icon={<Icon className="size-3.5" />}>
           <span className="truncate font-mono">{str('pattern') || str('query') || str('url')}</span>
         </Line>
       )
@@ -45,12 +45,12 @@ export function NowWidget({ agent, activity, lines = 6 }: { agent: AgentView; ac
       return agent.text ? (
         <TextTail text={agent.text} lines={Math.min(lines, 4)} live />
       ) : (
-        <Line icon={<Brain className="size-3.5 animate-soft-pulse text-accent-ink" />}>Thinking…</Line>
+        <Line icon={<Brain className="size-3.5 text-accent-ink" />}>Thinking…</Line>
       )
     case 'reading':
     case 'delegating':
     case 'planning':
-      return <Line icon={<Hourglass className="size-3.5 animate-soft-pulse" />}>{activity.title}</Line>
+      return <Line icon={<Hourglass className="size-3.5" />}>{activity.title}</Line>
     default:
       return agent.text ? <TextTail text={agent.text} lines={Math.min(lines, 3)} /> : null
   }

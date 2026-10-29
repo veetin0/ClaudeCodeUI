@@ -48,7 +48,7 @@ function NewProject() {
   }
   return (
     <div className="mx-auto max-w-xl p-8">
-      <h1 className="text-xl font-semibold">Create the project</h1>
+      <h1 className="font-display text-[24px] font-semibold leading-tight">Create the project</h1>
       <p className="mt-1.5 text-muted">A folder with git, a place for the challenge and a place for files. Harness sets up HackForge in it.</p>
       <Card className="mt-6">
         <div className="grid gap-4">
@@ -129,7 +129,7 @@ function Inputs() {
   return (
     <div className="mx-auto max-w-5xl p-8">
       <div className="flex items-baseline gap-3">
-        <h1 className="text-xl font-semibold">{project.name}</h1>
+        <h1 className="font-display text-[24px] font-semibold leading-tight">{project.name}</h1>
         <button
           onClick={() => void window.harness.revealFile(project.dir)}
           className="selectable truncate font-mono text-[12px] text-muted hover:text-fg"

@@ -23,7 +23,7 @@ export function TeamStep() {
   if (!inTeam)
     return (
       <div className="mx-auto max-w-xl p-8">
-        <h1 className="text-xl font-semibold">Start your team</h1>
+        <h1 className="font-display text-[24px] font-semibold leading-tight">Start your team</h1>
         <p className="mt-1.5 text-muted">
           You drive: your Claude plans and integrates, and your teammates’ Claudes build in parallel on their own plans. They only paste one command in a
           terminal.
@@ -70,7 +70,7 @@ export function TeamStep() {
   const ready = crew.members.filter(canTake)
   return (
     <div className="mx-auto max-w-3xl p-8">
-      <h1 className="text-xl font-semibold">Get everyone in</h1>
+      <h1 className="font-display text-[24px] font-semibold leading-tight">Get everyone in</h1>
       <p className="mt-1.5 text-muted">Each teammate pastes this in a terminal and leaves it open. That’s their whole setup.</p>
       <JoinCommand command={crew.joinCommand} />
       <p className="mt-2 text-[12px] text-muted">

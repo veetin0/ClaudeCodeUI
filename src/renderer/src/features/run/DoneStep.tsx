@@ -18,7 +18,7 @@ export function DoneStep() {
           <Trophy className="size-5 text-ok-ink" />
         </div>
         <div>
-          <h1 className="text-xl font-semibold">{run.done?.reason === 'Stopped by the lead' ? 'Run stopped' : 'Done'}</h1>
+          <h1 className="font-display text-[24px] font-semibold leading-tight">{run.done?.reason === 'Stopped by the lead' ? 'Run stopped' : 'Done'}</h1>
           <p className="text-muted">
             {run.done?.reason}
             {took ? ` · ${formatDuration(took)}` : ''}

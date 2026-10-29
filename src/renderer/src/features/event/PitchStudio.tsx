@@ -22,6 +22,7 @@ import { useApp } from '@/stores/app'
 import { useEvent } from '@/stores/event'
 import { usePitch } from '@/stores/pitch'
 import { Kit3dPanel } from './Kit3dPanel'
+import { SectorMeter } from '@/ui/Sectors'
 
 const field = 'selectable w-full rounded-md border border-line bg-surface-2 px-2.5 py-1.5 text-[13px] outline-none focus:border-accent-ink/60'
 const VISUAL_LABEL: Record<Visual, string> = { title: 'Title card', bullets: 'Bullet points', quote: 'Big statement', screen: 'Demo clip / screenshot', end: 'End card' }
@@ -149,7 +150,7 @@ function Toolbar() {
       </div>
       {job && (
         <div className={cn('mt-2 flex items-center gap-2 text-[12px]', job.status === 'error' ? 'text-danger-ink' : job.status === 'done' ? 'text-ok-ink' : 'text-muted')}>
-          {running && <span className="size-2 animate-pulse rounded-[2px] bg-accent" />}
+          {running && <span className="size-2 rounded-[2px] bg-accent" />}
           <span className="selectable min-w-0 flex-1 truncate" title={job.message}>
             {job.message}
           </span>
@@ -289,7 +290,7 @@ function TimingBar({ script }: { script: PitchScript }) {
             <div
               key={s.id}
               title={`${s.title || VISUAL_LABEL[s.visual]} · ${sec.toFixed(1)} s`}
-              className={cn('flex items-center overflow-hidden border-r border-surface px-1 text-[11px] text-white', i % 2 ? 'bg-accent/80' : 'bg-accent')}
+              className={cn('flex items-center overflow-hidden border-r border-surface px-1 text-[12px] text-fg', i % 2 ? 'bg-fg/10' : 'bg-fg/[0.17]')}
               style={{ width: `${(sec / span) * 100}%` }}
             >
               <span className="truncate">{s.title}</span>
@@ -523,9 +524,7 @@ function Rehearsal({ script, onClose }: { script: PitchScript; onClose: () => vo
           <X className="size-5" />
         </button>
       </div>
-      <div className="mx-6 h-1.5 overflow-hidden rounded-full bg-white/10">
-        <div className="h-full bg-accent" style={{ width: `${Math.min(100, (elapsed / Math.max(total, 1)) * 100)}%` }} />
-      </div>
+      <SectorMeter value={elapsed / Math.max(total, 1)} count={40} tone="live" height={6} className="mx-6" label="Rehearsal time" />
       <div className="flex flex-1 flex-col items-center justify-center px-16 text-center">
         <div className="text-[14px] uppercase tracking-widest text-white/40">{scene.title}</div>
         <div className="mt-6 max-w-4xl text-[38px] font-medium leading-snug">{scene.narration || <span className="text-white/30">(no narration: let the demo speak)</span>}</div>

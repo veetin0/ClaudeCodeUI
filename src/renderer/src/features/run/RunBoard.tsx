@@ -22,7 +22,7 @@ export function RunBoard() {
   return (
     <div className="mx-auto max-w-7xl space-y-4 p-6">
       <div className="flex flex-wrap items-center gap-3">
-        <h1 className="text-xl font-semibold">
+        <h1 className="font-display text-[24px] font-semibold leading-tight">
           {run.step === 'finishing' ? 'Finishing: pitch, verify, improve' : current ? `${current.id}: ${current.goal}` : 'Running'}
         </h1>
         {current?.startedAt && (
@@ -88,31 +88,20 @@ export function RunBoard() {
 
 function Timeline({ milestones, current, finishing }: { milestones: RunMilestone[]; current?: string; finishing: boolean }) {
   return (
-    <div className="flex gap-1.5">
+    <div className="flex gap-[2px]">
       {milestones.map((m) => (
         <div key={m.id} className="min-w-0 flex-1" title={`${m.id}: ${m.goal}`}>
-          <div
-            className={cn(
-              'h-1.5 rounded-full',
-              m.status === 'done'
-                ? 'bg-ok'
-                : m.id === current
-                  ? 'animate-pulse bg-accent'
-                  : m.status === 'stuck'
-                    ? 'bg-warn'
-                    : 'bg-line',
-            )}
-          />
-          <div className={cn('mt-1 flex items-center gap-1 truncate text-[11px]', m.id === current ? 'font-semibold' : 'text-muted')}>
-            {m.status === 'done' ? <Check className="size-3 text-ok-ink" /> : m.id === current ? <Loader2 className="size-3 animate-spin" /> : null}
-            {m.id}
+          <div className={cn('sector h-1', m.status === 'done' ? 'bg-ok' : m.id === current ? 'bg-ok sector-live' : m.status === 'stuck' ? 'bg-warn' : '')} />
+          <div className={cn('mt-1.5 flex items-center gap-1 truncate text-[12px]', m.id === current ? 'font-semibold' : 'text-muted')}>
+            {m.status === 'done' && <Check className="size-3 shrink-0 text-ok-ink" aria-label="done" />}
+            <span className="num">{m.id}</span>
             <span className="truncate font-normal"> {m.goal}</span>
           </div>
         </div>
       ))}
       <div className="w-28 shrink-0" title="Pitch, final verification and the improvement loop">
-        <div className={cn('h-1.5 rounded-full', finishing ? 'animate-pulse bg-accent' : 'bg-line')} />
-        <div className={cn('mt-1 truncate text-[11px]', finishing ? 'font-semibold' : 'text-muted')}>Finish</div>
+        <div className={cn('sector h-1', finishing && 'bg-ok sector-live')} />
+        <div className={cn('mt-1.5 truncate text-[12px]', finishing ? 'font-semibold' : 'text-muted')}>Finish</div>
       </div>
     </div>
   )
@@ -134,7 +123,7 @@ function People() {
               <span
                 className={cn(
                   'size-2 rounded-[2px]',
-                  !m.online ? 'bg-fg/25' : m.problem ? 'bg-warn' : m.current ? 'animate-pulse bg-info' : 'bg-ok',
+                  !m.online ? 'bg-fg/25' : m.problem ? 'bg-warn' : m.current ? 'bg-ok' : 'bg-idle',
                 )}
               />
               <Bot className="size-3.5 text-muted" />

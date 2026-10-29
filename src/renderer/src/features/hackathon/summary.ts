@@ -11,6 +11,10 @@ export interface HackathonSummary {
   status: string
   /** The next deadline (or the event's start), e.g. "Submission due in 3h 10m". */
   countdown?: string
+  /** The same as a race clock: just the time, e.g. "3h 10m" (or "Judging"). */
+  clock?: string
+  /** What the clock counts to, e.g. "to submission". */
+  clockLabel?: string
   /** Under an hour to a deadline. */
   urgent: boolean
   /** Decisions waiting for you. */
@@ -36,27 +40,39 @@ export function useHackathonSummary(): HackathonSummary {
         ? 'Plan ready'
         : STAGE_LABEL[run.stage]
   let countdown: string | undefined
+  let clock: string | undefined
+  let clockLabel: string | undefined
   let urgent = false
   let during = false
   if (event) {
-    const clock = eventClock(event.config, now)
-    during = clock.stage === 'during'
-    if (clock.stage === 'before') countdown = `Starts in ${formatSpan(clock.start - now)}`
-    else if (clock.stage === 'during' && clock.nextDeadline) {
-      countdown = `${clock.nextDeadline.label.split(' ')[0]} due in ${formatSpan(clock.nextDeadline.t - now)}`
-      urgent = clock.nextDeadline.t - now < 3_600_000
-    } else if (clock.stage === 'during') countdown = 'Judging'
+    const ec = eventClock(event.config, now)
+    during = ec.stage === 'during'
+    if (ec.stage === 'before') {
+      clock = formatSpan(ec.start - now)
+      clockLabel = 'to the start'
+      countdown = `Starts in ${clock}`
+    } else if (ec.stage === 'during' && ec.nextDeadline) {
+      const what = ec.nextDeadline.label.split(' ')[0]
+      clock = formatSpan(ec.nextDeadline.t - now)
+      clockLabel = `to ${what.toLowerCase()}`
+      countdown = `${what} due in ${clock}`
+      urgent = ec.nextDeadline.t - now < 3_600_000
+    } else if (ec.stage === 'during') countdown = clock = 'Judging'
   }
   const deadline = run.project?.deadline ? Date.parse(run.project.deadline) : NaN
   if (!countdown && Number.isFinite(deadline)) {
     const left = deadline - now
     countdown = left > 0 ? `${formatDuration(left)} left` : 'Deadline passed'
+    clock = left > 0 ? formatDuration(left) : 'Passed'
+    clockLabel = left > 0 ? 'to the deadline' : 'deadline'
     urgent = left > 0 && left < 3_600_000
   }
   return {
     name: run.project?.name ?? event?.config.name ?? 'Hackathon',
     status,
     countdown,
+    clock,
+    clockLabel,
     urgent,
     inbox: run.inbox.length,
     stage: run.stage,

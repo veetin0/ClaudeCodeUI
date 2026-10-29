@@ -51,7 +51,7 @@ export function Home() {
   return (
     <div className="min-h-0 flex-1 overflow-y-auto">
       <div className="mx-auto flex min-h-full w-full max-w-2xl flex-col justify-center px-6 py-10">
-        <h1 className="text-[26px] font-semibold tracking-[-0.01em]">What do you want to build?</h1>
+        <h1 className="font-display text-[34px] font-semibold leading-tight">What do you want to build?</h1>
         <p className="mt-1.5 text-[14px] text-muted">Claude works in your project folder. Every tool call, agent and decision shows up live.</p>
 
         <div className="mt-6 rounded-xl border border-line bg-surface shadow-[0_6px_20px_-8px_rgb(21_22_29/0.18)] focus-within:border-accent-ink/60">
@@ -175,12 +175,17 @@ function HackathonCard() {
           </span>
           <span className="block truncate text-[12px] text-muted">{started ? h.status : 'Team run, challenges, pitch and the clock'}</span>
         </span>
-        {h.countdown && <span className={cn('num shrink-0 text-[20px] font-semibold', h.urgent ? 'text-danger-ink' : 'text-fg')}>{h.countdown}</span>}
+        {h.clock && (
+          <span className="shrink-0 text-right" title={h.countdown}>
+            <span className={cn('num block text-[22px] font-semibold leading-none', h.urgent ? 'text-danger-ink' : 'text-fg')}>{h.clock}</span>
+            {h.clockLabel && <span className="mt-1 block text-[12px] text-muted">{h.clockLabel}</span>}
+          </span>
+        )}
         <span className="flex shrink-0 items-center gap-1 pl-2 font-medium text-accent-ink">
           {started ? 'Continue' : 'Start a hackathon'} <ArrowRight className="size-3.5" aria-hidden />
         </span>
       </span>
-      {h.active && <Sectors items={sectors} height={3} className="mt-3" label={`Team run: ${h.status}`} />}
+      <Sectors items={sectors} height={3} className="mt-3" label={`Team run: ${h.status}`} />
     </button>
   )
 }

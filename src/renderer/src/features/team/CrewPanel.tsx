@@ -153,7 +153,7 @@ function Member({ m, now }: { m: CrewMemberView; now: number }) {
           : m.current
             ? 'Working'
             : 'Ready'
-  const tone = !m.online || m.waiting || !m.accepting ? 'bg-fg/30' : m.problem ? 'bg-warn' : m.current ? 'bg-info' : 'bg-ok'
+  const tone = !m.online || m.waiting || !m.accepting ? 'bg-fg/30' : m.problem ? 'bg-warn' : m.current ? 'bg-ok' : 'bg-idle'
   return (
     <div className={cn('rounded-lg border border-line p-2.5 text-[12px]', !m.online && 'opacity-55')}>
       <div className="flex items-center gap-2">
