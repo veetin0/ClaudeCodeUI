@@ -41,7 +41,7 @@ export function StatusChip({ session }: { session: SessionState }) {
           onClick={toggle}
           title="Context, plan usage and cost"
           className={cn(
-            'num flex h-7 items-center gap-2 rounded-md px-2 text-[13px] hover:bg-hover',
+            'num flex h-7 shrink-0 items-center gap-2 whitespace-nowrap rounded-md px-2 text-[13px] hover:bg-hover',
             open && 'bg-hover',
             tone === 'hot' ? 'text-danger-ink' : tone === 'warm' ? 'text-warn-ink' : 'text-muted',
           )}

@@ -79,11 +79,12 @@ function PanelChip({ session }: { session: SessionState }) {
     <button
       onClick={() => togglePanel()}
       title={shortcut('Side panel: tasks, changed files, agents (⌘I)')}
+      aria-label="Side panel"
       aria-pressed={open}
-      className={cn('no-drag flex h-7 items-center gap-1.5 rounded-md px-2 hover:bg-hover', open ? 'bg-active text-fg' : 'text-muted')}
+      className={cn('no-drag flex h-7 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-md px-2 hover:bg-hover', open ? 'bg-active text-fg' : 'text-muted')}
     >
       <PanelRight className="size-4" />
-      {parts.length > 0 && <span className="num text-[13px]">{parts.join(' · ')}</span>}
+      {parts.length > 0 && <span className="num hidden text-[13px] min-[1180px]:inline">{parts.join(' · ')}</span>}
     </button>
   )
 }

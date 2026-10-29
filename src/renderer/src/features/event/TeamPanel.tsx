@@ -286,7 +286,7 @@ function Handoffs({ handoffs, meId }: { handoffs: OpenHandoff[]; meId: string })
 function MemberCard({ m, me, now, fmt }: { m: MemberStatus; me: boolean; now: number; fmt: (ms: number) => string }) {
   const online = me || isOnline(m, now)
   return (
-    <div className={cn('rounded-xl border p-3', me ? 'border-accent-ink/40' : 'border-line', !online && 'opacity-55')}>
+    <div className={cn('rounded-xl border p-3', me ? 'border-fg/30' : 'border-line', !online && 'opacity-55')}>
       <div className="flex items-center gap-2">
         <span className={cn('size-2 rounded-[2px]', online ? 'bg-ok' : 'bg-fg/30')} />
         <span className="font-semibold">{m.name}</span>

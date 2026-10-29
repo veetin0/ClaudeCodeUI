@@ -2,7 +2,7 @@
 
 A Mac app that runs Claude Code and shows what it's doing as it happens: streamed replies, every tool call, subagents, the task list, context usage and cost.
 
-![Three agents working in parallel on the Board, one streaming live training progress](docs/screenshots/board.png)
+![Three agents working in parallel in Agents, one streaming live training progress](docs/screenshots/board.png)
 
 ## Simple by default
 
@@ -76,7 +76,7 @@ Agents feed these visuals three ways:
 
 **Agents › Graph** puts two views together. On top is a live **agent graph**: the main agent and every subagent it spawns, nested by who spawned whom. Edges animate while an agent works, and each node shows its current activity, progress and recent tool calls. Below is a **timeline** with one lane per agent and a bar per tool call (colour = kind, length = duration). Parallel calls stack, and a shaded band shows each subagent's lifetime. Hover a bar for details, click it to open that call in its agent's detail view, and switch between All and Last 2 min.
 
-![Mission control](docs/screenshots/mission.png)
+![Agents › Graph: the agent graph over the timeline](docs/screenshots/mission.png)
 
 The **Files** section of the side panel (⌘I) has two parts:
 
@@ -378,6 +378,7 @@ The ElevenLabs key is stored in the Keychain, or read from `ELEVENLABS_API_KEY`.
 
 ## Everyday polish
 
+- **Readable at a glance:** the sidebar is a dark rail in light and dark mode, and four colours each mean one thing: green is working, yellow is waiting for you, red failed, violet is the best result and the main button. Progress shows as segmented bars everywhere (the team run, HackForge phases, agent progress, tool calls, plan and context usage), and every time, cost and count is set in a condensed font with even-width digits.
 - **Native menu** with every command and its shortcut. It also makes ⌘C/⌘V/⌘Z work everywhere.
 - **⌘K command palette:** commands, places and tabs, open sessions, History, projects, and every action from the / menu.
 - **Notifications:** when Claude needs approval, or finishes a turn longer than 15 s, while Harness is in the background or you're looking at another session. Clicking a notification jumps to the session. You can turn them off in Settings.

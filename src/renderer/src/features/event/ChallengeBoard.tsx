@@ -224,7 +224,7 @@ function Scores({ c, onSet }: { c: Challenge; onSet: (k: CriterionKey, v: number
                   aria-label={`${cr.label}: ${n}`}
                   className={cn(
                     'size-3.5 rounded-full border',
-                    team !== undefined && n <= team ? 'border-accent-ink bg-accent' : 'border-line hover:border-accent-ink/60',
+                    team !== undefined && n <= team ? 'border-fg bg-fg' : 'border-line hover:border-fg/60',
                     ai === n && 'ring-2 ring-info/70 ring-offset-1 ring-offset-[var(--surface)]',
                   )}
                 />

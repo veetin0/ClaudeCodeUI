@@ -31,7 +31,7 @@ export function EventSchedule({ state }: { state: EventState }) {
             <div className="flex items-center gap-2">
               <CalendarClock className="size-5 text-accent-ink" />
               <h1 className="font-display text-[26px] font-semibold leading-tight">{config.name}</h1>
-              {config.theme && <span className="rounded-sm bg-accent/10 px-2 py-0.5 text-[11px] font-medium text-accent-ink">{config.theme}</span>}
+              {config.theme && <span className="rounded-sm border border-line bg-surface-2 px-2 py-0.5 text-[12px] font-medium">{config.theme}</span>}
             </div>
             {config.tagline && <div className="mt-0.5 text-[13px] italic text-muted">“{config.tagline}”</div>}
             {config.location && (
@@ -179,7 +179,7 @@ function Weekend({ state, now }: { state: EventState; now: number }) {
         <span className="ml-auto flex items-center gap-3 text-[11px] text-muted">
           <Legend className="bg-danger" label="Deadline" />
           <Legend className="bg-fg/50" label="Official" />
-          <Legend className="bg-accent" label="Our plan" />
+          <Legend className="bg-info" label="Our plan" />
           <Legend className="bg-(--series-7)/60" label="Sleep" />
         </span>
       </div>
@@ -205,9 +205,9 @@ function Weekend({ state, now }: { state: EventState; now: number }) {
           .filter((m) => m.kind === 'plan')
           .map((m) =>
             m.tEnd ? (
-              <div key={m.id} title={tip(m, tz)} className="absolute top-[40px] h-2 rounded-full bg-accent/40" style={{ left: pct(m.t), width: `calc(${pct(m.tEnd)} - ${pct(m.t)})` }} />
+              <div key={m.id} title={tip(m, tz)} className="absolute top-[40px] h-2 rounded-full bg-info/40" style={{ left: pct(m.t), width: `calc(${pct(m.tEnd)} - ${pct(m.t)})` }} />
             ) : (
-              <Marker key={m.id} m={m} tz={tz} left={pct(m.t)} top={38} className={cn('size-2.5 rounded-[2px] bg-accent', next?.id === m.id && 'ring-4 ring-accent-ink/25')} />
+              <Marker key={m.id} m={m} tz={tz} left={pct(m.t)} top={38} className={cn('size-2.5 rounded-[2px] bg-info', next?.id === m.id && 'ring-4 ring-info/25')} />
             ),
           )}
         {/* lane 3: sleep */}
@@ -219,8 +219,8 @@ function Weekend({ state, now }: { state: EventState; now: number }) {
             </div>
           ))}
         {now > t0 && now < t1 && (
-          <div className="absolute inset-y-0 w-0.5 bg-accent" style={{ left: pct(now) }}>
-            <span className="absolute -top-1 left-1 rounded bg-accent px-1 text-[9px] font-semibold text-white">now</span>
+          <div className="absolute inset-y-0 w-0.5 bg-fg" style={{ left: pct(now) }}>
+            <span className="num absolute -top-1 left-1 rounded-sm bg-fg px-1 text-[11px] font-semibold text-surface">now</span>
           </div>
         )}
       </div>
@@ -268,19 +268,19 @@ function Agenda({ state, now }: { state: EventState; now: number }) {
             const past = (m.tEnd ?? m.t) < now
             const isNext = clock.next?.id === m.id
             return (
-              <div key={m.id} title={m.note} className={cn('flex items-start gap-2 rounded px-1 py-0.5 text-[12px]', past && 'opacity-45', isNext && 'bg-accent/10')}>
+              <div key={m.id} title={m.note} className={cn('flex items-start gap-2 rounded px-1 py-0.5 text-[12px]', past && 'opacity-45', isNext && 'bg-info/10')}>
                 <span className="w-10 shrink-0 num text-muted">{formatInZone(m.t, tz, { hour: '2-digit', minute: '2-digit', hourCycle: 'h23' })}</span>
                 <span
                   className={cn(
                     'mt-1.5 size-1.5 shrink-0 rounded-[2px]',
-                    m.kind === 'deadline' ? 'bg-danger' : m.kind === 'official' ? 'bg-fg/50' : m.kind === 'sleep' ? 'bg-(--series-7)/60' : 'bg-accent',
+                    m.kind === 'deadline' ? 'bg-danger' : m.kind === 'official' ? 'bg-fg/50' : m.kind === 'sleep' ? 'bg-(--series-7)/60' : 'bg-info',
                   )}
                 />
                 <span className={cn('min-w-0 flex-1', m.kind === 'deadline' && 'font-semibold', m.kind === 'sleep' && 'text-muted')}>
                   {m.label}
                   {m.tEnd && <span className="text-muted"> → {formatInZone(m.tEnd, tz, { hour: '2-digit', minute: '2-digit', hourCycle: 'h23' })}</span>}
                 </span>
-                {isNext && <span className="shrink-0 text-[12px] num text-accent-ink">in {formatSpan(m.t - now)}</span>}
+                {isNext && <span className="num shrink-0 text-[12px] font-semibold text-info-ink">in {formatSpan(m.t - now)}</span>}
               </div>
             )
           })}

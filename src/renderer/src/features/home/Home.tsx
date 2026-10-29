@@ -173,7 +173,7 @@ function HackathonCard() {
             <span className="truncate font-semibold">{h.name}</span>
             {h.inbox > 0 && <span className="num rounded-sm bg-warn px-1.5 text-[12px] font-semibold leading-[18px] text-rail">{h.inbox} waiting</span>}
           </span>
-          <span className="block truncate text-[12px] text-muted">{started ? h.status : 'Team run, challenges, pitch and the clock'}</span>
+          <span className="block truncate text-[12px] text-muted">{h.status}</span>
         </span>
         {h.clock && (
           <span className="shrink-0 text-right" title={h.countdown}>
