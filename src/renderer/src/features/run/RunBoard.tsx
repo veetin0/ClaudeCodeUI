@@ -8,6 +8,7 @@ import { useRun, useRunStore } from '@/stores/run'
 import { Inbox } from './Inbox'
 import { LeadCard } from './LeadCard'
 import { Card, Secondary, UsageBar, useBusy } from './parts'
+import { Menu } from '@/ui/Menu'
 
 /** Steps 9–21: the build, milestone by milestone, with everyone's work on one screen. */
 export function RunBoard() {
@@ -31,7 +32,7 @@ export function RunBoard() {
             {current.status === 'integrating' && ' · integrating'}
           </span>
         )}
-        <div className="ml-auto flex gap-2">
+        <div className="ml-auto flex items-center gap-1">
           {paused ? (
             <Secondary busy={pausing} onClick={() => void act('pause', () => window.harness.runResume())}>
               <Play className="size-3.5" /> Resume
@@ -45,14 +46,17 @@ export function RunBoard() {
               <Pause className="size-3.5" /> Pause
             </Secondary>
           )}
-          <Secondary
-            onClick={() =>
-              window.confirm('Stop the run? Crew tasks are stopped and your Claude stops after its current step.') &&
-              void act('stop', () => window.harness.runStop())
-            }
-          >
-            <Square className="size-3" /> Stop
-          </Secondary>
+          <Menu
+            items={[
+              {
+                label: 'Stop the run',
+                icon: Square,
+                danger: true,
+                hint: 'Crew tasks stop; your Claude stops after its current step',
+                onSelect: () => window.confirm('Stop the run? Crew tasks are stopped and your Claude stops after its current step.') && void act('stop', () => window.harness.runStop()),
+              },
+            ]}
+          />
         </div>
       </div>
 

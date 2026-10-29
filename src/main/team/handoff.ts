@@ -71,8 +71,8 @@ export async function pushSnapshot(dir: string, branch: string, message: string,
  */
 export async function checkoutHandoff(projectDir: string, branch: string, repo?: string): Promise<string> {
   const root = await tryGit(projectDir, ['rev-parse', '--show-toplevel'])
-  if (!root) throw new Error('Your event project isn’t a git repository. Clone the team’s repo and link it in event mode first.')
-  if (repo && (await repoIdentity(root)) !== repo) throw new Error(`This handoff is for ${repo}, but your event project is a different repository. Link the team’s project in event mode first.`)
+  if (!root) throw new Error('Your event project isn’t a git repository. Clone the team’s repo and link it first (Hackathon › ⋯ › Use a different project).')
+  if (repo && (await repoIdentity(root)) !== repo) throw new Error(`This handoff is for ${repo}, but your event project is a different repository. Link the team’s project first (Hackathon › ⋯ › Use a different project).`)
   await git(root, ['fetch', 'origin', `+refs/heads/${branch}:refs/remotes/origin/${branch}`], {}, 120_000).catch((err: Error & { stderr?: string }) => {
     throw new Error(`git fetch failed: ${(err.stderr || err.message).trim().split('\n').slice(-2).join(' ')}`)
   })

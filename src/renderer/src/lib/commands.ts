@@ -1,7 +1,7 @@
 import type { CommandMessage } from '@shared/commands'
 import { useApp } from '@/stores/app'
 
-/** Runs an app command (from the menu, the palette or a notification click). */
+/** Runs an app command (from the menu, the palette, a shortcut or a notification click). */
 export function runCommand(cmd: CommandMessage) {
   const app = useApp.getState()
   switch (cmd.id) {
@@ -14,21 +14,18 @@ export function runCommand(cmd: CommandMessage) {
     case 'close-session':
       if (app.activeId) void app.closeSession(app.activeId)
       return
+    case 'home':
+      return app.goHome()
     case 'view-chat':
       return app.setView('chat')
-    case 'view-board':
-      return app.setView('board')
-    case 'view-mission':
-      return app.setView('mission')
+    case 'view-agents':
+      return app.setView('agents')
     case 'view-preview':
       return app.setView('preview')
-    case 'event-mode':
-      return app.setEventOpen(!app.eventOpen)
-    case 'view-hackforge':
-      app.setView('hackforge')
-      // Nothing open yet: pick a project folder to show it for.
-      if (!app.activeId) void app.openProject()
-      return
+    case 'hackathon':
+      return app.place === 'hackathon' ? app.leaveHackathon() : app.openHackathon()
+    case 'toggle-panel':
+      return app.togglePanel()
     case 'toggle-terminal':
       return app.toggleTerminalPanel()
     case 'new-terminal':

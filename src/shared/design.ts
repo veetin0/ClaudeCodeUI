@@ -1,5 +1,5 @@
 /**
- * Design skills Harness ships and loads into every session (Settings → Design skills):
+ * Design skills Harness ships and loads into every session (Settings › Tools):
  * - impeccable (github.com/pbakaus/impeccable, Apache-2.0): builds, polishes, critiques and audits
  *   UI, with an anti-pattern detector that checks every UI edit and does a deeper pass at the end.
  * - ui-ux-pro-max (github.com/nextlevelbuilder/ui-ux-pro-max-skill, MIT): picks a design system

@@ -1,35 +1,30 @@
-import { AlertTriangle, CheckCircle2, Circle, CircleDot, Copy, Flame, FolderPlus, OctagonX, Play, ShieldAlert, XCircle } from 'lucide-react'
+import { AlertTriangle, CheckCircle2, ChevronDown, Circle, CircleDot, Copy, Flame, FolderPlus, OctagonX, Play, ShieldAlert, XCircle } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { HACKFORGE_PHASES, HACKFORGE_PROFILES, loopRunId, loopStopPending, type HackforgeSnapshot, type LoopEntry, type RuleItem } from '@shared/hackforge'
 import { cn } from '@/lib/format'
 import { ipcErrorMessage } from '@/lib/time'
 import { useApp } from '@/stores/app'
 import { useHackforge } from '@/stores/hackforge'
-import type { SessionState } from '@/stores/reducer'
+import { openActionIn } from '@/lib/projects'
 import { Markdown } from '../conversation/Markdown'
 
 const INSTALL = 'claude plugin marketplace add ./hackforge-marketplace\nclaude plugin install hackforge@veeti-tools'
 
-/** Live dashboard over a project's .hackforge/ memory: phase, compliance, mock score, loop, rules, plan. */
-export function HackforgeView({ session }: { session: SessionState }) {
-  const hf = useHackforge(session.cwd)
-  const send = useApp((s) => s.send)
-  const setForm = useApp((s) => s.setActionForm)
-  const setView = useApp((s) => s.setView)
-  const run = (prompt: string) => {
-    setView('chat')
-    void send(prompt)
-  }
-  const openAction = (id: string) => {
-    setView('chat')
-    setForm(id)
-  }
+/**
+ * Live dashboard over a project's .hackforge/ memory: phase, compliance, mock score and the loop
+ * up front; rules, plan, fix order and the judges' blind spots under Show details.
+ */
+export function HackforgeView({ cwd }: { cwd: string }) {
+  const hf = useHackforge(cwd)
+  // The loop's permission note is about the session working in this project.
+  const permissionMode = useApp((s) => Object.values(s.sessions).find((x) => x.cwd === cwd && x.live && !x.observed)?.permissionMode)
+  const [details, setDetails] = useState(false)
+  const openAction = (id: string) => void openActionIn(cwd, id)
 
-  if (!hf) return <div className="flex flex-1 items-center justify-center text-[12px] text-muted">Reading HackForge state…</div>
+  if (!hf) return <div className="py-6 text-center text-[12px] text-muted">Reading HackForge state…</div>
 
   return (
-    <div className="min-h-0 flex-1 overflow-y-auto">
-      <div className="mx-auto max-w-5xl space-y-4 px-6 py-5">
+    <div className="space-y-4">
         <Header hf={hf} />
         {hf.plugin.source === 'none' && <InstallBanner />}
         {!hf.present ? (
@@ -37,7 +32,7 @@ export function HackforgeView({ session }: { session: SessionState }) {
             icon={FolderPlus}
             title="This project doesn't use HackForge yet"
             text="Init creates challenge/ for the brief, rules, data and assets, plus hackforge.yaml for the deadline, team and profile."
-            action={{ label: 'Init HackForge', onClick: () => run('/hackforge:init') }}
+            action={{ label: 'Init HackForge…', onClick: () => openAction('hf-init') }}
           />
         ) : !hf.initialized ? (
           <Empty
@@ -48,7 +43,7 @@ export function HackforgeView({ session }: { session: SessionState }) {
           />
         ) : (
           <>
-            {hf.loop?.active && session.permissionMode !== 'acceptEdits' && session.permissionMode !== 'bypassPermissions' && (
+            {hf.loop?.active && permissionMode && permissionMode !== 'acceptEdits' && permissionMode !== 'bypassPermissions' && (
               <Note icon={ShieldAlert}>
                 The improvement loop runs unattended, but every permission prompt pauses it. Switch the permission mode to <b>Accept edits</b> in the prompt box, and allow
                 your build and test commands, to keep it going.
@@ -57,6 +52,12 @@ export function HackforgeView({ session }: { session: SessionState }) {
             <PhaseStepper index={hf.state.phaseIndex} />
             <Tiles hf={hf} />
             {hf.loop && <LoopPanel hf={hf} />}
+            <button onClick={() => setDetails(!details)} className="flex items-center gap-1 text-[12px] text-muted hover:text-fg">
+              <ChevronDown className={cn('size-3.5 transition-transform', !details && '-rotate-90')} />
+              {details ? 'Hide details' : 'Show details: rules, milestones, fix order, the judges’ blind spots'}
+            </button>
+            {details && (
+            <>
             <div className="grid gap-4 lg:grid-cols-2">
               <RulesPanel hf={hf} />
               <div className="space-y-4">
@@ -141,9 +142,10 @@ export function HackforgeView({ session }: { session: SessionState }) {
               </div>
             )}
             <div className="text-[11px] text-muted">.hackforge/ · {hf.files.join(' · ')}</div>
+            </>
+            )}
           </>
         )}
-      </div>
     </div>
   )
 }

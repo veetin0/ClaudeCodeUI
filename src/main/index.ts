@@ -433,7 +433,7 @@ function registerIpc() {
     const project = settings.get().eventProject
     let dir: string
     if (h.branch) {
-      if (!project) throw new Error('Link the team’s project in event mode first, so Harness knows which repository to check the work out from.')
+      if (!project) throw new Error('Link the team’s project first (Hackathon › ⋯ › Use a different project), so Harness knows which repository to check the work out from.')
       dir = await checkoutHandoff(project, h.branch, h.repo)
       const dirs = settings.get().handoffDirs
       if (!dirs.includes(dir)) settings.update({ handoffDirs: [dir, ...dirs].slice(0, 20) })

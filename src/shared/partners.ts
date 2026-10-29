@@ -412,7 +412,7 @@ export function kitNote(kit: PartnerKit, ready: string[], docs?: string, mcpUrl?
   if (kit.mcp || mcpUrl) {
     lines.push(
       '## MCP server',
-      `- Harness sessions in this project get the \`mcp__${kit.id}__*\` tools (${mcpUrl ? 'the MCP URL your team added' : kit.mcp?.kind === 'http' ? 'hosted by the partner' : 'bundled with Harness'}) once the keys above are set and Settings → Dev tools → Partner servers is on.`,
+      `- Harness sessions in this project get the \`mcp__${kit.id}__*\` tools (${mcpUrl ? 'the MCP URL your team added' : kit.mcp?.kind === 'http' ? 'hosted by the partner' : 'bundled with Harness'}) once the keys above are set and Settings › Tools › Partner servers is on.`,
       '',
     )
   }
@@ -435,7 +435,7 @@ export function kitIndex(kits: PartnerKit[], ready: string[]): string {
   const lines = [
     '# Partner APIs',
     '',
-    'Written by Harness (event mode → Partners). Keys live in `.env` (gitignored) and in every Harness session’s environment in this project. One file per partner has the env names, install command and a minimal example.',
+    'Written by Harness (Hackathon › Challenges → Partner APIs). Keys live in `.env` (gitignored) and in every Harness session’s environment in this project. One file per partner has the env names, install command and a minimal example.',
     '',
     '| Partner | Ready | Env vars | Kit |',
     '|---|---|---|---|',

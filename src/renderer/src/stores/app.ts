@@ -24,8 +24,12 @@ export interface TerminalTab {
   exitCode?: number
 }
 
-export type InspectorTab = 'agents' | 'tasks' | 'files' | 'activity'
-export type MainView = 'chat' | 'board' | 'mission' | 'preview' | 'hackforge'
+/** Harness's three places: start or continue work, a session, the hackathon. */
+export type Place = 'home' | 'session' | 'hackathon'
+export type MainView = 'chat' | 'agents' | 'preview'
+export type AgentsMode = 'cards' | 'graph' | 'activity'
+export type HackathonTab = 'build' | 'challenges' | 'pitch' | 'schedule'
+export type SettingsTab = 'general' | 'team' | 'tools' | 'advanced'
 
 /** What the Preview view is showing for a project. */
 export type PreviewTarget = { kind: 'server'; id: string } | { kind: 'url'; url: string } | { kind: 'model'; path: string }
@@ -38,8 +42,12 @@ interface AppState {
   order: string[]
   activeId: string | null
   settings: AppSettings | null
-  inspectorTab: InspectorTab
+  place: Place
   view: MainView
+  agentsMode: AgentsMode
+  hackathonTab: HackathonTab
+  /** The session's side panel (tasks, changed files, running agents, HackForge). */
+  panelOpen: boolean
   /** agentKey of the agent whose detail panel is open. */
   detailAgent: string | null
   /** Tool call to preselect in the agent detail view. */
@@ -50,6 +58,7 @@ interface AppState {
   drafts: Record<string, string>
   focusMode: boolean
   settingsOpen: boolean
+  settingsTab: SettingsTab
   preview: PreviewState
   /** package.json facts per project folder (Remotion? dev scripts?). */
   projects: Record<string, ProjectInfo>
@@ -64,12 +73,8 @@ interface AppState {
   terminalOpen: boolean
   terminalHeight: number
   startError: string | null
-  /** Event mode (the hackathon war room) fills the main area. */
-  eventOpen: boolean
-  /** Usage history fills the main area. */
+  /** Usage history, as a sheet over the current place. */
   usageOpen: boolean
-  /** The team run (Team → Setup → Plan → Run → Done) fills the main area: Harness's home. */
-  teamOpen: boolean
   /** Session whose handoff dialog is open. */
   handoffFor: string | null
 
@@ -89,7 +94,11 @@ interface AppState {
   /** Opens a teammate's handed-off work: a session in its folder with the first message ready. */
   takeOver(dir: string, prompt: string): Promise<void>
   setUsageOpen(open: boolean): void
-  setTeamOpen(open: boolean): void
+  goHome(): void
+  /** The Hackathon place, on a tab (or the one it was on). */
+  openHackathon(tab?: HackathonTab): void
+  /** Back from the Hackathon place: to the session you were in, or Home. */
+  leaveHackathon(): void
   /** Starts a session in the background (the team run's lead): it opens in the sidebar, the view stays. */
   startQuiet(cwd: string, permissionMode: PermissionMode): Promise<string>
   /** Brings a saved session back to life in the background (the team run's lead after a restart). */
@@ -98,16 +107,16 @@ interface AppState {
   setPermissionMode(mode: PermissionMode): Promise<void>
   setModel(model: string): Promise<void>
   respondPermission(requestId: string, decision: PermissionDecision): Promise<void>
-  setInspectorTab(tab: InspectorTab): void
   setView(view: MainView): void
-  setEventOpen(open: boolean): void
+  setAgentsMode(mode: AgentsMode): void
+  togglePanel(open?: boolean): void
   openAgent(key: string, toolId?: string): void
   closeAgent(): void
   openDiff(path: string): void
   closeDiff(): void
   setDraft(text: string): void
   toggleFocusMode(): void
-  setSettingsOpen(open: boolean): void
+  setSettingsOpen(open: boolean, tab?: SettingsTab): void
   detectProject(cwd: string): Promise<void>
   setPreviewTarget(cwd: string, target: PreviewTarget | undefined): void
   loadCompositions(cwd: string): Promise<void>
@@ -140,14 +149,18 @@ export const useApp = create<AppState>((set, get) => ({
   order: [],
   activeId: null,
   settings: null,
-  inspectorTab: 'agents',
+  place: 'home',
   view: 'chat',
+  agentsMode: 'cards',
+  hackathonTab: 'build',
+  panelOpen: false,
   detailAgent: null,
   detailTool: null,
   diffPath: null,
   drafts: {},
   focusMode: false,
   settingsOpen: false,
+  settingsTab: 'general',
   preview: { servers: [], renders: [], detected: [] },
   projects: {},
   previewTargets: {},
@@ -160,9 +173,7 @@ export const useApp = create<AppState>((set, get) => ({
   terminalOpen: false,
   terminalHeight: 260,
   startError: null,
-  eventOpen: false,
   usageOpen: false,
-  teamOpen: true,
   handoffFor: null,
 
   async init() {
@@ -200,7 +211,7 @@ export const useApp = create<AppState>((set, get) => ({
       order: [id, ...st.order.filter((x) => x !== id)],
       activeId: id,
       detailAgent: null,
-      teamOpen: false,
+      place: 'session',
     }))
     void get().detectProject(loaded.summary.cwd)
   },
@@ -211,7 +222,8 @@ export const useApp = create<AppState>((set, get) => ({
     set((st) => {
       const { [id]: _removed, ...sessions } = st.sessions
       const order = st.order.filter((x) => x !== id)
-      return { sessions, order, activeId: st.activeId === id ? (order[0] ?? null) : st.activeId }
+      const activeId = st.activeId === id ? (order[0] ?? null) : st.activeId
+      return { sessions, order, activeId, place: !activeId && st.place === 'session' ? 'home' : st.place }
     })
     await get().refreshHistory()
   },
@@ -250,8 +262,7 @@ export const useApp = create<AppState>((set, get) => ({
         order: [summary.id, ...st.order],
         activeId: summary.id,
         startError: null,
-        eventOpen: false,
-        teamOpen: false,
+        place: 'session',
       }))
       set({ settings: await api().getSettings() })
       void get().detectProject(cwd)
@@ -267,7 +278,7 @@ export const useApp = create<AppState>((set, get) => ({
   },
 
   select(id) {
-    set({ activeId: id, detailAgent: null, diffPath: null, replay: null, eventOpen: false, teamOpen: false, usageOpen: false })
+    set({ activeId: id, detailAgent: null, diffPath: null, replay: null, place: 'session' })
     const cwd = get().sessions[id]?.cwd
     if (cwd) void get().detectProject(cwd)
   },
@@ -299,7 +310,8 @@ export const useApp = create<AppState>((set, get) => ({
     set((st) => {
       const { [id]: _removed, ...sessions } = st.sessions
       const order = st.order.filter((x) => x !== id)
-      return { sessions, order, activeId: st.activeId === id ? (order[0] ?? null) : st.activeId }
+      const activeId = st.activeId === id ? (order[0] ?? null) : st.activeId
+      return { sessions, order, activeId, place: !activeId && st.place === 'session' ? 'home' : st.place }
     })
     await get().refreshHistory()
   },
@@ -336,8 +348,10 @@ export const useApp = create<AppState>((set, get) => ({
     get().setDraft(prompt)
   },
 
-  setUsageOpen: (usageOpen) => set({ usageOpen, ...(usageOpen ? { eventOpen: false, teamOpen: false } : {}) }),
-  setTeamOpen: (teamOpen) => set({ teamOpen, ...(teamOpen ? { eventOpen: false, usageOpen: false } : {}) }),
+  setUsageOpen: (usageOpen) => set({ usageOpen, ...(usageOpen ? { settingsOpen: false } : {}) }),
+  goHome: () => set({ place: 'home', replay: null }),
+  openHackathon: (tab) => set((st) => ({ place: 'hackathon', hackathonTab: tab ?? st.hackathonTab })),
+  leaveHackathon: () => set((st) => ({ place: st.activeId ? 'session' : 'home' })),
 
   async startQuiet(cwd, permissionMode) {
     const saver = get().settings?.usageSaver
@@ -402,9 +416,10 @@ export const useApp = create<AppState>((set, get) => ({
     if (id) await api().respondPermission(id, requestId, decision)
   },
 
-  setInspectorTab: (inspectorTab) => set({ inspectorTab }),
-  setView: (view) => set({ view, eventOpen: false, usageOpen: false, teamOpen: false }),
-  setEventOpen: (eventOpen) => set({ eventOpen, ...(eventOpen ? { usageOpen: false, teamOpen: false } : {}) }),
+  // A view belongs to a session: with none open, stay where you are.
+  setView: (view) => set((st) => ({ view, place: st.activeId ? 'session' : st.place })),
+  setAgentsMode: (agentsMode) => set((st) => ({ agentsMode, view: 'agents', place: st.activeId ? 'session' : st.place })),
+  togglePanel: (open) => set((st) => ({ panelOpen: open ?? !st.panelOpen })),
   openAgent: (detailAgent, toolId) => set({ detailAgent, detailTool: toolId ?? null }),
   closeAgent: () => set({ detailAgent: null, detailTool: null }),
   openDiff: (diffPath) => set({ diffPath, detailAgent: null }),
@@ -412,7 +427,7 @@ export const useApp = create<AppState>((set, get) => ({
   setDraft: (text) =>
     set((st) => (st.activeId ? { drafts: { ...st.drafts, [st.activeId]: text } } : {})),
   toggleFocusMode: () => set((st) => ({ focusMode: !st.focusMode })),
-  setSettingsOpen: (settingsOpen) => set({ settingsOpen }),
+  setSettingsOpen: (settingsOpen, tab) => set((st) => ({ settingsOpen, settingsTab: tab ?? st.settingsTab, ...(settingsOpen ? { usageOpen: false } : {}) })),
   setPaletteOpen: (paletteOpen) => set({ paletteOpen }),
   setActionForm: (actionForm) => set({ actionForm }),
 
@@ -421,7 +436,7 @@ export const useApp = create<AppState>((set, get) => ({
     if (!id) return
     const log = getLog(id)
     if (log.length === 0) return
-    set({ replay: { sessionId: id, t: log[0].ts, playing: true, speed: 4 }, activeId: id, detailAgent: null, diffPath: null })
+    set({ replay: { sessionId: id, t: log[0].ts, playing: true, speed: 4 }, activeId: id, detailAgent: null, diffPath: null, place: 'session' })
   },
   setReplay: (patch) => set((st) => ({ replay: patch === null || !st.replay ? null : { ...st.replay, ...patch } })),
 

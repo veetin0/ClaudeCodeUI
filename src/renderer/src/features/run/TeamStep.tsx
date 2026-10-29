@@ -48,8 +48,8 @@ export function TeamStep() {
             ) : (
               <span>
                 Hosted on this laptop: teammates must be on the same network. For an event, deploy a team server once and add it in{' '}
-                <button onClick={() => useApp.getState().setSettingsOpen(true)} className="underline hover:text-fg">
-                  Settings → Team server
+                <button onClick={() => useApp.getState().setSettingsOpen(true, 'team')} className="underline hover:text-fg">
+                  Settings › Team
                 </button>
                 .
               </span>

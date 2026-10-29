@@ -1,13 +1,15 @@
-import { AlarmClock, ArrowUp, Square } from 'lucide-react'
-import { useEffect, useRef } from 'react'
+import { AlarmClock, ArrowUp, Plus, Square } from 'lucide-react'
+import { useEffect, useRef, useState } from 'react'
 import type { PermissionMode } from '@shared/events'
+import type { QuickAction } from '@/lib/actions'
 import { cn } from '@/lib/format'
 import { useApp } from '@/stores/app'
 import type { SessionState } from '@/stores/reducer'
 import { AUTO_MODEL } from '@shared/usageSaver'
-import { SaverChip } from './SaverChip'
 import { useLimit } from '../team/LimitBanner'
 import { useResetQueue } from '@/stores/resetQueue'
+import { ActionMenu, useActionList } from './ActionMenu'
+import { ModeChip } from './ModeChip'
 
 export const PERMISSION_MODES: { value: PermissionMode; label: string }[] = [
   { value: 'default', label: 'Ask before acting' },
@@ -31,8 +33,7 @@ export function PromptBox({ session }: { session: SessionState }) {
   const text = useApp((s) => s.drafts[session.id] ?? '')
   const setText = useApp((s) => s.setDraft)
   const ref = useRef<HTMLTextAreaElement>(null)
-  const { send, interrupt, setPermissionMode, setModel } = useApp()
-  const saverOn = useApp((s) => session.saver?.enabled ?? s.settings?.usageSaver?.enabled ?? false)
+  const { send, interrupt, setActionForm } = useApp()
   const limit = useLimit()
   const queueOn = useResetQueue((s) => s.state?.enabled ?? true)
   const queued = useResetQueue((s) => s.state?.items.some((i) => i.sessionId === session.id) ?? false)
@@ -51,7 +52,55 @@ export function PromptBox({ session }: { session: SessionState }) {
   const saved = !session.live
   // A terminal session being watched: Harness can't type into another process's conversation.
   const watching = session.observed && session.live
-  useEffect(() => ref.current?.focus(), [session.id, text === ''])
+  // Back to the prompt after sending, unless an action's form above it has the focus.
+  useEffect(() => {
+    if (!useApp.getState().actionForm) ref.current?.focus()
+  }, [session.id, text === ''])
+
+  // The / menu: typing "/" filters by the first word (a space means arguments, so it closes and
+  // Enter sends the raw command); the + button opens it with its own filter field.
+  const [plus, setPlus] = useState<string | null>(null)
+  const [dismissed, setDismissed] = useState(false)
+  const [selected, setSelected] = useState(0)
+  const slash = !plus && !dismissed && /^\/[^\s]*$/.test(text)
+  const menuOpen = plus !== null || slash
+  const query = plus ?? (slash ? text : '')
+  const { groups, flat, best } = useActionList(session, query)
+  useEffect(() => setSelected(best), [query, best])
+  useEffect(() => {
+    if (!text.startsWith('/')) setDismissed(false)
+  }, [text])
+  const closeMenu = () => {
+    setPlus(null)
+    if (slash) setDismissed(true)
+  }
+  const pick = (a: QuickAction) => {
+    if (slash) setText('')
+    setPlus(null)
+    setActionForm(a.id)
+  }
+  // Arrow keys, Enter and Tab drive the menu while it's open; Escape closes it.
+  const menuKeys = (e: React.KeyboardEvent): boolean => {
+    if (!menuOpen) return false
+    if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+      e.preventDefault()
+      if (flat.length) setSelected((selected + (e.key === 'ArrowDown' ? 1 : flat.length - 1)) % flat.length)
+      return true
+    }
+    if ((e.key === 'Enter' || e.key === 'Tab') && !e.shiftKey && flat[selected]) {
+      e.preventDefault()
+      pick(flat[selected])
+      return true
+    }
+    if (e.key === 'Escape') {
+      e.preventDefault()
+      e.stopPropagation()
+      closeMenu()
+      ref.current?.focus()
+      return true
+    }
+    return false
+  }
 
   // Grow with content up to a cap.
   useEffect(() => {
@@ -72,13 +121,24 @@ export function PromptBox({ session }: { session: SessionState }) {
 
   return (
     <div className="mx-auto w-full max-w-3xl px-6 pb-5">
-      <div className="rounded-2xl border border-line bg-surface shadow-[0_1px_8px_rgb(0_0_0/0.06)] focus-within:border-[var(--accent)]/50">
+      <div className="relative rounded-2xl border border-line bg-surface shadow-[0_1px_8px_rgb(0_0_0/0.06)] focus-within:border-[var(--accent)]/50">
+        {menuOpen && (
+          <ActionMenu
+            groups={groups}
+            flat={flat}
+            selected={selected}
+            setSelected={setSelected}
+            onPick={pick}
+            filter={plus !== null ? { value: plus, onChange: setPlus, onKeyDown: (e) => void menuKeys(e) } : undefined}
+          />
+        )}
         <textarea
           data-prompt
           ref={ref}
           value={text}
           onChange={(e) => setText(e.target.value)}
           onKeyDown={(e) => {
+            if (menuKeys(e)) return
             if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) {
               e.preventDefault()
               submit()
@@ -95,21 +155,25 @@ export function PromptBox({ session }: { session: SessionState }) {
                 ? 'Send a message to resume this session…'
                 : busy
                   ? 'Queue a follow-up…'
-                  : 'Ask Claude to do something…'
+                  : 'Ask Claude to do something, or type / for actions…'
           }
           className="selectable block w-full resize-none bg-transparent px-4 pt-3 pb-1 leading-relaxed outline-none placeholder:text-muted"
         />
         <div className="flex items-center gap-2 px-2.5 pb-2">
-          <Select value={session.permissionMode} onChange={(v) => void setPermissionMode(v as PermissionMode)} options={PERMISSION_MODES} />
-          <Select
-            value={session.saver?.auto ? AUTO_MODEL : MODELS.some((m) => m.value === session.model) ? session.model! : ''}
-            onChange={(v) => v && void setModel(v)}
-            options={[
-              ...(saverOn ? [AUTO_OPTION] : []),
-              ...MODELS.map((m) => (m.value === '' && session.model && !session.saver?.auto ? { ...m, label: session.model } : m)),
-            ]}
-          />
-          {!watching && <SaverChip session={session} />}
+          {!watching && (
+            <button
+              onClick={() => (plus === null ? setPlus('') : closeMenu())}
+              title="Actions and commands (or type /)"
+              aria-label="Actions"
+              className={cn(
+                'flex size-7 items-center justify-center rounded-full text-muted hover:bg-black/5 hover:text-fg dark:hover:bg-white/10',
+                plus !== null && 'bg-black/5 text-fg dark:bg-white/10',
+              )}
+            >
+              <Plus className="size-4" />
+            </button>
+          )}
+          <ModeChip session={session} />
           <div className="ml-auto flex items-center gap-2">
             {busy && !watching && (
               <button onClick={() => void interrupt()} title="Stop (Esc)" className="flex size-7 items-center justify-center rounded-full bg-fg text-surface hover:opacity-80">
@@ -141,21 +205,5 @@ export function PromptBox({ session }: { session: SessionState }) {
         </div>
       </div>
     </div>
-  )
-}
-
-function Select({ value, onChange, options }: { value: string; onChange: (v: string) => void; options: { value: string; label: string }[] }) {
-  return (
-    <select
-      value={value}
-      onChange={(e) => onChange(e.target.value)}
-      className="rounded-md bg-transparent px-1.5 py-1 text-[11.5px] text-muted outline-none hover:bg-black/5 hover:text-fg dark:hover:bg-white/10"
-    >
-      {options.map((o) => (
-        <option key={o.value} value={o.value}>
-          {o.label}
-        </option>
-      ))}
-    </select>
   )
 }

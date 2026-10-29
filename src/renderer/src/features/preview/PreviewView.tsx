@@ -1,4 +1,4 @@
-import { Box, Clapperboard, ExternalLink, FileVideo, FolderOpen, Globe, Loader2, MousePointerClick, Play, RefreshCw, ScrollText, Send, Square, X } from 'lucide-react'
+import { Box, ChevronDown, Clapperboard, ExternalLink, FileVideo, FolderOpen, Globe, Loader2, MonitorPlay, MousePointerClick, Play, RefreshCw, ScrollText, Send, Square, X } from 'lucide-react'
 import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react'
 import type { PreviewServer, RenderJob } from '@shared/preview'
 import { changePrompt, type PickedElement } from '@shared/pick'
@@ -8,6 +8,7 @@ import { fileUrl } from '@shared/visuals'
 import { basename, cn, formatDuration } from '@/lib/format'
 import { relativeTime } from '@/lib/time'
 import { useApp } from '@/stores/app'
+import { Menu, menuItems } from '@/ui/Menu'
 import type { SessionState } from '@/stores/reducer'
 
 // three.js is big: the viewer loads only when a model is opened.
@@ -25,6 +26,7 @@ export function PreviewView({ session }: { session: SessionState }) {
   const [reloadKey, setReloadKey] = useState(0)
   const [showLog, setShowLog] = useState(false)
   const [customUrl, setCustomUrl] = useState('')
+  const [urlInput, setUrlInput] = useState(false)
   const frameRef = useRef<HTMLIFrameElement>(null)
   const [picking, setPicking] = useState(false)
   const [picked, setPicked] = useState<{ element: PickedElement; image?: ImageAttachment } | null>(null)
@@ -82,136 +84,125 @@ export function PreviewView({ session }: { session: SessionState }) {
   return (
     <div className="flex min-h-0 flex-1">
       <div className="flex min-w-0 flex-1 flex-col">
-        {/* Source bar */}
-        <div className="flex flex-wrap items-center gap-1.5 border-b border-line px-3 py-2 text-[12px]">
-          {project?.remotion && (
-            <SourceButton
-              active={!!studio && target?.kind === 'server' && target.id === studio.id}
-              onClick={() => void start(() => window.harness.startStudio(cwd))}
-              icon={<Clapperboard className="size-3.5" />}
-              label="Remotion Studio"
-              status={studio?.status}
-            />
-          )}
-          {project?.devScripts
-            .filter((s) => !(project.remotion && /remotion studio/.test(s.command)))
-            .map((s) => {
-              const running = servers.find((x) => x.kind === 'script' && x.label === s.name && x.status !== 'exited')
-              return (
-                <SourceButton
-                  key={s.name}
-                  active={!!running && target?.kind === 'server' && target.id === running.id}
-                  onClick={() => void start(() => window.harness.startScript(cwd, s.name))}
-                  icon={<Play className="size-3" />}
-                  label={`${s.name}`}
-                  title={s.command}
-                  status={running?.status}
-                />
-              )
-            })}
-          {models.slice(0, 4).map((m) => (
-            <SourceButton
-              key={m}
-              active={model === m}
-              onClick={() => setPreviewTarget(cwd, { kind: 'model', path: m })}
-              icon={<Box className="size-3.5" />}
-              label={basename(m)}
-              title={`3D model: ${m}`}
-            />
-          ))}
-          {models.length > 4 && (
-            <select
-              value={model && models.indexOf(model) >= 4 ? model : ''}
-              onChange={(e) => e.target.value && setPreviewTarget(cwd, { kind: 'model', path: e.target.value })}
-              className="rounded-md border border-line bg-surface-2 px-1.5 py-0.5 text-[11.5px]"
-              title="More 3D models in this project"
+        {/* One bar: what's showing (pick another from its menu), Click to change, and ⋯ for the rest. */}
+        <div className="flex items-center gap-2 border-b border-line px-3 py-1.5 text-[12px]">
+          <Menu
+            label="What to preview"
+            align="start"
+            trigger={
+              <>
+                {model ? <Box className="size-3.5" /> : url ? <span className={cn('size-2 rounded-full', server?.status === 'ready' || target?.kind === 'url' ? 'bg-emerald-500' : 'animate-soft-pulse bg-amber-500')} /> : <MonitorPlay className="size-3.5" />}
+                <span className="max-w-[360px] truncate font-medium text-fg">
+                  {model ? basename(model) : server ? (server.kind === 'remotion' ? 'Remotion Studio' : server.label) : url ? url.replace(/^https?:\/\//, '') : 'Choose what to preview'}
+                </span>
+                <ChevronDown className="size-3" />
+              </>
+            }
+            triggerClassName="rounded-md border border-line px-2 py-1"
+            items={menuItems(
+              (!!project?.remotion || !!project?.devScripts.length) && { heading: 'Run' },
+              !!project?.remotion && {
+                label: 'Remotion Studio',
+                icon: Clapperboard,
+                hint: studio ? studio.status : 'Live preview that hot-reloads as Claude edits',
+                checked: !!studio && target?.kind === 'server' && target.id === studio.id,
+                onSelect: () => void start(() => window.harness.startStudio(cwd)),
+              },
+              ...(project?.devScripts ?? [])
+                .filter((x) => !(project?.remotion && /remotion studio/.test(x.command)))
+                .map((x) => {
+                  const running = servers.find((v) => v.kind === 'script' && v.label === x.name && v.status !== 'exited')
+                  return {
+                    label: x.name,
+                    icon: Play,
+                    hint: running ? `${running.status} · ${x.command}` : x.command,
+                    checked: !!running && target?.kind === 'server' && target.id === running.id,
+                    onSelect: () => void start(() => window.harness.startScript(cwd, x.name)),
+                  }
+                }),
+              detected.length > 0 && { heading: 'Seen running' },
+              ...detected.map((d) => ({
+                label: d.url.replace(/^https?:\/\//, ''),
+                icon: Globe,
+                hint: `In ${d.source === 'terminal' ? 'a terminal' : "an agent's command"} ${relativeTime(d.ts)}`,
+                checked: target?.kind === 'url' && target.url === d.url,
+                onSelect: () => setPreviewTarget(cwd, { kind: 'url', url: d.url }),
+              })),
+              models.length > 0 && { heading: '3D models' },
+              ...models.slice(0, 12).map((m) => ({
+                label: basename(m),
+                icon: Box,
+                hint: m.startsWith(cwd) ? m.slice(cwd.length + 1) : m,
+                checked: model === m,
+                onSelect: () => setPreviewTarget(cwd, { kind: 'model', path: m }),
+              })),
+              'separator',
+              {
+                label: 'Open a .glb or .gltf…',
+                icon: FolderOpen,
+                onSelect: async () => {
+                  const p = await window.harness.previewPickModel()
+                  if (p) setPreviewTarget(cwd, { kind: 'model', path: p })
+                },
+              },
+              { label: 'Open a localhost URL…', icon: Globe, onSelect: () => setUrlInput(true) },
+            )}
+          />
+          {urlInput && (
+            <form
+              className="flex items-center"
+              onSubmit={(e) => {
+                e.preventDefault()
+                if (/^https?:\/\/(localhost|127\.0\.0\.1):\d+/.test(customUrl)) {
+                  setPreviewTarget(cwd, { kind: 'url', url: customUrl })
+                  setUrlInput(false)
+                }
+              }}
             >
-              <option value="">{models.length - 4} more models…</option>
-              {models.slice(4).map((m) => (
-                <option key={m} value={m}>
-                  {m.startsWith(cwd) ? m.slice(cwd.length + 1) : m}
-                </option>
-              ))}
-            </select>
+              <input
+                autoFocus
+                value={customUrl}
+                onChange={(e) => setCustomUrl(e.target.value)}
+                onBlur={() => !customUrl && setUrlInput(false)}
+                placeholder="http://localhost:3000"
+                className="selectable w-48 rounded-md border border-line bg-surface-2 px-2 py-1 text-[11.5px] outline-none focus:border-[var(--accent)]/60"
+              />
+            </form>
           )}
-          <button
-            onClick={async () => {
-              const p = await window.harness.previewPickModel()
-              if (p) setPreviewTarget(cwd, { kind: 'model', path: p })
-            }}
-            className="flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[11.5px] text-muted hover:bg-black/5 hover:text-fg dark:hover:bg-white/10"
-            title="Open a .glb or .gltf in the 3D viewer"
-          >
-            <Box className="size-3" /> Open .glb…
-          </button>
-          {detected.map((d) => (
-            <SourceButton
-              key={d.url}
-              active={target?.kind === 'url' && target.url === d.url}
-              onClick={() => setPreviewTarget(cwd, { kind: 'url', url: d.url })}
-              icon={<Globe className="size-3.5" />}
-              label={d.url.replace(/^https?:\/\//, '')}
-              title={`Seen in ${d.source === 'terminal' ? 'a terminal' : "an agent's command"} ${relativeTime(d.ts)}`}
-            />
-          ))}
-          <form
-            className="ml-auto flex items-center gap-1"
-            onSubmit={(e) => {
-              e.preventDefault()
-              if (/^https?:\/\/(localhost|127\.0\.0\.1):\d+/.test(customUrl)) setPreviewTarget(cwd, { kind: 'url', url: customUrl })
-            }}
-          >
-            <input
-              value={customUrl}
-              onChange={(e) => setCustomUrl(e.target.value)}
-              placeholder="http://localhost:3000"
-              className="selectable w-44 rounded-md border border-line bg-surface-2 px-2 py-1 text-[11.5px] outline-none focus:border-[var(--accent)]/60"
-            />
-          </form>
-        </div>
-
-        {/* Frame toolbar */}
-        {url && (
-          <div className="flex items-center gap-2 border-b border-line px-3 py-1.5 text-[11.5px] text-muted">
-            <span className={cn('size-2 rounded-full', server?.status === 'ready' || target?.kind === 'url' ? 'bg-emerald-500' : 'bg-amber-500 animate-soft-pulse')} />
-            <span className="truncate font-mono">{url}</span>
-            {lastWrite > 0 && server?.kind !== 'remotion' && <span className="shrink-0">· files changed {relativeTime(lastWrite)}</span>}
+          {url && !model && <span className="hidden min-w-0 truncate font-mono text-[11.5px] text-muted lg:inline">{url}</span>}
+          {url && !model && lastWrite > 0 && server?.kind !== 'remotion' && <span className="hidden shrink-0 text-[11.5px] text-muted xl:inline">· files changed {relativeTime(lastWrite)}</span>}
+          {url && !model && (
             <div className="ml-auto flex items-center gap-1">
               <button
                 onClick={() => (picking ? void window.harness.previewPickCancel(url) : void pick())}
                 title="Click an element in the page and tell Claude what to change"
                 className={cn(
-                  'flex items-center gap-1 rounded-md px-2 py-0.5 text-[11.5px]',
-                  picking ? 'bg-[var(--accent)] text-white' : 'text-fg hover:bg-black/5 dark:hover:bg-white/10',
+                  'flex items-center gap-1 rounded-md px-2.5 py-1 text-[12px] font-medium',
+                  picking ? 'bg-fg text-surface' : 'bg-[var(--accent)] text-white hover:brightness-110',
                 )}
               >
                 <MousePointerClick className="size-3.5" /> {picking ? 'Cancel' : 'Click to change'}
               </button>
-              <IconButton title="Reload" onClick={() => setReloadKey((k) => k + 1)}>
-                <RefreshCw className="size-3.5" />
-              </IconButton>
-              <IconButton title="Open in browser" onClick={() => void window.harness.openExternal(url)}>
-                <ExternalLink className="size-3.5" />
-              </IconButton>
-              {server && (
-                <>
-                  <IconButton title="Server output" onClick={() => setShowLog(!showLog)}>
-                    <ScrollText className="size-3.5" />
-                  </IconButton>
-                  <IconButton
-                    title="Stop server"
-                    onClick={() => {
+              <Menu
+                items={menuItems(
+                  { label: 'Reload', icon: RefreshCw, onSelect: () => setReloadKey((k) => k + 1) },
+                  { label: 'Open in browser', icon: ExternalLink, onSelect: () => void window.harness.openExternal(url) },
+                  server && { label: showLog ? 'Hide server output' : 'Server output', icon: ScrollText, onSelect: () => setShowLog(!showLog) },
+                  server && 'separator',
+                  server && {
+                    label: 'Stop server',
+                    icon: Square,
+                    danger: true,
+                    onSelect: () => {
                       void window.harness.stopServer(server.id)
                       setPreviewTarget(cwd, undefined)
-                    }}
-                  >
-                    <Square className="size-3 fill-current" />
-                  </IconButton>
-                </>
-              )}
+                    },
+                  },
+                )}
+              />
             </div>
-          </div>
-        )}
+          )}
+        </div>
 
         <div className="relative min-h-0 flex-1 bg-surface-2">
           {model ? (
@@ -325,33 +316,6 @@ function ChangeBox({ picked, session, onClose, onAgain }: { picked: { element: P
   )
 }
 
-function SourceButton({ active, onClick, icon, label, title, status }: { active: boolean; onClick: () => void; icon: React.ReactNode; label: string; title?: string; status?: PreviewServer['status'] }) {
-  return (
-    <button
-      onClick={onClick}
-      title={title}
-      className={cn(
-        'flex max-w-[220px] items-center gap-1.5 rounded-full border px-2.5 py-1',
-        active ? 'border-[var(--accent)]/50 bg-[var(--accent)]/10 text-fg' : 'border-line text-muted hover:bg-surface-2 hover:text-fg',
-      )}
-    >
-      {icon}
-      <span className="truncate">{label}</span>
-      {status === 'starting' && <Loader2 className="size-3 animate-spin" />}
-      {status === 'ready' && <span className="size-1.5 rounded-full bg-emerald-500" />}
-      {status === 'error' && <span className="size-1.5 rounded-full bg-red-500" />}
-    </button>
-  )
-}
-
-function IconButton({ children, ...props }: React.ButtonHTMLAttributes<HTMLButtonElement>) {
-  return (
-    <button {...props} className="rounded p-1 hover:bg-black/5 hover:text-fg dark:hover:bg-white/10">
-      {children}
-    </button>
-  )
-}
-
 function Starting({ server }: { server: PreviewServer }) {
   return (
     <div className="flex h-full flex-col items-center justify-center gap-3 p-6 text-center">
@@ -404,8 +368,8 @@ function EmptyState({ session, hasRemotion, onStudio }: { session: SessionState;
           <p className="text-[14px] font-semibold">Nothing to preview yet</p>
           <p className="max-w-sm text-muted">
             {project?.devScripts.length
-              ? 'Start one of the dev scripts above, or ask Claude to run the app; any local server it starts shows up here.'
-              : 'When Claude or a terminal starts a local server, its address shows up above. You can also type a localhost URL.'}
+              ? 'Start a dev script from the menu above, or ask Claude to run the app; any local server it starts shows up here.'
+              : 'When Claude or a terminal starts a local server, it shows up in the menu above. You can also open a localhost URL or a 3D model from there.'}
           </p>
         </>
       )}

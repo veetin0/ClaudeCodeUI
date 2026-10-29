@@ -1,9 +1,10 @@
-import { Check, Copy, ExternalLink, KeyRound, Plus, Trash2, X } from 'lucide-react'
+import { BookOpen, Check, Copy, Globe, KeyRound, Plus, RefreshCw, Trash2, X } from 'lucide-react'
 import { useState } from 'react'
 import type { PartnerKit, PartnersState } from '@shared/partners'
 import { basename, cn } from '@/lib/format'
 import { usePartners, usePartnersState } from '@/stores/partners'
 import { useTeamState } from '@/stores/team'
+import { Menu, menuItems } from '@/ui/Menu'
 
 const open = (url: string) => void window.harness.openExternal(url)
 
@@ -75,9 +76,7 @@ function KitCard({ kit, state }: { kit: PartnerKit; state: PartnersState }) {
   return (
     <div data-kit={kit.id} className={cn('rounded-xl border p-3', hasAny ? 'border-emerald-500/40' : 'border-line')}>
       <div className="flex flex-wrap items-center gap-2">
-        <button onClick={() => open(kit.site)} className="text-[13px] font-semibold hover:underline" title={kit.site}>
-          {kit.name}
-        </button>
+        <span className="text-[13px] font-semibold">{kit.name}</span>
         {kit.unverified && (
           <span
             className="rounded-full bg-amber-500/10 px-1.5 text-[10.5px] text-amber-700 dark:text-amber-300"
@@ -86,20 +85,42 @@ function KitCard({ kit, state }: { kit: PartnerKit; state: PartnersState }) {
             check at the event
           </span>
         )}
-        {kit.custom && (
-          <button
-            onClick={() => void run(() => window.harness.partnerRemoveCustom(kit.id))}
-            title="Remove this API"
-            className="ml-auto text-muted hover:text-red-500"
-          >
-            <Trash2 className="size-3.5" />
-          </button>
+        {check && (
+          <span className={cn('flex items-center gap-1 text-[11px]', check.ok ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-500')} title={new Date(check.at).toLocaleString()}>
+            {check.ok ? <Check className="size-3" /> : <X className="size-3" />} {check.message}
+          </span>
         )}
+        {checking.includes(kit.id) && <span className="text-[11px] text-muted">checking…</span>}
+        <div className="ml-auto">
+          <Menu
+            items={menuItems(
+              !!kit.signup && { label: 'Get a key', icon: KeyRound, onSelect: () => open(kit.signup!) },
+              !!kit.docs && { label: 'Docs', icon: BookOpen, onSelect: () => open(kit.docs!) },
+              { label: 'Website', icon: Globe, hint: kit.site, onSelect: () => open(kit.site) },
+              kit.checkable && { label: 'Check the key again', icon: RefreshCw, disabled: !hasAny || checking.includes(kit.id), onSelect: () => void test(kit.id) },
+              ...[kit.install?.node, kit.install?.python]
+                .filter((c): c is string => !!c)
+                .map((cmd) => ({ label: `Copy: ${cmd}`, icon: Copy, onSelect: () => void navigator.clipboard.writeText(cmd) })),
+              kit.custom && 'separator',
+              kit.custom && { label: 'Remove this API', icon: Trash2, danger: true, onSelect: () => void run(() => window.harness.partnerRemoveCustom(kit.id)) },
+            )}
+          />
+        </div>
       </div>
       <div className="mt-0.5 text-[11.5px] text-muted">{kit.what}</div>
       <div className="mt-2 space-y-1.5">
         {kit.keys.map((k) => (
-          <KeyField key={k.env} env={k.env} label={k.label} secret={k.secret} placeholder={k.placeholder} state={state} inTeam={inTeam} />
+          <KeyField
+            key={k.env}
+            env={k.env}
+            label={k.label}
+            secret={k.secret}
+            placeholder={k.placeholder}
+            state={state}
+            inTeam={inTeam}
+            // A saved key is checked right away, so there's no Check button to remember.
+            onSaved={kit.checkable ? () => void test(kit.id) : undefined}
+          />
         ))}
       </div>
       {(kit.unverified || kit.custom) && <DocsField kitId={kit.id} value={state.docs[kit.id] ?? kit.docs ?? ''} />}
@@ -115,44 +136,6 @@ function KitCard({ kit, state }: { kit: PartnerKit; state: PartnersState }) {
               : ' once the keys are set.'}
         </div>
       )}
-      <div className="mt-2 flex flex-wrap items-center gap-2 text-[11.5px]">
-        {kit.checkable && (
-          <button
-            disabled={!hasAny || checking.includes(kit.id)}
-            onClick={() => void test(kit.id)}
-            className="rounded-md border border-line px-2 py-0.5 hover:bg-surface-2 disabled:opacity-40"
-          >
-            {checking.includes(kit.id) ? 'Checking…' : 'Check key'}
-          </button>
-        )}
-        {check && (
-          <span
-            className={cn('flex items-center gap-1', check.ok ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-500')}
-            title={new Date(check.at).toLocaleString()}
-          >
-            {check.ok ? <Check className="size-3" /> : <X className="size-3" />} {check.message}
-          </span>
-        )}
-        <span className="ml-auto flex items-center gap-2 text-muted">
-          {kit.signup && (
-            <button onClick={() => open(kit.signup!)} className="flex items-center gap-0.5 hover:text-fg">
-              Get a key <ExternalLink className="size-3" />
-            </button>
-          )}
-          {kit.docs && (
-            <button onClick={() => open(kit.docs!)} className="flex items-center gap-0.5 hover:text-fg">
-              Docs <ExternalLink className="size-3" />
-            </button>
-          )}
-        </span>
-      </div>
-      {(kit.install?.node || kit.install?.python) && (
-        <div className="mt-1.5 flex flex-wrap gap-1.5">
-          {[kit.install.node, kit.install.python].filter(Boolean).map((cmd) => (
-            <CopyChip key={cmd} text={cmd!} />
-          ))}
-        </div>
-      )}
     </div>
   )
 }
@@ -164,6 +147,7 @@ function KeyField({
   placeholder,
   state,
   inTeam,
+  onSaved,
 }: {
   env: string
   label: string
@@ -171,12 +155,16 @@ function KeyField({
   placeholder?: string
   state: PartnersState
   inTeam: boolean
+  onSaved?: () => void
 }) {
   const run = usePartners((s) => s.run)
   const info = state.keys[env]
   const [value, setValue] = useState('')
   const save = async () => {
-    if (value.trim() && (await run(() => window.harness.partnerSetKey(env, value, true)))) setValue('')
+    if (value.trim() && (await run(() => window.harness.partnerSetKey(env, value, true)))) {
+      setValue('')
+      onSaved?.()
+    }
   }
   return (
     <div>
@@ -257,23 +245,6 @@ function McpField({ kitId, value }: { kitId: string; value: string }) {
   )
 }
 
-function CopyChip({ text }: { text: string }) {
-  const [copied, setCopied] = useState(false)
-  return (
-    <button
-      onClick={() => {
-        void navigator.clipboard.writeText(text)
-        setCopied(true)
-        setTimeout(() => setCopied(false), 1200)
-      }}
-      className="flex items-center gap-1 rounded bg-surface-2 px-1.5 py-0.5 font-mono text-[10.5px] text-muted hover:text-fg"
-    >
-      {copied ? <Check className="size-3" /> : <Copy className="size-3" />} {text}
-    </button>
-  )
-}
-
-/** An API that turned up at the event: name, variable and docs link. */
 function AddCustom() {
   const run = usePartners((s) => s.run)
   const [openForm, setOpenForm] = useState(false)

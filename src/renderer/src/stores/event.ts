@@ -6,17 +6,13 @@ import type { ChallengePatch } from '@shared/challenges'
 import { ipcErrorMessage } from '@/lib/time'
 import { useApp } from './app'
 
-export type EventTab = 'overview' | 'challenges' | 'partners' | 'pitch'
-
 interface EventStore {
   state: EventState | null
   error: string | null
-  tab: EventTab
   /** Shown after a prompt was handed to Claude, with the session to watch. */
   notice: { text: string; sessionId: string } | null
-  setTab(tab: EventTab): void
   dismissNotice(): void
-  /** Sends a prompt to a Claude session in the event project (reusing an open one), staying in event mode. */
+  /** Sends a prompt to a Claude session in the event project (reusing an open one), staying in the Hackathon place. */
   askClaude(prompt: string, what: string): Promise<void>
   addChallenge(c: { partner: string; title: string; description: string; link?: string }): Promise<boolean>
   updateChallenge(id: string, patch: ChallengePatch): Promise<void>
@@ -45,9 +41,7 @@ export const useEvent = create<EventStore>((set, get) => {
   return {
     state: null,
     error: null,
-    tab: 'overview',
     notice: null,
-    setTab: (tab) => set({ tab }),
     dismissNotice: () => set({ notice: null }),
     async askClaude(prompt, what) {
       const dir = get().state?.projectDir
@@ -69,8 +63,8 @@ export const useEvent = create<EventStore>((set, get) => {
         return
       }
       await after.send(prompt)
-      // select/startSession leave event mode; come back to it.
-      after.setEventOpen(true)
+      // select/startSession go to the session; come back to the Hackathon tab you were on.
+      after.openHackathon()
       set({ notice: { text: `${what}: sent to Claude.`, sessionId: id }, error: null })
     },
     addChallenge: async (c) => {

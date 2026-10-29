@@ -1,134 +1,108 @@
-import { Flame, LayoutGrid, MessageSquare, MonitorPlay, Network, PanelLeft, SquareTerminal } from 'lucide-react'
-import { ContextGauge } from '@/features/meters/ContextGauge'
+import { Bot, Handshake, MessageSquare, MonitorPlay, MousePointerClick, PanelLeft, PanelRight, Play, SquareTerminal } from 'lucide-react'
 import { useElapsed } from '@/features/meters/useElapsed'
-import { basename, cn, formatCost, formatDuration, formatTokens } from '@/lib/format'
+import { HackathonBar } from '@/features/hackathon/HackathonView'
+import { basename, cn, formatDuration } from '@/lib/format'
 import { useApp } from '@/stores/app'
 import { useDisplaySession } from '@/stores/replay'
-import { useHackforge } from '@/stores/hackforge'
-import { useTeamState } from '@/stores/team'
+import type { SessionState } from '@/stores/reducer'
+import { Menu, menuItems } from '@/ui/Menu'
+import { Segmented } from '@/ui/Segmented'
 import { StatusDot, STATUS_LABEL } from './StatusDot'
+import { StatusChip } from './StatusChip'
 import { isMac, shortcut } from '@/lib/keys'
+import { runCommand } from '@/lib/commands'
 
 export function TopBar() {
   const session = useDisplaySession()
-  const { focusMode, toggleFocusMode, view, setView, terminalOpen, toggleTerminalPanel } = useApp()
-  const project = useApp((st) => (session ? st.projects[session.cwd] : undefined))
-  const serverUp = useApp((st) => !!session && st.preview.servers.some((x) => x.cwd === session.cwd && x.status === 'ready'))
-  const activeSubagents = session ? Object.values(session.subagents).filter((s) => s.status === 'running').length : 0
-  const hf = useHackforge(session?.cwd)
-  const hfMode = useApp((st) => st.settings?.hackforgeMode ?? 'projects')
-  // Always offered (unless HackForge is off), so a fresh folder can be set up from there.
-  const showHf = hfMode !== 'off'
-  const elapsed = useElapsed(session?.status === 'running' || session?.status === 'waiting' ? session.turnStartedAt : undefined)
-
+  const place = useApp((s) => s.place)
+  const focusMode = useApp((s) => s.focusMode)
   return (
-    <header
-      className={cn('flex h-12 shrink-0 items-center gap-4 border-b border-line px-4 text-[12px]', isMac && 'drag', isMac && focusMode && 'pl-20')}
-    >
-      <button onClick={toggleFocusMode} className="no-drag rounded p-1 text-muted hover:bg-black/5 dark:hover:bg-white/10" title={shortcut('Focus mode (⌘\\)')}>
-        <PanelLeft className="size-4" />
-      </button>
-      {session ? (
-        <>
-          <div className="min-w-0">
-            <div className="max-w-[360px] truncate text-[13px] font-semibold" title={session.title || undefined}>
-              {session.title || 'New session'}
-            </div>
-            <div className="truncate text-[11px] text-muted" title={session.cwd}>
-              {basename(session.cwd)}
-            </div>
-          </div>
-          <div className="flex items-center gap-1.5 text-muted">
-            <StatusDot status={session.status} />
-            {session.live ? STATUS_LABEL[session.status] : 'Saved'}
-            {elapsed > 0 && <span className="tabular-nums">· {formatDuration(elapsed)}</span>}
-          </div>
-          <div className="no-drag ml-2 flex rounded-lg bg-black/[0.05] p-0.5 dark:bg-white/[0.07]">
-            <ViewButton active={view === 'chat'} onClick={() => setView('chat')} title={shortcut('Conversation (⌘1)')}>
-              <MessageSquare className="size-3.5" /> Chat
-            </ViewButton>
-            <ViewButton active={view === 'board'} onClick={() => setView('board')} title={shortcut('Agent board (⌘2)')}>
-              <LayoutGrid className="size-3.5" /> Board
-              {activeSubagents > 0 && <span className="rounded-full bg-emerald-500 px-1.5 text-[10px] leading-4 text-white">{activeSubagents}</span>}
-            </ViewButton>
-            <ViewButton active={view === 'mission'} onClick={() => setView('mission')} title={shortcut('Mission control: agent graph + timeline (⌘3)')}>
-              <Network className="size-3.5" /> Mission
-            </ViewButton>
-            <ViewButton active={view === 'preview'} onClick={() => setView('preview')} title={shortcut('Preview: Remotion Studio, dev servers (⌘4)')}>
-              <MonitorPlay className="size-3.5" /> Preview
-              {(serverUp || project?.remotion) && <span className={cn('size-1.5 rounded-full', serverUp ? 'bg-emerald-500' : 'bg-[var(--accent)]')} />}
-            </ViewButton>
-            {showHf && (
-              <ViewButton active={view === 'hackforge'} onClick={() => setView('hackforge')} title={shortcut('HackForge: phase, compliance, mock score, improvement loop (⌘5)')}>
-                <Flame className="size-3.5" /> HackForge
-                {hf?.loop?.active ? (
-                  <span className="rounded-full bg-orange-500 px-1.5 text-[10px] leading-4 text-white tabular-nums">#{hf.loop.iteration}</span>
-                ) : hf?.verify?.mockScore !== undefined ? (
-                  <span className="text-[10.5px] tabular-nums text-muted">{hf.verify.mockScore.toFixed(1)}</span>
-                ) : null}
-              </ViewButton>
-            )}
-          </div>
-          <div className="ml-auto flex items-center gap-4 text-muted">
-            {session.model && (
-              <span className="hidden truncate lg:inline" title={session.saver?.auto ? 'The Usage saver picks the model for each message' : undefined}>
-                {session.saver?.auto ? `Auto · ${session.model}` : session.model}
-              </span>
-            )}
-            <ContextGauge used={session.contextTokens} total={session.contextWindow} />
-            <PlanUsageChip />
-            <span className="tabular-nums" title="Output tokens this session">
-              ↑ {formatTokens(session.outputTokens)}
-            </span>
-            <span className="tabular-nums font-medium text-fg" title="Cost this session">
-              {formatCost(session.totalCostUsd)}
-            </span>
-            <button
-              onClick={toggleTerminalPanel}
-              title={shortcut('Terminal (⌘J)')}
-              className={cn('no-drag rounded p-1 hover:bg-black/5 dark:hover:bg-white/10', terminalOpen ? 'text-fg' : 'text-muted')}
-            >
-              <SquareTerminal className="size-4" />
-            </button>
-          </div>
-        </>
-      ) : (
-        <div className="font-semibold">Harness</div>
+    <header className={cn('flex h-12 shrink-0 items-center gap-3 border-b border-line px-4 text-[12px]', isMac && 'drag', isMac && focusMode && 'pl-20')}>
+      {focusMode && (
+        <button onClick={() => runCommand({ id: 'focus-mode' })} className="no-drag rounded p-1 text-muted hover:bg-black/5 dark:hover:bg-white/10" title={shortcut('Show the sidebar (⌘\\)')}>
+          <PanelLeft className="size-4" />
+        </button>
       )}
+      {place === 'hackathon' ? <HackathonBar /> : place === 'session' && session ? <SessionBar session={session} /> : <div className="font-semibold">Home</div>}
     </header>
   )
 }
 
-function ViewButton({ active, onClick, title, children }: { active: boolean; onClick: () => void; title: string; children: React.ReactNode }) {
+function SessionBar({ session }: { session: SessionState }) {
+  const view = useApp((s) => s.view)
+  const setView = useApp((s) => s.setView)
+  const project = useApp((st) => st.projects[session.cwd])
+  const serverUp = useApp((st) => st.preview.servers.some((x) => x.cwd === session.cwd && x.status === 'ready'))
+  const running = Object.values(session.subagents).filter((s) => s.status === 'running').length
+  const elapsed = useElapsed(session.status === 'running' || session.status === 'waiting' ? session.turnStartedAt : undefined)
+  return (
+    <>
+      <div className="min-w-0 max-w-[340px]">
+        <div className="flex items-center gap-1.5 truncate text-[13px] font-semibold" title={session.title || undefined}>
+          <StatusDot status={session.status} />
+          <span className="truncate">{session.title || 'New session'}</span>
+        </div>
+        <div className="truncate text-[11px] text-muted" title={session.cwd}>
+          {basename(session.cwd)} · {session.live ? STATUS_LABEL[session.status] : 'Saved'}
+          {elapsed > 0 && <span className="tabular-nums"> · {formatDuration(elapsed)}</span>}
+        </div>
+      </div>
+      <Segmented
+        className="ml-2"
+        label="Session views"
+        value={view}
+        onChange={setView}
+        options={[
+          { id: 'chat', label: 'Chat', icon: MessageSquare, title: shortcut('Conversation (⌘1)') },
+          { id: 'agents', label: 'Agents', icon: Bot, badge: running || undefined, title: shortcut('Agents: cards, graph and activity (⌘2)') },
+          { id: 'preview', label: 'Preview', icon: MonitorPlay, dot: serverUp ? 'live' : project?.remotion ? 'ready' : undefined, title: shortcut('Preview: your app, Remotion, 3D models (⌘3)') },
+        ]}
+      />
+      <div className="ml-auto flex items-center gap-1">
+        <StatusChip session={session} />
+        <PanelChip session={session} />
+        <MoreMenu session={session} />
+      </div>
+    </>
+  )
+}
+
+/** Toggles the side panel; shows what's in it (open tasks, changed files, running agents). */
+function PanelChip({ session }: { session: SessionState }) {
+  const open = useApp((s) => s.panelOpen)
+  const togglePanel = useApp((s) => s.togglePanel)
+  const tasks = session.todos.filter((t) => t.status !== 'completed').length
+  const files = session.changes.length
+  const agents = Object.values(session.subagents).filter((s) => s.status === 'running').length
+  const parts = [tasks && `${tasks} task${tasks === 1 ? '' : 's'}`, files && `${files} file${files === 1 ? '' : 's'}`, agents && `${agents} agent${agents === 1 ? '' : 's'}`].filter(Boolean)
   return (
     <button
-      onClick={onClick}
-      title={title}
-      className={cn(
-        'flex items-center gap-1.5 rounded-md px-2.5 py-1 text-[12px]',
-        active ? 'bg-surface font-medium text-fg shadow-sm' : 'text-muted hover:text-fg',
-      )}
+      onClick={() => togglePanel()}
+      title={shortcut('Side panel: tasks, changed files, agents (⌘I)')}
+      aria-pressed={open}
+      className={cn('no-drag flex items-center gap-1.5 rounded-md px-2 py-1 hover:bg-black/5 dark:hover:bg-white/10', open ? 'bg-black/5 text-fg dark:bg-white/10' : 'text-muted')}
     >
-      {children}
+      <PanelRight className="size-4" />
+      {parts.length > 0 && <span className="tabular-nums">{parts.join(' · ')}</span>}
     </button>
   )
 }
 
-/** This laptop's Claude plan usage (5-hour window), once a reading exists. */
-function PlanUsageChip() {
-  const usage = useTeamState()?.myUsage
-  const w = usage?.fiveHour
-  if (!usage || usage.source !== 'plan' || (!w && !usage.status)) return null
-  const pct = w && (!w.resetsAt || w.resetsAt > Date.now()) ? Math.round(w.pct) : w ? 0 : undefined
-  const hot = usage.status === 'rejected' || (pct ?? 0) >= 90
-  const warm = usage.status === 'allowed_warning' || (pct ?? 0) >= 70
+function MoreMenu({ session }: { session: SessionState }) {
+  const terminalOpen = useApp((s) => s.terminalOpen)
+  const replaying = useApp((s) => s.replay?.sessionId === session.id)
   return (
-    <button
-      onClick={() => useApp.getState().setUsageOpen(true)}
-      className={cn('no-drag tabular-nums hover:text-fg', hot ? 'font-medium text-red-500' : warm ? 'text-amber-600 dark:text-amber-400' : '')}
-      title={`Claude plan usage, 5-hour window${w?.resetsAt ? ` (resets ${new Date(w.resetsAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })})` : ''}${usage.sevenDay ? ` · week ${Math.round(usage.sevenDay.pct)}%` : ''}`}
-    >
-      {usage.status === 'rejected' ? 'limit reached' : pct !== undefined ? `5h ${pct}%` : 'near limit'}
-    </button>
+    <Menu
+      items={menuItems(
+        { label: terminalOpen ? 'Hide terminal' : 'Terminal', icon: SquareTerminal, keys: shortcut('⌘J'), onSelect: () => runCommand({ id: 'toggle-terminal' }) },
+        { label: 'New Claude terminal', icon: SquareTerminal, keys: shortcut('⇧⌘T'), onSelect: () => runCommand({ id: 'new-claude-terminal' }) },
+        'separator',
+        { label: replaying ? 'Stop replay' : 'Replay this session', icon: Play, keys: shortcut('⇧⌘R'), onSelect: () => runCommand({ id: 'replay' }) },
+        session.live && !session.observed && { label: 'Hand off to the team', icon: Handshake, onSelect: () => runCommand({ id: 'handoff' }) },
+        { label: 'Click to change', icon: MousePointerClick, hint: 'Pick an element in the preview', onSelect: () => runCommand({ id: 'pick-element' }) },
+        'separator',
+        { label: 'Focus mode', icon: PanelLeft, keys: shortcut('⌘\\'), onSelect: () => runCommand({ id: 'focus-mode' }) },
+      )}
+    />
   )
 }

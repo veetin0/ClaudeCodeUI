@@ -171,7 +171,7 @@ export class Kit3dService {
     const reqs: Kit3dRequirement[] = [
       { id: 'python', ok: !!py?.exe, found: py?.version, hint: 'Python 3.10 or newer: python.org/downloads, or brew install python' },
       { id: 'ffmpeg', ok: !!ffmpeg, found: ffmpeg, hint: 'ffmpeg: brew install ffmpeg, winget install ffmpeg, or apt install ffmpeg' },
-      { id: 'browser', ok: !!browser, found: browser, hint: 'A Chrome to render with: Settings → Dev tools → Browser → Get Chromium' },
+      { id: 'browser', ok: !!browser, found: browser, hint: 'A Chrome to render with: Settings › Tools › Browser, then Get Chromium' },
       { id: 'npm', ok: !!npm, found: npm, hint: 'Node.js (it comes with npm): nodejs.org' },
     ]
     this.reqCache = { at: Date.now(), reqs, python: py?.exe ? { version: py.version, exe: py.exe } : undefined }

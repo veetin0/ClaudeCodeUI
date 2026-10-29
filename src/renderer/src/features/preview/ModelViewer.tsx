@@ -5,9 +5,11 @@ import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
 import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js'
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js'
 import { fileUrl } from '@shared/visuals'
-import { basename, cn } from '@/lib/format'
+import { cn } from '@/lib/format'
 import { ipcErrorMessage } from '@/lib/time'
 import { useApp } from '@/stores/app'
+import { Menu, menuItems } from '@/ui/Menu'
+import { NextButton } from '@/ui/NextButton'
 import type { SessionState } from '@/stores/reducer'
 
 /** Above these a model is heavy for a web viewer or a 3D clip. */
@@ -263,52 +265,42 @@ export default function ModelViewer({ path, session, version, blender }: { path:
     }
   }
   const useInClip = async () => {
-    const prompt = `Add a product clip to video/kit3d/story.py (HackForge's 3D pitch kit) that uses the model ${path}: it turns on the pedestal, explodes into its named parts${parts.length ? ` (${parts.map((p) => p.name).join(', ')})` : ''}, and labels the ones that matter. Check it with python3 story.py <name> in video/kit3d, then tell me its name: I'll render it from the Pitch studio's 3D clips.`
+    const prompt = `Add a product clip to video/kit3d/story.py (HackForge's 3D pitch kit) that uses the model ${path}: it turns on the pedestal, explodes into its named parts${parts.length ? ` (${parts.map((p) => p.name).join(', ')})` : ''}, and labels the ones that matter. Check it with python3 story.py <name> in video/kit3d, then tell me its name: I'll render it from Hackathon › Pitch → 3D clips.`
     try {
       await useApp.getState().sendTo(session.id, prompt)
-      setNote('Asked Claude for a product clip with this model (Pitch studio → 3D clips to render it).')
+      setNote('Asked Claude for a product clip with this model (Hackathon › Pitch → 3D clips renders it).')
     } catch (err) {
       setNote(ipcErrorMessage(err))
     }
   }
   const heavy = stats && (stats.tris > MAX_TRIS || stats.bytes > MAX_BYTES)
-  const btn = 'flex items-center gap-1 rounded-md px-2 py-0.5 text-[11.5px] hover:bg-black/5 dark:hover:bg-white/10'
 
   return (
     <div className="flex h-full min-h-0">
       <div className="relative min-w-0 flex-1">
         <div ref={host} className="absolute inset-0" />
-        <div className="absolute inset-x-2 top-2 flex flex-wrap items-center gap-1 rounded-lg bg-surface/90 px-2 py-1 text-fg shadow backdrop-blur">
-          <Box className="size-3.5 text-[var(--accent)]" />
-          <span className="truncate font-mono text-[11.5px]" title={path}>
-            {basename(path)}
-          </span>
-          <div className="ml-auto flex items-center gap-0.5">
-            <button className={cn(btn, autoRotate && 'text-[var(--accent)]')} onClick={() => setAutoRotate(!autoRotate)} title="Turn slowly">
-              <RotateCw className="size-3.5" />
-            </button>
-            <button className={cn(btn, wireframe && 'text-[var(--accent)]')} onClick={() => setWireframe(!wireframe)} title="Wireframe">
-              <Grid3x3 className="size-3.5" />
-            </button>
-            <button className={btn} onClick={() => setDark(!dark)} title="Background">
-              {dark ? <Sun className="size-3.5" /> : <Moon className="size-3.5" />}
-            </button>
-            <button className={btn} onClick={() => setReload((r) => r + 1)} title="Reload">
-              <RefreshCw className="size-3.5" />
-            </button>
-            <span className="mx-1 h-4 w-px bg-line" />
-            <button className={btn} onClick={() => setAsking(!asking)} disabled={!!error}>
-              <Send className="size-3.5" /> Ask Claude to change
-            </button>
-            {blender && (
-              <button className={btn} onClick={() => void window.harness.devToolsOpenBlender(path).catch((e) => setNote(ipcErrorMessage(e)))}>
-                Open in Blender
-              </button>
+        <div className="absolute right-2 top-2 flex items-center gap-1 rounded-lg bg-surface/90 p-1 text-fg shadow backdrop-blur">
+          <NextButton
+            icon={Send}
+            onClick={() => setAsking(!asking)}
+            disabled={!!error}
+            more={menuItems(
+              { label: 'Use in a 3D clip', icon: Clapperboard, hint: 'Claude writes a product clip with this model', disabled: !!error, onSelect: () => void useInClip() },
+              blender && { label: 'Open in Blender', icon: Box, onSelect: () => void window.harness.devToolsOpenBlender(path).catch((e) => setNote(ipcErrorMessage(e))) },
             )}
-            <button className={btn} onClick={() => void useInClip()} disabled={!!error}>
-              <Clapperboard className="size-3.5" /> Use in a 3D clip
-            </button>
-          </div>
+          >
+            Ask Claude to change
+          </NextButton>
+          <Menu
+            label="View"
+            items={menuItems(
+              { label: 'Turn slowly', icon: RotateCw, checked: autoRotate, onSelect: () => setAutoRotate(!autoRotate) },
+              { label: 'Wireframe', icon: Grid3x3, checked: wireframe, onSelect: () => setWireframe(!wireframe) },
+              { label: dark ? 'Light background' : 'Dark background', icon: dark ? Sun : Moon, onSelect: () => setDark(!dark) },
+              'separator',
+              { label: 'Reload', icon: RefreshCw, onSelect: () => setReload((r) => r + 1) },
+            )}
+          />
         </div>
         {loading && <div className="absolute inset-0 flex items-center justify-center text-[12px] text-muted">Loading the model…</div>}
         {error && (

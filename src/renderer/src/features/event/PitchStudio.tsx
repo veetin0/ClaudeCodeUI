@@ -16,6 +16,8 @@ import {
   type Visual,
 } from '@shared/pitch'
 import { cn } from '@/lib/format'
+import { Menu, menuItems, type MenuItem } from '@/ui/Menu'
+import { NextButton } from '@/ui/NextButton'
 import { useApp } from '@/stores/app'
 import { useEvent } from '@/stores/event'
 import { usePitch } from '@/stores/pitch'
@@ -32,7 +34,7 @@ export function PitchStudio({ event }: { event: EventState }) {
     void load()
   }, [event.projectDir, load])
 
-  if (!event.projectDir) return <Empty text="Set up or link the event project (Overview tab) first. The pitch video lives in its pitch/ folder." />
+  if (!event.projectDir) return <Empty text="Set up or link the event project first (Build or Schedule). The pitch video lives in its pitch/ folder." />
   if (!state) return <Empty text="Loading…" />
   if (!state.exists) {
     return (
@@ -69,7 +71,7 @@ export function PitchStudio({ event }: { event: EventState }) {
       )}
       {draft && (
         <>
-          <VoiceRow />
+          <VoiceKey />
           <ScriptHeader script={draft} />
           <TimingBar script={draft} />
           <Kit3dPanel />
@@ -84,6 +86,10 @@ function Empty({ text }: { text: string }) {
   return <div className="rounded-2xl border border-dashed border-line px-6 py-10 text-center text-[12.5px] text-muted">{text}</div>
 }
 
+/**
+ * The pitch's one next step (Install Remotion → Write the script → Generate narration → Preview &
+ * render), the narrator, and Rehearse; everything else is behind the ▾.
+ */
 function Toolbar() {
   const { state, draft, install, narrate, dirty } = usePitch()
   const askClaude = useEvent((s) => s.askClaude)
@@ -92,42 +98,53 @@ function Toolbar() {
   const job = state!.job
   const running = job?.status === 'running'
   const pending = draft ? draft.scenes.filter((s) => ['none', 'stale'].includes(audioState(s, draft.voiceId))).length : 0
+  const noAudio = !draft || draft.scenes.every((s) => audioState(s, draft.voiceId) === 'none')
+  type Step = { label: string; icon: typeof Bot; run: () => void; disabled?: boolean; hint?: string }
+  const steps: Record<'install' | 'script' | 'narrate' | 'render' | 'clips', Step> = {
+    install: { label: 'Install Remotion', icon: Download, run: () => void install(), disabled: running },
+    script: { label: 'Write the script with Claude', icon: Bot, run: () => void askClaude(writeScriptPrompt(draft?.targetSeconds ?? 120), 'Pitch script'), disabled: !draft },
+    narrate: {
+      label: `Generate narration${pending ? ` (${pending})` : ''}`,
+      icon: AudioLines,
+      run: () => void narrate(),
+      disabled: running || !draft || pending === 0,
+      hint: pending ? `${pending} scene(s) need narration` : 'All narration is up to date',
+    },
+    render: {
+      label: 'Preview & render',
+      icon: MonitorPlay,
+      disabled: !state!.installed,
+      hint: 'A session in pitch/ on Preview: Remotion Studio for a live preview, Render for the MP4',
+      run: async () => {
+        await startSession(state!.dir!)
+        setView('preview')
+      },
+    },
+    clips: {
+      label: '3D / animated clips (HackForge video)',
+      icon: Box,
+      run: () => void askClaude('/hackforge:video', 'HackForge video'),
+      disabled: !draft,
+      hint: 'Picks a visual treatment for your subject and adds the clips as screen scenes',
+    },
+  }
+  const next: keyof typeof steps = !state!.installed ? 'install' : noAudio && !draft?.voiceId ? 'script' : pending > 0 && draft?.voiceId ? 'narrate' : 'render'
+  const primary = steps[next]
+  const more: MenuItem[] = (Object.keys(steps) as (keyof typeof steps)[])
+    .filter((k) => k !== next && (k !== 'install' || !state!.installed))
+    .map((k) => ({ label: steps[k].label, icon: steps[k].icon, hint: steps[k].hint, disabled: steps[k].disabled, onSelect: steps[k].run }))
   return (
     <section className="rounded-2xl border border-line p-3">
-      <div className="flex flex-wrap items-center gap-1.5">
-        {!state!.installed && (
-          <ToolBtn icon={Download} onClick={() => void install()} disabled={running} primary>
-            Install Remotion
-          </ToolBtn>
+      <div className="flex flex-wrap items-center gap-2">
+        <NextButton icon={primary.icon} onClick={primary.run} disabled={primary.disabled} busy={running && (next === 'install' || next === 'narrate')} title={primary.hint} more={more}>
+          {primary.label}
+        </NextButton>
+        {!!draft?.scenes.length && (
+          <button onClick={() => setRehearse(true)} className="flex items-center gap-1.5 rounded-lg border border-line px-3 py-1.5 text-[12.5px] hover:bg-surface-2">
+            <Timer className="size-3.5" /> Rehearse
+          </button>
         )}
-        <ToolBtn
-          icon={MonitorPlay}
-          disabled={!state!.installed}
-          title={state!.installed ? 'Opens a session in pitch/ on the Preview tab: Start Studio for a live preview, Render for the MP4' : 'Install Remotion first'}
-          onClick={async () => {
-            await startSession(state!.dir!)
-            setView('preview')
-          }}
-        >
-          Preview & render
-        </ToolBtn>
-        <ToolBtn icon={Bot} onClick={() => void askClaude(writeScriptPrompt(draft?.targetSeconds ?? 120), 'Pitch script')} disabled={!draft}>
-          Write script with Claude
-        </ToolBtn>
-        <ToolBtn
-          icon={Box}
-          onClick={() => void askClaude('/hackforge:video', 'HackForge video')}
-          disabled={!draft}
-          title="HackForge picks a visual treatment for your subject (3D product hero, digital-twin flythrough, data in motion, device mockup…) and adds the clips to pitch/public/ as screen scenes. Narration stays as it is."
-        >
-          3D / animated clips
-        </ToolBtn>
-        <ToolBtn icon={AudioLines} onClick={() => void narrate()} disabled={running || !draft || pending === 0} title={pending ? `${pending} scene(s) need narration` : 'All narration is up to date'}>
-          Generate narration{pending ? ` (${pending})` : ''}
-        </ToolBtn>
-        <ToolBtn icon={Timer} onClick={() => setRehearse(true)} disabled={!draft?.scenes.length}>
-          Rehearse
-        </ToolBtn>
+        {draft && <VoiceChip />}
         <span className="ml-auto text-[11px] text-muted">{dirty ? 'Saving…' : 'Saved to pitch/script.json'}</span>
       </div>
       {job && (
@@ -148,86 +165,67 @@ function Toolbar() {
   )
 }
 
-function ToolBtn({ icon: Icon, children, onClick, disabled, primary, title }: { icon: typeof Bot; children: React.ReactNode; onClick: () => void; disabled?: boolean; primary?: boolean; title?: string }) {
+/** Asked once: the ElevenLabs key for narration. */
+function VoiceKey() {
+  const hasKey = useApp((s) => s.settings?.hasElevenLabsKey)
+  const setKey = usePitch((s) => s.setKey)
+  const [key, setKeyText] = useState('')
+  if (hasKey) return null
   return (
-    <button
-      onClick={onClick}
-      disabled={disabled}
-      title={title}
-      className={cn(
-        'flex items-center gap-1.5 rounded-md px-2.5 py-1 text-[12px] disabled:opacity-40',
-        primary ? 'bg-[var(--accent)] font-medium text-white hover:brightness-110' : 'border border-line hover:bg-surface-2',
-      )}
-    >
-      <Icon className="size-3.5" />
-      {children}
-    </button>
+    <section className="flex flex-wrap items-center gap-2 rounded-2xl border border-line p-3 text-[12px]">
+      <KeyRound className="size-4 text-muted" />
+      <span>Add your ElevenLabs API key for narration (stored in your system keychain).</span>
+      <input type="password" value={key} onChange={(e) => setKeyText(e.target.value)} placeholder="xi-…" className={cn(field, 'w-64')} />
+      <button disabled={!key.trim()} onClick={() => void setKey(key.trim())} className="rounded-md bg-[var(--accent)] px-3 py-1.5 font-medium text-white hover:brightness-110 disabled:opacity-40">
+        Save key
+      </button>
+    </section>
   )
 }
 
-function VoiceRow() {
+/** The narrator as one chip: pick a voice from the list, or paste a voice ID. */
+function VoiceChip() {
   const hasKey = useApp((s) => s.settings?.hasElevenLabsKey)
   const { draft, edit, voices, voicesError, loadVoices, setKey } = usePitch()
-  const [key, setKeyText] = useState('')
   const [manual, setManual] = useState(false)
   useEffect(() => {
     if (hasKey && !voices && !voicesError) void loadVoices()
   }, [hasKey, voices, voicesError, loadVoices])
-  if (!hasKey) {
-    return (
-      <section className="flex flex-wrap items-center gap-2 rounded-2xl border border-line p-3 text-[12px]">
-        <KeyRound className="size-4 text-muted" />
-        <span>Add your ElevenLabs API key for narration (stored in your system keychain).</span>
-        <input type="password" value={key} onChange={(e) => setKeyText(e.target.value)} placeholder="xi-…" className={cn(field, 'w-64')} />
-        <button disabled={!key.trim()} onClick={() => void setKey(key.trim())} className="rounded-md bg-[var(--accent)] px-3 py-1.5 font-medium text-white hover:brightness-110 disabled:opacity-40">
-          Save key
-        </button>
-      </section>
-    )
-  }
+  if (!hasKey || !draft) return null
+  const pickVoice = (id: string | undefined, name?: string) => edit((s) => ({ ...s, voiceId: id, voiceName: name }))
   return (
-    <section className="flex flex-wrap items-center gap-2 rounded-2xl border border-line p-3 text-[12px]">
-      <AudioLines className="size-4 text-[var(--accent)]" />
-      <span className="font-medium">Narrator</span>
-      {voices && !manual ? (
-        <select
-          value={draft!.voiceId ?? ''}
-          onChange={(e) => {
-            const v = voices.find((x) => x.id === e.target.value)
-            edit((s) => ({ ...s, voiceId: v?.id, voiceName: v?.name }))
-          }}
-          className="min-w-64 rounded-md border border-line bg-surface-2 px-2 py-1.5"
-        >
-          <option value="">Pick a voice…</option>
-          {voices.map((v) => (
-            <option key={v.id} value={v.id}>
-              {v.name}
-              {v.description ? ` (${v.description})` : ''}
-            </option>
-          ))}
-        </select>
-      ) : (
+    <>
+      <Menu
+        label="Narrator"
+        align="start"
+        trigger={
+          <>
+            <AudioLines className="size-3.5 text-[var(--accent)]" />
+            <span className="max-w-[200px] truncate text-fg">{draft.voiceName ?? (draft.voiceId ? draft.voiceId : 'Pick a narrator')}</span>
+          </>
+        }
+        triggerClassName="rounded-lg border border-line px-2.5 py-1.5"
+        items={menuItems(
+          ...(voices ?? []).slice(0, 40).map((v) => ({ label: v.name, hint: v.description, checked: draft.voiceId === v.id, onSelect: () => pickVoice(v.id, v.name) })),
+          !!voices?.length && 'separator',
+          { label: 'Enter a voice ID…', icon: KeyRound, hint: voicesError ? `Couldn't list voices: ${voicesError}` : 'From the ElevenLabs voice library', onSelect: () => setManual(true) },
+          { label: 'Change the ElevenLabs key', icon: KeyRound, onSelect: () => window.confirm('Remove the stored ElevenLabs key?') && void setKey(null) },
+        )}
+      />
+      {manual && (
         <input
-          value={draft!.voiceId ?? ''}
-          onChange={(e) => edit((s) => ({ ...s, voiceId: e.target.value.trim() || undefined, voiceName: undefined }))}
-          placeholder="Voice ID (from the ElevenLabs voice library)"
-          className={cn(field, 'w-80')}
+          autoFocus
+          defaultValue={draft.voiceId ?? ''}
+          onBlur={(e) => {
+            pickVoice(e.target.value.trim() || undefined)
+            setManual(false)
+          }}
+          onKeyDown={(e) => e.key === 'Enter' && (e.target as HTMLInputElement).blur()}
+          placeholder="Voice ID"
+          className={cn(field, 'w-56')}
         />
       )}
-      {voicesError && (
-        <span className="text-amber-600" title={voicesError}>
-          Couldn't list voices: {voicesError}. Paste a voice ID instead.
-        </span>
-      )}
-      {voices && (
-        <button onClick={() => setManual(!manual)} className="text-muted underline-offset-2 hover:text-fg hover:underline">
-          {manual ? 'Pick from list' : 'Enter a voice ID'}
-        </button>
-      )}
-      <button onClick={() => window.confirm('Remove the stored ElevenLabs key?') && void setKey(null)} className="ml-auto text-muted hover:text-fg">
-        Change key
-      </button>
-    </section>
+    </>
   )
 }
 
@@ -387,17 +385,15 @@ function SceneEditor({
         >
           {audio === 'fresh' ? `narrated · ${s.audioSeconds?.toFixed(1)} s` : audio === 'stale' ? 'narration outdated' : audio === 'silent' ? 'no narration' : 'not narrated yet'}
         </span>
-        <div className="flex">
-          <IconBtn onClick={() => onMove(-1)} disabled={index === 0} title="Move up">
-            <ArrowUp className="size-3.5" />
-          </IconBtn>
-          <IconBtn onClick={() => onMove(1)} disabled={index === count - 1} title="Move down">
-            <ArrowDown className="size-3.5" />
-          </IconBtn>
-          <IconBtn onClick={onDelete} title="Delete scene">
-            <Trash2 className="size-3.5" />
-          </IconBtn>
-        </div>
+        <Menu
+          label="Scene"
+          items={menuItems(
+            { label: 'Move up', icon: ArrowUp, disabled: index === 0, onSelect: () => onMove(-1) },
+            { label: 'Move down', icon: ArrowDown, disabled: index === count - 1, onSelect: () => onMove(1) },
+            'separator',
+            { label: 'Delete scene', icon: Trash2, danger: true, onSelect: onDelete },
+          )}
+        />
       </div>
       <div className="mt-2 grid gap-2 md:grid-cols-[3fr_2fr]">
         <div>
@@ -459,14 +455,6 @@ function BulletsField({ bullets, onChange }: { bullets: string[]; onChange: (b: 
       placeholder="One bullet per line (≤ 4 reads best)"
       className={cn(field, 'resize-y')}
     />
-  )
-}
-
-function IconBtn({ children, onClick, disabled, title }: { children: React.ReactNode; onClick: () => void; disabled?: boolean; title: string }) {
-  return (
-    <button onClick={onClick} disabled={disabled} title={title} className="rounded p-1.5 text-muted hover:bg-black/5 hover:text-fg disabled:opacity-30 dark:hover:bg-white/10">
-      {children}
-    </button>
   )
 }
 

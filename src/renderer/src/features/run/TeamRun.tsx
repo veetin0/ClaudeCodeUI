@@ -1,7 +1,6 @@
-import { AlertTriangle, Check, Clock, X } from 'lucide-react'
-import { RUN_STAGES, formatDuration, type RunStage } from '@shared/run'
+import { AlertTriangle, Check, X } from 'lucide-react'
+import { RUN_STAGES, type RunStage } from '@shared/run'
 import { cn } from '@/lib/format'
-import { useNow } from '@/stores/event'
 import { useRun, useRunStore } from '@/stores/run'
 import { TeamStep } from './TeamStep'
 import { SetupStep } from './SetupStep'
@@ -12,20 +11,19 @@ import { DoneStep } from './DoneStep'
 const LABEL: Record<RunStage, string> = { team: 'Team', setup: 'Setup', plan: 'Plan', run: 'Run', done: 'Done' }
 
 /**
- * Harness's home for a hackathon: one straight line from starting the team to a finished
- * submission. Each step shows only what's needed to get to the next one.
+ * Hackathon › Build: one straight line from starting the team to a finished submission. Each
+ * step shows only what's needed to get to the next one. (The countdown and the next thing to do
+ * are in the Hackathon's header.)
  */
-export function TeamRunView() {
+export function TeamRun({ children }: { children?: React.ReactNode }) {
   const run = useRun()
   const error = useRunStore((s) => s.error)
   const clearError = useRunStore((s) => s.clearError)
   return (
     <div className="flex min-h-0 flex-1 flex-col">
-      <header className="flex flex-wrap items-center gap-x-6 gap-y-2 border-b border-line px-6 py-3">
+      <div className="flex justify-center border-b border-line px-6 py-2.5">
         <Stepper stage={run.stage} />
-        <Deadline deadline={run.project?.deadline} />
-        {run.next && <div className="min-w-0 flex-1 truncate text-right text-[12px] text-muted">{run.next}</div>}
-      </header>
+      </div>
       {error && (
         <div className="selectable mx-6 mt-3 flex items-start gap-2 rounded-lg border border-red-500/30 bg-red-500/[0.06] px-3 py-2 text-[12.5px] text-red-600 dark:text-red-300">
           <AlertTriangle className="mt-0.5 size-4 shrink-0" />
@@ -41,6 +39,7 @@ export function TeamRunView() {
         {run.stage === 'plan' && <PlanStep />}
         {run.stage === 'run' && <RunBoard />}
         {run.stage === 'done' && <DoneStep />}
+        {children}
       </div>
     </div>
   )
@@ -66,18 +65,5 @@ function Stepper({ stage }: { stage: RunStage }) {
         </li>
       ))}
     </ol>
-  )
-}
-
-function Deadline({ deadline }: { deadline?: string }) {
-  const now = useNow(30_000)
-  const t = deadline ? Date.parse(deadline) : NaN
-  if (!Number.isFinite(t)) return null
-  const left = t - now
-  return (
-    <div className={cn('flex items-center gap-1.5 text-[12px] tabular-nums', left < 3 * 3600_000 ? 'font-semibold text-red-500' : 'text-muted')}>
-      <Clock className="size-3.5" />
-      {left > 0 ? `${formatDuration(left)} left` : 'Deadline passed'}
-    </div>
   )
 }

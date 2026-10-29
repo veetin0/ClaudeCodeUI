@@ -474,7 +474,7 @@ export class TeamService {
       signal: AbortSignal.timeout(180_000),
     }).catch(() => null)
     if (!res) throw new Error("Can't reach the team server.")
-    if (res.status === 404) throw new Error('This team server is too old for crew mode: redeploy it (Settings → Team server).')
+    if (res.status === 404) throw new Error('This team server is too old for crew mode: redeploy it (Settings › Team).')
     if (res.status === 413) throw new Error(`Too large for the team server (${Math.round(data.length / 1e6)} MB; the limit is 40 MB). Move big files (videos, datasets) to Private files or out of the project.`)
     if (!res.ok) throw new Error(`Team server answered ${res.status}`)
   }
@@ -489,7 +489,7 @@ export class TeamService {
     return openBytes(c.token, Buffer.from(await res.arrayBuffer()))
   }
 
-  /** Settings → Team server: does this URL answer, and does it take crew files? */
+  /** Settings › Team: does this URL answer, and does it take crew files? */
   async testServer(raw: string): Promise<{ ok: boolean; files?: boolean; error?: string }> {
     const url = raw.trim().replace(/\/+$/, '')
     if (!/^https?:\/\//.test(url)) return { ok: false, error: 'Enter the full address, e.g. https://harness-team.onrender.com' }

@@ -16,6 +16,8 @@ import { cn } from '@/lib/format'
 import { useApp } from '@/stores/app'
 import { useEvent } from '@/stores/event'
 import { Markdown } from '../conversation/Markdown'
+import { Menu, menuItems } from '@/ui/Menu'
+import { NextButton } from '@/ui/NextButton'
 
 const field = 'selectable w-full rounded-md border border-line bg-surface-2 px-2.5 py-1.5 text-[12.5px] outline-none focus:border-[var(--accent)]/60'
 const STATUS_LABEL: Record<Challenge['status'], string> = { candidate: 'Candidate', shortlist: 'Shortlist', chosen: 'Chosen', dropped: 'Dropped' }
@@ -25,7 +27,7 @@ export function ChallengeBoard({ state }: { state: EventState }) {
   const { askClaude } = useEvent()
   const [panel, setPanel] = useState<'add' | 'import' | null>(null)
   if (!state.projectDir) {
-    return <Empty text="Set up or link the event project (Overview tab) first. Challenges are saved in its challenges/ folder so the whole team shares them." />
+    return <Empty text="Set up or link the event project first (Build or Schedule). Challenges are saved in its challenges/ folder so the whole team shares them." />
   }
   const ranked = rankChallenges(state.challenges)
   return (
@@ -35,16 +37,23 @@ export function ChallengeBoard({ state }: { state: EventState }) {
           <Trophy className="size-4 text-[var(--accent)]" />
           <h2 className="text-[13px] font-semibold">Challenges</h2>
           <span className="text-[11px] text-muted">{state.challenges.length ? `${state.challenges.length} in challenges/` : 'paste them in when they are presented'}</span>
-          <div className="ml-auto flex flex-wrap gap-1.5">
-            <Btn icon={Plus} onClick={() => setPanel(panel === 'add' ? null : 'add')} active={panel === 'add'}>
-              Add one
-            </Btn>
-            <Btn icon={ClipboardPaste} onClick={() => setPanel(panel === 'import' ? null : 'import')} active={panel === 'import'}>
-              Paste all
-            </Btn>
-            <Btn icon={Bot} primary disabled={!state.challenges.length} onClick={() => void askClaude(analyzePrompt(), 'Analysis of all challenges')}>
-              Analyze all with Claude
-            </Btn>
+          <div className="ml-auto">
+            {state.challenges.length ? (
+              <NextButton
+                icon={Bot}
+                onClick={() => void askClaude(analyzePrompt(), 'Analysis of all challenges')}
+                more={menuItems(
+                  { label: 'Paste all', icon: ClipboardPaste, hint: 'The challenge page’s text; Claude splits it up', onSelect: () => setPanel('import') },
+                  { label: 'Add one', icon: Plus, onSelect: () => setPanel('add') },
+                )}
+              >
+                Analyze all with Claude
+              </NextButton>
+            ) : (
+              <NextButton icon={ClipboardPaste} onClick={() => setPanel(panel === 'import' ? null : 'import')} more={menuItems({ label: 'Add one', icon: Plus, onSelect: () => setPanel('add') })}>
+                Paste all
+              </NextButton>
+            )}
           </div>
         </div>
         <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-muted">
@@ -70,23 +79,6 @@ export function ChallengeBoard({ state }: { state: EventState }) {
 
 function Empty({ text }: { text: string }) {
   return <div className="rounded-2xl border border-dashed border-line px-6 py-10 text-center text-[12.5px] text-muted">{text}</div>
-}
-
-function Btn({ icon: Icon, children, onClick, primary, active, disabled }: { icon: typeof Plus; children: React.ReactNode; onClick: () => void; primary?: boolean; active?: boolean; disabled?: boolean }) {
-  return (
-    <button
-      onClick={onClick}
-      disabled={disabled}
-      className={cn(
-        'flex items-center gap-1.5 rounded-md px-2.5 py-1 text-[12px] disabled:opacity-40',
-        primary ? 'bg-[var(--accent)] font-medium text-white hover:brightness-110' : 'border border-line hover:bg-surface-2',
-        active && 'bg-surface-2',
-      )}
-    >
-      <Icon className="size-3.5" />
-      {children}
-    </button>
-  )
 }
 
 function AddForm({ partners, onDone }: { partners: string[]; onDone: () => void }) {
@@ -153,6 +145,15 @@ function ChallengeCard({ c, rank }: { c: Challenge; rank: number }) {
   const [open, setOpen] = useState(c.status === 'chosen')
   const score = scoreChallenge(c)
   const dropped = c.status === 'dropped'
+  const actions = menuItems(
+    { label: 'Analyze with Claude', icon: Bot, onSelect: () => void askClaude(analyzePrompt(c.id), `Analysis of “${c.title}”`) },
+    { label: 'Research the partner', icon: Search, onSelect: () => void askClaude(researchPrompt(c), `Research on ${c.partner}`) },
+    !!c.link && { label: 'Open the challenge page', icon: ExternalLink, onSelect: () => void window.harness.openExternal(c.link!) },
+    'separator',
+    ...CHALLENGE_STATUSES.filter((x) => x !== 'chosen').map((x) => ({ label: `Mark as ${STATUS_LABEL[x].toLowerCase()}`, checked: c.status === x, onSelect: () => void updateChallenge(c.id, { status: x }) })),
+    'separator',
+    { label: 'Delete', icon: Trash2, danger: true, onSelect: () => window.confirm(`Delete “${c.title}”? Its file in challenges/ is removed.`) && void deleteChallenge(c.id) },
+  )
   return (
     <section className={cn('rounded-2xl border p-4', c.status === 'chosen' ? 'border-emerald-500/50 bg-emerald-500/[0.04]' : 'border-line', dropped && 'opacity-55')}>
       <div className="flex items-start gap-3">
@@ -169,34 +170,25 @@ function ChallengeCard({ c, rank }: { c: Challenge; rank: number }) {
               <span className="truncate">{c.title}</span>
             </button>
             {c.prize && <span className="text-[11px] text-muted">🏆 {c.prize}</span>}
+            {c.status !== 'candidate' && c.status !== 'chosen' && <span className="rounded bg-surface-2 px-1.5 py-0.5 text-[10.5px] text-muted">{STATUS_LABEL[c.status]}</span>}
             <div className="ml-auto flex items-center gap-1">
               {c.status === 'chosen' ? (
                 <span className="flex items-center gap-1 rounded-md bg-emerald-500 px-2 py-0.5 text-[11.5px] font-medium text-white">
                   <Star className="size-3 fill-current" /> Chosen
                 </span>
               ) : (
-                <>
-                  <div className="flex overflow-hidden rounded-md border border-line text-[11px]">
-                    {CHALLENGE_STATUSES.filter((s) => s !== 'chosen').map((s) => (
-                      <button
-                        key={s}
-                        onClick={() => void updateChallenge(c.id, { status: s })}
-                        className={cn('px-2 py-0.5', c.status === s ? 'bg-surface-2 font-medium text-fg' : 'text-muted hover:text-fg')}
-                      >
-                        {STATUS_LABEL[s]}
-                      </button>
-                    ))}
-                  </div>
-                  <button
-                    onClick={() =>
-                      window.confirm(`Choose “${c.title}”? This writes it to challenge/brief/ for HackForge and names it in hackforge.yaml.`) && void chooseChallenge(c.id)
-                    }
-                    className="flex items-center gap-1 rounded-md bg-[var(--accent)] px-2 py-0.5 text-[11.5px] font-medium text-white hover:brightness-110"
-                  >
-                    <Star className="size-3" /> Choose
-                  </button>
-                </>
+                <NextButton
+                  tone={rank === 1 ? 'primary' : 'secondary'}
+                  icon={Star}
+                  onClick={() =>
+                    window.confirm(`Choose “${c.title}”? This writes it to challenge/brief/ for HackForge and names it in hackforge.yaml.`) && void chooseChallenge(c.id)
+                  }
+                  more={actions}
+                >
+                  Choose
+                </NextButton>
               )}
+              {c.status === 'chosen' && <Menu items={actions} />}
             </div>
           </div>
           {c.ai?.summary && <div className="mt-1 text-[12.5px]">{c.ai.summary}</div>}
@@ -208,26 +200,6 @@ function ChallengeCard({ c, rank }: { c: Challenge; rank: number }) {
           )}
           <Scores c={c} onSet={(k, v) => void updateChallenge(c.id, { scores: { [k]: v } })} />
           {open && <Details c={c} />}
-          <div className="mt-2 flex flex-wrap items-center gap-1.5">
-            <Btn icon={Bot} onClick={() => void askClaude(analyzePrompt(c.id), `Analysis of “${c.title}”`)}>
-              Analyze
-            </Btn>
-            <Btn icon={Search} onClick={() => void askClaude(researchPrompt(c), `Research on ${c.partner}`)}>
-              Research partner
-            </Btn>
-            {c.link && (
-              <Btn icon={ExternalLink} onClick={() => void window.harness.openExternal(c.link!)}>
-                Open link
-              </Btn>
-            )}
-            <button
-              onClick={() => window.confirm(`Delete “${c.title}”? Its file in challenges/ is removed.`) && void deleteChallenge(c.id)}
-              className="ml-auto rounded-md p-1.5 text-muted hover:bg-black/5 hover:text-red-500 dark:hover:bg-white/10"
-              title="Delete"
-            >
-              <Trash2 className="size-3.5" />
-            </button>
-          </div>
         </div>
       </div>
     </section>

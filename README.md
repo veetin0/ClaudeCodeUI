@@ -4,9 +4,42 @@ A Mac app that runs Claude Code and shows what it's doing as it happens: streame
 
 ![Three agents working in parallel on the Board, one streaming live training progress](docs/screenshots/board.png)
 
+## Simple by default
+
+Harness has three places, and every screen has one main button: the next thing to do.
+
+- **Home** (⇧⌘H): one box, "What do you want to build?", and the folder to work in. Press Enter and Claude starts there. Below it are the hackathon at a glance and up to four sessions to continue.
+- **A session** has three views: **Chat**, **Agents** and **Preview** (⌘1–⌘3).
+  - Type **/** in the prompt box, or press **+**, for every action and command: the suggested next step, HackForge's commands, quick actions (parallel agents, train a model, fix tests…) and the project's own slash commands. Each one opens a short form showing the exact prompt it will send.
+  - In HackForge projects, a **Next:** chip above the box follows the project's phase: Kickoff → Build → Verify → Pitch.
+  - The **mode chip** in the box holds the permission mode, the model and the Usage saver.
+  - The **status chip** in the top bar holds context, plan usage, tokens and cost.
+  - **⋯** holds the terminal, replay, handoff, Click to change and focus mode.
+  - The **side panel** (⌘I) shows the task list, changed files, running agents, and HackForge's phase and score.
+- **Hackathon** (⌘4): the team run, the event, the challenges, partner APIs, the pitch and the HackForge dashboard, all for one project, in four tabs: **Build**, **Challenges**, **Pitch** and **Schedule**.
+
+**Usage** (⌘5) and **Settings** (⌘,) open on top of whatever you're doing.
+- **Settings** has four tabs: General, Team, Tools and Advanced. Each tool is one switch that sets itself up when you turn it on.
+- **⌘K** still finds every command, place, session and action.
+
+| Shortcut | Goes to |
+|---|---|
+| ⇧⌘H | Home |
+| ⌘1 / ⌘2 / ⌘3 | Chat / Agents / Preview |
+| ⌘4 | Hackathon |
+| ⌘5 | Usage |
+| ⌘I | Side panel |
+| ⌘J | Terminal |
+| ⌘K | Command palette |
+| ⌘, | Settings |
+
+![Home: one box to start, the hackathon at a glance](docs/screenshots/home.png)
+
 ## Team run: a hackathon in five steps
 
-Harness opens on the **team run**, one straight line from an empty laptop to a finished entry: **Team → Setup → Plan → Run → Done**. You drive; your teammates' Claudes build alongside yours on their own Claude plans.
+![Hackathon › Build: the team run, with the HackForge score under it](docs/screenshots/hackathon.png)
+
+**Hackathon › Build** is the **team run**, one straight line from an empty laptop to a finished entry: **Team → Setup → Plan → Run → Done**. You drive; your teammates' Claudes build alongside yours on their own Claude plans.
 
 1. **Team.** Type your name and press **Start**. Harness shows one command; each teammate pastes it in a terminal (`npx -y harness-crew HT1.…`) and leaves it open. That's their whole setup: Node 20+, git and a Claude login. No GitHub, no Harness. You see each teammate appear with whether they're ready and how much plan usage they have left.
 2. **Setup.** Name the project, pick a folder and the deadline, and Harness creates it: git, HackForge's settings and two drop zones, **the challenge** (paste the text, drop the PDFs) and **files** (data, docs, brand kits). **Private files** are for data the rules say must not go to an AI: Claude can't read or show them (permission rules plus a hook), they stay out of git and on your laptop, and Claude only runs scripts on them that print totals. A public GitHub repository for the submission is one optional click (GitHub CLI).
@@ -14,11 +47,13 @@ Harness opens on the **team run**, one straight line from an empty laptop to a f
 4. **Run.** Your Claude freezes the interfaces and writes a contract per milestone; then Harness runs the build milestone by milestone. It gives each task to a teammate's Claude (one each, whoever has the most usage left) and the rest to yours, keeps your own usage for integrating when it runs low, and tells your Claude in "[run]" messages when to build its part, when to merge the crew's branches and verify, and when to move on. Work that fails moves to someone else or back to your Claude; a teammate whose plan runs out hands over to another, from their branch. When your own limit runs out, the run waits for the reset while the crew keeps going. Overruns and the deadline are watched: a milestone over its time-box by half gets cut down, and when time is short the remaining milestones are cut so the pitch, verification and improvement loop still happen.
 5. **Done.** What got built, the mock judges' score and what they'd still fix. Harness never submits for you.
 
-Only your screen shows everything: who's doing what, each task, the timeline, and an **Inbox** for everything that needs you: your Claude's permission prompts and questions, crew Claudes' prompts (**Allow / Always / Deny**), and decisions your Claude escalates with its suggested answer (routine crew questions it answers itself). Teammates' terminals show their own Claude working. The Claudes message each other about interface changes. Code moves between laptops through the **team server** as git bundles encrypted with the team's key: deploy one once for free (Settings → **Team server** → *Deploy on Render*, then paste its address), or let your laptop host it on the same network. The rest of Harness (sessions, the Board, event mode) stays available from the sidebar.
+Only your screen shows everything: who's doing what, each task, the timeline, and an **Inbox** for everything that needs you: your Claude's permission prompts and questions, crew Claudes' prompts (**Allow / Always / Deny**), and decisions your Claude escalates with its suggested answer (routine crew questions it answers itself). Teammates' terminals show their own Claude working. The Claudes message each other about interface changes. Code moves between laptops through the **team server** as git bundles encrypted with the team's key: deploy one once for free (Settings › **Team** → *Deploy on Render*, then paste its address), or let your laptop host it on the same network.
+
+Harness opens on the Hackathon while a run is planning or running. Your sessions and Home stay one click away in the sidebar.
 
 ## Watching agents work
 
-**Board** (⌘2) shows every agent as a live card. Each card shows:
+**Agents** (⌘2) shows every agent as a live card (**Cards**). Each card shows:
 
 - **What it's doing now:** the file it's writing streams in, a running command shows its line and timer, a search shows its query.
 - **Progress bars** with an ETA, and **metric charts** (loss, accuracy, …).
@@ -39,11 +74,11 @@ Agents feed these visuals three ways:
 
 ## Mission control, files and diffs
 
-**Mission** (⌘3) puts two views together. On top is a live **agent graph**: the main agent and every subagent it spawns, nested by who spawned whom. Edges animate while an agent works, and each node shows its current activity, progress and recent tool calls. Below is a **timeline** with one lane per agent and a bar per tool call (colour = kind, length = duration). Parallel calls stack, and a shaded band shows each subagent's lifetime. Hover a bar for details, click it to open that call in its agent's detail view, and switch between All and Last 2 min.
+**Agents › Graph** puts two views together. On top is a live **agent graph**: the main agent and every subagent it spawns, nested by who spawned whom. Edges animate while an agent works, and each node shows its current activity, progress and recent tool calls. Below is a **timeline** with one lane per agent and a bar per tool call (colour = kind, length = duration). Parallel calls stack, and a shaded band shows each subagent's lifetime. Hover a bar for details, click it to open that call in its agent's detail view, and switch between All and Last 2 min.
 
 ![Mission control](docs/screenshots/mission.png)
 
-The **Files** tab in the inspector has two parts:
+The **Files** section of the side panel (⌘I) has two parts:
 
 - **Changes:** every file that differs from how it was before the session, with +/− counts.
 - **Project tree:** a heat map where files glow blue when read, orange when written, and green when a command changed them, fading over about a minute. Folders containing touched files open automatically. Dots record what ever happened to each file.
@@ -60,18 +95,18 @@ How the "before" is known: the SDK's `PreToolUse` hook snapshots each file just 
 
 ![Terminal panel](docs/screenshots/terminal.png)
 
-**Observe mode** shows Claude Code sessions you start outside Harness (iTerm, Terminal, an editor, `claude -p` in a script) in the sidebar with a terminal icon. You get the full live UI for them: conversation, Board, Mission graph and timeline, files and cost. It needs no setup. Harness watches the transcripts Claude Code writes to `~/.claude/projects/`, attributes subagent work through each subagent's metadata file, and saves the session to History so you can resume it later. Sessions Harness runs itself, and other Agent SDK apps, are skipped.
+**Observe mode** shows Claude Code sessions you start outside Harness (iTerm, Terminal, an editor, `claude -p` in a script) in the sidebar with a terminal icon. You get the full live UI for them: conversation, agent cards, graph and timeline, files and cost. It needs no setup. Harness watches the transcripts Claude Code writes to `~/.claude/projects/`, attributes subagent work through each subagent's metadata file, and saves the session to History so you can resume it later. Sessions Harness runs itself, and other Agent SDK apps, are skipped.
 
-For instant "needs approval", "done" and "ended" status, **Settings → Install hooks** adds a tiny `curl` hook for four events to `~/.claude/settings.json`. The file is backed up first, existing hooks are kept, and **Remove hooks** takes out only Harness's entries. The hook never blocks or fails Claude Code (`curl -m 1 … || true`).
+For instant "needs approval", "done" and "ended" status, **Settings › Team → Install hooks** adds a tiny `curl` hook for four events to `~/.claude/settings.json`. The file is backed up first, existing hooks are kept, and **Remove hooks** takes out only Harness's entries. The hook never blocks or fails Claude Code (`curl -m 1 … || true`).
 
 ![Watching a terminal session](docs/screenshots/observed.png)
 
 ## Preview: Remotion Studio and dev servers
 
-**Preview** (⌘4) embeds what you're building next to the agents building it.
+**Preview** (⌘3) embeds what you're building next to the agents building it. One menu at the top picks what it shows: Remotion Studio, a dev script, a server seen running, a 3D model, or a localhost URL.
 
 - **Remotion projects** are detected from `package.json`. **Start Studio** runs the project's own Remotion CLI on a free port, with no browser window, and embeds Studio. Studio hot-reloads, so when Claude edits a composition you see the frame change right away. The side panel lists compositions (size, fps, length). **Render** shows live progress through bundling, rendering frames with time left, and encoding, plus Cancel. Finished videos play in the panel, with **Show in Finder**.
-- **Dev servers:** `package.json` scripts that start a server (`dev`, `start`, `storybook`, vite/next/astro…) get one-click buttons. Any `localhost` URL that shows up in an agent's command output or in a terminal is offered automatically, and you can type one. Each preview has reload, open in browser, server output and stop.
+- **Dev servers:** `package.json` scripts that start a server (`dev`, `start`, `storybook`, vite/next/astro…) are in the menu. Any `localhost` URL that shows up in an agent's command output or in a terminal is offered automatically, and you can type one. Its **⋯** has reload, open in browser, server output and stop.
 
 Remotion downloads its own headless Chrome the first time you render. Set `HARNESS_REMOTION_BROWSER` to use an existing one instead.
 
@@ -80,19 +115,19 @@ Remotion downloads its own headless Chrome the first time you render. Set `HARNE
 - **Watching it happen:** the preview hot-reloads, so you see the change land.
 - **Usage saver:** it judges these messages by what you typed, so a small visual tweak runs on Sonnet.
 
-**3D models.** Every `.glb` or `.gltf` in the project gets a button on the Preview tab (or use **Open .glb…**). The viewer:
+**3D models.** Every `.glb` or `.gltf` in the project is in Preview's menu (or use **Open a .glb or .gltf…**). The viewer:
 - turns the model with the mouse, with optional auto-rotate, wireframe and background toggles;
 - lists its named parts (the parts a 3D clip's exploded view separates), with click to highlight or show only that part;
 - shows triangles, materials, textures, size in metres and file size, with a warning when it's too heavy for the web or a clip;
 - reloads by itself when the file changes, for example after Claude re-exports it from Blender.
 
-Its buttons: **Ask Claude to change** (sends a screenshot plus the part you picked), **Open in Blender**, and **Use in a 3D clip**.
+Its main button is **Ask Claude to change**, which sends a screenshot plus the part you picked. Its ▾ has **Use in a 3D clip** and **Open in Blender**, and **⋯** has the view toggles.
 
 ![Remotion Studio with a finished render](docs/screenshots/remotion.png)
 
 ## Usage saver
 
-Claude plan limits are mostly spent on Claude re-reading the conversation at every step, not on what it writes. The Usage saver is on by default and cuts that waste without taking the strong model away from the work that needs it. **Settings → Usage saver** switches the whole thing or any part off.
+Claude plan limits are mostly spent on Claude re-reading the conversation at every step, not on what it writes. The Usage saver is on by default and cuts that waste without taking the strong model away from the work that needs it. **Settings › Advanced → Usage saver** switches the whole thing or any part off.
 
 - **Auto model.** New sessions start on **Auto** (the model menu by the prompt box). Each message gets a model before it reaches Claude:
   - **Opus** for planning, design questions, debugging, reviews, refactors, long or detailed requests, and plan mode.
@@ -106,11 +141,11 @@ Claude plan limits are mostly spent on Claude re-reading the conversation at eve
 - **Skip generated files.** Whole-file reads of lockfiles, minified bundles, source maps and build output over 64 KB are refused, with a hint to search the file or read a range. Small files and your own source are never blocked.
 - **Lean output.** Session instructions to run tests and builds quietly, read large files by range, and lead replies with the answer. Code, errors and warnings stay complete.
 
-**Is it saving right now?** The chip next to the model menu says **Saving · Sonnet** (green) or **Not saving · Opus** (amber), with the reason. Click it for this session's numbers: turns per model, Opus takeovers, compactions and skipped files. The chat also notes every switch, compaction and skipped file as it happens.
+**Is it saving right now?** The mode chip in the prompt box shows a leaf (green when saving, amber when not). Open it to see **Saving · Sonnet** (green) or **Not saving · Opus** (amber), with the reason. Click it for this session's numbers: turns per model, Opus takeovers, compactions and skipped files. The chat also notes every switch, compaction and skipped file as it happens.
 
 ## Usage history
 
-**⌘7**, **Usage** in the sidebar, or clicking the 5-hour figure in the top bar opens usage history for this laptop:
+**⌘5**, the usage meter at the bottom of the sidebar, or **Usage history** in the status chip opens usage history for this laptop:
 - **Per day:** new tokens by model (Sonnet, Opus, Haiku, other) for the last 7, 14 or 30 days, with hover details and a table view.
 - **Plan usage:** the 5-hour window over the last 48 hours, so you see how fast it's going, plus the weekly figure.
 - **The Usage saver:** turns on Sonnet vs Opus, mid-task Opus takeovers, compactions and skipped files.
@@ -125,7 +160,7 @@ Harness ships two design skills and loads them into every session, so UI work co
 - **[impeccable](https://github.com/pbakaus/impeccable)** (Apache-2.0) builds, polishes, critiques and audits UI against `DESIGN.md`. Its detector checks every UI edit and does a deeper pass when Claude finishes, so things like low contrast, gradient text, glow shadows, nested cards and overused fonts come back as findings Claude fixes. Where the two disagree, `DESIGN.md` and impeccable's rules win.
 - **Click to change** requests are treated as polish work under impeccable's rules.
 
-**Settings → Design skills** switches each one off. **Quiet detector** (on by default) reports only problems, not "this file is clean", to save tokens. If you've installed either plugin yourself and your copy is newer, Harness uses yours.
+**Settings › Tools** switches each one off. **Quiet detector** (on by default) reports only problems, not "this file is clean", to save tokens. If you've installed either plugin yourself and your copy is newer, Harness uses yours.
 
 **Before the event:** impeccable's detector downloads a small engine once per computer (to `~/.impeccable`). Harness fetches it in the background at startup. Check that Settings shows **Detector engine: ready**; if it doesn't, press **Get it now** (or **Retry**) while you're on good wifi. ui-ux-pro-max's search needs Python 3, the same as HackForge.
 
@@ -139,11 +174,11 @@ Their licences are kept next to them in `resources/design/`.
 
 ## Dev tools
 
-Sessions get five kinds of tools Claude reaches for by itself. Claude Code loads a tool's definition only when it's needed, so tools you don't use cost little context. **Settings → Dev tools** switches each one.
+Sessions get five kinds of tools Claude reaches for by itself. Claude Code loads a tool's definition only when it's needed, so tools you don't use cost little context. **Settings › Tools** has one switch for each. Turning one on sets it up by itself: it downloads Chromium if there's no Chrome, installs REA, or sets up the Blender add-on.
 
 - **Browser** (Playwright, built in). Claude opens the running app, clicks through the demo, reads console errors and saves screenshots. HackForge's verifier walks the demo path this way and keeps the screenshots as evidence. It uses your Google Chrome or Microsoft Edge; on a computer with neither, **Get Chromium** downloads one (about 150 MB, once). It runs in the background unless you tick **Show the browser window**, with a fresh profile every session.
 - **Library docs** (Context7, hosted). Current, version-specific docs for any library or SDK, so Claude looks up a partner's SDK instead of guessing its API. It works without a key; a free key from context7.com raises the limits.
-- **Partner servers.** A partner's own MCP server, in sessions in the event project once its key is set on the Partners tab: Exa's hosted server (works without a key, rate-limited), and Cloudinary's and Hostinger's servers, bundled with Harness so nothing downloads at the event. When a partner announces an MCP server at the event, paste its URL into that partner's card. The partner's secret key goes along as a Bearer token.
+- **Partner servers.** A partner's own MCP server, in sessions in the event project once its key is set under Hackathon › Challenges: Exa's hosted server (works without a key, rate-limited), and Cloudinary's and Hostinger's servers, bundled with Harness so nothing downloads at the event. When a partner announces an MCP server at the event, paste its URL into that partner's card. The partner's secret key goes along as a Bearer token.
 
 - **Reverse engineering** ([REA](https://github.com/morluto/rea), off until you switch it on). Claude works out how existing software works and cites the evidence:
   - a partner's website, or a HAR capture of it, becomes its real API (endpoints and payloads);
@@ -177,7 +212,7 @@ The sync refuses to replace the built-in copy with an older version, so an out-o
 
 HackForge's hooks run Python 3 (macOS has it with the Xcode command-line tools; Windows: see docs/WINDOWS.md).
 
-- **Automatic in HackForge projects.** When a project has `challenge/` or `.hackforge/`, every session gets instructions to work through the `/hackforge:*` skills and keep `.hackforge/` current. **Settings → HackForge** switches this to *always* (suggest HackForge in every session) or *off*.
+- **Automatic in HackForge projects.** When a project has `challenge/` or `.hackforge/`, every session gets instructions to work through the `/hackforge:*` skills and keep `.hackforge/` current. **Settings › Tools → HackForge** switches this to *always* (suggest HackForge in every session) or *off*.
 - **Buttons for every command:**
   - **Getting started:** Help (the one next step), Init.
   - **Running it:** Run (with a profile picker that writes `profile:` to `challenge/hackforge.yaml`, including `lean` for Pro plans), Kickoff, Build.
@@ -186,7 +221,7 @@ HackForge's hooks run Python 3 (macOS has it with the Xcode command-line tools; 
   - **Coordination and wrap-up:** Team (join, who, claim, handoff, driver), Focus, Rules, Views, Status, Retro.
 
   Before kickoff only the setup commands show.
-- **HackForge dashboard** (⌘5, or the HackForge tab, which shows the loop iteration or the latest mock score). It reads `.hackforge/` live as the agents write it:
+- **HackForge dashboard** (Hackathon › Build; the session's side panel has a summary with the next step). It reads `.hackforge/` live as the agents write it:
   - the phase stepper (config → submit) and a deadline countdown
   - COMPLIANCE, flagged *stale* when code changed after the last verify, as the loop gate would; MOCK_SCORE against the target; whether it was a quick or full verify; the gate result and the integrity lock; and the next action. It reads `verify.json` (HackForge 2.x) or `VERIFY.md` (1.x).
   - the fix order with each finding's severity, the blind judge's first impression, and claims nobody could check yet
@@ -195,7 +230,7 @@ HackForge's hooks run Python 3 (macOS has it with the Xcode command-line tools; 
   - **Stop loop**, which creates `.hackforge/STOP_LOOP`
   - hard rules and deliverables with their compliance checks, judging criteria with weights and per-criterion mock scores, milestones, the fix order, team directives and the decision
 - **Checkpoints:** when HackForge stops for "go / adjust", **Go** and **Adjust…** buttons appear above the prompt. Questions Claude asks with AskUserQuestion appear as a card with option buttons and a free-text answer.
-- HackForge's subagents show up by role (Rules Lawyer, Judge, Builder…) on the Board and in the graph.
+- HackForge's subagents show up by role (Rules Lawyer, Judge, Builder…) on the agent cards and in the graph.
 - A hint suggests **Accept edits** while the loop runs, because every permission prompt pauses it.
 - The pitch studio's **3D / animated clips** button runs `/hackforge:video`, which adds clips to `pitch/public/` as screen scenes.
 - **Design skills inside HackForge** (2.2.0): build writes one `DESIGN.md` design system before frontend work and freezes it with the contracts, frontend builders load impeccable, and `tools design-scan` records impeccable's findings as evidence for the verifier, the judges and the fix order.
@@ -204,16 +239,16 @@ HackForge's hooks run Python 3 (macOS has it with the Xcode command-line tools; 
 - **Team runs** (2.5.0): in a [team run](#team-run-a-hackathon-in-five-steps) build follows Harness's "[run]" messages (Harness hands out each milestone's tasks), contracts give every task an id, a role and its own paths, kickoff spreads research and architect work across the crew, and crew branches arrive locally through the team server.
 - **Mascot** (2.6.0, optional; 2.7.0 lives inside the app): for a product whose AI talks to people, `/hackforge:mascot` designs a character that becomes the assistant's face in the app, the logo, and the star of a 30–40 s film. It says hello and talks about the problem, then jumps into the app and lives there: it walks the real screens, types into fields and presses buttons, and every action changes the screen. It talks with a moving mouth and expressions, and at the end it dives into the logo. The film renders with Three.js in headless Chrome, so it needs no GPU. [`promo/forge-film`](promo/forge-film) is the example: Forge shows Harness.
 - **3D pitch kit** (2.8.0): `/hackforge:video` can cut short 3D clips into the pitch video: the real app driven by a 3D cursor, the app on a laptop or phone, an exploding product with callouts, the problem as popping cards, and a logo sting. They're rendered with the same Three.js engine as the mascot film. It builds both a 3D and a 2D version of each such scene, and keeps the 3D one only when a blind judge likes it better.
-- **Reverse engineering** (2.9.0, with REA on in Settings → Dev tools): the researcher maps a partner's real API from their site, a HAR capture or their app, with evidence, into `.hackforge/research/partner-api.md`. Builders code against that file instead of guessing, and `/hackforge:solve` takes on reversing tasks (binaries, APKs, firmware, packet captures), checking each answer with a script.
-- **Live Blender and 3D in the app** (2.10.0): with Blender connected (Settings → Dev tools), the craftsman builds and adjusts 3D models in your open Blender and still delivers the script, the `.glb` and the renders. The Pitch studio's 3D clips section renders the kit's clips and adds them to the pitch, and the Preview tab shows any `.glb`.
+- **Reverse engineering** (2.9.0, with REA on in Settings › Tools): the researcher maps a partner's real API from their site, a HAR capture or their app, with evidence, into `.hackforge/research/partner-api.md`. Builders code against that file instead of guessing, and `/hackforge:solve` takes on reversing tasks (binaries, APKs, firmware, packet captures), checking each answer with a script.
+- **Live Blender and 3D in the app** (2.10.0): with Blender connected (Settings › Tools), the craftsman builds and adjusts 3D models in your open Blender and still delivers the script, the `.glb` and the renders. Hackathon › Pitch's 3D clips section renders the kit's clips and adds them to the pitch, and the Preview tab shows any `.glb`.
 
 ![HackForge dashboard with a running improvement loop](docs/screenshots/hackforge.png)
 
 ![A HackForge checkpoint question](docs/screenshots/hackforge-checkpoint.png)
 
-## Event mode (hackathon war room)
+## The event: schedule, team, partners, challenges, pitch
 
-**⌘6**, the event entry in the sidebar, or the card on the start screen opens event mode. Event mode is reusable: everything comes from an `event.yaml`. **Junction 2026** (Espoo, 13–15 Nov) ships as the built-in preset.
+**⌘4**, the Hackathon row in the sidebar, or the card on Home opens the Hackathon; **Schedule** has the event's clock, team and checklists. It's reusable: everything comes from an `event.yaml`. **Junction 2026** (Espoo, 13–15 Nov) ships as the built-in preset.
 
 - **Clock:** a countdown to the doors opening, then to the next deadline (amber 3 h before, red in the last hour), the next step of the plan, and who is asleep right now. Times are shown in the event's time zone. Junction's are Helsinki local time, so the switch to winter time (UTC+2) on Oct 25 is already accounted for.
 - **The weekend:** one timeline with official times, the two submission deadlines, our plan and the sleep shifts, plus an agenda per day. It covers about 40 h of build time: preliminary submission Fri 23:55, final Sun 10:00.
@@ -225,11 +260,11 @@ HackForge's hooks run Python 3 (macOS has it with the Xcode command-line tools; 
 - **Partners board:** all 16 Junction partners by category, each with *Keys* (account and API key ready) and *Kit* (starter kit tested) toggles.
 - Ticks are saved to `challenge/event-checklist.json`. Commit it, and the team shares one checklist through git.
 
-![Event mode during Junction 2026 (simulated clock)](docs/screenshots/event-mode.png)
+![The event schedule during Junction 2026 (simulated clock)](docs/screenshots/event-mode.png)
 
 ### Team board
 
-Event mode's **Team** panel shows all four laptops in one place. Each teammate keeps using their own Claude login, and their Harness shares a small status through a relay:
+The **Team** panel under **Schedule** shows all four laptops in one place. Each teammate keeps using their own Claude login, and their Harness shares a small status through a relay:
 - what they're working on and their git branch
 - their open sessions, with what the agent is doing right now
 - their HackForge phase and score
@@ -258,7 +293,7 @@ Harness suggests who should take the next milestone (the person with the most us
 - **Switching it off:** use **Run at reset** in the banner, the queue list or Settings; messages then just wait.
 - **Keeping the laptop awake** is optional. Closing a laptop's lid still puts it to sleep.
 
-**Phone alerts.** Settings → Phone alerts: install the free [ntfy](https://ntfy.sh) app, scan the QR code, and press **Send a test**. You get a push when:
+**Phone alerts.** Settings › General → Phone alerts: install the free [ntfy](https://ntfy.sh) app, scan the QR code, and press **Send a test**. You get a push when:
 - Claude needs approval
 - a long task or a HackForge loop finishes
 - your limit is hit, or queued messages run
@@ -282,31 +317,31 @@ From then on nobody else types anything. In a [team run](#team-run-a-hackathon-i
 - **The Claudes talk to each other:** a crew Claude can ask yours a question and wait for the answer, tell a teammate's Claude about an interface change, and see who is changing which files. The Crew card shows the messages.
 - **Approvals:** file edits and normal dev commands (npm, node, python, pytest, git add/commit…) run without asking. Anything else shows up on the Crew card as **Allow / Always / Deny** (and on your phone with phone alerts on). Unanswered questions are denied after 10 minutes. Crew Claudes never push or merge; harness-crew sends their branch.
 - **The Crew card** on the Team board shows the project crew members get (or what's in the way: no commits yet, uncommitted changes), each crew member (ready, working on what, usage left, problems), every mission with its live activity, branch, files and report, and a Stop button.
-- **At the venue,** laptop-to-laptop traffic is often blocked, so use a team server on Render instead of your laptop: one click, free (Settings → Team server, or [relay/README.md](relay/README.md)). A phone hotspot is the fallback.
+- **At the venue,** laptop-to-laptop traffic is often blocked, so use a team server on Render instead of your laptop: one click, free (Settings › Team, or [relay/README.md](relay/README.md)). A phone hotspot is the fallback.
 - **What teammates need:** Node 20+, git and a Claude login (harness-crew asks them to sign in the first time). No GitHub access: the project goes to them and their work comes back through the team server as git bundles (40 MB each at most), encrypted with the team key. The package lives in [`crew/`](crew/README.md); publish it with `npm run crew:publish` (needs `npm login` once).
 
 ### Partner APIs
 
-Event mode → **Partner APIs** has a kit for each Junction partner with an API: Exa, OpenAI, Featherless, Cloudinary, Modal, Aiven, Hostinger, Arduino, Verda and Cala. Paste a key and it works:
+**Hackathon › Challenges** has a **Partner APIs** kit for each Junction partner with an API: Exa, OpenAI, Featherless, Cloudinary, Modal, Aiven, Hostinger, Arduino, Verda and Cala. Paste a key and it works:
 - **`.env`:** it goes into Harness's own block in the event project's `.env`. `.env` is added to `.gitignore`, and nothing else in the file changes.
 - **Sessions:** every Claude session in the project (and in handoff folders) gets it as an environment variable.
 - **Teammates:** with **share with team** on, they get it too, encrypted with your team code so the relay only sees ciphertext.
 - **Kit notes for Claude:** `challenge/partners/` gets one note per partner with the variable names, install command and a minimal working example, plus an index of which keys are ready. HackForge's kickoff reads them.
-- **Check key** tries the key with a cheap request where the API has one.
+- **Checked on save:** a saved key is tried with a cheap request where the API has one (again from the card's **⋯**, which also has the docs, the signup page and the install command).
 - **Unconfirmed details:** some partners had no public API documentation before the event (marked "check at the event"). Their cards take a docs link. **Add another API** covers anything new that turns up at the venue.
 
 Keys are stored in the macOS Keychain or Windows' DPAPI (an owner-only file where neither exists).
 
 ### Challenge board
 
-The **Challenges** tab in event mode. At the opening ceremony, use **Paste all** with the challenge page's text, and Claude splits it into one file per challenge in `challenges/` (outside `challenge/`, so HackForge only ever reads the one you pick).
+The **Challenges** tab in the Hackathon. At the opening ceremony, use **Paste all** with the challenge page's text, and Claude splits it into one file per challenge in `challenges/` (outside `challenge/`, so HackForge only ever reads the one you pick).
 
 - **Analyze all with Claude** researches each partner and adds a summary, an idea with its demo moment, the partner technology it would run on, risks, and scores for six weighted criteria: partner value 25 %, team fit 20 %, feasible in ~40 h 20 %, demo wow 15 %, theme 10 %, less competition 10 %.
 - Click the dots to give your own scores. They override Claude's, which show as rings.
-- Each challenge has mentor notes, plus **Research partner**, **Shortlist** and **Drop**.
+- Each challenge has mentor notes. Its ▾ has **Analyze with Claude**, **Research the partner**, **Shortlist** and **Drop**.
 - **Choose** writes `challenge/brief/00-chosen-challenge.md` (description, mentor notes, starting idea) for HackForge, names the challenge in `hackforge.yaml`, and ticks "Challenge chosen" on the preliminary checklist.
 
-Prompts sent from event mode go to a Claude session in the event project while you stay on the board. If Claude needs approval (e.g. for web search), the notice turns amber.
+Prompts sent from the Hackathon go to a Claude session in the event project while you stay on the board. If Claude needs approval (e.g. for web search), the notice turns amber.
 
 ![Challenge board](docs/screenshots/challenges.png)
 
@@ -316,8 +351,9 @@ The **Pitch** tab creates `pitch/`, a Remotion video driven by `pitch/script.jso
 - **Scenes:** title, bullet points, big statement, demo clip or screenshot, and end card, with a progress bar.
 - **Starter script:** the stage arc (the inherited model → our flip → live demo → how it works → why it matters).
 
-- **Write script with Claude** writes the script from `.hackforge/` (decision, plan, demo, verify) to fit the time limit.
-- **Narration with ElevenLabs:** pick a voice, then **Generate narration**. Only scenes whose text or voice changed are regenerated (files are content-hashed, so there are no repeat charges), and the video times each scene to its real audio length.
+- **One next step:** the main button follows the pipeline: Install Remotion → Write the script with Claude → Generate narration → Preview & render. The rest is behind its ▾.
+- **Write the script with Claude** writes the script from `.hackforge/` (decision, plan, demo, verify) to fit the time limit.
+- **Narration with ElevenLabs:** pick a narrator in the toolbar's voice chip, then **Generate narration**. Only scenes whose text or voice changed are regenerated (files are content-hashed, so there are no repeat charges), and the video times each scene to its real audio length.
 - **Editor:** the length is shown against the time limit; edits save to `script.json` automatically.
 - **Rehearse:** a full-screen teleprompter with the video's timing, per-scene countdowns and the overall clock.
 - **Preview & render:** opens Remotion Studio and Render on the Preview tab. The output is `pitch/out/pitch.mp4`.
@@ -325,12 +361,12 @@ The **Pitch** tab creates `pitch/`, a Remotion video driven by `pitch/script.jso
 **3D clips** are short 3D shots made with HackForge's 3D kit (Three.js in a hidden Chrome, so no GPU is needed): your real app driven by a 3D cursor, the app on a laptop or phone, a product exploding into its parts with labels, the problem as cards, or a logo sting.
 - **Setup:** once per project. **Set up the 3D kit** copies the kit into `video/kit3d/` and installs what it renders with (about 300 MB). A checklist says what's missing first: Python 3.10+, ffmpeg, a browser, npm.
 - **New 3D clip:** pick a type and describe it in a line. Claude writes the clip for your app and brand.
-- **Each clip:**
+- **Each clip** has one next step, with the rest behind its ▾:
   - **Stills:** a quick look in about a minute;
-  - **Draft** (540p) or **Render** (1080p): a progress bar with frames and time left, and **Stop**. Rendering again picks up where it stopped;
-  - **Play;**
+  - **Render draft** (540p), then **Render final** (1080p): a progress bar with frames and time left, and **Stop**. Rendering again picks up where it stopped;
   - **Add to pitch:** it goes into `pitch/public/3d/` and into a demo-clip scene before the end card;
-  - **Change:** tell Claude what to change.
+  - **Play;**
+  - **Ask Claude to change it.**
 
   The clips carry their sound effects; the pitch brings narration and music. A clip that speaks (the mascot film) keeps its own voice.
 
@@ -343,18 +379,24 @@ The ElevenLabs key is stored in the Keychain, or read from `ELEVENLABS_API_KEY`.
 ## Everyday polish
 
 - **Native menu** with every command and its shortcut. It also makes ⌘C/⌘V/⌘Z work everywhere.
-- **⌘K command palette:** commands, views, open sessions, History, projects, and the "Ask Claude" actions.
+- **⌘K command palette:** commands, places and tabs, open sessions, History, projects, and every action from the / menu.
 - **Notifications:** when Claude needs approval, or finishes a turn longer than 15 s, while Harness is in the background or you're looking at another session. Clicking a notification jumps to the session. You can turn them off in Settings.
 - **Menu-bar item:** shows how many sessions are working (and `!` when one needs you), and lists them. The dock badge counts sessions waiting for approval.
-- **Replay** (⇧⌘R, or Replay in a saved session's banner): a scrubber over the session's saved events, with play at 1×, 4×, 16× or 64×. Ticks mark prompts, finished turns and subagent launches. Every view (chat, Board, Mission graph and timeline, files, meters) shows the session as it was at the playhead.
+- **Replay** (⇧⌘R, or ⋯ → Replay): a scrubber over the session's saved events, with play at 1×, 4×, 16× or 64×. Ticks mark prompts, finished turns and subagent launches. Every view (chat, agents, graph and timeline, files, meters) shows the session as it was at the playhead.
 
 ![Replaying a session at 40%](docs/screenshots/replay.png)
 
-## Action buttons instead of /commands
+## The / menu instead of /commands
 
-The buttons above the prompt (with a HackForge row in HackForge projects) cover common jobs: parallel agents, train a model, analyze data, fix tests, build a feature, debug, explain, Remotion video and commit. Each opens a form prefilled with example parameters and a preview of the exact prompt. **Commands ▾** lists the session's slash commands and skills, with descriptions and example arguments. Run sends the prompt right away; Edit in prompt drops it into the box so you can change it first.
+Type **/** in an empty prompt box, or press **+**, and one searchable list has everything:
+- **Suggested:** the next step in a HackForge project;
+- **HackForge:** its commands, once the project uses it;
+- **Quick actions:** parallel agents, train a model, analyze data, fix tests, build a feature, debug, explain, Remotion video, commit;
+- **Project commands:** the session's own slash commands and skills.
 
-![Action form](docs/screenshots/actions.png)
+Type a few letters to filter it; names rank above descriptions, so `/ver` finds Verify. Each action opens a form prefilled with example parameters and a preview of the exact prompt. **Run** (⌘⏎) sends it; **Edit in prompt** drops it into the box. A full `/command with arguments` still sends as typed.
+
+![The / menu](docs/screenshots/actions.png)
 
 ## History and resume
 
@@ -372,8 +414,8 @@ All seven phases of [the plan](docs/PLAN.md) are done. Phases 1–2:
 - **Live conversation:** streamed markdown, collapsible thinking, and compact tool chips coloured by kind (read, write, search, exec…). Click a chip to see its input, output and diff.
 - **Subagents:** each spawned agent gets a live card with its own tool calls, a progress summary and its final report. Background subagents keep running after the turn ends.
 - **Permission cards:** Allow (⏎) / Always allow / Deny (⎋), with a diff preview. The dock badge and bounce fire while the app is in the background.
-- **Inspector:** a tree of agents (current tool, elapsed time, tokens), the task list (from `TaskCreate`/`TaskUpdate` or `TodoWrite`), and a log of every tool call.
-- **Top bar:** context-window gauge, output tokens, session cost, turn timer.
+- **Side panel:** the task list (from `TaskCreate`/`TaskUpdate` or `TodoWrite`), changed files and a tree of agents (current tool, elapsed time, tokens); every tool call is under Agents › Activity.
+- **Top bar:** the status chip (context-window gauge, plan usage, output tokens, session cost) and the turn timer.
 - **Focus mode** (⌘\\), open project (⌘O), settings (⌘,).
 
 ![Permission card](docs/screenshots/permission.png)
@@ -427,8 +469,12 @@ Everything the UI shows is derived from one typed event stream (`src/shared/even
 | `src/main/agent/harnessTools.ts` | The `harness` MCP tools agents use to report progress and show results |
 | `src/main/system/telemetry.ts` | Localhost endpoint behind `$HARNESS_URL` for live script telemetry |
 | `src/shared/parseOutput.ts` | Progress/metric extraction from command output |
-| `src/renderer/src/features/agents/` | Board, agent cards, detail view, "what is it doing now" |
-| `src/renderer/src/lib/actions.ts` | Action buttons and their example parameters |
+| `src/renderer/src/features/agents/` | Agents view (cards, graph, activity), agent cards, detail view, "what is it doing now" |
+| `src/renderer/src/features/home/` | Home: the start box, the hackathon card, Continue |
+| `src/renderer/src/features/hackathon/` | The Hackathon place: Build, Challenges, Pitch, Schedule, and its header |
+| `src/renderer/src/ui/` | The shared pieces: ⋯ menu, popover, one-main-action button, tabs, sheet |
+| `src/renderer/src/lib/actions.ts` | Quick actions and slash commands, with their example parameters |
+| `src/renderer/src/lib/actionMenu.ts`, `lib/nextStep.ts` | The / menu's groups and ranking, and the HackForge next step |
 | `src/main/events/bus.ts` | Batches events to the renderer |
 | `src/renderer/src/stores/reducer.ts` | Events → session state (pure; unit-tested) |
 | `src/renderer/src/features/` | Conversation, agents, tasks, meters |

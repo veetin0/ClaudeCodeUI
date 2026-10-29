@@ -1,11 +1,11 @@
 /**
- * Developer tools Harness gives sessions (Settings → Dev tools):
+ * Developer tools Harness gives sessions (Settings › Tools):
  * - Browser (Playwright MCP, bundled with Harness): Claude opens the running app, clicks through the
  *   demo path, reads console errors and saves screenshots (HackForge's verifier keeps them as evidence).
  * - Library docs (Context7, hosted): current, version-specific docs for any library or SDK, so Claude
  *   looks up an SDK it hasn't seen (a partner's, at a hackathon) instead of guessing its API.
  * - Partner servers: a partner's own MCP server, added to sessions in the event project once its key
- *   is set on the Partners tab (or its MCP URL pasted there at the event).
+ *   is set under Hackathon › Challenges → Partner APIs (or its MCP URL pasted there at the event).
  * - Reverse engineering (REA, installed on demand, off by default): Claude works out how existing
  *   software works (a partner's site or HAR capture → its API, an SDK shipped as a bundle, DLL or
  *   APK, a binary, firmware, a packet capture) and cites the evidence. It runs on the user's own
@@ -186,7 +186,7 @@ export function devToolsGuide(on: { browser: boolean; docs: boolean; partners: {
   }
   if (on.blender) {
     lines.push(
-      `- Blender (mcp__${BLENDER_SERVER}__*, MCP for Blender): build and adjust 3D objects and scenes in the user's open Blender window, for the product, the pitch or a 3D clip. If the tools say Blender isn't connected, ask the user to open it (Harness: Settings → Dev tools → Open Blender). Check your work with look after each change. When a model is right, export it as .glb into assets/ (named top-level parts, real scale in metres, Y-up) and keep a script that rebuilds it, as the craft playbook says. Running code in Blender asks first; asset imports and AI model generation may need the user's API keys and also ask.`,
+      `- Blender (mcp__${BLENDER_SERVER}__*, MCP for Blender): build and adjust 3D objects and scenes in the user's open Blender window, for the product, the pitch or a 3D clip. If the tools say Blender isn't connected, ask the user to open it (Harness: Settings › Tools › Blender › Open Blender). Check your work with look after each change. When a model is right, export it as .glb into assets/ (named top-level parts, real scale in metres, Y-up) and keep a script that rebuilds it, as the craft playbook says. Running code in Blender asks first; asset imports and AI model generation may need the user's API keys and also ask.`,
     )
   }
   return lines.join('\n')

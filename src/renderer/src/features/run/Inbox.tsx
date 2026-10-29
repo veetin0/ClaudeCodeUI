@@ -8,6 +8,7 @@ import { useCrew } from '@/stores/crew'
 import { useRun, useRunStore } from '@/stores/run'
 import { Markdown } from '../conversation/Markdown'
 import { Card } from './parts'
+import { NextButton } from '@/ui/NextButton'
 
 /**
  * Everything that needs the lead, in one place: your Claude's permission prompts and questions,
@@ -204,12 +205,9 @@ function CrewAsk({ a }: { a: CrewAskView }) {
         </div>
       </div>
       <div className="mt-2 flex gap-1.5">
-        <Btn primary disabled={sent} onClick={() => reply(true)}>
+        <NextButton disabled={sent} onClick={() => reply(true)} more={[{ label: 'Always allow this kind', hint: 'For the rest of the task', disabled: sent, onSelect: () => reply(true, true) }]}>
           Allow
-        </Btn>
-        <Btn disabled={sent} onClick={() => reply(true, true)} title="Allow this kind of call for the rest of the task">
-          Always
-        </Btn>
+        </NextButton>
         <Btn disabled={sent} onClick={() => reply(false)}>
           Deny
         </Btn>

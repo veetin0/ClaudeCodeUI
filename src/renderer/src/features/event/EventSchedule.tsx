@@ -1,4 +1,4 @@
-import { CalendarClock, Check, ExternalLink, Flame, FolderOpen, FolderPlus, Link2Off, MapPin, MessageSquare, Moon, Square, SquareCheck } from 'lucide-react'
+import { CalendarClock, Check, ExternalLink, FolderOpen, FolderPlus, MapPin, MessageSquare, Moon, Square, SquareCheck } from 'lucide-react'
 import { useMemo } from 'react'
 import {
   CHECKLIST_GROUPS,
@@ -14,26 +14,17 @@ import {
 } from '@shared/event'
 import { basename, cn } from '@/lib/format'
 import { useApp } from '@/stores/app'
-import { useEvent, useEventState, useNow } from '@/stores/event'
+import { useEvent, useNow } from '@/stores/event'
+import { sessionIn } from '@/lib/projects'
 import { TeamPanel } from './TeamPanel'
-import { ChallengeBoard, Notice } from './ChallengeBoard'
-import { PitchStudio } from './PitchStudio'
-import { PartnerKits } from './PartnerKits'
-import { usePartnersState } from '@/stores/partners'
-import type { EventTab } from '@/stores/event'
 
-/** The hackathon war room: clock, weekend timeline, agenda, project setup, checklists, partners. */
-export function EventView() {
-  const state = useEventState()
-  const error = useEvent((s) => s.error)
-  const tab = useEvent((s) => s.tab)
+/** Hackathon › Schedule: the clock, the team, the weekend timeline, project setup, checklists, partners. */
+export function EventSchedule({ state }: { state: EventState }) {
   const now = useNow(1000)
-  if (!state) return <div className="flex flex-1 items-center justify-center text-[12px] text-muted">Loading event…</div>
   const { config } = state
   const clock = eventClock(config, now)
   return (
-    <div className="min-h-0 flex-1 overflow-y-auto">
-      <div className="mx-auto max-w-5xl space-y-4 px-6 py-5">
+    <>
         <header className="flex flex-wrap items-start gap-x-6 gap-y-2">
           <div className="min-w-0">
             <div className="flex items-center gap-2">
@@ -61,72 +52,27 @@ export function EventView() {
           </div>
         </header>
 
-        {error && <div className="selectable rounded-lg border border-red-500/40 bg-red-500/5 px-3 py-2 text-[12px] text-red-600">{error}</div>}
         {config.invalidTimezone && (
           <div className="selectable rounded-lg border border-amber-500/50 bg-amber-500/[0.08] px-3 py-2 text-[12px]">
             <code>challenge/event.yaml</code> names the time zone “{config.invalidTimezone}”, which this computer doesn't know, so all times are shown in UTC. Use an IANA
             name such as <code>Europe/Helsinki</code>.
           </div>
         )}
-
-        <Tabs state={state} />
-        <Notice />
-        {tab === 'challenges' ? (
-          <ChallengeBoard state={state} />
-        ) : tab === 'pitch' ? (
-          <PitchStudio event={state} />
-        ) : tab === 'partners' ? (
-          <PartnerKits />
-        ) : (
-          <>
-            <Countdown state={state} now={now} />
-            <TeamPanel timezone={config.timezone} now={now} suggestedNames={config.team} />
-            <Weekend state={state} now={now} />
-            <ProjectCard state={state} />
-            <div className="grid gap-4 lg:grid-cols-2">
-              {(['prep', 'logistics', 'preliminary', 'final'] as ChecklistGroup[]).map((g) => (
-                <Checklist key={g} group={g} state={state} now={now} />
-              ))}
-            </div>
-            <Partners state={state} />
-            <p className="pb-2 text-[11px] text-muted">
-              Settings come from {state.source === 'project' ? <code>challenge/event.yaml</code> : 'the built-in preset'}. Checklist ticks are saved to{' '}
-              <code>challenge/event-checklist.json</code>: commit and pull it so the whole team sees the same progress.
-            </p>
-          </>
-        )}
-      </div>
-    </div>
-  )
-}
-
-function Tabs({ state }: { state: EventState }) {
-  const { tab, setTab } = useEvent()
-  const partners = usePartnersState()
-  const chosen = state.challenges.find((c) => c.status === 'chosen')
-  const keyed = partners ? partners.kits.filter((k) => k.keys.some((x) => partners.keys[x.env])).length : 0
-  const tabs: { id: EventTab; label: string; badge?: string }[] = [
-    { id: 'overview', label: 'Overview' },
-    { id: 'challenges', label: 'Challenges', badge: chosen ? '★' : state.challenges.length ? String(state.challenges.length) : undefined },
-    { id: 'partners', label: 'Partner APIs', badge: keyed ? String(keyed) : undefined },
-    { id: 'pitch', label: 'Pitch' },
-  ]
-  return (
-    <div className="flex gap-1 border-b border-line">
-      {tabs.map((t) => (
-        <button
-          key={t.id}
-          onClick={() => setTab(t.id)}
-          className={cn(
-            '-mb-px flex items-center gap-1.5 border-b-2 px-3 py-1.5 text-[12.5px]',
-            tab === t.id ? 'border-[var(--accent)] font-medium text-fg' : 'border-transparent text-muted hover:text-fg',
-          )}
-        >
-          {t.label}
-          {t.badge && <span className="rounded-full bg-surface-2 px-1.5 text-[10.5px] tabular-nums">{t.badge}</span>}
-        </button>
-      ))}
-    </div>
+        <Countdown state={state} now={now} />
+        <TeamPanel timezone={config.timezone} now={now} suggestedNames={config.team} />
+        <Weekend state={state} now={now} />
+        <ProjectCard state={state} />
+        <div className="grid gap-4 lg:grid-cols-2">
+          {(['prep', 'logistics', 'preliminary', 'final'] as ChecklistGroup[]).map((g) => (
+            <Checklist key={g} group={g} state={state} now={now} />
+          ))}
+        </div>
+        <Partners state={state} />
+        <p className="pb-2 text-[11px] text-muted">
+          Settings come from {state.source === 'project' ? <code>challenge/event.yaml</code> : 'the built-in preset'}. Checklist ticks are saved to{' '}
+          <code>challenge/event-checklist.json</code>: commit and pull it so the whole team sees the same progress.
+        </p>
+    </>
   )
 }
 
@@ -348,14 +294,8 @@ function Agenda({ state, now }: { state: EventState; now: number }) {
 }
 
 function ProjectCard({ state }: { state: EventState }) {
-  const { setupProject, linkExisting, link } = useEvent()
-  const { startSession, setView } = useApp()
+  const { setupProject, linkExisting } = useEvent()
   const dir = state.projectDir
-  const openSession = async (view?: 'hackforge') => {
-    if (!dir) return
-    await startSession(dir)
-    if (view) setView(view)
-  }
   if (!dir) {
     return (
       <section className="rounded-2xl border border-dashed border-[var(--accent)]/50 p-4">
@@ -396,14 +336,8 @@ function ProjectCard({ state }: { state: EventState }) {
           <FolderPlus className="size-3.5" /> Apply {state.config.name} setup
         </button>
       )}
-      <button onClick={() => void openSession()} className="flex items-center gap-1.5 rounded-md border border-line px-3 py-1.5 text-[12px] hover:bg-surface-2">
-        <MessageSquare className="size-3.5" /> New session
-      </button>
-      <button onClick={() => void openSession('hackforge')} className="flex items-center gap-1.5 rounded-md border border-line px-3 py-1.5 text-[12px] hover:bg-surface-2">
-        <Flame className="size-3.5 text-orange-500" /> HackForge
-      </button>
-      <button onClick={() => void link(null)} title="Unlink this folder (nothing is deleted)" className="rounded-md p-1.5 text-muted hover:bg-black/5 hover:text-fg dark:hover:bg-white/10">
-        <Link2Off className="size-3.5" />
+      <button onClick={() => void sessionIn(dir)} className="flex items-center gap-1.5 rounded-md border border-line px-3 py-1.5 text-[12px] hover:bg-surface-2">
+        <MessageSquare className="size-3.5" /> Open in a session
       </button>
     </section>
   )
@@ -477,8 +411,8 @@ function Partners({ state }: { state: EventState }) {
         <span className="text-[11px] text-muted">
           {ready} / {state.config.partners.length} ready (keys + tested starter kit)
         </span>
-        <button onClick={() => useEvent.getState().setTab('partners')} className="ml-auto text-[11.5px] font-medium text-[var(--accent)] hover:underline">
-          Paste API keys in Partner APIs →
+        <button onClick={() => useApp.getState().openHackathon('challenges')} className="ml-auto text-[11.5px] font-medium text-[var(--accent)] hover:underline">
+          Paste API keys under Challenges →
         </button>
       </div>
       <div className="grid gap-x-6 gap-y-3 md:grid-cols-2">

@@ -1,10 +1,12 @@
-import { BarChart3, Leaf, Table2, Users, X } from 'lucide-react'
+import { BarChart3, Leaf, Table2, Users } from 'lucide-react'
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { isOnline, type TeamState } from '@shared/team'
 import { FAMILIES, FAMILY_LABEL, sumFamilies, type DayUsage, type ModelFamily, type UsageHistory } from '@shared/usageHistory'
-import { basename, cn, formatCost, formatTokens } from '@/lib/format'
+import { basename, formatCost, formatTokens } from '@/lib/format'
 import { useApp } from '@/stores/app'
 import { useTeamState } from '@/stores/team'
+import { Segmented } from '@/ui/Segmented'
+import { Sheet } from '@/ui/Sheet'
 
 /** Fixed: the color follows the model family, never its rank (validated palette slots 1–4). */
 const COLOR: Record<ModelFamily, string> = {
@@ -34,7 +36,8 @@ const dayLabel = (day: string, short = false) => {
 }
 
 /** Usage history: tokens per day by model, plan usage over time, the saver's work, the team today. */
-export function UsageView() {
+/** Usage history as a sheet over whatever you're doing (⌘5). */
+export function UsageSheet() {
   const [days, setDays] = useState(14)
   const [data, setData] = useState<UsageHistory | null>(null)
   const [table, setTable] = useState(false)
@@ -52,27 +55,21 @@ export function UsageView() {
   const close = () => useApp.getState().setUsageOpen(false)
   const today = data?.days.at(-1)
   return (
-    <div className="min-h-0 flex-1 overflow-y-auto">
-      <div className="mx-auto max-w-5xl space-y-4 px-6 py-5">
-        <header className="flex items-center gap-2">
-          <BarChart3 className="size-5 text-[var(--accent)]" />
-          <h1 className="text-[18px] font-semibold">Usage</h1>
-          <span className="text-[12px] text-muted">on this laptop</span>
-          <div className="ml-auto flex items-center gap-1 rounded-lg bg-black/[0.05] p-0.5 text-[12px] dark:bg-white/[0.07]">
-            {[7, 14, 30].map((d) => (
-              <button
-                key={d}
-                onClick={() => setDays(d)}
-                className={cn('rounded-md px-2.5 py-1', days === d ? 'bg-surface font-medium shadow-sm' : 'text-muted hover:text-fg')}
-              >
-                {d} days
-              </button>
-            ))}
-          </div>
-          <button onClick={close} title="Close (Esc)" className="rounded p-1 text-muted hover:bg-black/5 hover:text-fg dark:hover:bg-white/10">
-            <X className="size-4" />
-          </button>
-        </header>
+    <Sheet
+      wide
+      title="Usage on this laptop"
+      icon={<BarChart3 className="size-4 text-[var(--accent)]" />}
+      onClose={close}
+      header={
+        <Segmented
+          label="Period"
+          value={String(days)}
+          onChange={(v) => setDays(Number(v))}
+          options={[7, 14, 30].map((d) => ({ id: String(d), label: `${d} days` }))}
+        />
+      }
+    >
+      <div className="space-y-4 px-5 py-4">
 
         {!data ? (
           <div className="text-[12px] text-muted">Loading…</div>
@@ -125,7 +122,7 @@ export function UsageView() {
           </>
         )}
       </div>
-    </div>
+    </Sheet>
   )
 }
 

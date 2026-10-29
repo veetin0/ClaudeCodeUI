@@ -1,23 +1,22 @@
-import { BarChart3, CalendarClock, FolderOpen, History, Plus, Rocket, Search, Settings, SquareTerminal, Trash2, X } from 'lucide-react'
-import { useRun } from '@/stores/run'
-import { eventClock, formatSpan } from '@shared/event'
-import { useEventState, useNow } from '@/stores/event'
+import { ChevronDown, Flame, FolderOpen, Home, Plus, Rocket, Search, Settings, SquareTerminal, Trash2, X } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import type { SessionSummary } from '@shared/ipc'
 import { basename, cn, formatCost } from '@/lib/format'
 import { dateGroup, relativeTime } from '@/lib/time'
 import { useApp } from '@/stores/app'
 import type { SessionState } from '@/stores/reducer'
+import { useHackathonSummary } from '@/features/hackathon/summary'
+import { Menu, menuItems } from '@/ui/Menu'
+import { newHackforgeProject } from '@/lib/projects'
 import { StatusDot, STATUS_LABEL } from './StatusDot'
+import { usePlanUsage } from './StatusChip'
 import { isMac, shortcut } from '@/lib/keys'
 
+/** Three parts: where to go (Home, Hackathon, a new session), your sessions, and usage + settings. */
 export function Sidebar() {
-  const { order, sessions, history, activeId, settings, select, closeSession, openProject, startSession, openSaved, deleteSaved, setSettingsOpen } =
-    useApp()
+  const { order, sessions, history, activeId, place, select, closeSession, openSaved, deleteSaved, goHome } = useApp()
   const [query, setQuery] = useState('')
   const openIds = new Set(order)
-  const openDirs = new Set(order.map((id) => sessions[id].cwd))
-  const recents = (settings?.recentProjects ?? []).filter((d) => !openDirs.has(d)).slice(0, 4)
 
   const groups = useMemo(() => {
     const q = query.trim().toLowerCase()
@@ -39,96 +38,149 @@ export function Sidebar() {
     <aside className="flex w-64 shrink-0 flex-col">
       {/* Room for the macOS traffic lights; Windows has a normal title bar above. */}
       <div className={isMac ? 'drag h-12 shrink-0' : 'h-3 shrink-0'} />
-      <div className="px-3">
-        <TeamRunEntry />
-        <button
-          onClick={() => void openProject()}
-          className="no-drag flex w-full items-center gap-2 rounded-lg px-2.5 py-1.5 text-left font-medium hover:bg-black/5 dark:hover:bg-white/5"
-        >
-          <Plus className="size-4 text-muted" />
-          New session
-          <kbd className="ml-auto text-[11px] text-muted">{shortcut('⌘O')}</kbd>
-        </button>
-      </div>
+      <nav className="space-y-0.5 px-3">
+        <NavRow icon={<Home className="size-4 text-muted" />} active={place === 'home'} onClick={goHome} keys={shortcut('⇧⌘H')}>
+          Home
+        </NavRow>
+        <HackathonRow />
+        <NewSessionRow />
+      </nav>
 
       <div className="mt-3 min-h-0 flex-1 overflow-y-auto px-3 pb-3">
-        {order.length > 0 && <SectionLabel>Open</SectionLabel>}
+        {(order.length > 0 || groups.length > 0 || query) && <SectionLabel>Sessions</SectionLabel>}
+        {history.length > 6 && (
+          <label className="mb-1.5 flex items-center gap-1.5 rounded-md bg-black/[0.04] px-2 py-1 dark:bg-white/5">
+            <Search className="size-3 text-muted" />
+            <input
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Search sessions"
+              className="selectable min-w-0 flex-1 bg-transparent text-[12px] outline-none placeholder:text-muted"
+            />
+          </label>
+        )}
         {order.map((id) => (
-          <OpenRow key={id} s={sessions[id]} active={id === activeId} onSelect={() => select(id)} onClose={() => void closeSession(id)} />
+          <OpenRow key={id} s={sessions[id]} active={place === 'session' && id === activeId} onSelect={() => select(id)} onClose={() => void closeSession(id)} />
         ))}
-
-        {recents.length > 0 && (
-          <>
-            <SectionLabel className="mt-4">Start in</SectionLabel>
-            {recents.map((dir) => (
-              <button
-                key={dir}
-                onClick={() => void startSession(dir)}
-                title={dir}
-                className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-1.5 text-left text-muted hover:bg-black/[0.04] hover:text-fg dark:hover:bg-white/5"
-              >
-                <FolderOpen className="size-3.5 shrink-0" />
-                <span className="truncate">{basename(dir)}</span>
-              </button>
+        {groups.map((g) => (
+          <div key={g.label} className="mt-2">
+            <div className="px-2.5 py-1 text-[10.5px] text-muted">{g.label}</div>
+            {g.items.map((h) => (
+              <HistoryRow
+                key={h.id}
+                h={h}
+                onOpen={() => void openSaved(h.id)}
+                onDelete={() => {
+                  if (window.confirm(`Delete “${h.title || 'Untitled session'}” from history? This can’t be undone.`)) void deleteSaved(h.id)
+                }}
+              />
             ))}
-          </>
-        )}
-
-        {(groups.length > 0 || query) && (
-          <div className="mt-4">
-            <div className="mb-1 flex items-center gap-1.5 px-2.5 text-[11px] font-semibold uppercase tracking-wide text-muted">
-              <History className="size-3" /> History
-            </div>
-            {history.length > 6 && (
-              <label className="mb-1.5 flex items-center gap-1.5 rounded-md bg-black/[0.04] px-2 py-1 dark:bg-white/5">
-                <Search className="size-3 text-muted" />
-                <input
-                  value={query}
-                  onChange={(e) => setQuery(e.target.value)}
-                  placeholder="Search sessions"
-                  className="selectable min-w-0 flex-1 bg-transparent text-[12px] outline-none placeholder:text-muted"
-                />
-              </label>
-            )}
-            {groups.map((g) => (
-              <div key={g.label} className="mb-2">
-                <div className="px-2.5 py-1 text-[10.5px] text-muted">{g.label}</div>
-                {g.items.map((h) => (
-                  <HistoryRow
-                    key={h.id}
-                    h={h}
-                    onOpen={() => void openSaved(h.id)}
-                    onDelete={() => {
-                      if (window.confirm(`Delete “${h.title || 'Untitled session'}” from history? This can’t be undone.`)) void deleteSaved(h.id)
-                    }}
-                  />
-                ))}
-              </div>
-            ))}
-            {groups.length === 0 && query && <div className="px-2.5 py-1 text-[12px] text-muted">No matches</div>}
           </div>
-        )}
+        ))}
+        {groups.length === 0 && query && <div className="px-2.5 py-1 text-[12px] text-muted">No matches</div>}
       </div>
 
-      <div className="p-3 pt-0">
-        <EventEntry />
-        <button
-          onClick={() => useApp.getState().setUsageOpen(!useApp.getState().usageOpen)}
-          title={shortcut('Usage history (⌘7)')}
-          className="flex w-full items-center gap-2 rounded-lg px-2.5 py-1.5 text-muted hover:bg-black/5 hover:text-fg dark:hover:bg-white/5"
-        >
-          <BarChart3 className="size-4" />
-          Usage
-        </button>
-        <button
-          onClick={() => setSettingsOpen(true)}
-          className="flex w-full items-center gap-2 rounded-lg px-2.5 py-1.5 text-muted hover:bg-black/5 hover:text-fg dark:hover:bg-white/5"
-        >
-          <Settings className="size-4" />
-          Settings
-        </button>
-      </div>
+      <Footer />
     </aside>
+  )
+}
+
+function NavRow({ icon, active, onClick, keys, children }: { icon: React.ReactNode; active?: boolean; onClick: () => void; keys?: string; children: React.ReactNode }) {
+  return (
+    <button
+      onClick={onClick}
+      className={cn(
+        'no-drag flex w-full items-center gap-2 rounded-lg px-2.5 py-1.5 text-left font-medium hover:bg-black/5 dark:hover:bg-white/5',
+        active && 'bg-black/[0.07] dark:bg-white/10',
+      )}
+    >
+      {icon}
+      <span className="min-w-0 flex-1 truncate">{children}</span>
+      {keys && <kbd className="text-[11px] font-normal text-muted">{keys}</kbd>}
+    </button>
+  )
+}
+
+/** The hackathon: team run and event in one row, with where it is and what's due next. */
+function HackathonRow() {
+  const h = useHackathonSummary()
+  const open = useApp((s) => s.place === 'hackathon')
+  const sub = h.stage === 'team' && h.countdown ? h.countdown : h.urgent && h.countdown ? `${h.status} · ${h.countdown}` : h.status
+  return (
+    <button
+      onClick={() => useApp.getState().openHackathon()}
+      title={shortcut('Hackathon: team run, challenges, pitch and schedule (⌘4)')}
+      className={cn(
+        'no-drag flex w-full items-center gap-2 rounded-lg px-2.5 py-1.5 text-left hover:bg-black/5 dark:hover:bg-white/5',
+        open && 'bg-black/[0.07] dark:bg-white/10',
+      )}
+    >
+      <Rocket className="size-4 shrink-0 text-[var(--accent)]" />
+      <span className="min-w-0 flex-1">
+        <span className="block truncate font-medium">{h.name}</span>
+        <span className={cn('block truncate text-[11px] tabular-nums', h.urgent ? 'font-medium text-red-500' : 'text-muted')}>{sub}</span>
+      </span>
+      {h.inbox > 0 && <span className="rounded-full bg-[var(--accent)] px-1.5 text-[10.5px] font-semibold text-white">{h.inbox}</span>}
+    </button>
+  )
+}
+
+/** New session (a folder picker); its ▾ starts one in a recent folder or a new HackForge project. */
+function NewSessionRow() {
+  const { settings, openProject, startSession, order, sessions } = useApp()
+  const openDirs = new Set(order.map((id) => sessions[id].cwd))
+  const recents = (settings?.recentProjects ?? []).filter((d) => !openDirs.has(d)).slice(0, 6)
+  return (
+    <div className="group flex items-center rounded-lg hover:bg-black/5 dark:hover:bg-white/5">
+      <button onClick={() => void openProject()} className="no-drag flex min-w-0 flex-1 items-center gap-2 whitespace-nowrap px-2.5 py-1.5 text-left font-medium">
+        <Plus className="size-4 text-muted" />
+        New session
+        <kbd className="ml-auto text-[11px] font-normal text-muted">{shortcut('⌘O')}</kbd>
+      </button>
+      <Menu
+        label="Start in…"
+        align="end"
+        trigger={<ChevronDown className="size-3.5" />}
+        triggerClassName="mr-1 px-1"
+        items={menuItems(
+          recents.length > 0 && { heading: 'Start in' },
+          ...recents.map((dir) => ({ label: basename(dir), hint: dir, icon: FolderOpen, onSelect: () => void startSession(dir) })),
+          recents.length > 0 && 'separator',
+          { label: 'Open folder…', icon: FolderOpen, keys: shortcut('⌘O'), onSelect: () => void openProject() },
+          settings?.hackforgeMode !== 'off' && { label: 'New HackForge project…', icon: Flame, hint: 'Pick a folder, then set it up', onSelect: () => void newHackforgeProject() },
+        )}
+      />
+    </div>
+  )
+}
+
+function Footer() {
+  const plan = usePlanUsage()
+  const { setUsageOpen, setSettingsOpen } = useApp()
+  return (
+    <div className="flex items-center gap-1 p-3 pt-0">
+      <button
+        onClick={() => setUsageOpen(true)}
+        title={shortcut('Usage history (⌘5)')}
+        className="no-drag flex min-w-0 flex-1 items-center gap-2 rounded-lg px-2.5 py-1.5 text-left text-muted hover:bg-black/5 hover:text-fg dark:hover:bg-white/5"
+      >
+        <span className="relative h-1.5 w-12 shrink-0 overflow-hidden rounded-full bg-black/10 dark:bg-white/10">
+          <span
+            className={cn('absolute inset-y-0 left-0 rounded-full', plan?.hot ? 'bg-red-500' : plan?.warm ? 'bg-amber-500' : 'bg-[var(--accent)]')}
+            style={{ width: `${plan?.limited ? 100 : (plan?.pct ?? 0)}%` }}
+          />
+        </span>
+        <span className={cn('truncate text-[12px] tabular-nums', plan?.hot && 'font-medium text-red-500')}>{plan ? plan.label : 'Usage'}</span>
+      </button>
+      <button
+        onClick={() => setSettingsOpen(true)}
+        title={shortcut('Settings (⌘,)')}
+        aria-label="Settings"
+        className="no-drag rounded-lg p-1.5 text-muted hover:bg-black/5 hover:text-fg dark:hover:bg-white/5"
+      >
+        <Settings className="size-4" />
+      </button>
+    </div>
   )
 }
 
@@ -195,67 +247,4 @@ function HistoryRow({ h, onOpen, onDelete }: { h: SessionSummary; onOpen: () => 
 
 function SectionLabel({ children, className }: { children: React.ReactNode; className?: string }) {
   return <div className={cn('mb-1 px-2.5 text-[11px] font-semibold uppercase tracking-wide text-muted', className)}>{children}</div>
-}
-
-const STAGE_LABEL = { team: 'Start the team', setup: 'Setup', plan: 'Planning', run: 'Running', done: 'Done' } as const
-
-/** Harness's home: the team run, with the step it's on. */
-function TeamRunEntry() {
-  const run = useRun()
-  const open = useApp((s) => s.teamOpen)
-  const waiting = run.inbox.length
-  const sub =
-    run.stage === 'run' ? (run.pausedReason ? 'Paused' : run.current ? `Building ${run.current}` : 'Finishing') : run.stage === 'plan' && run.step === 'plan-ready' ? 'Plan ready' : STAGE_LABEL[run.stage]
-  return (
-    <button
-      onClick={() => useApp.getState().setTeamOpen(true)}
-      className={cn(
-        'no-drag mb-1 flex w-full items-center gap-2 rounded-lg px-2.5 py-1.5 text-left hover:bg-black/5 dark:hover:bg-white/5',
-        open && 'bg-black/[0.07] dark:bg-white/10',
-      )}
-    >
-      <Rocket className="size-4 shrink-0 text-[var(--accent)]" />
-      <span className="min-w-0 flex-1">
-        <span className="block truncate font-medium">{run.project?.name ?? 'Team run'}</span>
-        <span className="block truncate text-[11px] text-muted">{sub}</span>
-      </span>
-      {waiting > 0 && <span className="rounded-full bg-[var(--accent)] px-1.5 text-[10.5px] font-semibold text-white">{waiting}</span>}
-    </button>
-  )
-}
-
-/** Event mode entry with a live countdown to the next thing that matters. */
-function EventEntry() {
-  const state = useEventState()
-  const open = useApp((s) => s.eventOpen)
-  const setEventOpen = useApp((s) => s.setEventOpen)
-  const now = useNow(30_000)
-  if (!state) return null
-  const clock = eventClock(state.config, now)
-  const sub =
-    clock.stage === 'before'
-      ? `starts in ${formatSpan(clock.start - now)}`
-      : clock.stage === 'during'
-        ? clock.nextDeadline
-          ? `${clock.nextDeadline.label.split(' ')[0]} due in ${formatSpan(clock.nextDeadline.t - now)}`
-          : 'judging'
-        : 'ended'
-  const urgent = clock.stage === 'during' && clock.nextDeadline && clock.nextDeadline.t - now < 3_600_000
-  return (
-    <button
-      onClick={() => setEventOpen(!open)}
-      title={shortcut('Event mode (⌘6)')}
-      className={cn(
-        'no-drag mt-1 flex w-full items-center gap-2 rounded-lg px-2.5 py-1.5 text-left hover:bg-black/5 dark:hover:bg-white/5',
-        open && 'bg-black/[0.07] dark:bg-white/10',
-      )}
-    >
-      <CalendarClock className="size-4 shrink-0 text-[var(--accent)]" />
-      <span className="min-w-0 flex-1">
-        <span className="block truncate font-medium">{state.config.name}</span>
-        <span className={cn('block truncate text-[11px] tabular-nums', urgent ? 'font-medium text-red-500' : 'text-muted')}>{sub}</span>
-      </span>
-      <kbd className="text-[11px] text-muted">{shortcut('⌘6')}</kbd>
-    </button>
-  )
 }

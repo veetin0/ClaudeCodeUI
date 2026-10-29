@@ -5,6 +5,8 @@ import { fileUrl } from '@shared/visuals'
 import { cn } from '@/lib/format'
 import { useEvent } from '@/stores/event'
 import { useKit3d } from '@/stores/kit3d'
+import { menuItems, type MenuItem } from '@/ui/Menu'
+import { NextButton } from '@/ui/NextButton'
 
 const field = 'selectable w-full rounded-md border border-line bg-surface-2 px-2.5 py-1.5 text-[12.5px] outline-none focus:border-[var(--accent)]/60'
 const mmss = (s: number) => (s >= 60 ? `${Math.floor(s / 60)} min ${Math.round(s % 60)} s` : `${Math.round(s)} s`)
@@ -188,7 +190,24 @@ function ClipRow({ clip, busy, activeJob }: { clip: Kit3dClip; busy: boolean; ac
   const [changing, setChanging] = useState(false)
   const [change, setChange] = useState('')
   const [zoom, setZoom] = useState<string | null>(null)
-  const btn = 'flex items-center gap-1 rounded-md border border-line px-2 py-0.5 text-[11.5px] hover:bg-surface-2 disabled:opacity-40'
+  // One next step per clip: Stills → Draft → Final → Add to pitch → Play; the rest behind ▾.
+  type Act = { label: string; icon: typeof Film; run: () => void; disabled?: boolean; busy?: boolean; hint?: string }
+  const acts: Record<'stills' | 'draft' | 'final' | 'pitch' | 'play' | 'change', Act | null> = {
+    stills: { label: 'Stills', icon: Images, run: () => void stills(clip.name), disabled: busy, busy: activeJob === 'stills', hint: 'Up to 20 half-size frames at the moments that matter, in about a minute' },
+    draft: { label: 'Render draft', icon: Film, run: () => void render(clip.name, 'draft'), disabled: busy, busy: activeJob === 'draft', hint: '540p with less motion blur: check the pacing quickly' },
+    final: { label: 'Render final', icon: Film, run: () => void render(clip.name, 'final'), disabled: busy, busy: activeJob === 'final', hint: '1080p with full motion blur: what goes in the pitch (a few to 30 minutes)' },
+    pitch:
+      clip.video && clip.pitch !== 'current'
+        ? { label: clip.pitch === 'stale' ? 'Update in pitch' : 'Add to pitch', icon: Plus, run: () => void addToPitch(clip.name), hint: 'Copies it to pitch/public/3d/ and puts it in a demo-clip scene' }
+        : null,
+    play: clip.video ? { label: playing ? 'Hide video' : 'Play', icon: Play, run: () => setPlaying(!playing) } : null,
+    change: { label: 'Ask Claude to change it', icon: MessageSquarePlus, run: () => setChanging(!changing) },
+  }
+  const next = !clip.video ? (clip.stills.length ? 'draft' : 'stills') : clip.video.quality === 'draft' ? 'final' : clip.pitch !== 'current' ? 'pitch' : 'play'
+  const primary = acts[next]!
+  const more: MenuItem[] = (Object.keys(acts) as (keyof typeof acts)[])
+    .filter((k) => k !== next && acts[k])
+    .map((k) => ({ label: acts[k]!.label, icon: acts[k]!.icon, hint: acts[k]!.hint, disabled: acts[k]!.disabled, onSelect: acts[k]!.run }))
   return (
     <div className="rounded-xl border border-line p-2.5">
       <div className="flex flex-wrap items-start gap-2">
@@ -205,38 +224,25 @@ function ClipRow({ clip, busy, activeJob }: { clip: Kit3dClip; busy: boolean; ac
               ))}
             {clip.talks && <span className="rounded bg-surface-2 px-1.5 text-[10.5px] text-muted">speaks</span>}
             {clip.video && <span className="rounded bg-emerald-500/10 px-1.5 text-[10.5px] text-emerald-700 dark:text-emerald-300">{KIT3D_QUALITY[clip.video.quality].label} rendered</span>}
+            {clip.pitch === 'current' && (
+              <span className="flex items-center gap-0.5 rounded bg-emerald-500/10 px-1.5 text-[10.5px] text-emerald-700 dark:text-emerald-300">
+                <Check className="size-3" /> in the pitch
+              </span>
+            )}
           </div>
           <div className="mt-0.5 text-[11.5px] text-muted">{clip.doc}</div>
         </div>
-        <div className="flex flex-wrap items-center gap-1">
-          <button className={btn} disabled={busy} onClick={() => void stills(clip.name)} title="Up to 20 half-size frames at the moments that matter, in about a minute">
-            {activeJob === 'stills' ? <Loader2 className="size-3 animate-spin" /> : <Images className="size-3" />} Stills
-          </button>
-          <button className={btn} disabled={busy} onClick={() => void render(clip.name, 'draft')} title="540p with less motion blur: check the pacing quickly">
-            {activeJob === 'draft' ? <Loader2 className="size-3 animate-spin" /> : <Film className="size-3" />} Draft
-          </button>
-          <button className={btn} disabled={busy} onClick={() => void render(clip.name, 'final')} title="1080p with full motion blur: what goes in the pitch (a few to 30 minutes)">
-            {activeJob === 'final' ? <Loader2 className="size-3 animate-spin" /> : <Film className="size-3" />} Render
-          </button>
-          {clip.video && (
-            <button className={btn} onClick={() => setPlaying(!playing)}>
-              <Play className="size-3" /> {playing ? 'Hide' : 'Play'}
-            </button>
-          )}
-          {clip.video &&
-            (clip.pitch === 'current' ? (
-              <span className="flex items-center gap-1 px-1 text-[11.5px] text-emerald-600 dark:text-emerald-400">
-                <Check className="size-3" /> In the pitch
-              </span>
-            ) : (
-              <button className={cn(btn, 'border-[var(--accent)]/50 text-[var(--accent)]')} onClick={() => void addToPitch(clip.name)} title="Copies it to pitch/public/3d/ and puts it in a demo-clip scene">
-                <Plus className="size-3" /> {clip.pitch === 'stale' ? 'Update in pitch' : 'Add to pitch'}
-              </button>
-            ))}
-          <button className={btn} onClick={() => setChanging(!changing)} title="Tell Claude what to change in this clip">
-            <MessageSquarePlus className="size-3" /> Change
-          </button>
-        </div>
+        <NextButton
+          tone="secondary"
+          icon={primary.icon}
+          onClick={primary.run}
+          disabled={primary.disabled}
+          busy={primary.busy}
+          title={primary.hint}
+          more={menuItems(...more)}
+        >
+          {primary.label}
+        </NextButton>
       </div>
       {!!clip.stills.length && (
         <div className="mt-2 flex gap-1 overflow-x-auto pb-1">

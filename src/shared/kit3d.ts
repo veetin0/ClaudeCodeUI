@@ -102,14 +102,14 @@ How:
 - If it shows the app: point ui_states.mjs at the running app (start it if needed), list the screens and targets the clip uses, and run \`node capture_ui.mjs\` in ${KIT3D_DIR}. Check build/ui/ looks right.
 - Keep it short: 4-10 s for a clip that goes into the narrated pitch, ending with \`f.end(seconds, fade=0)\`.
 - Check it with \`python3 story.py <name>\` in ${KIT3D_DIR} (use .venv/bin/python3 if it exists) and fix what it reports.
-- Don't render frames: Harness renders it (Pitch studio → 3D clips) once you're done. Tell me the clip's name.`
+- Don't render frames: Harness renders it (Hackathon › Pitch → 3D clips) once you're done. Tell me the clip's name.`
 }
 
 /** The prompt for changing an existing clip. */
 export function kit3dChangePrompt(clip: string, change: string): string {
   return `In ${KIT3D_DIR}/story.py (HackForge's 3D pitch kit), change the clip \`${clip}\`: ${change.trim()}
 
-Keep its name. Check it with \`python3 story.py ${clip}\` in ${KIT3D_DIR} (use .venv/bin/python3 if it exists) and fix what it reports. If it needs new app screens, update ui_states.mjs and run \`node capture_ui.mjs\`. Don't render frames: Harness renders it from the Pitch studio.`
+Keep its name. Check it with \`python3 story.py ${clip}\` in ${KIT3D_DIR} (use .venv/bin/python3 if it exists) and fix what it reports. If it needs new app screens, update ui_states.mjs and run \`node capture_ui.mjs\`. Don't render frames: Harness renders it from Hackathon › Pitch.`
 }
 
 /** "product_hero" → "Product hero". */
