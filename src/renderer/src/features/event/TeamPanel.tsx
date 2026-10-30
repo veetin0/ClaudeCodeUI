@@ -318,7 +318,7 @@ function MemberCard({ m, me, now, fmt }: { m: MemberStatus; me: boolean; now: nu
                 {s.title}
                 {s.activity && <span className="text-muted"> · {s.activity}</span>}
               </span>
-              {s.subagents > 0 && <span className="shrink-0 rounded-sm bg-ok px-1.5 text-[11px] leading-4 text-white">{s.subagents}</span>}
+              {s.subagents > 0 && <span className="num shrink-0 rounded-sm bg-ok/15 px-1.5 text-[12px] font-semibold leading-4 text-ok-ink">{s.subagents}</span>}
             </div>
           ))
         )}
@@ -369,7 +369,7 @@ function Bar({ label, w, now, fmt }: { label: string; w: UsageWindow; now: numbe
   return (
     <div className="flex items-center gap-2 text-[11px]">
       <span className="w-9 text-muted">{label}</span>
-      <SectorMeter value={pct / 100} tone={pct >= 90 ? 'fail' : pct >= 70 ? 'wait' : 'done'} className="flex-1" label={`${label} plan usage`} />
+      <SectorMeter value={pct / 100} tone={pct >= 90 ? 'fail' : pct >= 70 ? 'wait' : 'fill'} className="flex-1" label={`${label} plan usage`} />
       <span className="num w-9 text-right font-semibold">{Math.round(pct)}%</span>
       <span className="w-24 whitespace-nowrap text-right text-muted">{reset ? 'reset' : w.resetsAt ? `resets ${fmt(w.resetsAt)}` : ''}</span>
     </div>

@@ -102,12 +102,12 @@ export function CommandPalette() {
       onOpenChange={setPaletteOpen}
       label="Command palette"
       overlayClassName="fixed inset-0 z-50 bg-black/25 backdrop-blur-[1px]"
-      contentClassName="fixed left-1/2 top-[14vh] z-50 w-[600px] max-w-[92vw] -translate-x-1/2 overflow-hidden rounded-2xl border border-line bg-surface shadow-2xl"
+      contentClassName="fixed left-1/2 top-[14vh] z-50 w-[600px] max-w-[92vw] -translate-x-1/2 overflow-hidden rounded-2xl border border-line bg-surface shadow-[var(--shadow-pop)]"
     >
       <Command.Input
         autoFocus
         placeholder="Type a command, session or project…"
-        className="selectable w-full border-b border-line bg-transparent px-4 py-3 text-[14px] outline-none placeholder:text-muted"
+        className="selectable w-full border-b border-line bg-transparent px-4 py-3 text-[13px] outline-none placeholder:text-muted"
       />
       <Command.List className="max-h-[56vh] overflow-y-auto p-1.5 [&_[cmdk-group-heading]]:px-2.5 [&_[cmdk-group-heading]]:pb-1 [&_[cmdk-group-heading]]:pt-2 [&_[cmdk-group-heading]]:text-[11px] [&_[cmdk-group-heading]]:font-semibold [&_[cmdk-group-heading]]:uppercase [&_[cmdk-group-heading]]:tracking-wide [&_[cmdk-group-heading]]:text-muted">
         <Command.Empty className="px-3 py-6 text-center text-muted">Nothing matches.</Command.Empty>

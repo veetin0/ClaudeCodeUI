@@ -150,7 +150,7 @@ function Toolbar() {
       </div>
       {job && (
         <div className={cn('mt-2 flex items-center gap-2 text-[12px]', job.status === 'error' ? 'text-danger-ink' : job.status === 'done' ? 'text-ok-ink' : 'text-muted')}>
-          {running && <span className="size-2 rounded-[2px] bg-accent" />}
+          {running && <span className="size-2 rounded-[2px] bg-ok" />}
           <span className="selectable min-w-0 flex-1 truncate" title={job.message}>
             {job.message}
           </span>
@@ -511,14 +511,14 @@ function Rehearsal({ script, onClose }: { script: PitchScript; onClose: () => vo
   const over = elapsed > script.targetSeconds
   const sceneLeft = bounds[idx].end - elapsed
   return (
-    <div className="fixed inset-0 z-50 flex flex-col bg-[#0f0f12] text-[#f4f2ee]">
+    <div className="rail fixed inset-0 z-50 flex flex-col">
       <div className="flex items-center gap-3 px-6 py-3 text-[13px]">
         <span className="font-semibold">Rehearsal</span>
         <span className="text-white/50">
           Scene {idx + 1} / {script.scenes.length}
         </span>
-        <span className={cn('ml-auto text-[22px] font-semibold num', over ? 'text-red-400' : '')}>
-          {fmt(elapsed)} <span className="text-[14px] text-white/40">/ {fmt(script.targetSeconds)}</span>
+        <span className={cn('ml-auto text-[22px] font-semibold num', over ? 'text-danger-ink' : '')}>
+          {fmt(elapsed)} <span className="text-[16px] text-muted">/ {fmt(script.targetSeconds)}</span>
         </span>
         <button onClick={onClose} className="rounded p-1.5 text-white/60 hover:bg-white/10 hover:text-white" title="Close (Esc)">
           <X className="size-5" />
@@ -526,9 +526,9 @@ function Rehearsal({ script, onClose }: { script: PitchScript; onClose: () => vo
       </div>
       <SectorMeter value={elapsed / Math.max(total, 1)} count={40} tone="live" height={6} className="mx-6" label="Rehearsal time" />
       <div className="flex flex-1 flex-col items-center justify-center px-16 text-center">
-        <div className="text-[14px] uppercase tracking-widest text-white/40">{scene.title}</div>
-        <div className="mt-6 max-w-4xl text-[38px] font-medium leading-snug">{scene.narration || <span className="text-white/30">(no narration: let the demo speak)</span>}</div>
-        <div className={cn('mt-8 text-[14px] num', sceneLeft < 3 ? 'text-amber-400' : 'text-white/40')}>{Math.max(0, sceneLeft).toFixed(0)} s left in this scene</div>
+        <div className="label-caps text-[12px]">{scene.title}</div>
+        <div className="mt-6 max-w-4xl text-[34px] font-medium leading-snug">{scene.narration || <span className="text-white/30">(no narration: let the demo speak)</span>}</div>
+        <div className={cn('num mt-8 text-[16px]', sceneLeft < 3 ? 'text-warn-ink' : 'text-muted')}>{Math.max(0, sceneLeft).toFixed(0)} s left in this scene</div>
         {script.scenes[idx + 1] && <div className="mt-10 max-w-3xl text-[16px] text-white/35">Next: {script.scenes[idx + 1].narration.slice(0, 140)}</div>}
       </div>
       <div className="flex items-center justify-center gap-3 pb-8">

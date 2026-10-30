@@ -28,7 +28,7 @@ export function NextStep({ session }: { session: SessionState }) {
         <span className="font-medium">{action.label}</span>
         <ArrowRight className="size-3.5 text-muted" />
       </button>
-      <button onClick={() => setHidden(`${session.id}:${action.id}`)} title="Hide this suggestion" className="rounded-full p-1 text-muted hover:bg-hover hover:text-fg">
+      <button onClick={() => setHidden(`${session.id}:${action.id}`)} title="Hide this suggestion" className="rounded-md p-1 text-muted hover:bg-hover hover:text-fg">
         <X className="size-3" />
       </button>
     </div>

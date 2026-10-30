@@ -205,7 +205,7 @@ function Weekend({ state, now }: { state: EventState; now: number }) {
           .filter((m) => m.kind === 'plan')
           .map((m) =>
             m.tEnd ? (
-              <div key={m.id} title={tip(m, tz)} className="absolute top-[40px] h-2 rounded-full bg-info/40" style={{ left: pct(m.t), width: `calc(${pct(m.tEnd)} - ${pct(m.t)})` }} />
+              <div key={m.id} title={tip(m, tz)} className="absolute top-[40px] h-2 rounded-sm bg-info/40" style={{ left: pct(m.t), width: `calc(${pct(m.tEnd)} - ${pct(m.t)})` }} />
             ) : (
               <Marker key={m.id} m={m} tz={tz} left={pct(m.t)} top={38} className={cn('size-2.5 rounded-[2px] bg-info', next?.id === m.id && 'ring-4 ring-info/25')} />
             ),
@@ -214,7 +214,7 @@ function Weekend({ state, now }: { state: EventState; now: number }) {
         {ms
           .filter((m) => m.kind === 'sleep' && m.tEnd)
           .map((m) => (
-            <div key={m.id} title={tip(m, tz)} className="absolute top-[58px] flex h-3 items-center overflow-hidden rounded bg-(--series-7)/40 px-1 text-[8.5px] text-white" style={{ left: pct(m.t), width: `calc(${pct(m.tEnd!)} - ${pct(m.t)})` }}>
+            <div key={m.id} title={tip(m, tz)} className="absolute top-[56px] flex h-4 items-center overflow-hidden rounded-sm bg-(--series-7)/40 px-1 text-[11px] leading-none text-white" style={{ left: pct(m.t), width: `calc(${pct(m.tEnd!)} - ${pct(m.t)})` }}>
               {m.label.replace('Sleep: ', '')}
             </div>
           ))}

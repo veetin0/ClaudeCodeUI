@@ -152,7 +152,7 @@ export function LineChart({
       </svg>
       {hovered && (
         <div
-          className="pointer-events-none absolute top-0 z-10 rounded-md border border-line bg-surface px-2 py-1 text-[11px] shadow-lg"
+          className="pointer-events-none absolute top-0 z-10 rounded-md border border-line bg-surface px-2 py-1 text-[11px] shadow-[var(--shadow-pop)]"
           style={{ left: Math.min(hx + 10, width - 130) }}
         >
           <div className="text-muted">

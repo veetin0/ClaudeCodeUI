@@ -242,7 +242,7 @@ function DayBars({ days }: { days: DayUsage[] }) {
       )}
       {h && hover !== null && (
         <div
-          className="pointer-events-none absolute z-10 min-w-[150px] rounded-lg border border-line bg-surface px-2.5 py-2 text-[12px] shadow-lg"
+          className="pointer-events-none absolute z-10 min-w-[150px] rounded-lg border border-line bg-surface px-2.5 py-2 text-[12px] shadow-[var(--shadow-pop)]"
           style={{
             left: Math.min(Math.max(0, pad.l + band * hover + band / 2 - 75), Math.max(0, width - 160)),
             top: 4,

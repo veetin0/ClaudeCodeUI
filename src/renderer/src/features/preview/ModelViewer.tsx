@@ -309,7 +309,7 @@ export default function ModelViewer({ path, session, version, blender }: { path:
           </div>
         )}
         {asking && (
-          <div className="absolute inset-x-2 bottom-2 flex gap-1.5 rounded-xl border border-line bg-surface p-2 shadow-2xl">
+          <div className="absolute inset-x-2 bottom-2 flex gap-1.5 rounded-xl border border-line bg-surface p-2 shadow-[var(--shadow-pop)]">
             <input
               value={text}
               onChange={(e) => setText(e.target.value)}

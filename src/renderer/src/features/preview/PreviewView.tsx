@@ -220,12 +220,12 @@ export function PreviewView({ session }: { session: SessionState }) {
           {showLog && server && <LogDrawer server={server} onClose={() => setShowLog(false)} />}
           {picking && (
             <div className="pointer-events-none absolute inset-x-0 top-2 flex justify-center">
-              <div className="rounded-sm bg-accent px-3 py-1 text-[12px] font-medium text-white shadow-lg">Click the element to change · Esc cancels</div>
+              <div className="rounded-sm bg-accent px-3 py-1 text-[12px] font-medium text-white shadow-[var(--shadow-pop)]">Click the element to change · Esc cancels</div>
             </div>
           )}
           {pickError && (
             <div className="absolute inset-x-0 top-2 flex justify-center">
-              <div className="flex items-center gap-2 rounded-lg bg-danger px-3 py-1 text-[12px] text-white shadow-lg">
+              <div className="flex items-center gap-2 rounded-lg bg-danger px-3 py-1 text-[12px] text-white shadow-[var(--shadow-pop)]">
                 {pickError}
                 <button onClick={() => setPickError(null)}>
                   <X className="size-3" />
@@ -265,7 +265,7 @@ function ChangeBox({ picked, session, onClose, onAgain }: { picked: { element: P
     }
   }
   return (
-    <div data-change-box className="absolute z-20 w-[340px] max-w-[calc(100%-16px)] rounded-xl border border-line bg-surface p-3 text-[12px] shadow-2xl" style={style}>
+    <div data-change-box className="absolute z-20 w-[340px] max-w-[calc(100%-16px)] rounded-xl border border-line bg-surface p-3 text-[12px] shadow-[var(--shadow-pop)]" style={style}>
       <div className="mb-2 flex items-start gap-2">
         {image && <img src={`data:${image.mediaType};base64,${image.data}`} alt="" className="max-h-14 max-w-24 shrink-0 rounded border border-line object-contain" />}
         <div className="min-w-0 flex-1">
@@ -327,7 +327,7 @@ function Starting({ server }: { server: PreviewServer }) {
         </>
       ) : (
         <>
-          <Loader2 className="size-5 animate-spin text-accent-ink" />
+          <Loader2 className="size-5 animate-spin text-muted" />
           <p className="text-muted">Starting {server.label}…</p>
           <p className="max-w-lg truncate font-mono text-[11px] text-muted">{server.log.at(-1)}</p>
         </>
@@ -338,7 +338,7 @@ function Starting({ server }: { server: PreviewServer }) {
 
 function LogDrawer({ server, onClose }: { server: PreviewServer; onClose: () => void }) {
   return (
-    <div className="absolute inset-x-0 bottom-0 h-56 border-t border-line bg-surface shadow-2xl">
+    <div className="absolute inset-x-0 bottom-0 h-56 border-t border-line bg-surface shadow-[var(--shadow-pop)]">
       <div className="flex items-center border-b border-line px-3 py-1 text-[12px] text-muted">
         {server.label} output
         <button onClick={onClose} className="ml-auto rounded p-0.5 hover:bg-hover">
@@ -357,7 +357,7 @@ function EmptyState({ session, hasRemotion, onStudio }: { session: SessionState;
       {hasRemotion ? (
         <>
           <Clapperboard className="size-7 text-accent-ink" />
-          <p className="text-[14px] font-semibold">Remotion project</p>
+          <p className="font-display text-[18px] font-semibold">Remotion project</p>
           <p className="max-w-sm text-muted">Start Remotion Studio to watch your compositions change live as Claude edits them. Render finished videos from the panel on the right.</p>
           <button onClick={onStudio} className="mt-1 flex items-center gap-1.5 rounded-lg bg-accent px-3.5 py-1.5 font-medium text-white hover:brightness-110">
             <Play className="size-3.5 fill-current" /> Start Studio
@@ -366,7 +366,7 @@ function EmptyState({ session, hasRemotion, onStudio }: { session: SessionState;
       ) : (
         <>
           <Globe className="size-7 text-muted" />
-          <p className="text-[14px] font-semibold">Nothing to preview yet</p>
+          <p className="font-display text-[18px] font-semibold">Nothing to preview yet</p>
           <p className="max-w-sm text-muted">
             {project?.devScripts.length
               ? 'Start a dev script from the menu above, or ask Claude to run the app; any local server it starts shows up here.'

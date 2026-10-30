@@ -166,7 +166,7 @@ function Member({ m, now }: { m: CrewMemberView; now: number }) {
           {m.usage.source === 'api-key' ? 'API key' : `${m.headroom}% left`}
         </span>
       </div>
-      <SectorMeter value={m.headroom / 100} tone={m.headroom <= 10 ? 'fail' : m.headroom <= 30 ? 'wait' : 'done'} height={3} className="mt-1.5" label="Plan usage left" />
+      <SectorMeter value={m.headroom / 100} tone={m.headroom <= 10 ? 'fail' : m.headroom <= 30 ? 'wait' : 'fill'} height={3} className="mt-1.5" label="Plan usage left" />
       {m.problem && <div className="selectable mt-1.5 text-[12px] text-warn-ink">{m.problem}</div>}
       {m.waiting && m.online && (
         <div className="mt-1.5 text-[12px] text-muted">

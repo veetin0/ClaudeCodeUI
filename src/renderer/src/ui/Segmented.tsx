@@ -41,9 +41,9 @@ export function Segmented<T extends string>({
         >
           {o.icon && <o.icon className="size-3.5" aria-hidden />}
           {o.label}
-          {o.dot && <span className={cn('size-1.5 rounded-[1px]', o.dot === 'live' ? 'bg-ok' : 'bg-accent')} />}
+          {o.dot && <span className={cn('size-1.5 rounded-[1px]', o.dot === 'live' ? 'bg-ok' : 'bg-info')} />}
           {o.badge !== undefined && o.badge !== '' && o.badge !== 0 && (
-            <span className="num rounded-sm bg-accent px-1 text-[12px] font-semibold leading-4 text-white">{o.badge}</span>
+            <span className="num rounded-sm bg-fg px-1 text-[12px] font-semibold leading-4 text-surface">{o.badge}</span>
           )}
         </button>
       ))}

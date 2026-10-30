@@ -38,9 +38,9 @@ export function ReplayBar({ sessionId }: { sessionId: string }) {
 
   return (
     <div className="mx-auto mb-4 w-full max-w-3xl px-6">
-      <div className="rounded-2xl border border-accent-ink/40 bg-surface p-3 shadow-[0_4px_24px_rgb(0_0_0/0.08)]">
+      <div className="rounded-xl border border-line bg-surface p-3 shadow-[var(--shadow-pop)]">
         <div className="mb-2 flex items-center gap-2 text-[12px]">
-          <span className="rounded bg-accent/15 px-1.5 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-accent-ink">Replay</span>
+          <span className="label-caps rounded-sm border border-line bg-surface-2 px-1.5 py-0.5 text-[11px]">Replay</span>
           <span className="num text-muted">
             {formatOffset(replay.t - bounds.start)} / {formatOffset(span)}
           </span>

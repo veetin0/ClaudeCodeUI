@@ -378,7 +378,7 @@ The ElevenLabs key is stored in the Keychain, or read from `ELEVENLABS_API_KEY`.
 
 ## Everyday polish
 
-- **Readable at a glance:** the sidebar is a dark rail in light and dark mode, and four colours each mean one thing: green is working, yellow is waiting for you, red failed, violet is the best result and the main button. Progress shows as segmented bars everywhere (the team run, HackForge phases, agent progress, tool calls, plan and context usage), and every time, cost and count is set in a condensed font with even-width digits.
+- **Readable at a glance:** the sidebar is a dark rail in light and dark mode, and four colours each mean one thing: green is working, yellow is waiting for you, red failed, violet is the best result and the main button. Progress shows as segmented bars everywhere (the team run, HackForge phases, agent progress, tool calls, plan and context usage), and every time, cost and count is set in a condensed font with even-width digits. [DESIGN.md](DESIGN.md) has the full design system.
 - **Native menu** with every command and its shortcut. It also makes ⌘C/⌘V/⌘Z work everywhere.
 - **⌘K command palette:** commands, places and tabs, open sessions, History, projects, and every action from the / menu.
 - **Notifications:** when Claude needs approval, or finishes a turn longer than 15 s, while Harness is in the background or you're looking at another session. Clicking a notification jumps to the session. You can turn them off in Settings.

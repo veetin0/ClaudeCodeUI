@@ -67,7 +67,7 @@ export function Card({
 export function Working({ children }: { children: ReactNode }) {
   return (
     <div className="flex items-center gap-2 text-[13px] text-muted">
-      <Loader2 className="size-4 animate-spin text-accent-ink" />
+      <Loader2 className="size-4 animate-spin text-muted" />
       {children}
     </div>
   )
@@ -78,5 +78,5 @@ export const useBusy = (label: string) => useRunStore((s) => s.busy === label)
 
 /** Usage left as sectors. */
 export function UsageBar({ pct }: { pct: number }) {
-  return <SectorMeter value={pct / 100} tone={pct <= 10 ? 'fail' : pct <= 30 ? 'wait' : 'done'} height={3} label="Plan usage left" />
+  return <SectorMeter value={pct / 100} tone={pct <= 10 ? 'fail' : pct <= 30 ? 'wait' : 'fill'} height={3} label="Plan usage left" />
 }

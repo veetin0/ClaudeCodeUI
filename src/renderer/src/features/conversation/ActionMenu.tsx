@@ -39,7 +39,7 @@ export function ActionMenu({
     list.current?.querySelector('[data-selected="true"]')?.scrollIntoView({ block: 'nearest' })
   }, [selected])
   return (
-    <div className="absolute bottom-full left-0 right-0 z-30 mb-2 overflow-hidden rounded-2xl border border-line bg-surface shadow-[0_8px_32px_rgb(0_0_0/0.14)]" role="listbox" aria-label="Actions">
+    <div className="absolute bottom-full left-0 right-0 z-30 mb-2 overflow-hidden rounded-xl border border-line bg-surface shadow-[var(--shadow-pop)]" role="listbox" aria-label="Actions">
       {filter && (
         <label className="flex items-center gap-2 border-b border-line px-3 py-2">
           <Search className="size-3.5 text-muted" />

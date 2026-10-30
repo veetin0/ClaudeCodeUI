@@ -60,7 +60,7 @@ export function MessageList({ session }: { session: SessionState }) {
         )}
         {working && !session.streamingText && !session.streamingThinking && (
           <div className="flex items-center gap-2 text-[12px] text-muted">
-            <span className="size-1.5 rounded-[2px] bg-accent" />
+            <span className="size-1.5 rounded-[2px] bg-ok" />
             {session.status === 'compacting' ? 'Compacting conversation…' : 'Working…'}
           </div>
         )}

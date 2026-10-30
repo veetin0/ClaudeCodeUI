@@ -112,7 +112,7 @@ function JobLine({ job, onCancel, onCapture }: { job: Kit3dJob; onCancel: () => 
           job.status === 'error' ? 'text-danger-ink' : job.status === 'done' ? 'text-ok-ink' : 'text-muted',
         )}
       >
-        {running && <Loader2 className="size-3.5 shrink-0 animate-spin text-accent-ink" />}
+        {running && <Loader2 className="size-3.5 shrink-0 animate-spin text-muted" />}
         <span className="selectable min-w-0 flex-1 truncate" title={job.message}>
           {job.message}
         </span>

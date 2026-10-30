@@ -35,9 +35,9 @@ export function QuestionCard({ req }: { req: PermissionRequest }) {
   }
 
   return (
-    <div className="rounded-xl border border-accent-ink/40 bg-accent/[0.05] p-3 shadow-sm">
+    <div className="rounded-lg border border-warn/50 bg-warn/[0.06] p-3">
       <div className="mb-2 flex items-center gap-2">
-        <MessageCircleQuestion className="size-4 text-accent-ink" />
+        <MessageCircleQuestion className="size-4 text-warn-ink" />
         <span className="font-medium">Claude has {questions.length === 1 ? 'a question' : `${questions.length} questions`}</span>
         {req.agentId && <span className="rounded bg-info/10 px-1.5 py-0.5 text-[11px] text-info-ink">subagent</span>}
       </div>

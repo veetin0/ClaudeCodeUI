@@ -14,8 +14,8 @@ import { layoutTree } from './layout'
 type AgentNodeData = { agent: AgentView }
 
 const STATE_RING: Record<string, string> = {
-  running: 'border-ok/70 shadow-[0_0_0_4px_rgb(16_185_129/0.12)]',
-  waiting: 'border-warn/80 shadow-[0_0_0_4px_rgb(245_158_11/0.15)]',
+  running: 'border-ok/70',
+  waiting: 'border-warn/80',
   failed: 'border-danger/60',
 }
 
@@ -29,7 +29,7 @@ function AgentNode({ data }: NodeProps<Node<AgentNodeData>>) {
   const recent = a.tools.slice(-8)
 
   return (
-    <div className={cn('w-[260px] rounded-xl border bg-surface p-3 text-[12px] shadow-sm', STATE_RING[a.state] ?? 'border-line')}>
+    <div className={cn('w-[260px] rounded-lg border bg-surface p-3 text-[12px]', STATE_RING[a.state] ?? 'border-line')}>
       <Handle type="target" position={Position.Top} className="!size-1.5 !border-0 !bg-muted" />
       <div className="flex items-center gap-2">
         <Icon className={cn('size-4 shrink-0', a.id === null ? 'text-accent-ink' : 'text-info-ink')} />

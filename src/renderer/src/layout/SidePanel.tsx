@@ -12,6 +12,7 @@ import { useApp } from '@/stores/app'
 import { useEvent } from '@/stores/event'
 import { useHackforge } from '@/stores/hackforge'
 import type { SessionState } from '@/stores/reducer'
+import { Sectors } from '@/ui/Sectors'
 
 /** The session's side panel: one scroll of what's happening, instead of four tabs. */
 export function SidePanel({ session }: { session: SessionState }) {
@@ -41,7 +42,7 @@ function Section({ title, count, countLabel, children, defaultOpen = true }: { t
         <ChevronRight className={cn('size-3.5 transition-transform', open && 'rotate-90')} />
         {title}
         {!!count && (
-          <span className="ml-auto rounded-sm bg-accent px-1.5 text-[11px] font-semibold normal-case leading-4 tracking-normal text-white">
+          <span className="num ml-auto rounded-sm bg-fg px-1.5 text-[12px] font-semibold normal-case leading-4 tracking-normal text-surface">
             {count}
             {countLabel && ` ${countLabel}`}
           </span>
@@ -66,18 +67,14 @@ function HackforgeSection({ session }: { session: SessionState }) {
   const isEvent = eventProject === session.cwd
   return (
     <Section title="HackForge">
-      <div className="space-y-2 rounded-xl border border-line bg-surface p-3 text-[12px]">
+      <div className="space-y-2 rounded-lg border border-line bg-surface p-3 text-[12px]">
         <div className="flex items-center gap-2">
           <Flame className="size-4 text-forge" />
           <span className="font-medium">{hf.initialized ? (hf.state.phase ? `Phase: ${hf.state.phase}` : 'Kicked off') : 'Ready for kickoff'}</span>
           {phase !== undefined && <span className="ml-auto num text-muted">{phase + 1} / {HACKFORGE_PHASES.length}</span>}
         </div>
         {phase !== undefined && (
-          <div className="flex gap-0.5">
-            {HACKFORGE_PHASES.map((p, i) => (
-              <span key={p} title={p} className={cn('h-1 flex-1 rounded-full', i < phase ? 'bg-accent' : i === phase ? 'bg-accent/60' : 'bg-line')} />
-            ))}
-          </div>
+          <Sectors items={HACKFORGE_PHASES.map((p, i) => ({ tone: i < phase ? 'done' : i === phase ? 'live' : 'todo', title: p }))} label="HackForge phases" />
         )}
         {hf.initialized && (
           <div className="flex gap-4 text-muted">

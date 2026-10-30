@@ -40,13 +40,13 @@ export function AgentDetail({ session }: { session: SessionState }) {
   return (
     <div className="absolute inset-0 z-30 flex justify-end bg-black/20 backdrop-blur-[1px]" onClick={closeAgent}>
       <div
-        className="flex h-full w-full max-w-[760px] flex-col border-l border-line bg-surface shadow-2xl"
+        className="flex h-full w-full max-w-[760px] flex-col border-l border-line bg-surface shadow-[var(--shadow-pop)]"
         onClick={(e) => e.stopPropagation()}
       >
         <header className="flex items-center gap-3 border-b border-line px-5 py-3">
           {agent.id === null ? <Sparkles className="size-5 text-accent-ink" /> : <Bot className="size-5 text-info-ink" />}
           <div className="min-w-0 flex-1">
-            <div className="truncate text-[14px] font-semibold">{agent.name}</div>
+            <div className="truncate font-display text-[18px] font-semibold">{agent.name}</div>
             <div className="truncate text-[12px] text-muted">
               {agent.role} · {agent.tools.length} tool calls
               {agent.totalTokens !== undefined && ` · ${formatTokens(agent.totalTokens)} tokens`}

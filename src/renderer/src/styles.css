@@ -265,6 +265,7 @@ body,
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .animate-spin,
   .sector-live,
   .caret::after {
     animation: none;

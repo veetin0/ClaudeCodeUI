@@ -36,7 +36,7 @@ export function PermissionCard({ req, primary }: { req: PermissionRequest; prima
   }, [primary, req.requestId, respond])
 
   return (
-    <div className="rounded-xl border border-warn/40 bg-warn/[0.06] p-3 shadow-sm">
+    <div className="rounded-lg border border-warn/50 bg-warn/[0.06] p-3">
       <div className="mb-2 flex items-center gap-2">
         <ShieldQuestion className="size-4 text-warn-ink" />
         <span className="font-medium">{req.title ?? `Allow ${toolDisplayName(req.toolName)}?`}</span>

@@ -51,7 +51,7 @@ export function ActionForm({ action, cwd, onClose }: { action: QuickAction; cwd:
 
   return (
     <div
-      className="mb-2 rounded-2xl border border-line bg-surface p-4 shadow-[0_4px_24px_rgb(0_0_0/0.08)]"
+      className="mb-2 rounded-xl border border-line bg-surface p-4 shadow-[var(--shadow-pop)]"
       onKeyDown={(e) => {
         if (e.key === 'Escape') {
           e.stopPropagation()

@@ -165,7 +165,7 @@ function ChallengeCard({ c, rank }: { c: Challenge; rank: number }) {
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">
             <span className="rounded-sm border border-line bg-surface-2 px-1.5 py-0.5 text-[12px] font-medium">{c.partner}</span>
-            <button onClick={() => setOpen(!open)} className="flex min-w-0 items-center gap-1 text-left text-[14px] font-semibold hover:text-accent-ink">
+            <button onClick={() => setOpen(!open)} className="flex min-w-0 items-center gap-1 text-left font-display text-[18px] font-semibold hover:text-accent-ink">
               {open ? <ChevronDown className="size-4 shrink-0" /> : <ChevronRight className="size-4 shrink-0" />}
               <span className="truncate">{c.title}</span>
             </button>
@@ -173,7 +173,7 @@ function ChallengeCard({ c, rank }: { c: Challenge; rank: number }) {
             {c.status !== 'candidate' && c.status !== 'chosen' && <span className="rounded bg-surface-2 px-1.5 py-0.5 text-[11px] text-muted">{STATUS_LABEL[c.status]}</span>}
             <div className="ml-auto flex items-center gap-1">
               {c.status === 'chosen' ? (
-                <span className="flex items-center gap-1 rounded-md bg-ok px-2 py-0.5 text-[12px] font-medium text-white">
+                <span className="flex items-center gap-1 rounded-sm bg-ok/15 px-2 py-0.5 text-[12px] font-semibold text-ok-ink">
                   <Star className="size-3 fill-current" /> Chosen
                 </span>
               ) : (

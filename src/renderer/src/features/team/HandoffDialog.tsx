@@ -87,7 +87,7 @@ export function HandoffDialog() {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-[2px]" onClick={close}>
-      <div className="flex max-h-[90vh] w-[620px] flex-col rounded-2xl border border-line bg-surface p-5 shadow-2xl" onClick={(e) => e.stopPropagation()}>
+      <div className="flex max-h-[90vh] w-[620px] flex-col rounded-2xl border border-line bg-surface p-5 shadow-[var(--shadow-pop)]" onClick={(e) => e.stopPropagation()}>
         <div className="mb-1 flex items-center gap-2">
           <Handshake className="size-4 text-accent-ink" />
           <h2 className="font-display text-[18px] font-semibold">Hand off to the team</h2>

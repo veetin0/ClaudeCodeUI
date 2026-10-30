@@ -156,7 +156,7 @@ export function Timeline({ session }: { session: SessionState }) {
 
       {hover && (
         <div
-          className="pointer-events-none absolute z-20 w-64 rounded-md border border-line bg-surface px-2.5 py-1.5 text-[11px] shadow-lg"
+          className="pointer-events-none absolute z-20 w-64 rounded-md border border-line bg-surface px-2.5 py-1.5 text-[11px] shadow-[var(--shadow-pop)]"
           style={{ left: Math.min(hover.x + 12, width - 270), top: hover.y + 12 }}
         >
           <div className="flex items-center gap-1.5">

@@ -52,7 +52,7 @@ export function Home() {
     <div className="min-h-0 flex-1 overflow-y-auto">
       <div className="mx-auto flex min-h-full w-full max-w-2xl flex-col justify-center px-6 py-10">
         <h1 className="font-display text-[34px] font-semibold leading-tight">What do you want to build?</h1>
-        <p className="mt-1.5 text-[14px] text-muted">Claude works in your project folder. Every tool call, agent and decision shows up live.</p>
+        <p className="mt-1.5 text-[13px] text-muted">Claude works in your project folder. Every tool call, agent and decision shows up live.</p>
 
         <div className="mt-6 rounded-xl border border-line bg-surface shadow-[0_6px_20px_-8px_rgb(21_22_29/0.18)] focus-within:border-accent-ink/60">
           <textarea
@@ -67,7 +67,7 @@ export function Home() {
             }}
             rows={3}
             placeholder="Describe it, or leave it empty to just open the folder…"
-            className="selectable block w-full resize-none bg-transparent px-4 pt-3.5 pb-1 text-[14px] leading-relaxed outline-none placeholder:text-muted"
+            className="selectable block w-full resize-none bg-transparent px-4 pt-3.5 pb-1 text-[13px] leading-relaxed outline-none placeholder:text-muted"
           />
           <div className="flex items-center gap-2 px-3 pb-3">
             <Menu

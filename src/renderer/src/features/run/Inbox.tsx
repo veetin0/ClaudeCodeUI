@@ -24,7 +24,7 @@ export function Inbox({ empty }: { empty?: string }) {
     <Card
       icon={<InboxIcon className="size-4 text-accent-ink" />}
       title="Inbox"
-      aside={count > 0 && <span className="rounded-sm bg-accent px-2 text-[11px] font-semibold text-white">{count}</span>}
+      aside={count > 0 && <span className="num rounded-sm bg-warn px-2 text-[12px] font-semibold text-rail">{count}</span>}
       className={cn(count > 0 && 'border-accent-ink/40')}
     >
       {!count && <div className="text-[12px] text-muted">{empty}</div>}
