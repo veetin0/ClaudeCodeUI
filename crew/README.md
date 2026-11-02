@@ -12,10 +12,10 @@ npx -y harness-crew HT1.xxxxxxxx      # the command on the lead's Team screen
 harness-crew 0.2.0  lend your Claude to the team
 ✓ Claude: signed in
 ✓ Joined the team as Anna
-✓ Connected. Veeti's Claude leads the project and hands out the missions.
+✓ Connected. Alex's Claude leads the project and hands out the missions.
 ✓ Project ready in ~/harness-crew/mini-junction
 
-▶ m-3fa2c M1 frontend: request form · from Veeti · sonnet · branch crew/anna/m-3fa2c
+▶ m-3fa2c M1 frontend: request form · from Alex · sonnet · branch crew/anna/m-3fa2c
   12:04  Read src/App.tsx
   12:04  Edit src/pages/Request.tsx
   12:05  Bash: npm test

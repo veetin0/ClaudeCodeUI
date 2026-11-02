@@ -131,7 +131,7 @@ function harness(o: { crew?: CrewMemberView[]; usage?: PlanUsage } = {}) {
   const run = new RunService({
     now: () => now,
     push: (s) => states.push(structuredClone(s)),
-    team: { me: () => ({ id: 'lead', name: 'Veeti' }), start: async () => undefined, myUsage: () => usage.value },
+    team: { me: () => ({ id: 'lead', name: 'Alex' }), start: async () => undefined, myUsage: () => usage.value },
     crew: {
       assign: async (_sid, _cwd, specs, opts) => {
         assigned.push({ specs, avoid: opts.avoid })

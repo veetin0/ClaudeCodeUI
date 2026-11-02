@@ -161,7 +161,7 @@ describe('crew driver bookkeeping', () => {
   /** A small committed project, and an in-memory team server. */
   const project = () => {
     const dir = mkdtempSync(join(tmpdir(), 'crew-lead-'))
-    sh('git init -q -b main && git config user.name Veeti && git config user.email v@example.com', dir)
+    sh('git init -q -b main && git config user.name Alex && git config user.email v@example.com', dir)
     writeFileSync(join(dir, 'README.md'), '# app\n')
     sh('git add -A && git commit -q -m init', dir)
     return dir
@@ -176,7 +176,7 @@ describe('crew driver bookkeeping', () => {
     const dir = project()
     const files = memoryFiles()
     const driver = new CrewDriver({
-      me: () => ({ id: 'me', name: 'Veeti' }),
+      me: () => ({ id: 'me', name: 'Alex' }),
       myUsage: () => ({ source: 'unknown' }),
       nudge: () => {},
       push: () => {},
@@ -242,7 +242,7 @@ describe('crew driver bookkeeping', () => {
     const files = memoryFiles()
     let inTeam = false
     const driver = new CrewDriver({
-      me: () => (inTeam ? { id: 'me', name: 'Veeti' } : null),
+      me: () => (inTeam ? { id: 'me', name: 'Alex' } : null),
       myUsage: () => ({ source: 'unknown' }),
       nudge: () => {},
       push: () => {},
@@ -420,7 +420,7 @@ describe('crew mode end to end', () => {
   beforeAll(async () => {
     // No GitHub, no remote at all: the project and the work travel through the team server.
     sh(`git init -q -b main "${driverDir}"`)
-    sh('git config user.name Veeti && git config user.email v@example.com', driverDir)
+    sh('git config user.name Alex && git config user.email v@example.com', driverDir)
     writeFileSync(join(driverDir, 'README.md'), '# Mini\n')
     sh('git add -A && git commit -q -m init', driverDir)
     server = createServer(createRelay())
@@ -430,7 +430,7 @@ describe('crew mode end to end', () => {
     // eslint-disable-next-line prefer-const
     let driverTeam: TeamService
     driver = new CrewDriver({
-      me: () => ({ id: 'drv00001', name: 'Veeti' }),
+      me: () => ({ id: 'drv00001', name: 'Alex' }),
       myUsage: () => ({ source: 'plan', fiveHour: { pct: 80 } }),
       nudge: () => {},
       push: (s) => (driverState = s),
@@ -440,7 +440,7 @@ describe('crew mode end to end', () => {
       files: { put: (fid, data) => driverTeam.putFile(fid, data), get: (fid) => driverTeam.getFile(fid) },
       tmpDir: join(root, 'lead-tmp'),
     })
-    driverTeam = makeTeam('drv00001', 'Veeti', { payload: () => driver.payload(), received: (e) => driver.received(e), fast: () => driver.fast() })
+    driverTeam = makeTeam('drv00001', 'Alex', { payload: () => driver.payload(), received: (e) => driver.received(e), fast: () => driver.fast() })
     void driverTeam
 
     addCrew('anna0001', 'Anna', async ({ cwd, crew, text, canUseTool }) => {

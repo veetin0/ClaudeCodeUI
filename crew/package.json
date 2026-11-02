@@ -31,6 +31,7 @@
     "hackforge"
   ],
   "author": "Veeti Nurmikoski",
+  "license": "MIT",
   "homepage": "https://github.com/veetin0/ClaudeCodeUI#crew-mode",
   "repository": {
     "type": "git",

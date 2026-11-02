@@ -42,7 +42,7 @@ function Setup({ suggestedNames }: { suggestedNames: string[] }) {
       </p>
       <label className="mb-3 block max-w-xs">
         <div className="mb-1 text-[12px] font-medium">Your name</div>
-        <input value={name} onChange={(e) => setName(e.target.value)} placeholder={names[0] ?? 'e.g. Veeti'} list="team-names" className={field} />
+        <input value={name} onChange={(e) => setName(e.target.value)} placeholder={names[0] ?? 'e.g. Alex'} list="team-names" className={field} />
         <datalist id="team-names">
           {names.map((n) => (
             <option key={n} value={n} />

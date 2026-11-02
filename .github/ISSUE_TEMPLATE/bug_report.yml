@@ -1,0 +1,49 @@
+name: Bug report
+description: Something in Harness doesn't work the way it should
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to report this. Please don't paste API keys, tokens or private project content; replace them with placeholders.
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened?
+      description: What you did, what you expected, and what happened instead.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Open a session in …
+        2. Press …
+        3. See …
+  - type: dropdown
+    id: os
+    attributes:
+      label: Operating system
+      options:
+        - macOS (Apple Silicon)
+        - macOS (Intel)
+        - Windows
+        - Linux
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Harness version or commit
+      description: The commit you built from (`git log -1 --oneline`), or the installer you used.
+  - type: input
+    id: claude
+    attributes:
+      label: Claude Code version
+      description: Output of `claude --version`.
+  - type: textarea
+    id: logs
+    attributes:
+      label: Screenshots or logs
+      description: Screenshots help a lot. Error text from the terminal you ran `npm run dev` in, or from View › Toggle Developer Tools › Console.

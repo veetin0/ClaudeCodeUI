@@ -13,7 +13,7 @@ Audience and job: a developer running Claude Code for hours beside an editor, an
 
 Memorable moment: progress everywhere reads as live timing — segmented sector bars and condensed tabular readouts, so the state of the work is legible from across the room.
 
-Unresolved: the owner has not seen this direction (the session ran unattended; the roll was degraded with no challengers).
+Unresolved: none recorded.
 
 ## Direction contract
 

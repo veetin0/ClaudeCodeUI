@@ -29,7 +29,7 @@ rest of the brief only uses their names.
 | **CHECKS** | UI textures and a contact sheet first, then ~18 half-res stills, then the full render | Look before spending compute |
 | **SOUND** | Synthesized only (no samples): a beat at the film's BPM that drops on the pop, an effect for every event landing on its frame, the voice on top, a limiter at −1 dBFS | Every hit lands; no licensing questions |
 
-Example (the Harness film, `promo/forge-film` in Harness):
+Example (the Harness promo film):
 - **HERO:** "Forge, a soft anvil-shaped blob, stubby legs, a tiny hammer, warm orange #EE8A4A".
 - **FACE:** "tall black eye slits with a glint, small brows, a mouth that opens into a D, a tongue when it concentrates".
 - **PROBLEM:** "Hackathons are chaos. Five people, five Claudes, and nobody knows who's doing what", with the cards "Who's on the API?", "Merge conflict!", "Out of usage" and "36 h left".
@@ -37,7 +37,7 @@ Example (the Harness film, `promo/forge-film` in Harness):
 - **BEATS:**
   1. The light clunks on and Forge wakes up. "Hi! I'm Forge!"
   2. The worried problem line while the cards pop up; it swats them, "Harness fixes that. Come on!", and the screen powers on.
-  3. It jumps through the glass onto Your name and types "Veeti", stomps Start, presses Copy (teammates turn ready), then Continue.
+  3. It jumps through the glass onto Your name and types "Alex", stomps Start, presses Copy (teammates turn ready), then Continue.
   4. It types the challenge into Setup and stamps the files in (they fly into the drop zones), then Continue.
   5. It stamps Accept and run.
   6. It walks along the milestones, each one filling with a rising ding, and lands on Done (confetti, ^^ eyes).
@@ -57,7 +57,7 @@ Example (the Harness film, `promo/forge-film` in Harness):
     zoom crops and enlarges), the dark colour scheme emulated, and each target's rectangle saved.
   - Typing fields are captured at every step of their text, with no caret.
   - For an Electron app, `launch()` it with Playwright's `_electron` and push states over IPC
-    (`promo/forge-film/capture_ui.mjs` in Harness does this).
+    (the Harness promo film was captured this way).
 - `voice.py`: per line, a WAV (Kokoro with a Praat character treatment, ElevenLabs, or the team's
   own recordings), its duration, and the mouth shapes over time read from the audio.
 - `scene/`: Three.js in headless Chromium, every frame a pure function of time

@@ -10,3 +10,11 @@ __pycache__/
 # impeccable: review captures and the local roll record stay on this machine
 .impeccable/review/
 .impeccable/questions/
+
+# Local Claude Code settings and secrets never belong in the repo
+.claude/settings.local.json
+.env
+.env.*
+*.pem
+*.p12
+*.key

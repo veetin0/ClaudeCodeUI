@@ -36,7 +36,7 @@ protected your PC". Click **More info → Run anyway**.
 
 ## 3. What's different on Windows
 
-- **Shortcuts:** Ctrl instead of ⌘ (Ctrl+6 event mode, Ctrl+K palette, Ctrl+J terminal…). The labels
+- **Shortcuts:** Ctrl instead of ⌘ (Ctrl+4 Hackathon, Ctrl+K palette, Ctrl+J terminal…). The labels
   in the app follow your OS.
 - **Window:** the standard Windows title bar and menu bar (File / Edit / View / Window).
 - **Terminal tabs:** open PowerShell. Set `HARNESS_SHELL=pwsh.exe` to use PowerShell 7 instead.
@@ -57,13 +57,13 @@ Git on Windows may convert files to Windows line endings (CRLF) when it checks t
 then fail with errors like `$'\r': command not found`. That would break HackForge's `.hackforge/gate.sh`
 for whoever is on Windows.
 
-Setting up the event project in Harness (event mode → *Create or pick a folder*) adds a `.gitattributes`
+Setting up the event project in Harness (Hackathon › ⋯ → *Set up a new event project…*) adds a `.gitattributes`
 that keeps `*.sh`, `*.bash` and `*.py` at Unix line endings. Commit it **before** anyone on Windows
 clones the repo.
 
 ## 5. HackForge on Windows
 
-HackForge is built into Harness (2.4.0), and HackForge 1.1 and later handle Windows themselves:
+HackForge is built into Harness (2.10.0), and HackForge 1.1 and later handle Windows themselves:
 - a launcher finds a working Python and skips the Microsoft Store stub
 - hooks still run if Git converted scripts to CRLF
 - Git Bash is used instead of WSL's bash
@@ -79,8 +79,8 @@ It reports bash, Python, git and line endings, and ends with `RESULT: OK` or wha
 
 ## 6. Quick check on a Windows laptop
 
-1. Harness starts, and **Ctrl+6** opens event mode.
+1. Harness starts, and **Ctrl+4** opens the Hackathon.
 2. *New session* in a folder: Claude answers, and the Files panel lights up as it reads and edits files.
 3. **Ctrl+J** opens a PowerShell tab, and `git --version`, `node -v` and `python --version` all work there.
-4. Event mode → Pitch → *Install Remotion*, then *Preview & render* → **Start Studio** shows the video.
+4. Hackathon › Pitch → *Install Remotion*, then *Preview & render* → **Start Studio** shows the video.
 5. Join the team board with the join code; your card shows up on the other laptops.

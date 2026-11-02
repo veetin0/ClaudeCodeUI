@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // Copies a HackForge plugin into resources/hackforge, the copy Harness ships and loads into sessions.
-//   npm run hackforge:sync -- ~/Desktop/hackforge-marketplace     (the marketplace folder)
-//   npm run hackforge:sync -- ~/Desktop/hackforge-marketplace/hackforge   (or the plugin folder itself)
+//   npm run hackforge:sync -- ~/src/hackforge-marketplace     (the marketplace folder)
+//   npm run hackforge:sync -- ~/src/hackforge-marketplace/hackforge   (or the plugin folder itself)
 // It won't replace the built-in copy with an older version unless you add --force.
 import { cpSync, existsSync, readFileSync, rmSync } from 'node:fs'
 import { basename, join, resolve } from 'node:path'

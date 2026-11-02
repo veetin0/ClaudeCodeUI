@@ -256,7 +256,7 @@ ${pasted.trim()}
 }
 
 export function analyzePrompt(onlyId?: string): string {
-  return `Analyze the hackathon challenge${onlyId ? '' : 's'} in ${onlyId ? `${CHALLENGES_DIR}/${onlyId}.md` : `${CHALLENGES_DIR}/*.md`} for our team (4 people, similar strengths, ~40 h of build time, Claude Code + HackForge, theme "European Tech Renaissance: who moves the center of gravity?"). Read challenge/event.yaml, challenge/prompts/ and challenge/brief/ for context. Research the partner company and what it would value (use web search if available).
+  return `Analyze the hackathon challenge${onlyId ? '' : 's'} in ${onlyId ? `${CHALLENGES_DIR}/${onlyId}.md` : `${CHALLENGES_DIR}/*.md`} for our team, which builds with Claude Code + HackForge. Read challenge/event.yaml (team size, theme, schedule), challenge/hackforge.yaml (build hours), challenge/prompts/ and challenge/brief/ for context. Research the partner company and what it would value (use web search if available).
 
 For each challenge, add an \`ai:\` block to the file's front matter and leave everything else exactly as it is (description, notes, team scores, status):
 

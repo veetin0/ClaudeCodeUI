@@ -49,8 +49,8 @@ describe('Junction 2026 preset', () => {
     expect(fri.stage).toBe('during')
     expect(fri.next?.id).toBe('decision')
     expect(fri.nextDeadline?.id).toBe('preliminary')
-    const satNight = eventClock(junction, at('2026-11-15T01:00Z')) // 03:00 Helsinki
-    expect(satNight.ongoing.map((m) => m.id)).toEqual(['sleep-b2'])
+    const satNight = eventClock(junction, at('2026-11-14T02:00Z')) // 04:00 Helsinki
+    expect(satNight.ongoing.map((m) => m.id)).toEqual(['sleep-1'])
     expect(satNight.nextDeadline?.id).toBe('final')
     expect(eventClock(junction, at('2026-11-16T00:00Z')).stage).toBe('after')
   })

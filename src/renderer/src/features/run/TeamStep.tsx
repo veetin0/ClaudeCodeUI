@@ -34,7 +34,7 @@ export function TeamStep() {
             value={name}
             onChange={(e) => setName(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && name.trim() && void act('start', () => window.harness.runStartTeam(name.trim()))}
-            placeholder="e.g. Veeti"
+            placeholder="e.g. Alex"
             autoFocus
             className="selectable mt-1 w-full rounded-lg border border-line bg-surface-2 px-3 py-2 outline-none focus:border-accent-ink"
           />
