@@ -1,0 +1,118 @@
+name: Release
+
+# Push a tag like v0.2.0 to build the macOS and Windows apps and publish them as a GitHub Release.
+# Run it by hand (Actions › Release › Run workflow) to build without publishing; the apps are then
+# attached to the run as artifacts.
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  mac:
+    runs-on: macos-latest # Apple silicon
+    timeout-minutes: 45
+    env:
+      # Optional. With these secrets set the app is signed with your Developer ID and notarized;
+      # without them it is ad-hoc signed and macOS asks for confirmation the first time it opens.
+      CSC_LINK: ${{ secrets.CSC_LINK }}
+      CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
+      APPLE_ID: ${{ secrets.APPLE_ID }}
+      APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
+      APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Check the tag matches package.json
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: |
+          version="v$(node -p "require('./package.json').version")"
+          if [ "$version" != "$GITHUB_REF_NAME" ]; then echo "Tag $GITHUB_REF_NAME but package.json says $version"; exit 1; fi
+      - run: npm ci
+      - run: npx electron-vite build
+      - name: Package (Developer ID, notarized)
+        if: env.CSC_LINK != ''
+        run: npx electron-builder --mac --arm64 --publish never
+      - name: Package (ad-hoc signed)
+        if: env.CSC_LINK == ''
+        run: npx electron-builder --mac --arm64 --publish never -c.mac.identity=-
+      - name: Check the signature
+        run: |
+          codesign --verify --deep --strict --verbose=2 dist/mac-arm64/Harness.app
+          codesign -dv dist/mac-arm64/Harness.app 2>&1 | grep -E 'Identifier|Authority|Signature|flags'
+      - name: Check the app starts
+        run: |
+          dist/mac-arm64/Harness.app/Contents/MacOS/Harness > launch.log 2>&1 &
+          pid=$!
+          sleep 20
+          if ! kill -0 "$pid" 2>/dev/null; then echo "Harness exited during startup"; cat launch.log; exit 1; fi
+          kill "$pid"
+          echo "Harness was still running after 20 s"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: mac
+          path: |
+            dist/*.dmg
+            dist/*.zip
+          if-no-files-found: error
+
+  windows:
+    runs-on: windows-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npx electron-vite build
+      - run: npx electron-builder --win --x64 --publish never
+      - name: Check the app starts
+        shell: pwsh
+        run: |
+          $p = Start-Process -FilePath dist\win-unpacked\Harness.exe -PassThru
+          Start-Sleep -Seconds 20
+          if ($p.HasExited) { Write-Error "Harness exited during startup (code $($p.ExitCode))"; exit 1 }
+          Stop-Process -Id $p.Id -Force
+          Write-Output "Harness was still running after 20 s"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows
+          path: dist/Harness-Setup-*.exe
+          if-no-files-found: error
+
+  release:
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: [mac, windows]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: assets
+          merge-multiple: true
+      - run: ls -la assets
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: assets/*
+          generate_release_notes: true
+          body: |
+            ## Download
+
+            - **macOS (Apple silicon):** the `.dmg` below. Open it and drag Harness to Applications.
+            - **Windows (x64):** `Harness-Setup-….exe` below.
+
+            You also need [Claude Code](https://docs.claude.com/en/docs/claude-code) installed and logged in, or an Anthropic API key.
+
+            **First open:** builds that aren't notarized by Apple or signed for Windows make your computer ask once.
+            - macOS: right-click Harness in Applications → **Open** → **Open**. On macOS 15 or newer, try to open it once, then go to System Settings › Privacy & Security and click **Open Anyway**. If macOS says the app is "damaged", run `xattr -cr /Applications/Harness.app` in Terminal and open it again.
+            - Windows: on the SmartScreen warning click **More info** → **Run anyway**.

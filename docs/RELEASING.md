@@ -1,5 +1,23 @@
 # Releasing Harness
 
+## Publish a release (GitHub Actions)
+
+Releases are built on GitHub by [`.github/workflows/release.yml`](../.github/workflows/release.yml): an Apple silicon `.dmg` and `.zip` on a macOS runner, and an x64 installer on a Windows runner. Each build is launched once to check it starts.
+
+1. Bump `version` in `package.json` (and `package-lock.json`, e.g. `npm version 0.2.0 --no-git-tag-version`), then commit and push to `main`.
+2. Tag the commit and push the tag:
+   ```bash
+   git tag v0.2.0
+   git push origin v0.2.0
+   ```
+3. The workflow builds both apps and publishes the GitHub Release with the files attached and notes generated from the merged pull requests. Edit the notes on GitHub afterwards if you like.
+
+To try a build without publishing, run the workflow by hand (Actions › Release › **Run workflow**). The apps are then attached to the run as artifacts.
+
+**Signing:**
+- **macOS:** without secrets the app is ad-hoc signed, and people confirm it once on first open (see the README). To sign with your Developer ID and notarize, add these repository secrets: `CSC_LINK` (your Developer ID Application certificate as a base64 `.p12`), `CSC_KEY_PASSWORD`, `APPLE_ID`, `APPLE_APP_SPECIFIC_PASSWORD` and `APPLE_TEAM_ID`.
+- **Windows:** the installer is unsigned, so SmartScreen asks once ("More info → Run anyway").
+
 ## Build for yourself or your team (macOS)
 
 ```bash

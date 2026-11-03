@@ -11,7 +11,7 @@ You'll get a reply as soon as possible, usually within a week. Once a fix is out
 
 ## Supported versions
 
-Harness has no versioned releases yet. Security fixes go to the `main` branch; please test against the latest `main` before reporting.
+Security fixes go to the `main` branch and ship in the next [release](https://github.com/veetin0/ClaudeCodeUI/releases). Please check that the problem still happens in the latest release or on `main` before reporting.
 
 ## What's in scope
 

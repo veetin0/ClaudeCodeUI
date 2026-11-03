@@ -18,9 +18,11 @@ Windows binaries.
 If Claude Code can't find Git Bash, set `CLAUDE_CODE_GIT_BASH_PATH` to
 `C:\Program Files\Git\bin\bash.exe` (System Properties → Environment Variables), then restart Harness.
 
-## 2. Run or build Harness
+## 2. Install, run or build Harness
 
-Open **PowerShell** in the repository folder:
+**Install:** download `Harness-Setup-….exe` from the [latest release](https://github.com/veetin0/ClaudeCodeUI/releases/latest) and run it. It isn't signed yet, so on the SmartScreen warning click **More info** → **Run anyway**. You still want Node.js and Python for the pitch video, Remotion previews and HackForge's hooks.
+
+**Or run it from source:** open **PowerShell** in the repository folder:
 
 ```powershell
 npm install

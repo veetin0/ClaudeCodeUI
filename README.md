@@ -7,6 +7,7 @@
 **Watch Claude Code work, live.**
 A desktop app that runs Claude Code and shows every agent, tool call, file change and token as it happens.
 
+[![Latest release](https://img.shields.io/github/v/release/veetin0/ClaudeCodeUI?label=download&color=1f9d55)](https://github.com/veetin0/ClaudeCodeUI/releases/latest)
 [![CI](https://github.com/veetin0/ClaudeCodeUI/actions/workflows/ci.yml/badge.svg)](https://github.com/veetin0/ClaudeCodeUI/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-7a2fd0.svg)](LICENSE)
 ![Platforms: macOS and Windows](https://img.shields.io/badge/platform-macOS%20%7C%20Windows-15161d.svg)
@@ -41,12 +42,27 @@ Claude Code is powerful, but in a terminal most of what it does scrolls past. Ha
 
 ## Get started
 
-**You need:**
-- [Claude Code](https://docs.claude.com/en/docs/claude-code) installed and logged in (Harness uses your existing login), or an Anthropic API key
-- [Node.js](https://nodejs.org) 22 or newer, and git
-- macOS (Apple Silicon) or Windows. On Windows, follow [docs/WINDOWS.md](docs/WINDOWS.md) first
+### Download
 
-**Run it from source:**
+Get the latest version from **[Releases](https://github.com/veetin0/ClaudeCodeUI/releases/latest)**:
+
+- **macOS** (Apple silicon): the `.dmg`. Open it and drag Harness to Applications.
+- **Windows** (x64): `Harness-Setup-….exe`.
+
+You also need [Claude Code](https://docs.claude.com/en/docs/claude-code) installed and logged in (Harness uses your existing login), or an Anthropic API key. On Windows, Claude Code also needs [Git for Windows](https://git-scm.com/download/win); see [docs/WINDOWS.md](docs/WINDOWS.md).
+
+**The first time you open it:** the builds aren't notarized by Apple or signed for Windows yet, so your computer asks once.
+- **macOS:** right-click Harness in Applications → **Open** → **Open**. On macOS 15 or newer, try to open it once, then click **Open Anyway** in System Settings › Privacy & Security. If macOS says the app is "damaged", run `xattr -cr /Applications/Harness.app` in Terminal and open it again.
+- **Windows:** on the SmartScreen warning, click **More info** → **Run anyway**.
+
+On an Intel Mac, run it from source (below).
+
+### Run it from source
+
+**You need:**
+- [Claude Code](https://docs.claude.com/en/docs/claude-code) installed and logged in, or an Anthropic API key
+- [Node.js](https://nodejs.org) 22 or newer, and git
+- macOS or Windows. On Windows, follow [docs/WINDOWS.md](docs/WINDOWS.md) first
 
 ```bash
 git clone https://github.com/veetin0/ClaudeCodeUI.git
@@ -57,9 +73,9 @@ npm run dev
 
 Pick a folder, type what you want built, and press Enter.
 
-**Build an app you can install:** `npm run build:mac` (a `.dmg`) or `npm run build:win` (an installer), both in `dist/`. Unsigned builds need a right-click → **Open** the first time on macOS. Signing and notarizing are in [docs/RELEASING.md](docs/RELEASING.md).
+**Build an app you can install:** `npm run build:mac` (a `.dmg`) or `npm run build:win` (an installer), both in `dist/`. Signing, notarizing and publishing a release are in [docs/RELEASING.md](docs/RELEASING.md). To update a source checkout later: `git pull && npm install`.
 
-Harness loads your usual `~/.claude` settings, `CLAUDE.md` files, MCP servers and skills. To update later: `git pull && npm install`.
+Harness loads your usual `~/.claude` settings, `CLAUDE.md` files, MCP servers and skills.
 
 ## Hackathon mode
 
