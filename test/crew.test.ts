@@ -509,9 +509,12 @@ describe('crew mode end to end', () => {
     // The waiting crew_wait gets the message (sent before the work)…
     expect(first).toMatch(new RegExp(`Message from Anna \\(about ${id}\\):\nFeature is exported from feature.txt`))
 
-    // …and the report, with nobody waiting, arrives in the session as a "[crew]" turn.
+    // …and the report, with nobody waiting, arrives in the session as a "[crew]" turn. The mission
+    // reads done as soon as Anna reports it; the report follows once her branch is imported.
     await until(() => driverState?.missions.find((m) => m.id === id)?.state === 'done')
-    const report = delivered.find((d) => d.sessionId === 's1' && d.text.includes('finished'))?.text ?? ''
+    const finished = () => delivered.find((d) => d.sessionId === 's1' && d.text.includes('finished'))?.text
+    await until(() => !!finished())
+    const report = finished() ?? ''
     expect(report).toMatch(new RegExp(`Anna's Claude finished ${id} "Feature"`))
     expect(report).toMatch(new RegExp(`Branch crew/anna/${id} is in your repository \\(1 commit, 1 file: feature.txt\\)`))
     expect(report).toMatch(/Report: Added feature.txt; checks pass./)
@@ -527,7 +530,8 @@ describe('crew mode end to end', () => {
   it('moves a mission to someone with usage left when a plan runs out, continuing from the work that arrived', async () => {
     const out = await driver.dispatch('s1', driverDir, [{ title: 'Big job', brief: 'Write both halves', to: 'Anna' }])
     const id = /✓ (m-[0-9a-f]+)/.exec(out)![1]
-    await until(() => driverState?.missions.some((m) => m.continues === id && m.state === 'done') ?? false, 30_000)
+    // Done shows as soon as Ben reports; settled means his branch is imported here too.
+    await until(() => driverState?.missions.some((m) => m.continues === id && m.state === 'done' && driver.settled(m.id)) ?? false, 30_000)
     const moved = driverState!.missions.find((m) => m.continues === id)!
     expect(moved.toName).toBe('Ben')
     expect(moved.from).toBe(`crew/anna/${id}`)
@@ -551,7 +555,7 @@ describe('crew mode end to end', () => {
     expect(out).toMatch(/✗ "Nowhere": there's no branch no-such-branch/)
     const id = /✓ (m-[0-9a-f]+)/.exec(out)![1]
     expect(driver.payload()!.missions.find((m) => m.id === id)?.at).toBe(sh('git rev-parse HEAD', driverDir))
-    await until(() => driverState?.missions.find((m) => m.id === id)?.state === 'done', 30_000)
+    await until(() => driverState?.missions.find((m) => m.id === id)?.state === 'done' && driver.settled(id), 30_000)
     expect(sh(`git show crew/ben/${id}:later.txt`, driverDir)).toBe('committed after the first share')
     expect(sh(`git show crew/ben/${id}:second-half.txt`, driverDir)).toBe('second half')
   })
