@@ -40,3 +40,17 @@ describe('app store with a saved (not running) session', () => {
     expect(calls).toEqual(['resume acceptEdits claude-sonnet-5-5', 'send'])
   })
 })
+
+describe('panels over the place you are in', () => {
+  it('shows one of Team board, Usage and Settings at a time', () => {
+    const app = useApp.getState()
+    app.setSettingsOpen(true)
+    app.setTeamOpen(true)
+    expect(useApp.getState()).toMatchObject({ teamOpen: true, settingsOpen: false, usageOpen: false })
+    app.setUsageOpen(true)
+    expect(useApp.getState()).toMatchObject({ teamOpen: false, usageOpen: true })
+    app.setTeamOpen(true)
+    app.setSettingsOpen(true)
+    expect(useApp.getState()).toMatchObject({ teamOpen: false, settingsOpen: true })
+  })
+})

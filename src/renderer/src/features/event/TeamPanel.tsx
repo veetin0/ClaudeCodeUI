@@ -12,12 +12,13 @@ import { SectorMeter } from '@/ui/Sectors'
 
 /**
  * The team board: every teammate's Harness reports what they're on, their sessions, plan usage and
- * HackForge state through a relay, so four laptops and four Claude plans read as one team. It shows
- * under the team run once you're in a team (Build's Team step starts one; JoinTeam joins one).
+ * HackForge state through a relay, so four laptops and four Claude plans read as one team. It opens
+ * from the Hackathon header's Team button once you're in a team (Build's Team step starts one;
+ * JoinTeam joins one). `bare`: no frame or heading of its own (inside the Team sheet).
  */
-export function TeamPanel({ timezone, now }: { timezone: string; now: number }) {
+export function TeamPanel({ timezone, now, bare }: { timezone: string; now: number; bare?: boolean }) {
   const state = useTeamState()
-  return state?.config ? <Board timezone={timezone} now={now} /> : null
+  return state?.config ? <Board timezone={timezone} now={now} bare={bare} /> : null
 }
 
 const time = (tz: string) => (ms: number) => formatInZone(ms, tz, { hour: '2-digit', minute: '2-digit', hourCycle: 'h23' })
@@ -50,7 +51,7 @@ export function JoinTeam({ defaultName = '' }: { defaultName?: string }) {
   )
 }
 
-function Board({ timezone, now }: { timezone: string; now: number }) {
+function Board({ timezone, now, bare }: { timezone: string; now: number; bare?: boolean }) {
   const state = useTeamState()!
   const { leave, error } = useTeam()
   const [copied, setCopied] = useState(false)
@@ -59,10 +60,14 @@ function Board({ timezone, now }: { timezone: string; now: number }) {
   const advice = usageAdvice(state.members, now, time(timezone))
   const code = makeJoinCode(config.hosting && state.hostUrls?.[0] ? state.hostUrls[0] : config.relayUrl, config.token)
   return (
-    <section className="rounded-2xl border border-line p-4">
+    <section className={cn(!bare && 'rounded-2xl border border-line p-4')}>
       <div className="mb-3 flex flex-wrap items-center gap-2">
-        <Users className="size-4 text-accent-ink" />
-        <h2 className="text-[13px] font-semibold">Team board</h2>
+        {!bare && (
+          <>
+            <Users className="size-4 text-accent-ink" />
+            <h2 className="text-[13px] font-semibold">Team board</h2>
+          </>
+        )}
         <span className="text-[11px] text-muted">
           {online.length} / {state.members.length} online
         </span>

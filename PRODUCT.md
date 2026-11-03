@@ -29,7 +29,7 @@ A desktop cockpit for Claude Code that shows the work as it happens rather than 
 ## Operating Context
 
 - Long sessions; the app stays open beside an editor. Light and dark mode both follow the system (`prefers-color-scheme`).
-- Three places: **Home**, **Session** (Chat · Agents · Preview) and **Hackathon** (Build · Challenges · Pitch). Usage and Settings open as sheets.
+- Three places: **Home**, **Session** (Chat · Agents · Preview) and **Hackathon** (Build · Challenges · Pitch). Usage, Settings and the Team board open as sheets.
 - The prompt box does everything: a Next step chip, the **/** menu, and a mode chip. ⌘K finds every command, place, session and action.
 - Hackathon weekends: countdowns, deadlines, an inbox of permission prompts, a team board.
 

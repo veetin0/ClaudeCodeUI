@@ -17,6 +17,7 @@ import { useTeamReporter } from './stores/team'
 import { useResetQueueRunner } from './stores/resetQueue'
 import { HandoffDialog } from './features/team/HandoffDialog'
 import { UsageSheet } from './features/usage/UsageView'
+import { TeamSheet } from './features/team/TeamSheet'
 
 const VIEW_KEYS: Record<string, CommandId> = { '1': 'view-chat', '2': 'view-agents', '3': 'view-preview', '4': 'hackathon', '5': 'usage' }
 
@@ -42,6 +43,7 @@ export function App() {
   const place = useApp((s) => s.place)
   const panelOpen = useApp((s) => s.panelOpen)
   const usageOpen = useApp((s) => s.usageOpen)
+  const teamOpen = useApp((s) => s.teamOpen)
   useTeamReporter()
   useResetQueueRunner()
   useLaunchPlace()
@@ -73,6 +75,7 @@ export function App() {
       if (app.settingsOpen) app.setSettingsOpen(false)
       else if (app.handoffFor) app.openHandoff(null)
       else if (app.usageOpen) app.setUsageOpen(false)
+      else if (app.teamOpen) app.setTeamOpen(false)
       else if (app.actionForm && app.place === 'session') app.setActionForm(null)
       else if (app.place === 'hackathon' && app.activeId) app.leaveHackathon()
       else if (app.replay) app.setReplay(null)
@@ -109,6 +112,7 @@ export function App() {
         <TerminalPanel />
       </main>
       {usageOpen && <UsageSheet />}
+      {teamOpen && <TeamSheet />}
       <SettingsDialog />
       <HandoffDialog />
       <CommandPalette />

@@ -75,6 +75,8 @@ interface AppState {
   startError: string | null
   /** Usage history, as a sheet over the current place. */
   usageOpen: boolean
+  /** The team board, over whatever place you're in (from the Hackathon header's Team button). */
+  teamOpen: boolean
   /** Session whose handoff dialog is open. */
   handoffFor: string | null
 
@@ -94,6 +96,7 @@ interface AppState {
   /** Opens a teammate's handed-off work: a session in its folder with the first message ready. */
   takeOver(dir: string, prompt: string): Promise<void>
   setUsageOpen(open: boolean): void
+  setTeamOpen(open: boolean): void
   goHome(): void
   /** The Hackathon place, on a tab (or the one it was on). */
   openHackathon(tab?: HackathonTab): void
@@ -174,6 +177,7 @@ export const useApp = create<AppState>((set, get) => ({
   terminalHeight: 260,
   startError: null,
   usageOpen: false,
+  teamOpen: false,
   handoffFor: null,
 
   async init() {
@@ -348,7 +352,8 @@ export const useApp = create<AppState>((set, get) => ({
     get().setDraft(prompt)
   },
 
-  setUsageOpen: (usageOpen) => set({ usageOpen, ...(usageOpen ? { settingsOpen: false } : {}) }),
+  setUsageOpen: (usageOpen) => set({ usageOpen, ...(usageOpen ? { settingsOpen: false, teamOpen: false } : {}) }),
+  setTeamOpen: (teamOpen) => set({ teamOpen, ...(teamOpen ? { settingsOpen: false, usageOpen: false } : {}) }),
   goHome: () => set({ place: 'home', replay: null }),
   openHackathon: (tab) => set((st) => ({ place: 'hackathon', hackathonTab: tab ?? st.hackathonTab })),
   leaveHackathon: () => set((st) => ({ place: st.activeId ? 'session' : 'home' })),
@@ -427,7 +432,7 @@ export const useApp = create<AppState>((set, get) => ({
   setDraft: (text) =>
     set((st) => (st.activeId ? { drafts: { ...st.drafts, [st.activeId]: text } } : {})),
   toggleFocusMode: () => set((st) => ({ focusMode: !st.focusMode })),
-  setSettingsOpen: (settingsOpen, tab) => set((st) => ({ settingsOpen, settingsTab: tab ?? st.settingsTab, ...(settingsOpen ? { usageOpen: false } : {}) })),
+  setSettingsOpen: (settingsOpen, tab) => set((st) => ({ settingsOpen, settingsTab: tab ?? st.settingsTab, ...(settingsOpen ? { usageOpen: false, teamOpen: false } : {}) })),
   setPaletteOpen: (paletteOpen) => set({ paletteOpen }),
   setActionForm: (actionForm) => set({ actionForm }),
 

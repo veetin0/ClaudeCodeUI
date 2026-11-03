@@ -1,6 +1,6 @@
 # Hackathon mode
 
-The **Hackathon** place (⌘4) carries one project from an empty laptop to a finished entry, in three tabs: **Build** (the team run and the team board), **Challenges** (the challenge board and your API keys) and **Pitch** (the pitch video). It works for any hackathon; a generic *Weekend Hackathon* example is built in.
+The **Hackathon** place (⌘4) carries one project from an empty laptop to a finished entry, in three tabs: **Build** (the team run), **Challenges** (the challenge board and your API keys) and **Pitch** (the pitch video). Once you're in a team, the **Team** button in its header opens the team board. It works for any hackathon; a generic *Weekend Hackathon* example is built in.
 
 ← [Back to the README](../README.md)
 
@@ -26,7 +26,7 @@ Harness opens on the Hackathon while a run is planning or running. Your sessions
 
 ### Team board
 
-Once you're in a team, the **team board** shows under the team run on **Build**: every teammate's laptop in one place. Each teammate keeps using their own Claude login, and their Harness shares a small status through a relay:
+Once you're in a team, the **Team** button in the Hackathon's header (or ⌘K → Team board) opens the **team board** over the page: every teammate's laptop in one place. Each teammate keeps using their own Claude login, and their Harness shares a small status through a relay:
 - what they're working on and their git branch
 - their open sessions, with what the agent is doing right now
 - their HackForge phase and score

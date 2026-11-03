@@ -20,6 +20,7 @@ import {
   Plus,
   Presentation,
   Settings,
+  Users,
   Square,
   SquareTerminal,
   type LucideIcon,
@@ -57,11 +58,12 @@ const COMMANDS: { id: CommandId; label: string; icon: LucideIcon; keys?: string 
 const PLACES: { label: string; icon: LucideIcon; go: () => void }[] = [
   ...(
     [
-      ['build', 'Hackathon › Build: team run, team board and HackForge score', Hammer],
-      ['challenges', 'Hackathon › Challenges and partner APIs', Lightbulb],
+      ['build', 'Hackathon › Build: team run and HackForge score', Hammer],
+      ['challenges', 'Hackathon › Challenges and API keys', Lightbulb],
       ['pitch', 'Hackathon › Pitch: script, narration, 3D clips', Presentation],
     ] as [HackathonTab, string, LucideIcon][]
   ).map(([tab, label, icon]) => ({ label, icon, go: () => useApp.getState().openHackathon(tab) })),
+  { label: 'Team board: teammates, handoffs, file conflicts', icon: Users, go: () => useApp.getState().setTeamOpen(true) },
   ...(
     [
       ['cards', 'Agents › Cards', LayoutGrid],

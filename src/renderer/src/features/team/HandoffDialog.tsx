@@ -102,7 +102,7 @@ export function HandoffDialog() {
         {!inTeam ? (
           <div className="rounded-lg bg-warn/[0.08] px-3 py-2 text-[12px]">
             Handoffs go through the team board. Start or join the team first (Hackathon › Build).
-            <button onClick={() => (close(), useApp.getState().openHackathon('build'))} className="ml-2 font-medium text-accent-ink hover:underline">
+            <button onClick={() => (close(), useApp.getState().setTeamOpen(true))} className="ml-2 font-medium text-accent-ink hover:underline">
               Open the team
             </button>
           </div>

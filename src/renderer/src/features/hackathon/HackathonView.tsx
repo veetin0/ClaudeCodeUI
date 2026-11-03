@@ -1,7 +1,8 @@
-import { CalendarClock, FolderOpen, FolderPlus, Hammer, Link2Off, Lightbulb, MessageSquare, Presentation, Rocket } from 'lucide-react'
+import { CalendarClock, FolderOpen, FolderPlus, Hammer, Link2Off, Lightbulb, MessageSquare, Presentation, Rocket, Users } from 'lucide-react'
 import { useApp, type HackathonTab } from '@/stores/app'
 import { useEvent, useEventState, useNow } from '@/stores/event'
 import { useTeamState } from '@/stores/team'
+import { isOnline } from '@shared/team'
 import { useRun } from '@/stores/run'
 import { useHackforge } from '@/stores/hackforge'
 import { cn } from '@/lib/format'
@@ -10,7 +11,6 @@ import { sessionIn } from '@/lib/projects'
 import { Menu, menuItems } from '@/ui/Menu'
 import { Segmented } from '@/ui/Segmented'
 import { ChallengeBoard, Notice } from '../event/ChallengeBoard'
-import { TeamPanel } from '../event/TeamPanel'
 import { PartnerKits } from '../event/PartnerKits'
 import { PitchStudio } from '../event/PitchStudio'
 import { HackforgeView } from '../hackforge/HackforgeView'
@@ -46,25 +46,14 @@ export function HackathonView() {
   )
 }
 
-/**
- * The team run's steps; under them the team board once you're in a team, and from Run on the
- * HackForge dashboard for the project.
- */
+/** The team run's steps; from Run on, the HackForge dashboard for the project sits under the board. */
 function BuildTab() {
   const run = useRun()
   const event = useEventState()
-  const team = useTeamState()
-  const now = useNow(30_000)
   const dir = run.project?.dir ?? event?.projectDir
   const hf = useHackforge(dir)
-  const timezone = event?.config.timezone ?? Intl.DateTimeFormat().resolvedOptions().timeZone
   return (
     <TeamRun>
-      {team?.config && (
-        <div className="mx-auto max-w-5xl px-6 pb-6">
-          <TeamPanel timezone={timezone} now={now} />
-        </div>
-      )}
       {dir && (run.stage === 'run' || run.stage === 'done' || hf?.initialized) && (
         <div className="mx-auto max-w-5xl px-6 pb-6">
           <div className="border-t border-line pt-5">
@@ -92,6 +81,9 @@ export function HackathonBar() {
   const { linkExisting, setupProject, link } = useEvent()
   const dir = event?.projectDir ?? run.project?.dir
   const chosen = event?.challenges.some((c) => c.status === 'chosen')
+  const team = useTeamState()
+  const now = useNow(30_000)
+  const online = team?.members.filter((m) => isOnline(m, now)).length ?? 0
   return (
     <>
       <div className="min-w-0 max-w-[260px]">
@@ -118,6 +110,19 @@ export function HackathonBar() {
       />
       <div className="ml-auto flex min-w-0 items-center gap-2">
         {run.next && !sameText(run.next, h.status) && <span className="hidden min-w-0 truncate text-muted xl:inline">{run.next}</span>}
+        {team?.config && (
+          <button
+            onClick={() => useApp.getState().setTeamOpen(true)}
+            title="Team board: teammates, plan usage, handoffs and file conflicts"
+            className="flex shrink-0 items-center gap-1.5 rounded-md border border-line px-2 py-1 text-[12px] hover:bg-hover"
+          >
+            <Users className="size-3.5 text-accent-ink" />
+            Team
+            <span className="num text-muted">
+              {online}/{team.members.length}
+            </span>
+          </button>
+        )}
         <Menu
           items={menuItems(
             dir && { label: 'Open the project in a session', icon: MessageSquare, hint: dir, onSelect: () => void sessionIn(dir) },
