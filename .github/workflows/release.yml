@@ -22,8 +22,8 @@ jobs:
       # An empty CSC_LINK must not reach electron-builder, so the secrets go to the signed step only.
       HAS_DEVELOPER_ID: ${{ secrets.CSC_LINK != '' }}
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
         with:
           node-version: 22
           cache: npm
@@ -50,6 +50,8 @@ jobs:
         run: |
           codesign --verify --deep --strict --verbose=2 dist/mac-arm64/Harness.app
           codesign -dv dist/mac-arm64/Harness.app 2>&1 | grep -E 'Identifier|Authority|Signature|flags'
+      - name: Check the bundled Claude Code runs
+        run: dist/mac-arm64/Harness.app/Contents/Resources/app.asar.unpacked/node_modules/@anthropic-ai/claude-agent-sdk-darwin-arm64/claude --version
       - name: Check the app starts
         run: |
           dist/mac-arm64/Harness.app/Contents/MacOS/Harness > launch.log 2>&1 &
@@ -70,14 +72,21 @@ jobs:
     runs-on: windows-latest
     timeout-minutes: 45
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
         with:
           node-version: 22
           cache: npm
       - run: npm ci
       - run: npx electron-vite build
       - run: npx electron-builder --win --x64 --publish never
+      - name: Check the bundled Claude Code runs
+        shell: pwsh
+        run: |
+          $claude = Get-ChildItem dist\win-unpacked\resources\app.asar.unpacked\node_modules\@anthropic-ai\claude-agent-sdk-win32-x64 -Filter 'claude*.exe' | Select-Object -First 1
+          if (-not $claude) { Write-Error "No Claude Code binary in the package"; exit 1 }
+          & $claude.FullName --version
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       - name: Check the app starts
         shell: pwsh
         run: |
