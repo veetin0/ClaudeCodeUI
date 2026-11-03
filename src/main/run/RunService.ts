@@ -820,9 +820,16 @@ export class RunService {
     })
   }
 
-  /** A fresh start (the project folder stays on disk). */
+  /**
+   * A fresh start from any step (the project folder stays on disk): crew tasks stop, your Claude
+   * stops what it's doing, and nothing is left waiting for an answer.
+   */
   reset(): Promise<void> {
-    return this.serial(() => {
+    return this.serial(async () => {
+      for (const t of this.s.tasks)
+        if (t.state !== 'done' && t.assignee.kind === 'crew' && t.assignee.mission) this.deps.crew.stop(t.assignee.mission, 'The lead started the run over.')
+      for (const req of Object.values(this.i.requests)) this.decline(req.requestId, 'The lead started the run over.')
+      if (this.s.sessionId && this.i.inTurn && this.deps.lead.status(this.s.sessionId)) await this.deps.lead.interrupt(this.s.sessionId)
       this.s = structuredClone(EMPTY_RUN)
       this.i = structuredClone(EMPTY_INTERNAL)
       this.deps.onProject?.(undefined)
@@ -947,6 +954,32 @@ export class RunService {
         }
       }
     })
+  }
+
+  /**
+   * Removes an inbox item without answering it. A permission request or question your Claude is
+   * waiting on is declined, so it carries on instead of hanging.
+   */
+  dismiss(id: string): Promise<void> {
+    return this.serial(() => {
+      const item = this.s.inbox.find((x) => x.id === id)
+      if (!item) return
+      const req = this.i.requests[id]
+      this.drop(id)
+      if (req) this.decline(req.requestId, 'The lead dismissed this; carry on without it.')
+      this.log(`Dismissed: ${item.title.slice(0, 120)}`)
+    })
+  }
+
+  /** Declines a pending permission request of the lead's session, if that session is still running. */
+  private decline(requestId: string, message: string) {
+    const sid = this.s.sessionId
+    if (!sid || !this.deps.lead.status(sid)) return
+    try {
+      this.deps.lead.respond(sid, requestId, { behavior: 'deny', message })
+    } catch {
+      // The session closed in the meantime: nothing is waiting any more.
+    }
   }
 
   // ---------- bookkeeping ----------

@@ -304,6 +304,8 @@ export interface HarnessApi {
   runAccept(): Promise<void>
   runRevise(change: string): Promise<void>
   runAnswer(itemId: string, a: { allow?: boolean; always?: boolean; answers?: Record<string, string>; text?: string }): Promise<void>
+  /** Removes an inbox item without answering it (a waiting request is declined). */
+  runDismiss(itemId: string): Promise<void>
   runPause(): Promise<void>
   runResume(): Promise<void>
   runStop(): Promise<void>
@@ -453,6 +455,7 @@ export const IPC = {
   runAccept: 'run:accept',
   runRevise: 'run:revise',
   runAnswer: 'run:answer',
+  runDismiss: 'run:dismiss',
   runPause: 'run:pause',
   runResume: 'run:resume',
   runStop: 'run:stop',

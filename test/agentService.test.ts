@@ -1,3 +1,6 @@
+import { mkdtempSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import type { HarnessEvent } from '@shared/events'
 import { AgentService, type QueryFactory } from '../src/main/agent/AgentService'
@@ -12,6 +15,8 @@ function setup(factory: QueryFactory) {
 }
 
 const tick = () => new Promise((r) => setTimeout(r, 10))
+/** Sessions only start in folders that exist. */
+const folder = (name: string) => mkdtempSync(join(tmpdir(), `agent-${name}-`))
 
 describe('AgentService', () => {
   it('adds per-folder guidance (HackForge mode) to the system prompt', () => {
@@ -21,9 +26,10 @@ describe('AgentService', () => {
       return Object.assign((async function* () {})(), { interrupt: async () => {} })
     }) as unknown as QueryFactory
     const bus = { emit: () => {} } as unknown as EventBus
-    const svc = new AgentService({ bus, getEnv: () => ({}), queryFactory: factory, promptAppend: (cwd) => (cwd === '/hack' ? 'USE HACKFORGE' : undefined) })
-    const a = svc.start({ cwd: '/hack' })
-    const b = svc.start({ cwd: '/other' })
+    const hack = folder('hack')
+    const svc = new AgentService({ bus, getEnv: () => ({}), queryFactory: factory, promptAppend: (cwd) => (cwd === hack ? 'USE HACKFORGE' : undefined) })
+    const a = svc.start({ cwd: hack })
+    const b = svc.start({ cwd: folder('other') })
     expect(seen[0].append).toMatch(/USE HACKFORGE$/)
     expect(seen[1].append).not.toMatch(/HACKFORGE/)
     svc.close(a.id)
@@ -132,10 +138,11 @@ describe('AgentService resume', () => {
       return Object.assign(run(), { interrupt: async () => {} })
     }) as unknown as QueryFactory
     const { svc, events } = setup(factory)
-    const summary = { id: 'saved-1', cwd: '/proj', title: 'Old', createdAt: 1, updatedAt: 1, costUsd: 0.4 }
+    const proj = folder('proj')
+    const summary = { id: 'saved-1', cwd: proj, title: 'Old', createdAt: 1, updatedAt: 1, costUsd: 0.4 }
     const out = svc.start({ cwd: '/ignored' }, { summary, claudeSessionId: 'claude-abc', todos: [] })
     expect(out.id).toBe('saved-1')
-    expect(options).toMatchObject({ resume: 'claude-abc', cwd: '/proj' })
+    expect(options).toMatchObject({ resume: 'claude-abc', cwd: proj })
     expect(events[0]).toMatchObject({ type: 'session.resumed', sessionId: 'saved-1', claudeSessionId: 'claude-abc' })
     svc.close('saved-1')
   })
@@ -148,7 +155,7 @@ describe('AgentService resume', () => {
       return Object.assign(run(), { interrupt: async () => {} })
     }) as unknown as QueryFactory
     const { svc, events } = setup(factory)
-    const { id } = svc.start({ cwd: '/p' })
+    const { id } = svc.start({ cwd: folder('p') })
     svc.close(id)
     const count = events.length
     expect(events.at(-1)).toMatchObject({ type: 'status', status: 'closed' })
@@ -189,5 +196,19 @@ describe('AgentService when the Claude process crashes', () => {
     expect(events.some((e) => e.type === 'file.change')).toBe(false)
     svc.close(id)
     rmSync(dir, { recursive: true, force: true })
+  })
+
+  it('says the folder is gone instead of starting a session there (new or resumed)', () => {
+    let started = 0
+    const factory = (() => {
+      started++
+      return Object.assign((async function* () {})(), { interrupt: async () => {} })
+    }) as unknown as QueryFactory
+    const { svc } = setup(factory)
+    const gone = join(tmpdir(), 'agent-deleted-folder-that-does-not-exist')
+    expect(() => svc.start({ cwd: gone })).toThrow(/agent-deleted-folder-that-does-not-exist no longer exists \(it was moved, renamed or deleted\)/)
+    const summary = { id: 'saved-2', cwd: gone, title: 'Old', createdAt: 1, updatedAt: 1, costUsd: 0 }
+    expect(() => svc.start({ cwd: folder('x') }, { summary, claudeSessionId: 'claude-def', todos: [] })).toThrow(/no longer exists/)
+    expect(started).toBe(0)
   })
 })

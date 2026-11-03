@@ -5,6 +5,7 @@ import { basename, cn } from '@/lib/format'
 import { useApp } from '@/stores/app'
 import { useRun, useRunStore } from '@/stores/run'
 import { Card, Primary, Secondary, useBusy } from './parts'
+import { Inbox } from './Inbox'
 
 const PLANS: { id: ClaudePlan; label: string }[] = [
   { id: 'pro', label: 'Pro' },
@@ -146,6 +147,8 @@ function Inputs() {
           <Drop kind="challenge" files={setup?.files.challenge ?? []} hint="The brief, rules, judging criteria: PDFs, docs, screenshots" />
         </Card>
         <div className="grid content-start gap-4">
+          {/* Back from Plan, your Claude may still be waiting on you: answer or dismiss it here. */}
+          <Inbox />
           <Card icon={<Paperclip className="size-4 text-accent-ink" />} title="Files">
             <p className="mb-2 text-[12px] text-muted">Data, APIs docs, brand kits, assets. Claude reads them and so do teammates’ Claudes.</p>
             <Drop kind="files" files={setup?.files.files ?? []} hint="Drop files or folders here" />

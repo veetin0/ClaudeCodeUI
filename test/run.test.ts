@@ -117,7 +117,9 @@ function harness(o: { crew?: CrewMemberView[]; usage?: PlanUsage } = {}) {
   let now = NOW
   const sent: string[] = []
   const responses: { requestId: string; d: PermissionDecision }[] = []
-  let status: SessionStatus = 'idle'
+  const stopped: string[] = []
+  let interrupts = 0
+  let status: SessionStatus | undefined = 'idle'
   let listener: ((e: MissionEvent) => void) | undefined
   const assigned: { specs: MissionSpec[]; avoid?: string[] }[] = []
   const missions = new Map<string, MissionView>()
@@ -162,7 +164,7 @@ function harness(o: { crew?: CrewMemberView[]; usage?: PlanUsage } = {}) {
       },
       mission: (id) => missions.get(id),
       members: () => crew.list,
-      stop: (id) => `stopped ${id}`,
+      stop: (id) => (stopped.push(id), `stopped ${id}`),
     },
     lead: {
       send: (_id, text) => {
@@ -171,7 +173,7 @@ function harness(o: { crew?: CrewMemberView[]; usage?: PlanUsage } = {}) {
       },
       status: () => status,
       respond: (_sid, requestId, d) => void responses.push({ requestId, d }),
-      interrupt: () => undefined,
+      interrupt: () => void interrupts++,
     },
     hackforge: async () => ({ milestones, config: { loopEnabled: true }, loop: undefined, decision: { title: 'Grid Pulse', text: '' } }),
     contracts: async () => contracts,
@@ -207,6 +209,12 @@ function harness(o: { crew?: CrewMemberView[]; usage?: PlanUsage } = {}) {
     run,
     sent,
     responses,
+    stopped,
+    get interrupts() {
+      return interrupts
+    },
+    /** undefined: the lead's session isn't running (closed, or Harness restarted). */
+    setLeadStatus: (s: SessionStatus | undefined) => (status = s),
     assigned,
     missions,
     crew,
@@ -428,6 +436,62 @@ describe('team run', () => {
     await h.run.answer(decision.id, {})
     await h.endTurn({ text: 'still planning' })
     expect(h.sent.at(-1)).toContain('The lead answered your question "Cut the leaderboard?": Yes, it is not judged.')
+  })
+
+  it('dismisses inbox items: a waiting request or question is declined, a decision just goes', async () => {
+    const h = harness()
+    await planned(h)
+    const ask = (requestId: string, toolName: string, input: Record<string, unknown>) =>
+      h.ev('permission.request', { requestId, toolUseId: requestId, agentId: null, toolName, input, canAlwaysAllow: false })
+    h.run.onEvents([
+      ask('r1', 'Bash', { command: 'rm -rf build' }),
+      ask('r2', 'AskUserQuestion', { questions: [{ question: 'Which stack?', options: [{ label: 'Next.js' }] }] }),
+    ])
+    h.run.ask({ question: 'Cut the leaderboard?', suggestion: 'Yes' })
+    await h.run.whenIdle()
+    const [approval, question, decision] = h.run.state().inbox
+    await h.run.dismiss(approval.id)
+    await h.run.dismiss(question.id)
+    await h.run.dismiss(decision.id)
+    expect(h.responses).toEqual([
+      { requestId: 'r1', d: { behavior: 'deny', message: 'The lead dismissed this; carry on without it.' } },
+      { requestId: 'r2', d: { behavior: 'deny', message: 'The lead dismissed this; carry on without it.' } },
+    ])
+    expect(h.run.state().inbox).toEqual([])
+    expect(h.run.state().log.at(-1)?.text).toBe('Dismissed: Cut the leaderboard?')
+    // Nothing goes back to Claude for a dismissed decision.
+    await h.endTurn({ text: 'planning' })
+    expect(h.sent.some((t) => t.includes('Cut the leaderboard?'))).toBe(false)
+  })
+
+  it('dismisses a request from a session that is no longer running without answering it', async () => {
+    const h = harness()
+    await planned(h)
+    h.run.onEvents([h.ev('permission.request', { requestId: 'r9', toolUseId: 't9', agentId: null, toolName: 'Bash', input: { command: 'ls' }, canAlwaysAllow: false })])
+    await h.run.whenIdle()
+    h.setLeadStatus(undefined)
+    await h.run.dismiss(h.run.state().inbox[0].id)
+    expect(h.responses).toEqual([])
+    expect(h.run.state().inbox).toEqual([])
+  })
+
+  it('starts over from any step: crew tasks stop, Claude is interrupted, waiting requests are declined', async () => {
+    const h = harness()
+    await planned(h)
+    h.setMilestones([{ id: 'M1', goal: 'a', status: 'todo' }])
+    await h.endTurn()
+    await h.run.acceptPlan()
+    h.setContracts([h.contract('M1', 3)])
+    await h.endTurn()
+    expect(h.run.state().stage).toBe('run')
+    h.run.onEvents([h.ev('permission.request', { requestId: 'r5', toolUseId: 't5', agentId: null, toolName: 'Bash', input: { command: 'docker ps' }, canAlwaysAllow: false })])
+    await h.run.whenIdle()
+    await h.run.reset()
+    expect(h.stopped).toEqual(['m-1', 'm-2'])
+    expect(h.interrupts).toBe(1)
+    expect(h.responses).toEqual([{ requestId: 'r5', d: { behavior: 'deny', message: 'The lead started the run over.' } }])
+    expect(h.run.state()).toMatchObject({ stage: 'team', inbox: [], tasks: [] })
+    expect(h.run.state().project).toBeUndefined()
   })
 
   it('remembers the run across a restart, and needs the lead’s session reconnected', async () => {

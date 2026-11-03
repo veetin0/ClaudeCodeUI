@@ -1,4 +1,4 @@
-import { HelpCircle, Inbox as InboxIcon, MessageSquare, ShieldQuestion, Sparkles } from 'lucide-react'
+import { HelpCircle, Inbox as InboxIcon, MessageSquare, ShieldQuestion, Sparkles, X } from 'lucide-react'
 import { useState } from 'react'
 import type { CrewAskView } from '@shared/crew'
 import type { InboxItem } from '@shared/run'
@@ -43,6 +43,8 @@ export function Inbox({ empty }: { empty?: string }) {
 const answer = (id: string, a: Parameters<typeof window.harness.runAnswer>[1]) =>
   useRunStore.getState().act(`answer-${id}`, () => window.harness.runAnswer(id, a))
 
+const dismiss = (id: string) => useRunStore.getState().act(`answer-${id}`, () => window.harness.runDismiss(id))
+
 function Item({ item }: { item: InboxItem }) {
   const Icon = item.kind === 'approval' ? ShieldQuestion : item.kind === 'question' ? HelpCircle : item.kind === 'decision' ? Sparkles : MessageSquare
   return (
@@ -55,6 +57,17 @@ function Item({ item }: { item: InboxItem }) {
             {item.from} · {relativeTime(item.at)}
           </div>
         </div>
+        {/* Harness's own decisions steer the run, so they're answered, not dismissed. */}
+        {!(item.kind === 'decision' && item.from === 'Harness') && (
+          <button
+            onClick={() => void dismiss(item.id)}
+            title={item.kind === 'approval' || item.kind === 'question' ? 'Dismiss (your Claude is told no and carries on)' : 'Dismiss'}
+            aria-label="Dismiss"
+            className="-mr-1 -mt-0.5 rounded p-1 text-muted hover:bg-surface hover:text-fg"
+          >
+            <X className="size-3.5" />
+          </button>
+        )}
       </div>
       {item.kind === 'approval' && <Approval item={item} />}
       {item.kind === 'question' && <Questions item={item} />}

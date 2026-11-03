@@ -328,7 +328,8 @@ class AgentSession {
     } catch (err) {
       if (!this.abort.signal.aborted) {
         const detail = this.stderrTail.join('').trim()
-        const message = err instanceof Error ? err.message : String(err)
+        // A folder that vanished makes spawning fail with ENOENT, which the SDK words as a broken binary.
+        const message = !isFolder(this.summary.cwd) ? missingFolderMessage(this.summary.cwd) : err instanceof Error ? err.message : String(err)
         this.emit({ type: 'error', message: detail ? `${message}\n${detail}` : message, sessionId: this.id, ts: Date.now() })
       }
     } finally {
@@ -488,12 +489,25 @@ class AgentSession {
   }
 }
 
+const isFolder = (dir: string) => {
+  try {
+    return statSync(dir).isDirectory()
+  } catch {
+    return false
+  }
+}
+
+const missingFolderMessage = (dir: string) =>
+  `The folder ${dir} no longer exists (it was moved, renamed or deleted). Start a new session in a folder that exists.`
+
 export class AgentService {
   private sessions = new Map<string, AgentSession>()
 
   constructor(private readonly deps: AgentServiceDeps) {}
 
   start(opts: StartSessionOptions, resume?: ResumeInfo, extras?: SessionExtras): SessionSummary {
+    const cwd = resume?.summary.cwd ?? opts.cwd
+    if (!isFolder(cwd)) throw new Error(missingFolderMessage(cwd))
     if (resume) this.close(resume.summary.id)
     const s = new AgentSession(this.deps, opts, resume, extras)
     this.sessions.set(s.id, s)

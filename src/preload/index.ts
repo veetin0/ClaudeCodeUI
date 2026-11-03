@@ -201,6 +201,7 @@ const api: HarnessApi = {
   runAccept: () => ipcRenderer.invoke(IPC.runAccept),
   runRevise: (change) => ipcRenderer.invoke(IPC.runRevise, change),
   runAnswer: (itemId, a) => ipcRenderer.invoke(IPC.runAnswer, itemId, a),
+  runDismiss: (itemId) => ipcRenderer.invoke(IPC.runDismiss, itemId),
   runPause: () => ipcRenderer.invoke(IPC.runPause),
   runResume: () => ipcRenderer.invoke(IPC.runResume),
   runStop: () => ipcRenderer.invoke(IPC.runStop),

@@ -368,6 +368,7 @@ function registerIpc() {
   ipcMain.handle(IPC.runAccept, () => run.acceptPlan())
   ipcMain.handle(IPC.runRevise, (_e, change: string) => run.revisePlan(change))
   ipcMain.handle(IPC.runAnswer, (_e, id: string, a) => run.answer(id, a))
+  ipcMain.handle(IPC.runDismiss, (_e, id: string) => run.dismiss(id))
   ipcMain.handle(IPC.runPause, () => run.pauseRun())
   ipcMain.handle(IPC.runResume, () => run.resumeRun())
   ipcMain.handle(IPC.runStop, () => run.stop())
