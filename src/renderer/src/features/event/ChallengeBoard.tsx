@@ -27,7 +27,7 @@ export function ChallengeBoard({ state }: { state: EventState }) {
   const { askClaude } = useEvent()
   const [panel, setPanel] = useState<'add' | 'import' | null>(null)
   if (!state.projectDir) {
-    return <Empty text="Set up or link the event project first (Build or Schedule). Challenges are saved in its challenges/ folder so the whole team shares them." />
+    return <Empty text="Set up the project first (Build › Setup), or link one from the ⋯ menu. Challenges are saved in its challenges/ folder so the whole team shares them." />
   }
   const ranked = rankChallenges(state.challenges)
   return (

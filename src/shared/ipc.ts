@@ -188,7 +188,6 @@ export interface HarnessApi {
   eventLink(dir: string | null): Promise<EventState>
   /** Sets a folder up from the event preset (challenge/, event.yaml, HackForge settings) and links it. */
   eventSetup(dir: string): Promise<EventState>
-  eventUpdate(patch: EventProgressPatch): Promise<EventState>
   onEvent(cb: (state: EventState) => void): () => void
   challengeAdd(c: { partner: string; title: string; description: string; link?: string }): Promise<EventState>
   challengeUpdate(id: string, patch: ChallengePatch): Promise<EventState>
@@ -373,7 +372,6 @@ export const IPC = {
   eventState: 'event:state',
   eventLink: 'event:link',
   eventSetup: 'event:setup',
-  eventUpdate: 'event:update',
   eventPush: 'event:push',
   challengeAdd: 'challenge:add',
   challengeUpdate: 'challenge:update',

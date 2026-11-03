@@ -3,7 +3,6 @@ import {
   Activity,
   BarChart3,
   Bot,
-  CalendarClock,
   Handshake,
   Hammer,
   Home,
@@ -58,10 +57,9 @@ const COMMANDS: { id: CommandId; label: string; icon: LucideIcon; keys?: string 
 const PLACES: { label: string; icon: LucideIcon; go: () => void }[] = [
   ...(
     [
-      ['build', 'Hackathon › Build: team run and HackForge score', Hammer],
+      ['build', 'Hackathon › Build: team run, team board and HackForge score', Hammer],
       ['challenges', 'Hackathon › Challenges and partner APIs', Lightbulb],
       ['pitch', 'Hackathon › Pitch: script, narration, 3D clips', Presentation],
-      ['schedule', 'Hackathon › Schedule: clock, team, checklists', CalendarClock],
     ] as [HackathonTab, string, LucideIcon][]
   ).map(([tab, label, icon]) => ({ label, icon, go: () => useApp.getState().openHackathon(tab) })),
   ...(

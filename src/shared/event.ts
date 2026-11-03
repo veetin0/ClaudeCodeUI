@@ -127,14 +127,6 @@ export function formatInZone(ms: number, zone: string, opts: Intl.DateTimeFormat
   return new Intl.DateTimeFormat('en-GB', { timeZone: zone, ...opts }).format(ms)
 }
 
-/** "UTC+2" for the zone at that instant. */
-export function zoneLabel(ms: number, zone: string): string {
-  const off = zoneOffsetMinutes(ms, zone)
-  const h = Math.trunc(off / 60)
-  const m = Math.abs(off % 60)
-  return `UTC${off >= 0 ? '+' : '-'}${Math.abs(h)}${m ? `:${String(m).padStart(2, '0')}` : ''}`
-}
-
 /** "37d 4h", "5h 12m", "48m", "35s". */
 export function formatSpan(ms: number): string {
   const a = Math.abs(ms)
@@ -189,24 +181,6 @@ export function eventClock(config: EventConfig, now: number): EventClock {
     nextDeadline: ms.find((m) => m.kind === 'deadline' && m.t > now),
     ongoing: ms.filter((m) => m.tEnd !== undefined && m.t <= now && now < m.tEnd),
   }
-}
-
-/** When a checklist item is due: its date at 23:59, or its exact time, in the event's zone. */
-export function checklistDue(item: ChecklistItem, zone: string): number | undefined {
-  if (!item.due) return undefined
-  return zonedTime(/\d\d:\d\d/.test(item.due) ? item.due : `${item.due} 23:59`, zone)
-}
-
-/**
- * The checklist group that matters now: the one holding the open item due soonest (overdue
- * first), else the first group with open items, else the last group.
- */
-export function currentChecklistGroup(config: EventConfig, progress: EventProgress): ChecklistGroup {
-  const open = config.checklist.filter((c) => !progress.done[c.id])
-  const timed = open.map((c) => ({ c, t: checklistDue(c, config.timezone) })).filter((x): x is { c: ChecklistItem; t: number } => x.t !== undefined)
-  if (timed.length) return timed.reduce((a, b) => (b.t < a.t ? b : a)).c.group
-  const groups = GROUPS.filter((g) => config.checklist.some((c) => c.group === g))
-  return groups.find((g) => open.some((c) => c.group === g)) ?? groups.at(-1) ?? 'prep'
 }
 
 // ---------- parsing ----------

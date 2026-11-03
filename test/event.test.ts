@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import YAML from 'yaml'
-import { currentChecklistGroup, eventClock, formatInZone, formatSpan, pickEvent, pickProgress, zonedTime, zoneLabel } from '@shared/event'
+import { eventClock, formatInZone, formatSpan, pickEvent, pickProgress, zonedTime } from '@shared/event'
 import { eventPreset } from '@shared/presets/hackathon'
 
 // Generated on Wed 28 Oct 2026 for Helsinki: the example event is the weekend of 13–15 Nov.
@@ -12,7 +12,6 @@ describe('time zones', () => {
     // Summer time (UTC+3) in October, winter time (UTC+2) in November.
     expect(zonedTime('2026-10-07 12:00', 'Europe/Helsinki')).toBe(at('2026-10-07T09:00Z'))
     expect(zonedTime('2026-11-13 16:00', 'Europe/Helsinki')).toBe(at('2026-11-13T14:00Z'))
-    expect(zoneLabel(at('2026-11-13T14:00Z'), 'Europe/Helsinki')).toBe('UTC+2')
     expect(formatInZone(at('2026-11-15T08:00Z'), 'Europe/Helsinki')).toBe('Sun 10:00')
   })
 
@@ -105,22 +104,6 @@ describe('The example event preset', () => {
     const clock = eventClock(cfg, at('2026-11-01T00:00Z'))
     expect(clock.start).toBe(at('2026-11-13T16:00Z'))
     expect(formatInZone(clock.start, cfg.timezone)).toMatch(/16:00/)
-    expect(zoneLabel(clock.start, cfg.timezone)).toBe('UTC+0')
     expect(preset.invalidTimezone).toBeUndefined()
-  })
-})
-
-describe('the checklist that matters now', () => {
-  const none = { done: {}, partners: {} }
-  it('is the group with the open item due soonest', () => {
-    expect(currentChecklistGroup(preset, none)).toBe('prep')
-  })
-
-  it('moves on as items are ticked off', () => {
-    const prepDone = Object.fromEntries(preset.checklist.filter((c) => c.group === 'prep').map((c) => [c.id, true]))
-    const next = currentChecklistGroup(preset, { done: prepDone, partners: {} })
-    expect(next).not.toBe('prep')
-    const allDone = Object.fromEntries(preset.checklist.map((c) => [c.id, true]))
-    expect(currentChecklistGroup(preset, { done: allDone, partners: {} })).toBe('final')
   })
 })

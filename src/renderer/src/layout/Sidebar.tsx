@@ -113,7 +113,7 @@ function HackathonRow() {
   return (
     <button
       onClick={() => useApp.getState().openHackathon()}
-      title={shortcut('Hackathon: team run, challenges, pitch and schedule (⌘4)')}
+      title={shortcut('Hackathon: team run, challenges and pitch (⌘4)')}
       className={cn('no-drag flex w-full items-start gap-2.5 rounded-md px-2.5 py-2 text-left hover:bg-hover', open && 'bg-active')}
     >
       <Rocket className="mt-0.5 size-4 shrink-0 text-accent-ink" aria-hidden />

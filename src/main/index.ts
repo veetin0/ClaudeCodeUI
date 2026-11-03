@@ -294,7 +294,6 @@ function registerIpc() {
     partners.changed()
     return state
   })
-  ipcMain.handle(IPC.eventUpdate, (_e, patch) => eventService.updateProgress(patch))
   ipcMain.handle(IPC.challengeAdd, (_e, c) => eventService.addChallenge(c))
   ipcMain.handle(IPC.challengeUpdate, (_e, id: string, patch) => eventService.updateChallenge(id, patch))
   ipcMain.handle(IPC.challengeDelete, (_e, id: string) => eventService.deleteChallenge(id))

@@ -28,7 +28,7 @@ export interface TerminalTab {
 export type Place = 'home' | 'session' | 'hackathon'
 export type MainView = 'chat' | 'agents' | 'preview'
 export type AgentsMode = 'cards' | 'graph' | 'activity'
-export type HackathonTab = 'build' | 'challenges' | 'pitch' | 'schedule'
+export type HackathonTab = 'build' | 'challenges' | 'pitch'
 export type SettingsTab = 'general' | 'team' | 'tools' | 'advanced'
 
 /** What the Preview view is showing for a project. */

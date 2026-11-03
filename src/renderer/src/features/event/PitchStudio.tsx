@@ -35,7 +35,7 @@ export function PitchStudio({ event }: { event: EventState }) {
     void load()
   }, [event.projectDir, load])
 
-  if (!event.projectDir) return <Empty text="Set up or link the event project first (Build or Schedule). The pitch video lives in its pitch/ folder." />
+  if (!event.projectDir) return <Empty text="Set up the project first (Build › Setup), or link one from the ⋯ menu. The pitch video lives in its pitch/ folder." />
   if (!state) return <Empty text="Loading…" />
   if (!state.exists) {
     return (

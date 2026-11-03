@@ -75,7 +75,6 @@ const api: HarnessApi = {
   eventState: () => ipcRenderer.invoke(IPC.eventState),
   eventLink: (dir) => ipcRenderer.invoke(IPC.eventLink, dir),
   eventSetup: (dir) => ipcRenderer.invoke(IPC.eventSetup, dir),
-  eventUpdate: (patch) => ipcRenderer.invoke(IPC.eventUpdate, patch),
   onEvent: (cb) => {
     const l = (_: unknown, s: import('../shared/event').EventState) => cb(s)
     ipcRenderer.on(IPC.eventPush, l)

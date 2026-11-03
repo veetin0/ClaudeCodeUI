@@ -8,6 +8,7 @@ import { useCrew } from '@/stores/crew'
 import { useRunStore } from '@/stores/run'
 import { useTeam, useTeamState } from '@/stores/team'
 import { Card, Primary, Secondary, UsageBar, useBusy } from './parts'
+import { JoinTeam } from '../event/TeamPanel'
 
 /** Steps 1–3: start the team, teammates paste one command, see who's in and ready. */
 export function TeamStep() {
@@ -17,6 +18,7 @@ export function TeamStep() {
   const act = useRunStore((s) => s.act)
   const [name, setName] = useState(settings?.team?.memberName ?? '')
   const starting = useBusy('start')
+  const [joining, setJoining] = useState(false)
   const inTeam = !!team?.config
   const server = settings?.teamServer?.trim()
 
@@ -64,6 +66,20 @@ export function TeamStep() {
             {starting ? 'Starting the team…' : 'Start'}
           </Primary>
         </Card>
+        <div className="mt-4 text-[12px] text-muted">
+          {joining ? (
+            <Card title="Join a teammate’s team">
+              <JoinTeam defaultName={name} />
+            </Card>
+          ) : (
+            <>
+              A teammate already started a team in their Harness?{' '}
+              <button onClick={() => setJoining(true)} className="font-medium text-accent-ink hover:underline">
+                Join with a code
+              </button>
+            </>
+          )}
+        </div>
       </div>
     )
 

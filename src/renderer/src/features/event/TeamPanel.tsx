@@ -12,85 +12,41 @@ import { SectorMeter } from '@/ui/Sectors'
 
 /**
  * The team board: every teammate's Harness reports what they're on, their sessions, plan usage and
- * HackForge state through a relay, so four laptops and four Claude plans read as one team.
+ * HackForge state through a relay, so four laptops and four Claude plans read as one team. It shows
+ * under the team run once you're in a team (Build's Team step starts one; JoinTeam joins one).
  */
-export function TeamPanel({ timezone, now, suggestedNames }: { timezone: string; now: number; suggestedNames: string[] }) {
+export function TeamPanel({ timezone, now }: { timezone: string; now: number }) {
   const state = useTeamState()
-  if (!state) return null
-  return state.config ? <Board timezone={timezone} now={now} /> : <Setup suggestedNames={suggestedNames} />
+  return state?.config ? <Board timezone={timezone} now={now} /> : null
 }
 
 const time = (tz: string) => (ms: number) => formatInZone(ms, tz, { hour: '2-digit', minute: '2-digit', hourCycle: 'h23' })
 
-function Setup({ suggestedNames }: { suggestedNames: string[] }) {
-  const { create, join, error, busy } = useTeam()
-  const [name, setName] = useState('')
-  const [mode, setMode] = useState<'host' | 'relay'>('host')
-  const [url, setUrl] = useState('')
+/** Join a team a teammate already started, with the code from their board. */
+export function JoinTeam({ defaultName = '' }: { defaultName?: string }) {
+  const { join, error, busy } = useTeam()
+  const [name, setName] = useState(defaultName)
   const [code, setCode] = useState('')
-  const names = suggestedNames.filter((n) => !/^Member \d+$/.test(n))
   const field = 'selectable w-full rounded-md border border-line bg-surface-2 px-2.5 py-1.5 text-[13px] outline-none focus:border-accent-ink/60'
   return (
-    <section className="rounded-2xl border border-dashed border-accent-ink/50 p-4">
-      <div className="mb-1 flex items-center gap-2">
-        <Users className="size-4 text-accent-ink" />
-        <h2 className="text-[13px] font-semibold">Team board</h2>
-      </div>
-      <p className="mb-3 text-[12px] text-muted">
-        See all four laptops in one place: who is working on what, their sessions, and how much of each Claude plan is left, so the next task goes to whoever has
-        the most room. Everyone keeps using their own login.
-      </p>
-      <label className="mb-3 block max-w-xs">
+    <div className="space-y-2">
+      <label className="block">
         <div className="mb-1 text-[12px] font-medium">Your name</div>
-        <input value={name} onChange={(e) => setName(e.target.value)} placeholder={names[0] ?? 'e.g. Alex'} list="team-names" className={field} />
-        <datalist id="team-names">
-          {names.map((n) => (
-            <option key={n} value={n} />
-          ))}
-        </datalist>
+        <input value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Sam" className={field} />
       </label>
-      <div className="grid gap-3 md:grid-cols-2">
-        <div className="rounded-xl border border-line p-3">
-          <div className="mb-2 text-[13px] font-semibold">Create the team</div>
-          {(['host', 'relay'] as const).map((m) => (
-            <label key={m} className="mb-1.5 flex items-start gap-2 text-[12px]">
-              <input type="radio" className="mt-0.5" checked={mode === m} onChange={() => setMode(m)} />
-              <span>
-                {m === 'host' ? (
-                  <>
-                    <b>Host on this computer.</b> <span className="text-muted">Teammates on the same network connect to it. Good for practice runs.</span>
-                  </>
-                ) : (
-                  <>
-                    <b>Use a relay server.</b> <span className="text-muted">Works across any network (best at the venue). See relay/README.md.</span>
-                  </>
-                )}
-              </span>
-            </label>
-          ))}
-          {mode === 'relay' && <input value={url} onChange={(e) => setUrl(e.target.value)} placeholder="https://our-relay.example.com" className={cn(field, 'mt-1')} />}
-          <button
-            disabled={busy || !name.trim() || (mode === 'relay' && !url.trim())}
-            onClick={() => void create({ name, host: mode === 'host', relayUrl: url })}
-            className="mt-3 rounded-md bg-accent px-3 py-1.5 text-[12px] font-medium text-white hover:brightness-110 disabled:opacity-40"
-          >
-            Create team
-          </button>
-        </div>
-        <div className="rounded-xl border border-line p-3">
-          <div className="mb-2 text-[13px] font-semibold">Join with a code</div>
-          <textarea value={code} onChange={(e) => setCode(e.target.value)} rows={3} placeholder="HT1.… (the team creator copies it from their board)" className={cn(field, 'resize-none font-mono text-[11px]')} />
-          <button
-            disabled={busy || !name.trim() || !code.trim()}
-            onClick={() => void join(code, name)}
-            className="mt-2 rounded-md bg-accent px-3 py-1.5 text-[12px] font-medium text-white hover:brightness-110 disabled:opacity-40"
-          >
-            Join team
-          </button>
-        </div>
-      </div>
-      {error && <div className="selectable mt-3 text-[12px] text-danger-ink">{error}</div>}
-    </section>
+      <label className="block">
+        <div className="mb-1 text-[12px] font-medium">Join code</div>
+        <textarea value={code} onChange={(e) => setCode(e.target.value)} rows={3} placeholder="HT1.… (copy it from the team board on their Harness)" className={cn(field, 'resize-none font-mono text-[11px]')} />
+      </label>
+      <button
+        disabled={busy || !name.trim() || !code.trim()}
+        onClick={() => void join(code, name)}
+        className="rounded-md bg-accent px-3 py-1.5 text-[12px] font-medium text-white hover:brightness-110 disabled:opacity-40"
+      >
+        Join team
+      </button>
+      {error && <div className="selectable text-[12px] text-danger-ink">{error}</div>}
+    </div>
   )
 }
 

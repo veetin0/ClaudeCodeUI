@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react'
 import { create } from 'zustand'
 import type { EventState } from '@shared/event'
-import type { EventProgressPatch } from '@shared/ipc'
 import type { ChallengePatch } from '@shared/challenges'
 import { ipcErrorMessage } from '@/lib/time'
 import { useApp } from './app'
@@ -23,7 +22,6 @@ interface EventStore {
   /** Pick (or create) a folder and set it up from the event preset. */
   setupProject(dir?: string): Promise<void>
   linkExisting(): Promise<void>
-  update(patch: EventProgressPatch): Promise<void>
 }
 
 let listening = false
@@ -95,7 +93,6 @@ export const useEvent = create<EventStore>((set, get) => {
       const dir = await window.harness.pickDirectory()
       if (dir) await get().link(dir)
     },
-    update: (patch) => run(() => window.harness.eventUpdate(patch)),
   }
 })
 

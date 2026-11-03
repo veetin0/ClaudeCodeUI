@@ -1,6 +1,7 @@
 import { CalendarClock, FolderOpen, FolderPlus, Hammer, Link2Off, Lightbulb, MessageSquare, Presentation, Rocket } from 'lucide-react'
 import { useApp, type HackathonTab } from '@/stores/app'
-import { useEvent, useEventState } from '@/stores/event'
+import { useEvent, useEventState, useNow } from '@/stores/event'
+import { useTeamState } from '@/stores/team'
 import { useRun } from '@/stores/run'
 import { useHackforge } from '@/stores/hackforge'
 import { cn } from '@/lib/format'
@@ -9,7 +10,7 @@ import { sessionIn } from '@/lib/projects'
 import { Menu, menuItems } from '@/ui/Menu'
 import { Segmented } from '@/ui/Segmented'
 import { ChallengeBoard, Notice } from '../event/ChallengeBoard'
-import { EventSchedule } from '../event/EventSchedule'
+import { TeamPanel } from '../event/TeamPanel'
 import { PartnerKits } from '../event/PartnerKits'
 import { PitchStudio } from '../event/PitchStudio'
 import { HackforgeView } from '../hackforge/HackforgeView'
@@ -17,7 +18,7 @@ import { TeamRun } from '../run/TeamRun'
 import { useHackathonSummary } from './summary'
 
 /**
- * The Hackathon place: the team run, the event clock, challenges, partner APIs, the pitch and
+ * The Hackathon place: the team run and team board, challenges, your API keys, the pitch and
  * the HackForge dashboard, all for one project (the team run's, which is the event project).
  */
 export function HackathonView() {
@@ -37,24 +38,33 @@ export function HackathonView() {
             <ChallengeBoard state={event} />
             <PartnerKits />
           </>
-        ) : tab === 'pitch' ? (
-          <PitchStudio event={event} />
         ) : (
-          <EventSchedule state={event} />
+          <PitchStudio event={event} />
         )}
       </div>
     </div>
   )
 }
 
-/** The team run's steps; from Run on, the HackForge dashboard for the project sits under the board. */
+/**
+ * The team run's steps; under them the team board once you're in a team, and from Run on the
+ * HackForge dashboard for the project.
+ */
 function BuildTab() {
   const run = useRun()
   const event = useEventState()
+  const team = useTeamState()
+  const now = useNow(30_000)
   const dir = run.project?.dir ?? event?.projectDir
   const hf = useHackforge(dir)
+  const timezone = event?.config.timezone ?? Intl.DateTimeFormat().resolvedOptions().timeZone
   return (
     <TeamRun>
+      {team?.config && (
+        <div className="mx-auto max-w-5xl px-6 pb-6">
+          <TeamPanel timezone={timezone} now={now} />
+        </div>
+      )}
       {dir && (run.stage === 'run' || run.stage === 'done' || hf?.initialized) && (
         <div className="mx-auto max-w-5xl px-6 pb-6">
           <div className="border-t border-line pt-5">
@@ -67,13 +77,12 @@ function BuildTab() {
 }
 
 const TABS: { id: HackathonTab; label: string; icon: typeof Hammer; title: string }[] = [
-  { id: 'build', label: 'Build', icon: Hammer, title: 'Team → Setup → Plan → Run → Done, and the HackForge score' },
-  { id: 'challenges', label: 'Challenges', icon: Lightbulb, title: 'Pick a challenge; partner APIs and keys' },
+  { id: 'build', label: 'Build', icon: Hammer, title: 'Team → Setup → Plan → Run → Done, the team board and the HackForge score' },
+  { id: 'challenges', label: 'Challenges', icon: Lightbulb, title: 'Pick a challenge; your API keys' },
   { id: 'pitch', label: 'Pitch', icon: Presentation, title: 'Script, narration, 3D clips and the video' },
-  { id: 'schedule', label: 'Schedule', icon: CalendarClock, title: 'The clock, the weekend, checklists and partners' },
 ]
 
-/** The Hackathon's header (in the top bar): name, where it is and what's due, the four tabs, and ⋯. */
+/** The Hackathon's header (in the top bar): name, where it is and what's due, the three tabs, and ⋯. */
 export function HackathonBar() {
   const h = useHackathonSummary()
   const run = useRun()
