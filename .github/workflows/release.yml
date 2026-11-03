@@ -17,13 +17,10 @@ jobs:
     runs-on: macos-latest # Apple silicon
     timeout-minutes: 45
     env:
-      # Optional. With these secrets set the app is signed with your Developer ID and notarized;
-      # without them it is ad-hoc signed and macOS asks for confirmation the first time it opens.
-      CSC_LINK: ${{ secrets.CSC_LINK }}
-      CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
-      APPLE_ID: ${{ secrets.APPLE_ID }}
-      APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
-      APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+      # Optional secrets: with CSC_LINK (and the ones below) the app is signed with your Developer ID
+      # and notarized; without it the app is ad-hoc signed and macOS asks once on first open.
+      # An empty CSC_LINK must not reach electron-builder, so the secrets go to the signed step only.
+      HAS_DEVELOPER_ID: ${{ secrets.CSC_LINK != '' }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -38,10 +35,16 @@ jobs:
       - run: npm ci
       - run: npx electron-vite build
       - name: Package (Developer ID, notarized)
-        if: env.CSC_LINK != ''
+        if: env.HAS_DEVELOPER_ID == 'true'
+        env:
+          CSC_LINK: ${{ secrets.CSC_LINK }}
+          CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
         run: npx electron-builder --mac --arm64 --publish never
       - name: Package (ad-hoc signed)
-        if: env.CSC_LINK == ''
+        if: env.HAS_DEVELOPER_ID != 'true'
         run: npx electron-builder --mac --arm64 --publish never -c.mac.identity=-
       - name: Check the signature
         run: |
