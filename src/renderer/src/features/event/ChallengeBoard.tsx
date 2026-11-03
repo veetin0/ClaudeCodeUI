@@ -15,6 +15,7 @@ import type { EventState } from '@shared/event'
 import { cn } from '@/lib/format'
 import { useApp } from '@/stores/app'
 import { useEvent } from '@/stores/event'
+import { usePartnersState } from '@/stores/partners'
 import { Markdown } from '../conversation/Markdown'
 import { Menu, menuItems } from '@/ui/Menu'
 import { NextButton } from '@/ui/NextButton'
@@ -25,6 +26,7 @@ const STATUS_LABEL: Record<Challenge['status'], string> = { candidate: 'Candidat
 /** Rank the partner challenges (team + Claude scores), research them, and pick one. */
 export function ChallengeBoard({ state }: { state: EventState }) {
   const { askClaude } = useEvent()
+  const keys = usePartnersState()
   const [panel, setPanel] = useState<'add' | 'import' | null>(null)
   if (!state.projectDir) {
     return <Empty text="Set up the project first (Build › Setup), or link one from the ⋯ menu. Challenges are saved in its challenges/ folder so the whole team shares them." />
@@ -65,7 +67,7 @@ export function ChallengeBoard({ state }: { state: EventState }) {
           <span>· your scores override Claude's (shown as rings)</span>
           <span>· Analyze and Research use web search, so approve it when Claude asks (or allow WebSearch and WebFetch in /permissions)</span>
         </div>
-        {panel === 'add' && <AddForm partners={state.config.partners.map((p) => p.name)} onDone={() => setPanel(null)} />}
+        {panel === 'add' && <AddForm partners={[...new Set([...state.config.partners.map((p) => p.name), ...(keys?.kits.filter((k) => !k.custom || k.label || k.research === 'done').map((k) => k.name) ?? [])])]} onDone={() => setPanel(null)} />}
         {panel === 'import' && <ImportForm onDone={() => setPanel(null)} />}
       </section>
       {ranked.length === 0 ? (

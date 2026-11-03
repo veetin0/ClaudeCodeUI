@@ -1,6 +1,6 @@
 # Hackathon mode
 
-The **Hackathon** place (⌘4) carries one project from an empty laptop to a finished entry: the team run, the event schedule, the challenges, partner APIs and the pitch video. It works for any hackathon; a generic *Weekend Hackathon* example is built in.
+The **Hackathon** place (⌘4) carries one project from an empty laptop to a finished entry, in three tabs: **Build** (the team run and the team board), **Challenges** (the challenge board and your API keys) and **Pitch** (the pitch video). It works for any hackathon; a generic *Weekend Hackathon* example is built in.
 
 ← [Back to the README](../README.md)
 
@@ -16,29 +16,17 @@ The **Hackathon** place (⌘4) carries one project from an empty laptop to a fin
 4. **Run.** Your Claude freezes the interfaces and writes a contract per milestone; then Harness runs the build milestone by milestone. It gives each task to a teammate's Claude (one each, whoever has the most usage left) and the rest to yours, keeps your own usage for integrating when it runs low, and tells your Claude in "[run]" messages when to build its part, when to merge the crew's branches and verify, and when to move on. Work that fails moves to someone else or back to your Claude; a teammate whose plan runs out hands over to another, from their branch. When your own limit runs out, the run waits for the reset while the crew keeps going. Overruns and the deadline are watched: a milestone over its time-box by half gets cut down, and when time is short the remaining milestones are cut so the pitch, verification and improvement loop still happen.
 5. **Done.** What got built, the mock judges' score and what they'd still fix. Harness never submits for you.
 
-Only your screen shows everything: who's doing what, each task, the timeline, and an **Inbox** for everything that needs you: your Claude's permission prompts and questions, crew Claudes' prompts (**Allow / Always / Deny**), and decisions your Claude escalates with its suggested answer (routine crew questions it answers itself). Teammates' terminals show their own Claude working. The Claudes message each other about interface changes. Code moves between laptops through the **team server** as git bundles encrypted with the team's key: deploy one once for free (Settings › **Team** → *Deploy on Render*, then paste its address), or let your laptop host it on the same network.
+Only your screen shows everything: who's doing what, each task, the timeline, and an **Inbox** for everything that needs you: your Claude's permission prompts and questions, crew Claudes' prompts (**Allow / Always / Deny**), and decisions your Claude escalates with its suggested answer (routine crew questions it answers itself). The Inbox also shows on Setup, so going back there never leaves a question stuck; **✕** dismisses an item (a waiting prompt is declined so your Claude carries on). **⋯ → Start over** next to the steps starts the run again from any step; the project folder stays on disk. Teammates' terminals show their own Claude working. The Claudes message each other about interface changes. Code moves between laptops through the **team server** as git bundles encrypted with the team's key: deploy one once for free (Settings › **Team** → *Deploy on Render*, then paste its address), or let your laptop host it on the same network.
 
 Harness opens on the Hackathon while a run is planning or running. Your sessions and Home stay one click away in the sidebar.
 
-## The event: schedule, team, partners, challenges, pitch
+## The event and the team
 
-**⌘4**, the Hackathon row in the sidebar, or the card on Home opens the Hackathon; **Schedule** has the event's clock, team and checklists. It's reusable: everything comes from an `event.yaml`. Harness ships with a generic **Weekend Hackathon** example (a 48-hour event whose dates always lie a couple of weeks ahead, in your time zone); for your own event, edit `challenge/event.yaml` in the event project and the Hackathon follows it.
-
-- **Clock:** a countdown to the doors opening, then to the next deadline (amber 3 h before, red in the last hour), the next step of the plan, and who is asleep right now. Times are shown in the event's time zone (any IANA zone, so daylight-saving switches are handled).
-- **The weekend:** one timeline with official times, the submission deadlines, your plan and sleep shifts, plus an agenda per day.
-- **Event project:** one click sets up a folder (or an existing repo) for the event:
-  - `challenge/event.yaml` (schedule, partners, checklists; edit it freely)
-  - an event brief and a strategy directive that HackForge reads
-  - HackForge settings for the event (in the example: 40 h, team of 4, the final deadline, the loop stopping 4 h before it, cheaper models for builders and stronger ones for the architect and judges)
-- **Checklists:** preparation (week by week up to the event), event-day logistics, the preliminary submission and the final submission, in one card that opens on the list that matters now (the open item due soonest). Done items fold away, each item has a due time, and overdue ones turn red.
-- **Partners board:** the event's partners by category (the example lists sponsors Harness has API kits for), each with *Keys* (account and API key ready) and *Kit* (starter kit tested) toggles. It stays folded to a ready count until you open it.
-- Ticks are saved to `challenge/event-checklist.json`. Commit it, and the team shares one checklist through git.
-
-![The event schedule for the example Weekend Hackathon](screenshots/event-mode.png)
+**⌘4**, the Hackathon row in the sidebar, or the card on Home opens the Hackathon. The header shows the countdown to the event's start and then to the next deadline. It's reusable: the times come from an `event.yaml`. Harness ships with a generic **Weekend Hackathon** example (a 48-hour event whose dates always lie a couple of weeks ahead, in your time zone); for your own event, edit `challenge/event.yaml` in the event project (name, time zone, schedule, deadlines, team size) and the Hackathon follows it. The event project also gets an event brief and a strategy directive that HackForge reads, and HackForge settings for the event (in the example: 40 h, team of 4, the final deadline, the loop stopping 4 h before it).
 
 ### Team board
 
-The **Team** panel under **Schedule** shows every teammate's laptop in one place. Each teammate keeps using their own Claude login, and their Harness shares a small status through a relay:
+Once you're in a team, the **team board** shows under the team run on **Build**: every teammate's laptop in one place. Each teammate keeps using their own Claude login, and their Harness shares a small status through a relay:
 - what they're working on and their git branch
 - their open sessions, with what the agent is doing right now
 - their HackForge phase and score
@@ -46,8 +34,8 @@ The **Team** panel under **Schedule** shows every teammate's laptop in one place
 
 Harness suggests who should take the next milestone (the person with the most usage left) and warns when someone is close to or at a limit. Your own 5-hour usage also shows in the top bar.
 
-- **Create the team** by hosting the relay on one laptop (same network, good for practice), or point it at a relay server. For an event, [`relay/`](../relay/README.md) is one dependency-free Node file plus a Dockerfile, deployable to any host with HTTPS.
-- **Join** with the join code from **Copy join code**.
+- **Start the team** on the Team step (it uses the team server from Settings › Team, or hosts it on your laptop). For an event, [`relay/`](../relay/README.md) is one dependency-free Node file plus a Dockerfile, deployable to any host with HTTPS.
+- **Join** a teammate's team with **Join with a code** on the Team step; the code comes from **Copy join code** on their board.
 - Plan usage comes from what Claude Code reports while a session runs, so a teammate's numbers appear after their first session. With an API key set in Settings, the board shows "API key" instead.
 
 ![Team board](screenshots/team-board.png)
@@ -80,7 +68,7 @@ By default it only pushes when you're away (screen locked or idle). Each laptop 
 Only the driver runs Harness. Teammates lend their Claude from a terminal, with no app to install:
 
 ```bash
-npx -y harness-crew HT1.xxxxxxxx      # the command on the Team screen (or the Team board's Crew card)
+npx -y harness-crew HT1.xxxxxxxx      # the command on the Team step (or the team board's Crew card)
 ```
 
 From then on nobody else types anything. In a [team run](#team-run-a-hackathon-in-five-steps) Harness hands out the tasks; in any other session in a team, your Claude splits the work and hands missions to the crew itself. Their Claudes work in parallel on their own laptops and Claude plans.
@@ -94,17 +82,18 @@ From then on nobody else types anything. In a [team run](#team-run-a-hackathon-i
 - **At the venue,** laptop-to-laptop traffic is often blocked, so use a team server on Render instead of your laptop: one click, free (Settings › Team, or [relay/README.md](../relay/README.md)). A phone hotspot is the fallback.
 - **What teammates need:** Node 20+, git and a Claude login (harness-crew asks them to sign in the first time). No GitHub access: the project goes to them and their work comes back through the team server as git bundles (40 MB each at most), encrypted with the team key. The package lives in [`crew/`](../crew/README.md).
 
-### Partner APIs
+### API keys
 
-**Hackathon › Challenges** has a **Partner APIs** kit for each event partner with an API (built-in kits: Exa, OpenAI, Featherless, Cloudinary, Modal, Aiven, Hostinger, Arduino, Verda and Cala). Paste a key and it works:
-- **`.env`:** it goes into Harness's own block in the event project's `.env`. `.env` is added to `.gitignore`, and nothing else in the file changes.
-- **Sessions:** every Claude session in the project (and in handoff folders) gets it as an environment variable.
-- **Teammates:** with **share with team** on, they get it too, encrypted with your team code so the relay only sees ciphertext.
-- **Kit notes for Claude:** `challenge/partners/` gets one note per partner with the variable names, install command and a minimal working example, plus an index of which keys are ready. HackForge's kickoff reads them.
-- **Checked on save:** a saved key is tried with a cheap request where the API has one (again from the card's **⋯**, which also has the docs, the signup page and the install command).
-- **Unconfirmed details:** kits whose API details couldn't be checked are marked "check at the event". Their cards take a docs link. **Add another API** covers any partner without a built-in kit, or anything new that turns up at the venue.
+Under the challenges on **Hackathon › Challenges**. The list starts empty: paste a key, optionally say what it's for, and press **Add API key**.
+- **Services Harness knows** (Exa, OpenAI, Featherless, Cloudinary, Modal, Aiven, Hostinger, Arduino, Verda, Cala): type the name and the key is checked straight away with a cheap request, Claude gets a usage note with the variable names, install command and a working example, and sessions get the service's MCP tools where it has them.
+- **Anything else:** Claude works it out. Harness opens a new Claude session in the project that identifies the service (from the name, the key's format and web search, without ever printing the key), finds the docs, makes one cheap read-only call to see whether the key works, reads the challenge for ideas, and writes `challenge/partners/<id>.md`. The card fills in as it writes: the service's name, what it's for, the docs link and whether the key works. If its SDK expects a different variable name, Harness renames it in `.env`. **⋯ → Ask Claude again** reruns it.
+- **`.env`:** every key goes into Harness's own block in the event project's `.env`. `.env` is added to `.gitignore`, and nothing else in the file changes.
+- **Sessions:** every Claude session in the project (and in handoff folders) gets the keys as environment variables.
+- **Teammates:** with **share with team** on, they get them too, encrypted with your team code so the relay only sees ciphertext.
 
 Keys are stored in the macOS Keychain or Windows' DPAPI (an owner-only file where neither exists).
+
+![API keys: a known service, one Claude worked out, one it's looking into](screenshots/api-keys.png)
 
 ### Challenge board
 
@@ -113,7 +102,7 @@ The **Challenges** tab in the Hackathon. At the opening ceremony, use **Paste al
 - **Analyze all with Claude** researches each partner and adds a summary, an idea with its demo moment, the partner technology it would run on, risks, and scores for six weighted criteria: partner value 25 %, team fit 20 %, feasible in ~40 h 20 %, demo wow 15 %, theme 10 %, less competition 10 %.
 - Click the dots to give your own scores. They override Claude's, which show as rings.
 - Each challenge has mentor notes. Its ▾ has **Analyze with Claude**, **Research the partner**, **Shortlist** and **Drop**.
-- **Choose** writes `challenge/brief/00-chosen-challenge.md` (description, mentor notes, starting idea) for HackForge, names the challenge in `hackforge.yaml`, and ticks "Challenge chosen" on the preliminary checklist.
+- **Choose** writes `challenge/brief/00-chosen-challenge.md` (description, mentor notes, starting idea) for HackForge and names the challenge in `hackforge.yaml`.
 
 Prompts sent from the Hackathon go to a Claude session in the event project while you stay on the board. If Claude needs approval (e.g. for web search), the notice turns amber.
 

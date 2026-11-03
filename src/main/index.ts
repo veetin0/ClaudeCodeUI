@@ -456,8 +456,8 @@ function registerIpc() {
   ipcMain.handle(IPC.partnerSetShare, (_e, env: string, share: boolean) => partners.setShare(env, share))
   ipcMain.handle(IPC.partnerSetDocs, (_e, kitId: string, url: string) => partners.setDocs(kitId, url))
   ipcMain.handle(IPC.partnerSetMcp, (_e, kitId: string, url: string) => partners.setMcp(kitId, url))
-  ipcMain.handle(IPC.partnerAddCustom, (_e, opts) => partners.addCustom(opts))
-  ipcMain.handle(IPC.partnerRemoveCustom, (_e, id: string) => partners.removeCustom(id))
+  ipcMain.handle(IPC.partnerAdd, (_e, opts: { key: string; name?: string }) => partners.addKey(opts))
+  ipcMain.handle(IPC.partnerRemove, (_e, id: string) => partners.remove(id))
   ipcMain.handle(IPC.partnerTest, (_e, kitId: string) => partners.test(kitId))
 }
 

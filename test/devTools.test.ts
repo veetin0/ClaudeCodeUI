@@ -67,10 +67,12 @@ describe('partner MCP servers', () => {
     svc.setMcp('cala', 'https://mcp.cala.example/mcp')
     expect(() => svc.setMcp('cala', 'http://insecure.example')).toThrow(/https/)
     expect(svc.state().mcp).toEqual({ cala: 'https://mcp.cala.example/mcp' })
+    // Only services you added a key (or an MCP URL) for: Exa's keyless server isn't there until you add Exa.
     const inProject = svc.mcpServers(join(project, 'web'))
-    expect(inProject.map((s) => s.id).sort()).toEqual(['cala', 'exa', 'hostinger'])
+    expect(inProject.map((s) => s.id).sort()).toEqual(['cala', 'hostinger'])
     expect(svc.mcpServers(tmp())).toEqual([])
-    // Settings sees every kit with a server, including those still missing keys.
+    // Settings also sees the ones still missing keys.
+    svc.addKey({ key: '111', name: 'Cloudinary' })
     expect(
       svc
         .mcpServers()

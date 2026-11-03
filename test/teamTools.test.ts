@@ -4,7 +4,7 @@ import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { DEFAULT_PHONE_ALERTS, newAlertTopic, subscribeUrl } from '@shared/alerts'
 import type { HarnessEvent } from '@shared/events'
-import { ENV_BLOCK_START, ensureEnvIgnored, envLine, kitIndex, kitNote, mergeEnvFile, PARTNER_KITS } from '@shared/partners'
+import { ENV_BLOCK_START, ensureEnvIgnored, envLine, envNameFor, findKnownKit, kitIndex, kitNote, mergeEnvFile, PARTNER_KITS, parsePartnerNote } from '@shared/partners'
 import { nextRunAt, RESET_GRACE_MS, type QueuedPrompt } from '@shared/resetQueue'
 import { AgentService, type QueryFactory } from '../src/main/agent/AgentService'
 import { checkKit, PartnerService } from '../src/main/event/PartnerService'
@@ -169,13 +169,120 @@ describe('partner kits', () => {
     svc.dispose()
   })
 
-  it('adds an API from the event and refuses bad names', () => {
+  it('starts empty; a key for a known service gets its kit, anything else waits for Claude', () => {
     const svc = new PartnerService({ file: join(tmp(), 'k.json'), encrypt: (v) => v, decrypt: (e) => e, projectDir: () => undefined, extraDirs: () => [], push: () => {} })
+    expect(svc.state().kits).toEqual([])
+    expect(svc.state().known).toContain('Exa')
     expect(() => svc.setKey('lower_case', 'x')).toThrow(/valid variable name/)
-    svc.addCustom({ name: 'Acme Maps', env: 'acme_maps_key', docs: 'https://acme.dev/docs' })
-    expect(svc.state().kits.at(-1)).toMatchObject({ id: 'custom-acme-maps', keys: [{ env: 'ACME_MAPS_KEY' }], custom: true })
-    expect(() => svc.addCustom({ name: 'Acme Maps', env: 'X_KEY' })).toThrow(/already/)
+    expect(() => svc.addKey({ key: 'two words' })).toThrow(/one line without spaces/)
+
+    const exa = svc.addKey({ key: 'exa-key-1234', name: 'exa.ai' })
+    expect(exa).toMatchObject({ kitId: 'exa', known: true })
+    expect(svc.values()).toMatchObject({ EXA_API_KEY: 'exa-key-1234' })
+
+    const acme = svc.addKey({ key: 'ak_live_5678', name: 'Acme Maps' })
+    expect(acme).toMatchObject({ kitId: 'custom-acme-maps', known: false })
+    const unnamed = svc.addKey({ key: 'zzz-0001' })
+    const again = svc.addKey({ key: 'zzz-0002' })
+    expect(svc.state().kits.map((k) => [k.id, k.keys[0].env, k.research])).toEqual([
+      ['exa', 'EXA_API_KEY', undefined],
+      ['custom-acme-maps', 'ACME_MAPS_API_KEY', 'pending'],
+      [unnamed.kitId, 'NEW_API_KEY', 'pending'],
+      [again.kitId, 'NEW_API_KEY_2', 'pending'],
+    ])
+    expect(unnamed.kitId).toBe('custom-key')
+    expect(again.kitId).toBe('custom-key-2')
+    // Keys Harness doesn't know are masked like any secret.
+    expect(svc.state().keys.ACME_MAPS_API_KEY.preview).toBe('ak_…5678')
     svc.dispose()
+  })
+
+  it('picks up what Claude found out, renames the variable, and keeps Claude’s note', () => {
+    const project = tmp()
+    const svc = new PartnerService({ file: join(tmp(), 'k.json'), encrypt: (v) => v, decrypt: (e) => e, projectDir: () => project, extraDirs: () => [], push: () => {} })
+    const { kitId } = svc.addKey({ key: 'ak_live_5678', name: 'Acme Maps' })
+    svc.write()
+    const notePath = join(project, 'challenge', 'partners', `${kitId}.md`)
+    const pending = readFileSync(notePath, 'utf8')
+    expect(pending).toMatch(/^---\nstatus: pending\nname: "Acme Maps"\nenv: ACME_MAPS_API_KEY\n---/)
+    expect(pending).not.toContain('ak_live')
+    expect(svc.readNotes()).toBe(false)
+
+    // Claude replaces the note with what it found.
+    const claude = [
+      '---',
+      'status: ready',
+      'name: Acme Maps API',
+      'env: ACME_API_KEY',
+      'docs: https://docs.acme.dev',
+      'works: true',
+      'what: Geocoding and routing; we could route deliveries on the map.',
+      '---',
+      '## How to use it',
+      'npm install @acme/maps',
+      '',
+    ].join('\n')
+    writeFileSync(notePath, claude)
+    expect(svc.readNotes()).toBe(true)
+    const kit = svc.state().kits.find((k) => k.id === kitId)!
+    expect(kit).toMatchObject({ name: 'Acme Maps API', research: 'done', docs: 'https://docs.acme.dev', keys: [{ env: 'ACME_API_KEY' }] })
+    expect(kit.what).toMatch(/^Geocoding/)
+    expect(svc.state().checks[kitId]).toMatchObject({ ok: true, message: 'Works (Claude checked it)' })
+    expect(svc.values()).toEqual({ ACME_API_KEY: 'ak_live_5678' })
+    // Reading the same note again changes nothing.
+    expect(svc.readNotes()).toBe(false)
+    svc.write()
+    const env = readFileSync(join(project, '.env'), 'utf8')
+    expect(env).toContain('ACME_API_KEY="ak_live_5678"')
+    expect(env).not.toContain('ACME_MAPS_API_KEY')
+    expect(readFileSync(notePath, 'utf8')).toBe(claude)
+    expect(readFileSync(join(project, 'challenge', 'partners', 'README.md'), 'utf8')).toMatch(/\| Acme Maps API \| yes \| `ACME_API_KEY` \|/)
+
+    // Removing the key takes it out of .env and deletes its note.
+    svc.remove(kitId)
+    svc.write()
+    expect(existsSync(notePath)).toBe(false)
+    expect(readFileSync(join(project, '.env'), 'utf8')).not.toContain('ACME')
+    expect(svc.state().kits).toEqual([])
+    svc.dispose()
+  })
+
+  it('never reuses a note left in the project, and clears Harness’s old notes for services not in use', () => {
+    const project = tmp()
+    const notes = join(project, 'challenge', 'partners')
+    mkdirSync(notes, { recursive: true })
+    writeFileSync(join(notes, 'custom-key.md'), '---\nstatus: ready\nname: Old\nwhat: an old key\n---\n')
+    const exa = PARTNER_KITS.find((k) => k.id === 'exa')!
+    writeFileSync(join(notes, 'exa.md'), kitNote(exa, []))
+    writeFileSync(join(notes, 'openai.md'), '# My own notes about OpenAI\n')
+    const svc = new PartnerService({ file: join(tmp(), 'k.json'), encrypt: (v) => v, decrypt: (e) => e, projectDir: () => project, extraDirs: () => [], push: () => {} })
+    expect(svc.addKey({ key: 'zz-1' }).kitId).toBe('custom-key-2')
+    svc.write()
+    expect(svc.state().kits[0]).toMatchObject({ name: 'New API key', research: 'pending' })
+    expect(existsSync(join(notes, 'exa.md'))).toBe(false)
+    expect(existsSync(join(notes, 'openai.md'))).toBe(true)
+    svc.dispose()
+  })
+
+  it('reads Claude’s verdict when a key didn’t work, and ignores broken or pending notes', () => {
+    expect(parsePartnerNote('no front matter')).toBeNull()
+    expect(parsePartnerNote('---\n: : bad\n---')).toBeNull()
+    expect(parsePartnerNote('---\nstatus: ready\nworks: false\nproblem: 401 unauthorized\nwhat: x\ndocs: javascript:alert(1)\n---\n')).toEqual({
+      status: 'ready',
+      name: undefined,
+      env: undefined,
+      docs: undefined,
+      works: false,
+      problem: '401 unauthorized',
+      what: 'x',
+    })
+    expect(envNameFor('Acme Maps')).toBe('ACME_MAPS_API_KEY')
+    expect(envNameFor('github token')).toBe('GITHUB_TOKEN')
+    expect(envNameFor('42 labs')).toBe('K_42_LABS_API_KEY')
+    expect(envNameFor('!!!')).toBeUndefined()
+    expect(findKnownKit('Featherless.ai')?.id).toBe('featherless')
+    expect(findKnownKit('OpenAI')?.id).toBe('openai')
+    expect(findKnownKit('Acme')).toBeUndefined()
   })
 
   it('checks keys with the right request and reads the answer', async () => {

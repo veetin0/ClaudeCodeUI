@@ -144,8 +144,8 @@ const api: HarnessApi = {
   partnerSetShare: (env, share) => ipcRenderer.invoke(IPC.partnerSetShare, env, share),
   partnerSetDocs: (kitId, url) => ipcRenderer.invoke(IPC.partnerSetDocs, kitId, url),
   partnerSetMcp: (kitId, url) => ipcRenderer.invoke(IPC.partnerSetMcp, kitId, url),
-  partnerAddCustom: (opts) => ipcRenderer.invoke(IPC.partnerAddCustom, opts),
-  partnerRemoveCustom: (id) => ipcRenderer.invoke(IPC.partnerRemoveCustom, id),
+  partnerAdd: (opts) => ipcRenderer.invoke(IPC.partnerAdd, opts),
+  partnerRemove: (id) => ipcRenderer.invoke(IPC.partnerRemove, id),
   partnerTest: (kitId) => ipcRenderer.invoke(IPC.partnerTest, kitId),
   onPartners: (cb) => {
     const l = (_: unknown, s: import('../shared/partners').PartnersState) => cb(s)

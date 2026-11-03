@@ -16,7 +16,7 @@ Harness has three places, and every screen has one main button: the next thing t
   - The **status chip** in the top bar holds context, plan usage, tokens and cost.
   - **⋯** holds the terminal, replay, handoff, Click to change and focus mode.
   - The **side panel** (⌘I) shows the task list, changed files, running agents, and HackForge's phase and score.
-- **Hackathon** (⌘4): the team run, the event, the challenges, partner APIs, the pitch and the HackForge dashboard, all for one project, in four tabs: **Build**, **Challenges**, **Pitch** and **Schedule**.
+- **Hackathon** (⌘4): the team run and team board, the challenges, your API keys, the pitch and the HackForge dashboard, all for one project, in three tabs: **Build**, **Challenges** and **Pitch**.
 
 **Usage** (⌘5) and **Settings** (⌘,) open on top of whatever you're doing.
 - **Settings** has four tabs: General, Team, Tools and Advanced. Each tool is one switch that sets itself up when you turn it on.

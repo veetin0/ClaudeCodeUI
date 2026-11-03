@@ -18,7 +18,7 @@ Harness is an Electron app (macOS first, Windows builds exist). Its interface is
 
 ## Product Purpose
 
-Run Claude Code and watch it work in real time, then steer it: start a session in a folder, follow agents as live cards, graphs and timelines, review files and diffs, handle permission prompts and questions, and keep plan usage under control. For hackathons, carry one project from an empty laptop to a finished entry: Team → Setup → Plan → Run → Done, plus challenges, partner APIs, a pitch video and the schedule.
+Run Claude Code and watch it work in real time, then steer it: start a session in a folder, follow agents as live cards, graphs and timelines, review files and diffs, handle permission prompts and questions, and keep plan usage under control. For hackathons, carry one project from an empty laptop to a finished entry: Team → Setup → Plan → Run → Done, plus challenges, API keys and a pitch video.
 
 Success means fewer buttons with the same power: easy to use, and clean enough to read at a glance.
 
@@ -29,7 +29,7 @@ A desktop cockpit for Claude Code that shows the work as it happens rather than 
 ## Operating Context
 
 - Long sessions; the app stays open beside an editor. Light and dark mode both follow the system (`prefers-color-scheme`).
-- Three places: **Home**, **Session** (Chat · Agents · Preview) and **Hackathon** (Build · Challenges · Pitch · Schedule). Usage and Settings open as sheets.
+- Three places: **Home**, **Session** (Chat · Agents · Preview) and **Hackathon** (Build · Challenges · Pitch). Usage and Settings open as sheets.
 - The prompt box does everything: a Next step chip, the **/** menu, and a mode chip. ⌘K finds every command, place, session and action.
 - Hackathon weekends: countdowns, deadlines, an inbox of permission prompts, a team board.
 

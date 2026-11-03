@@ -1,13 +1,16 @@
 /**
- * Partner kits for common hackathon sponsors: for each partner with an API, the key(s) it needs, the
- * environment variable names, install commands, a minimal working call and the docs. Paste a key
- * in event mode → Partners and Harness writes it to the project's .env (gitignored), passes it to
- * every session in the project, can share it with the team (encrypted), and writes a kit note to
- * challenge/partners/ that HackForge and Claude read.
+ * API keys for the hackathon (Hackathon › Challenges → API keys). The list starts empty: you add a key,
+ * Harness writes it to the project's .env (gitignored), passes it to every session in the project, can
+ * share it with the team (encrypted), and writes a note to challenge/partners/ that HackForge and
+ * Claude read. For a service Harness knows (the kits below, common hackathon sponsors) the note, key
+ * check and MCP server come from the kit; for anything else Claude works out what the key is for and
+ * writes the note itself (partnerResearchPrompt).
  *
  * Researched in October 2026. Details that couldn't be confirmed from public sources are marked
  * `unverified`; check those at the event.
  */
+
+import YAML from 'yaml'
 
 export interface PartnerKey {
   env: string
@@ -34,8 +37,12 @@ export interface PartnerKit {
   notes?: string[]
   /** Public details couldn't be confirmed before the event. */
   unverified?: boolean
-  /** Added by the team (an API that turned up at the event). */
+  /** Added by the team: a service Harness doesn't know (Claude researches it). */
   custom?: boolean
+  /** What the team called it when adding the key (custom kits; empty when they just pasted a key). */
+  label?: string
+  /** Custom kits: Claude is still working out what the key is for, or has written its findings. */
+  research?: 'pending' | 'done'
   /** The partner's own MCP server, added to sessions in the event project once its keys are set. */
   mcp?: PartnerMcp
 }
@@ -104,9 +111,12 @@ export interface PartnerKeyInfo {
   preview: string
 }
 
-/** What the Partners tab shows. Key values never leave the main process; only masked previews. */
+/** What the API keys section shows. Key values never leave the main process; only masked previews. */
 export interface PartnersState {
+  /** The keys you added (and services a teammate shared a key for). */
   kits: PartnerKit[]
+  /** Services Harness knows, for name suggestions when adding a key. */
+  known: string[]
   keys: Record<string, PartnerKeyInfo>
   checks: Record<string, { ok: boolean; message: string; at: number }>
   /** Docs links the team added (e.g. for a partner whose API turned up at the event). */
@@ -409,7 +419,7 @@ export function kitIndex(kits: PartnerKit[], ready: string[]): string {
   const lines = [
     '# Partner APIs',
     '',
-    'Written by Harness (Hackathon › Challenges → Partner APIs). Keys live in `.env` (gitignored) and in every Harness session’s environment in this project. One file per partner has the env names, install command and a minimal example.',
+    'Written by Harness (Hackathon › Challenges → API keys). Keys live in `.env` (gitignored) and in every Harness session’s environment in this project. One file per service has the env names, how to install and use it, and a minimal example.',
     '',
     '| Partner | Ready | Env vars | Kit |',
     '|---|---|---|---|',
@@ -455,4 +465,115 @@ export function ensureEnvIgnored(gitignore: string): string | null {
   // `.env.*` alone doesn't cover `.env` itself.
   if (lines.some((l) => l === '.env' || l === '.env*' || l === '*.env' || l === '/.env')) return null
   return `${gitignore.replace(/\s*$/, '')}${gitignore.trim() ? '\n' : ''}.env\n`
+}
+
+// ---------- adding a key ----------
+
+const fold = (v: string) => v.toLowerCase().replace(/[^a-z0-9]/g, '')
+
+/** The known service a typed name refers to ("exa", "OpenAI", "featherless.ai"), if any. */
+export function findKnownKit(name: string): PartnerKit | undefined {
+  const f = fold(name)
+  if (!f) return undefined
+  return PARTNER_KITS.find((k) => k.keys.length && [k.name, k.id].some((n) => fold(n) === f || `${fold(n)}ai` === f))
+}
+
+/** A variable name from a service name: "Acme Maps" → ACME_MAPS_API_KEY. */
+export function envNameFor(name: string): string | undefined {
+  let base = name
+    .toUpperCase()
+    .replace(/[^A-Z0-9]+/g, '_')
+    .replace(/^_+|_+$/g, '')
+  if (!base) return undefined
+  if (/^\d/.test(base)) base = `K_${base}`
+  const env = /_(API_KEY|KEY|TOKEN|SECRET)$/.test(base) ? base : `${base}_API_KEY`
+  return ENV_NAME_RE.test(env) ? env : undefined
+}
+
+/** What Claude found out about a key, from the front matter of challenge/partners/<id>.md. */
+export interface PartnerNote {
+  status?: string
+  name?: string
+  env?: string
+  docs?: string
+  works?: boolean | 'unknown'
+  problem?: string
+  what?: string
+}
+
+/** Reads a note's front matter; null when there is none (or it isn't YAML). */
+export function parsePartnerNote(text: string): PartnerNote | null {
+  const m = /^---\r?\n([\s\S]*?)\r?\n---/.exec(text)
+  if (!m) return null
+  let fm: unknown
+  try {
+    fm = YAML.parse(m[1])
+  } catch {
+    return null
+  }
+  if (!fm || typeof fm !== 'object') return null
+  const o = fm as Record<string, unknown>
+  const str = (v: unknown, max = 300) => (typeof v === 'string' && v.trim() ? v.trim().slice(0, max) : undefined)
+  const docs = str(o.docs, 500)
+  return {
+    status: str(o.status, 20),
+    name: str(o.name, 60),
+    env: str(o.env, 64)?.toUpperCase(),
+    docs: docs && /^https?:\/\//.test(docs) ? docs : undefined,
+    works: o.works === true || o.works === 'true' ? true : o.works === false || o.works === 'false' ? false : o.works === undefined ? undefined : 'unknown',
+    problem: str(o.problem),
+    what: str(o.what),
+  }
+}
+
+/** The note Harness leaves for a key Claude hasn't looked into yet. Never contains the key. */
+export function pendingNote(kit: PartnerKit): string {
+  const env = kit.keys[0]?.env ?? ''
+  const title = kit.label ?? kit.name
+  return [
+    '---',
+    'status: pending',
+    `name: ${JSON.stringify(title)}`,
+    `env: ${env}`,
+    '---',
+    `# ${title}`,
+    '',
+    `An API key the team added, in \`${env}\` (the project's .env and every Harness session's environment).`,
+    'Harness asks Claude to work out which service it is for and how to use it; Claude replaces this note with what it finds.',
+    '',
+    'Read the key from the environment; never hard-code or print it, and never commit .env.',
+    '',
+  ].join('\n')
+}
+
+/** What Claude gets asked when a key for an unknown service is added (the key's value is never in it). */
+export function partnerResearchPrompt(kit: PartnerKit): string {
+  const env = kit.keys[0]?.env ?? 'API_KEY'
+  const file = `challenge/partners/${kit.id}.md`
+  const labelled = kit.label ? `, labelled "${kit.label}"` : ', without a name'
+  const firstChars = 'printf %s "$' + env + '" | cut -c1-4'
+  return `A teammate added an API key to this hackathon project. It's in the environment variable ${env} (also in .env at the project root)${labelled}. Work out what it's for and how we can use it.
+
+1. Never print, echo, log or commit the key's value, and don't paste it anywhere. To recognise its format you may look at its first 4 characters only (for example: ${firstChars}).
+2. Identify the service from the label, the key's format and web search. If you can't tell, say so in the note.
+3. Find the official API docs and how to authenticate (the header or SDK option, and the environment variable the official SDK reads).
+4. If the API has a cheap read-only call (list models, account info, one tiny search), make exactly one with the key from the environment to see whether it works. Don't do anything that costs money or changes data.
+5. Read challenge/ to see how this API could help with our challenge.
+6. Replace ${file} with this front matter, then the notes:
+
+---
+status: ready
+name: <the service's name>
+env: <the variable name its official SDK expects, e.g. EXA_API_KEY; keep ${env} if unsure>
+docs: <official docs URL>
+works: <true, false or unknown>
+problem: <only when works is false: one short line>
+what: <one line: what it does and what we'd use it for>
+---
+## How to use it
+The install command and a minimal working example that reads the key from process.env / os.environ (never hard-coded).
+## Ideas for our challenge
+Two to four concrete ways it could help, based on challenge/.
+
+Keep it short. Harness shows the front matter on the key's card, and if you change env it renames the variable in .env for you.`
 }

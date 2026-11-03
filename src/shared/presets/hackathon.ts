@@ -90,25 +90,16 @@ schedule:
   - { id: sleep-1, label: "Sleep: first shift", at: "${at(1, '03:00')}", end: "${at(1, '06:30')}", kind: sleep }
   - { id: sleep-2, label: "Sleep: second shift", at: "${at(1, '06:30')}", end: "${at(1, '10:00')}", kind: sleep }
 
-# Example sponsors: these have ready-made API kits in Harness (Hackathon › Challenges).
-# Replace them with your event's partners.
-partners:
-  - { name: "OpenAI", url: "https://openai.com", category: "AI models" }
-  - { name: "Featherless.ai", url: "https://featherless.ai", category: "AI models", note: "Serverless open-source model inference" }
-  - { name: "Modal", url: "https://modal.com", category: "Compute", note: "Serverless GPUs and Python jobs" }
-  - { name: "Verda", url: "https://verda.com", category: "Compute", note: "European GPU cloud" }
-  - { name: "Exa.ai", url: "https://exa.ai", category: "AI search", note: "Web search API for AI agents" }
-  - { name: "Aiven", url: "https://aiven.io", category: "Data & infra", note: "Managed Postgres, Kafka and more" }
-  - { name: "Hostinger", url: "https://hostinger.com", category: "Data & infra", note: "Hosting and deployment" }
-  - { name: "Cloudinary", url: "https://cloudinary.com", category: "Data & infra", note: "Image and video APIs" }
-  - { name: "Arduino", url: "https://arduino.cc", category: "Hardware" }
+# The event's partners (name, url, category, note). Add yours here; API keys go under
+# Hackathon › Challenges → API keys.
+partners: []
 
 checklist:
   # Preparation (an example list: replace it with your own)
   - { id: install, group: prep, due: "${day(-14)}", label: "Harness and HackForge installed and tested on every laptop" }
   - { id: roles, group: prep, due: "${day(-14)}", label: "Roles agreed (for example: pilot, core builder, experience builder, story & partners)" }
   - { id: past-winners, group: prep, due: "${day(-11)}", label: "Past winners and challenges collected in challenge/examples/" }
-  - { id: accounts, group: prep, due: "${day(-8)}", label: "Accounts and API keys for the partners you might use (tick them on the Partners board)" }
+  - { id: accounts, group: prep, due: "${day(-8)}", label: "Accounts and API keys for the services you might use (add them under Hackathon › Challenges → API keys)" }
   - { id: kits, group: prep, due: "${day(-8)}", label: "A tested hello-world starter kit per partner technology" }
   - { id: boilerplates, group: prep, due: "${day(-5)}", label: "Boilerplates ready (web app, API + database, deploy script)", note: "Tools only — never the solution" }
   - { id: practice, group: prep, due: "${day(-3)}", label: "A short practice run on a past challenge, on the real schedule" }

@@ -12,7 +12,8 @@ interface EventStore {
   notice: { text: string; sessionId: string } | null
   dismissNotice(): void
   /** Sends a prompt to a Claude session in the event project (reusing an open one), staying in the Hackathon place. */
-  askClaude(prompt: string, what: string): Promise<void>
+  /** `fresh`: always a new session (it then has keys added since, and leaves the team run's session alone). */
+  askClaude(prompt: string, what: string, opts?: { fresh?: boolean }): Promise<void>
   addChallenge(c: { partner: string; title: string; description: string; link?: string }): Promise<boolean>
   updateChallenge(id: string, patch: ChallengePatch): Promise<void>
   deleteChallenge(id: string): Promise<void>
@@ -41,14 +42,14 @@ export const useEvent = create<EventStore>((set, get) => {
     error: null,
     notice: null,
     dismissNotice: () => set({ notice: null }),
-    async askClaude(prompt, what) {
+    async askClaude(prompt, what, opts) {
       const dir = get().state?.projectDir
       if (!dir) {
         set({ error: 'Set up or link the event project first.' })
         return
       }
       const app = useApp.getState()
-      const existing = app.order.find((id) => {
+      const existing = !opts?.fresh && app.order.find((id) => {
         const s = app.sessions[id]
         return s && s.cwd === dir && s.live && !s.observed && s.status !== 'closed'
       })

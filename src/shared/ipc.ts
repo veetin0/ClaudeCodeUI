@@ -250,8 +250,9 @@ export interface HarnessApi {
   partnerSetDocs(kitId: string, url: string): Promise<PartnersState>
   /** An MCP server URL a partner gave out at the event (empty clears it). */
   partnerSetMcp(kitId: string, url: string): Promise<PartnersState>
-  partnerAddCustom(opts: { name: string; env: string; docs?: string }): Promise<PartnersState>
-  partnerRemoveCustom(id: string): Promise<PartnersState>
+  /** Adds an API key; a known service gets its kit, anything else is left for Claude to research. */
+  partnerAdd(opts: { key: string; name?: string }): Promise<{ state: PartnersState; kitId: string; known: boolean }>
+  partnerRemove(id: string): Promise<PartnersState>
   partnerTest(kitId: string): Promise<PartnersState>
   onPartners(cb: (state: PartnersState) => void): () => void
   /** Click to change: lets you click an element in the preview; its description and a screenshot, or null. */
@@ -417,8 +418,8 @@ export const IPC = {
   partnerSetShare: 'partners:set-share',
   partnerSetDocs: 'partners:set-docs',
   partnerSetMcp: 'partners:set-mcp',
-  partnerAddCustom: 'partners:add-custom',
-  partnerRemoveCustom: 'partners:remove-custom',
+  partnerAdd: 'partners:add',
+  partnerRemove: 'partners:remove',
   partnerTest: 'partners:test',
   partnersPush: 'partners:push',
   previewPick: 'preview:pick',

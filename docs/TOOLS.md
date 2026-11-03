@@ -24,7 +24,7 @@ Sessions get five kinds of tools Claude reaches for by itself. Claude Code loads
 
 - **Browser** (Playwright, built in). Claude opens the running app, clicks through the demo, reads console errors and saves screenshots. HackForge's verifier walks the demo path this way and keeps the screenshots as evidence. It uses your Google Chrome or Microsoft Edge; on a computer with neither, **Get Chromium** downloads one (about 150 MB, once). It runs in the background unless you tick **Show the browser window**, with a fresh profile every session.
 - **Library docs** (Context7, hosted). Current, version-specific docs for any library or SDK, so Claude looks up a partner's SDK instead of guessing its API. It works without a key; a free key from context7.com raises the limits.
-- **Partner servers.** A partner's own MCP server, in sessions in the event project once its key is set under Hackathon › Challenges: Exa's hosted server (works without a key, rate-limited), and Cloudinary's and Hostinger's servers, bundled with Harness so nothing downloads at the event. When a partner announces an MCP server at the event, paste its URL into that partner's card. The partner's secret key goes along as a Bearer token.
+- **Partner servers.** A service's own MCP server, in sessions in the event project once you add its key under Hackathon › Challenges → API keys: Exa's hosted server, and Cloudinary's and Hostinger's servers, bundled with Harness so nothing downloads at the event.
 
 - **Reverse engineering** ([REA](https://github.com/morluto/rea), off until you switch it on). Claude works out how existing software works and cites the evidence:
   - a partner's website, or a HAR capture of it, becomes its real API (endpoints and payloads);

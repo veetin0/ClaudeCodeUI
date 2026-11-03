@@ -81,7 +81,7 @@ Harness loads your usual `~/.claude` settings, `CLAUDE.md` files, MCP servers an
 
 ![Hackathon › Build: the team run, with the HackForge score under it](docs/screenshots/hackathon.png)
 
-The **Hackathon** place (⌘4) runs a whole hackathon from one laptop: **Team → Setup → Plan → Run → Done**. Teammates lend their Claude with one command (`npx harness-crew …`, no app to install), and Harness hands each of them tasks based on how much plan usage they have left. It also has a challenge board, a partner-API kit, a schedule with checklists, and a pitch-video studio. It's built on [HackForge](docs/HACKFORGE.md), a Claude Code plugin for hackathons that ships inside Harness.
+The **Hackathon** place (⌘4) runs a whole hackathon from one laptop: **Team → Setup → Plan → Run → Done**. Teammates lend their Claude with one command (`npx harness-crew …`, no app to install), and Harness hands each of them tasks based on how much plan usage they have left. It also has a challenge board, a place for the API keys you get at the event (paste one and Claude works out how to use it), and a pitch-video studio. It's built on [HackForge](docs/HACKFORGE.md), a Claude Code plugin for hackathons that ships inside Harness.
 
 It works for any event: a generic *Weekend Hackathon* example is built in (its dates always lie a couple of weeks ahead), and your own event is one `event.yaml` away. Read the full guide in [docs/HACKATHON.md](docs/HACKATHON.md).
 
@@ -90,11 +90,11 @@ It works for any event: a generic *Weekend Hackathon* example is built in (its d
 Harness is a local app. There is no account, no telemetry, no analytics and no auto-update phoning home.
 
 - **Your sessions** are saved in a SQLite database on your computer, and Claude Code talks to Anthropic exactly as it does in the terminal.
-- **Keys you save in Settings** (Anthropic, ElevenLabs, Context7) are encrypted with the system keychain (macOS Keychain or Windows DPAPI). Partner API keys are stored the same way and also written to your event project's `.env`, which Harness adds to `.gitignore`, so your code can use them.
+- **Keys you save in Settings** (Anthropic, ElevenLabs, Context7) are encrypted with the system keychain (macOS Keychain or Windows DPAPI). API keys you add in the Hackathon are stored the same way and also written to your event project's `.env`, which Harness adds to `.gitignore`, so your code can use them.
 - **Network calls Harness makes itself:**
   - **Library docs** is on by default: Claude's documentation lookups go to Context7. Turn it off in Settings › Tools.
   - **impeccable's design detector** downloads its engine once from its GitHub releases. Other tools download only when you switch them on (Chromium for the browser, REA, the 3D kit, Remotion's renderer).
-  - **Partner key checks** and **ElevenLabs narration** run only when you add a key or press the button.
+  - **API key checks** and **ElevenLabs narration** run only when you add a key or press the button. For a key Harness doesn't know, it asks Claude in a new session to work out the service (the key itself never goes into the prompt).
   - **Phone alerts** (ntfy) are off until you turn them on, and never contain code or keys.
 - **Team mode** runs only if you start a team, through a [team server](relay/README.md) you host yourself (your laptop or your own deploy). Shared keys, code bundles and crew missions are encrypted with the team's key before they leave your laptop. The server does see the team's status: names, what each person is working on, session titles, plan usage and which files are changing.
 
@@ -104,7 +104,7 @@ Harness is a local app. There is no account, no telemetry, no analytics and no a
 |---|---|
 | [Features](docs/FEATURES.md) | The three places, shortcuts, agents, graph and timeline, files and diffs, terminal, Preview, the / menu, history |
 | [Usage saver](docs/USAGE.md) | How Harness stretches your Claude plan, and the usage history |
-| [Hackathon mode](docs/HACKATHON.md) | Team run, team board, crew mode, challenges, partner APIs, pitch studio |
+| [Hackathon mode](docs/HACKATHON.md) | Team run, team board, crew mode, challenges, API keys, pitch studio |
 | [HackForge](docs/HACKFORGE.md) | The built-in hackathon plugin and its dashboard |
 | [Design skills and dev tools](docs/TOOLS.md) | impeccable, UI/UX Pro Max, the browser, library docs, reverse engineering, Blender |
 | [Windows](docs/WINDOWS.md) · [Releasing](docs/RELEASING.md) | Setup on Windows; building, signing and notarizing |

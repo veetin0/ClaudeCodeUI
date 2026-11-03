@@ -62,7 +62,7 @@ function Board({ timezone, now }: { timezone: string; now: number }) {
     <section className="rounded-2xl border border-line p-4">
       <div className="mb-3 flex flex-wrap items-center gap-2">
         <Users className="size-4 text-accent-ink" />
-        <h2 className="text-[13px] font-semibold">Team</h2>
+        <h2 className="text-[13px] font-semibold">Team board</h2>
         <span className="text-[11px] text-muted">
           {online.length} / {state.members.length} online
         </span>

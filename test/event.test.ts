@@ -45,7 +45,7 @@ describe('The example event preset', () => {
 
   it('parses', () => {
     expect(preset).toMatchObject({ id: 'weekend-hackathon', name: 'Weekend Hackathon', timezone: 'Europe/Helsinki', teamSize: 4 })
-    expect(preset.partners).toHaveLength(9)
+    expect(preset.partners).toHaveLength(0)
     expect(preset.milestones.filter((m) => m.kind === 'deadline').map((m) => m.id)).toEqual(['preliminary', 'final'])
     expect(new Set(preset.checklist.map((c) => c.id)).size).toBe(preset.checklist.length)
     expect(new Set(preset.milestones.map((m) => m.id)).size).toBe(preset.milestones.length)
