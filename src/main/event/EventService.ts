@@ -3,7 +3,7 @@ import { mkdir, readdir, readFile, rm, writeFile } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
 import YAML from 'yaml'
 import { pickEvent, pickProgress, type EventProgress, type EventState } from '@shared/event'
-import { DEFAULT_EVENT, EVENT_PRESETS, type EventPresetId } from '@shared/presets/junction2026'
+import { DEFAULT_EVENT, eventPreset, localTimeZone, type EventPresetId } from '@shared/presets/hackathon'
 import { applyPatch, CHALLENGES_DIR, chosenBrief, parseChallenge, serializeChallenge, slugify, type Challenge, type ChallengePatch } from '@shared/challenges'
 
 const EVENT_FILE = join('challenge', 'event.yaml')
@@ -83,13 +83,20 @@ export class EventService {
     private getProjectDir: () => string | undefined,
     private readonly push: (state: EventState) => void,
     private readonly preset: EventPresetId = DEFAULT_EVENT,
+    /** The example event's dates roll forward from now, in this time zone. */
+    private readonly now: () => number = Date.now,
+    private readonly zone: () => string = localTimeZone,
   ) {}
+
+  private presetFiles() {
+    return eventPreset(this.preset, this.now(), this.zone())
+  }
 
   async state(): Promise<EventState> {
     const dir = this.getProjectDir()
     this.ensureWatch(dir)
     const text = dir ? await readText(join(dir, EVENT_FILE)) : undefined
-    let config = pickEvent(YAML.parse(EVENT_PRESETS[this.preset].yaml), this.preset)
+    let config = pickEvent(YAML.parse(this.presetFiles().yaml), this.preset)
     let source: EventState['source'] = 'preset'
     if (text) {
       try {
@@ -121,7 +128,7 @@ export class EventService {
   }
 
   private async writeSetup(dir: string): Promise<EventState> {
-    const preset = EVENT_PRESETS[this.preset]
+    const preset = this.presetFiles()
     for (const d of CHALLENGE_DIRS) await mkdir(join(dir, 'challenge', d), { recursive: true })
     await writeIfMissing(join(dir, EVENT_FILE), preset.yaml)
     for (const [rel, content] of Object.entries(preset.files)) await writeIfMissing(join(dir, rel), content)

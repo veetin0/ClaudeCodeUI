@@ -168,7 +168,7 @@ describe('relay + TeamService', () => {
     // The joiner reaches the host over loopback here (on a real network it's the LAN URL).
     const code = makeJoinCode(`http://127.0.0.1:${port}`, host.config()!.token)
     const guest = laptop('guest001', port + 1)
-    guest.svc.setLocal({ sessions: [{ title: 'Build API', project: 'junction', status: 'running', activity: 'Bash: npm test', subagents: 2 }] })
+    guest.svc.setLocal({ sessions: [{ title: 'Build API', project: 'gridpulse', status: 'running', activity: 'Bash: npm test', subagents: 2 }] })
     guest.svc.onRateLimit({ status: 'allowed_warning', rateLimitType: 'five_hour', utilization: 0.82, resetsAt: Math.floor(NOW / 1000) })
     guest.svc.update({ focus: 'M2 backend' })
     const joined = await guest.svc.join(code, 'Bo')

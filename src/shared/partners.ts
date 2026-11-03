@@ -1,5 +1,5 @@
 /**
- * Partner kits for Junction 2026: for each partner with an API, the key(s) it needs, the
+ * Partner kits for common hackathon sponsors: for each partner with an API, the key(s) it needs, the
  * environment variable names, install commands, a minimal working call and the docs. Paste a key
  * in event mode → Partners and Harness writes it to the project's .env (gitignored), passes it to
  * every session in the project, can share it with the team (encrypted), and writes a kit note to
@@ -156,7 +156,7 @@ const { results } = await res.json()`,
       code: `import OpenAI from 'openai'
 const openai = new OpenAI() // reads OPENAI_API_KEY
 // Pick a current model from https://platform.openai.com/docs/models
-const reply = await openai.responses.create({ model: process.env.OPENAI_MODEL!, input: 'Say hello to Junction' })
+const reply = await openai.responses.create({ model: process.env.OPENAI_MODEL!, input: 'Say hello to the hackathon' })
 console.log(reply.output_text)`,
     },
     checkable: true,
@@ -197,7 +197,7 @@ const chat = await featherless.chat.completions.create({ model: '<model id>', me
     snippet: {
       lang: 'ts',
       code: `import { v2 as cloudinary } from 'cloudinary' // reads CLOUDINARY_URL
-const uploaded = await cloudinary.uploader.upload('demo.jpg', { folder: 'junction' })
+const uploaded = await cloudinary.uploader.upload('demo.jpg', { folder: 'hackathon' })
 console.log(uploaded.secure_url)`,
     },
     checkable: true,
@@ -232,7 +232,7 @@ console.log(uploaded.secure_url)`,
       lang: 'python',
       code: `import modal
 
-app = modal.App("junction-demo")
+app = modal.App("hackathon-demo")
 
 @app.function(gpu="T4")
 def square(x: int) -> int:
@@ -300,7 +300,7 @@ with psycopg.connect(os.environ["DATABASE_URL"]) as conn:
     id: 'arduino',
     name: 'Arduino',
     site: 'https://www.arduino.cc',
-    what: 'Microcontroller boards and Arduino Cloud for connected devices. Junction 2026 has a whole floor of hardware challenges.',
+    what: 'Microcontroller boards and Arduino Cloud for connected devices, for hardware challenges.',
     keys: [
       { env: 'ARDUINO_CLIENT_ID', label: 'Cloud API client ID (optional)', secret: false },
       { env: 'ARDUINO_CLIENT_SECRET', label: 'Cloud API client secret', secret: true },
@@ -354,35 +354,9 @@ arduino-cli upload  --fqbn arduino:avr:uno -p /dev/cu.usbmodem* sketch/`,
     snippet: { lang: 'bash', code: `# Endpoints (from the LangChain integration): POST /v1/knowledge/search, POST /v1/knowledge/query, GET /v1/entities` },
     unverified: true,
     notes: [
-      'Get the key at console.cala.ai. The base URL and auth header weren’t public before the event: ask at their booth, then tell Claude.',
+      'Get the key at console.cala.ai. If the docs don’t give the base URL and auth header, ask the Cala team, then tell Claude.',
       'LangChain has a Cala retriever that reads CALA_API_KEY.',
     ],
-  },
-  ...['ironshard.ai|IRONSHARD', 'atach.dev|ATACH', 'craci.com|CRACI', 'qualiastudios.dev|QUALIA'].map((s): PartnerKit => {
-    const [domain, env] = s.split('|')
-    return {
-      id: domain.split('.')[0],
-      name: domain,
-      site: `https://${domain}`,
-      what: 'Junction 2026 partner. No public API documentation turned up before the event.',
-      keys: [{ env: `${env}_API_KEY`, label: 'API key (if they give you one)', secret: true }],
-      unverified: true,
-      notes: ['If they offer an API at the event, paste the key here and their docs link below: Harness puts both where Claude finds them.'],
-    }
-  }),
-  {
-    id: 'aalto',
-    name: 'Aalto University',
-    site: 'https://www.aalto.fi',
-    what: 'Junction’s home university and a challenge partner: expect research problems and datasets rather than an API.',
-    keys: [],
-  },
-  {
-    id: 'lifeline',
-    name: 'Lifeline Ventures',
-    site: 'https://lifelineventures.com',
-    what: 'Early-stage venture capital fund: no API. Worth a sharp business case in the pitch.',
-    keys: [],
   },
 ]
 

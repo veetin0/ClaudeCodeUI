@@ -109,7 +109,7 @@ describe('crew protocol', () => {
 
   it('names branches and folders safely', () => {
     expect(crewBranch('Åsa Lind', 'm-7f3a2')).toBe('crew/asa-lind/m-7f3a2')
-    expect(repoName('git@github.com:team/mini-junction.git')).toBe('mini-junction')
+    expect(repoName('git@github.com:team/mini-hackathon.git')).toBe('mini-hackathon')
     expect(repoName('https://github.com/team/app/')).toBe('app')
   })
 

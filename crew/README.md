@@ -13,7 +13,7 @@ harness-crew 0.2.0  lend your Claude to the team
 ✓ Claude: signed in
 ✓ Joined the team as Anna
 ✓ Connected. Alex's Claude leads the project and hands out the missions.
-✓ Project ready in ~/harness-crew/mini-junction
+✓ Project ready in ~/harness-crew/our-hackathon
 
 ▶ m-3fa2c M1 frontend: request form · from Alex · sonnet · branch crew/anna/m-3fa2c
   12:04  Read src/App.tsx

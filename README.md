@@ -67,7 +67,7 @@ Harness loads your usual `~/.claude` settings, `CLAUDE.md` files, MCP servers an
 
 The **Hackathon** place (⌘4) runs a whole hackathon from one laptop: **Team → Setup → Plan → Run → Done**. Teammates lend their Claude with one command (`npx harness-crew …`, no app to install), and Harness hands each of them tasks based on how much plan usage they have left. It also has a challenge board, a partner-API kit, a schedule with checklists, and a pitch-video studio. It's built on [HackForge](docs/HACKFORGE.md), a Claude Code plugin for hackathons that ships inside Harness.
 
-It works for any event: a Junction 2026 preset is included as an example, and your own event is one `event.yaml` away. Read the full guide in [docs/HACKATHON.md](docs/HACKATHON.md).
+It works for any event: a generic *Weekend Hackathon* example is built in (its dates always lie a couple of weeks ahead), and your own event is one `event.yaml` away. Read the full guide in [docs/HACKATHON.md](docs/HACKATHON.md).
 
 ## Privacy
 

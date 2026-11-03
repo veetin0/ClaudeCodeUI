@@ -13,7 +13,7 @@ Harness is an Electron app (macOS first, Windows builds exist). Its interface is
 ## Users
 
 - **Primary:** a developer or student who runs Claude Code all day and wants to see what it is doing: streamed replies, every tool call, subagents, tasks, context and cost. They sit at a laptop, often with the app open next to an editor or a terminal, for hours at a time.
-- **Hackathon team lead:** drives a team run over a weekend event (Junction-style), with teammates' Claudes building alongside on their own plans, under deadline pressure, often late at night.
+- **Hackathon team lead:** drives a team run over a 48-hour weekend event, with teammates' Claudes building alongside on their own plans, under deadline pressure, often late at night.
 - **Teammates** never open Harness; they paste one `npx harness-crew` command. Only the lead's screen shows everything.
 
 ## Product Purpose

@@ -152,7 +152,7 @@ describe('handoffs', () => {
     const note = buildHandoffNote({
       title: 'Build the API',
       from: 'Ada',
-      project: 'junction',
+      project: 'gridpulse',
       prompts: ['Build a REST API for the sensors', 'add tests'],
       todos: [
         { content: 'Endpoints', status: 'completed' },

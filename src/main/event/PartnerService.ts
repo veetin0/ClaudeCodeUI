@@ -290,7 +290,7 @@ export async function checkKit(kit: PartnerKit, v: Record<string, string>, f: ty
         const r = await req('https://api.exa.ai/search', {
           method: 'POST',
           headers: { 'x-api-key': v.EXA_API_KEY, 'content-type': 'application/json' },
-          body: JSON.stringify({ query: 'Junction hackathon', numResults: 1 }),
+          body: JSON.stringify({ query: 'hackathon', numResults: 1 }),
         })
         return verdict(r.status)
       }

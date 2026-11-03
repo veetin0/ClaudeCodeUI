@@ -1,6 +1,6 @@
 # Hackathon mode
 
-The **Hackathon** place (⌘4) carries one project from an empty laptop to a finished entry: the team run, the event schedule, the challenges, partner APIs and the pitch video. It works for any hackathon; a Junction 2026 preset ships as an example.
+The **Hackathon** place (⌘4) carries one project from an empty laptop to a finished entry: the team run, the event schedule, the challenges, partner APIs and the pitch video. It works for any hackathon; a generic *Weekend Hackathon* example is built in.
 
 ← [Back to the README](../README.md)
 
@@ -22,19 +22,19 @@ Harness opens on the Hackathon while a run is planning or running. Your sessions
 
 ## The event: schedule, team, partners, challenges, pitch
 
-**⌘4**, the Hackathon row in the sidebar, or the card on Home opens the Hackathon; **Schedule** has the event's clock, team and checklists. It's reusable: everything comes from an `event.yaml`. Harness ships with a **Junction 2026** preset (Espoo, 13–15 Nov) as a worked example; for your own event, edit `challenge/event.yaml` in the event project and the Hackathon follows it.
+**⌘4**, the Hackathon row in the sidebar, or the card on Home opens the Hackathon; **Schedule** has the event's clock, team and checklists. It's reusable: everything comes from an `event.yaml`. Harness ships with a generic **Weekend Hackathon** example (a 48-hour event whose dates always lie a couple of weeks ahead, in your time zone); for your own event, edit `challenge/event.yaml` in the event project and the Hackathon follows it.
 
 - **Clock:** a countdown to the doors opening, then to the next deadline (amber 3 h before, red in the last hour), the next step of the plan, and who is asleep right now. Times are shown in the event's time zone (any IANA zone, so daylight-saving switches are handled).
 - **The weekend:** one timeline with official times, the submission deadlines, your plan and sleep shifts, plus an agenda per day.
 - **Event project:** one click sets up a folder (or an existing repo) for the event:
   - `challenge/event.yaml` (schedule, partners, checklists; edit it freely)
   - an event brief and a strategy directive that HackForge reads
-  - HackForge settings for the event (for the Junction preset: 40 h, team of 4, the real deadline, the loop stopping 4 h before it, cheaper models for builders and stronger ones for the architect and judges)
+  - HackForge settings for the event (in the example: 40 h, team of 4, the final deadline, the loop stopping 4 h before it, cheaper models for builders and stronger ones for the architect and judges)
 - **Checklists:** preparation (week by week up to the event), event-day logistics, the preliminary submission and the final submission, in one card that opens on the list that matters now (the open item due soonest). Done items fold away, each item has a due time, and overdue ones turn red.
-- **Partners board:** the event's partners by category (16 in the Junction preset), each with *Keys* (account and API key ready) and *Kit* (starter kit tested) toggles. It stays folded to a ready count until you open it.
+- **Partners board:** the event's partners by category (the example lists sponsors Harness has API kits for), each with *Keys* (account and API key ready) and *Kit* (starter kit tested) toggles. It stays folded to a ready count until you open it.
 - Ticks are saved to `challenge/event-checklist.json`. Commit it, and the team shares one checklist through git.
 
-![The event schedule during Junction 2026 (simulated clock)](screenshots/event-mode.png)
+![The event schedule for the example Weekend Hackathon](screenshots/event-mode.png)
 
 ### Team board
 
@@ -96,13 +96,13 @@ From then on nobody else types anything. In a [team run](#team-run-a-hackathon-i
 
 ### Partner APIs
 
-**Hackathon › Challenges** has a **Partner APIs** kit for each event partner with an API (in the Junction preset: Exa, OpenAI, Featherless, Cloudinary, Modal, Aiven, Hostinger, Arduino, Verda and Cala). Paste a key and it works:
+**Hackathon › Challenges** has a **Partner APIs** kit for each event partner with an API (built-in kits: Exa, OpenAI, Featherless, Cloudinary, Modal, Aiven, Hostinger, Arduino, Verda and Cala). Paste a key and it works:
 - **`.env`:** it goes into Harness's own block in the event project's `.env`. `.env` is added to `.gitignore`, and nothing else in the file changes.
 - **Sessions:** every Claude session in the project (and in handoff folders) gets it as an environment variable.
 - **Teammates:** with **share with team** on, they get it too, encrypted with your team code so the relay only sees ciphertext.
 - **Kit notes for Claude:** `challenge/partners/` gets one note per partner with the variable names, install command and a minimal working example, plus an index of which keys are ready. HackForge's kickoff reads them.
 - **Checked on save:** a saved key is tried with a cheap request where the API has one (again from the card's **⋯**, which also has the docs, the signup page and the install command).
-- **Unconfirmed details:** some partners had no public API documentation before the event (marked "check at the event"). Their cards take a docs link. **Add another API** covers anything new that turns up at the venue.
+- **Unconfirmed details:** kits whose API details couldn't be checked are marked "check at the event". Their cards take a docs link. **Add another API** covers any partner without a built-in kit, or anything new that turns up at the venue.
 
 Keys are stored in the macOS Keychain or Windows' DPAPI (an owner-only file where neither exists).
 

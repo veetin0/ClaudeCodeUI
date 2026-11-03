@@ -1,9 +1,10 @@
 import { describe, expect, it } from 'vitest'
 import YAML from 'yaml'
 import { currentChecklistGroup, eventClock, formatInZone, formatSpan, pickEvent, pickProgress, zonedTime, zoneLabel } from '@shared/event'
-import { JUNCTION_2026_EVENT_YAML } from '@shared/presets/junction2026'
+import { eventPreset } from '@shared/presets/hackathon'
 
-const junction = pickEvent(YAML.parse(JUNCTION_2026_EVENT_YAML))
+// Generated on Wed 28 Oct 2026 for Helsinki: the example event is the weekend of 13–15 Nov.
+const preset = pickEvent(YAML.parse(eventPreset('weekend-hackathon', Date.parse('2026-10-28T10:00Z'), 'Europe/Helsinki').yaml))
 const at = (iso: string) => Date.parse(iso)
 
 describe('time zones', () => {
@@ -26,17 +27,33 @@ describe('time zones', () => {
   })
 })
 
-describe('Junction 2026 preset', () => {
+describe('The example event preset', () => {
+  it('always lies ahead: the first Friday at least two weeks away, in the given time zone', () => {
+    for (const now of ['2026-01-01T12:00Z', '2026-06-19T23:30Z', '2027-03-05T08:00Z']) {
+      const cfg = pickEvent(YAML.parse(eventPreset('weekend-hackathon', Date.parse(now), 'America/New_York').yaml))
+      const start = eventClock(cfg, Date.parse(now)).start!
+      expect(start - Date.parse(now)).toBeGreaterThanOrEqual(13 * 86_400_000)
+      expect(start - Date.parse(now)).toBeLessThan(22 * 86_400_000)
+      expect(cfg.milestones.find((m) => m.id === 'doors-open')?.at).toMatch(/ 16:00$/)
+      expect(new Date(start).getUTCDay()).toBe(5)
+    }
+  })
+
+  it('gives HackForge the final deadline with the zone offset', () => {
+    expect(eventPreset('weekend-hackathon', Date.parse('2026-10-28T10:00Z'), 'Europe/Helsinki').hackforge.deadline).toBe('2026-11-15T10:00+02:00')
+    expect(eventPreset('weekend-hackathon', Date.parse('2026-06-01T10:00Z'), 'America/New_York').hackforge.deadline).toBe('2026-06-21T10:00-04:00')
+  })
+
   it('parses', () => {
-    expect(junction).toMatchObject({ id: 'junction-2026', name: 'Junction 2026', timezone: 'Europe/Helsinki', teamSize: 4 })
-    expect(junction.partners).toHaveLength(16)
-    expect(junction.milestones.filter((m) => m.kind === 'deadline').map((m) => m.id)).toEqual(['preliminary', 'final'])
-    expect(new Set(junction.checklist.map((c) => c.id)).size).toBe(junction.checklist.length)
-    expect(new Set(junction.milestones.map((m) => m.id)).size).toBe(junction.milestones.length)
+    expect(preset).toMatchObject({ id: 'weekend-hackathon', name: 'Weekend Hackathon', timezone: 'Europe/Helsinki', teamSize: 4 })
+    expect(preset.partners).toHaveLength(9)
+    expect(preset.milestones.filter((m) => m.kind === 'deadline').map((m) => m.id)).toEqual(['preliminary', 'final'])
+    expect(new Set(preset.checklist.map((c) => c.id)).size).toBe(preset.checklist.length)
+    expect(new Set(preset.milestones.map((m) => m.id)).size).toBe(preset.milestones.length)
   })
 
   it('counts down before the event', () => {
-    const c = eventClock(junction, at('2026-10-07T10:00Z'))
+    const c = eventClock(preset, at('2026-10-07T10:00Z'))
     expect(c.stage).toBe('before')
     expect(c.next?.id).toBe('doors-open')
     expect(c.nextDeadline?.id).toBe('preliminary')
@@ -45,14 +62,14 @@ describe('Junction 2026 preset', () => {
   })
 
   it('tracks deadlines and sleep shifts during the event', () => {
-    const fri = eventClock(junction, at('2026-11-13T19:00Z')) // 21:00 Helsinki
+    const fri = eventClock(preset, at('2026-11-13T19:00Z')) // 21:00 Helsinki
     expect(fri.stage).toBe('during')
     expect(fri.next?.id).toBe('decision')
     expect(fri.nextDeadline?.id).toBe('preliminary')
-    const satNight = eventClock(junction, at('2026-11-14T02:00Z')) // 04:00 Helsinki
+    const satNight = eventClock(preset, at('2026-11-14T02:00Z')) // 04:00 Helsinki
     expect(satNight.ongoing.map((m) => m.id)).toEqual(['sleep-1'])
     expect(satNight.nextDeadline?.id).toBe('final')
-    expect(eventClock(junction, at('2026-11-16T00:00Z')).stage).toBe('after')
+    expect(eventClock(preset, at('2026-11-16T00:00Z')).stage).toBe('after')
   })
 
   it('tolerates junk', () => {
@@ -78,7 +95,7 @@ describe('Junction 2026 preset', () => {
     expect(cfg.milestones.map((m) => m.id)).toEqual(['standup', 'standup-2'])
     expect(pickEvent({ schedule: [{ label: 'Demo', at: '2026-11-14 09:00' }, { id: 'demo', label: 'Final demo', at: '2026-11-15 09:00' }] }).milestones.map((m) => m.id)).toEqual(['demo-2', 'demo'])
     expect(cfg.checklist.map((c) => c.id)).toEqual(['push-to-github', 'push-to-github-3', 'push-to-github-2', 'standup'])
-    expect(new Set(junction.checklist.map((c) => c.id)).size).toBe(junction.checklist.length)
+    expect(new Set(preset.checklist.map((c) => c.id)).size).toBe(preset.checklist.length)
   })
 
   it('falls back to UTC with a warning for an unknown time zone instead of crashing', () => {
@@ -89,21 +106,21 @@ describe('Junction 2026 preset', () => {
     expect(clock.start).toBe(at('2026-11-13T16:00Z'))
     expect(formatInZone(clock.start, cfg.timezone)).toMatch(/16:00/)
     expect(zoneLabel(clock.start, cfg.timezone)).toBe('UTC+0')
-    expect(junction.invalidTimezone).toBeUndefined()
+    expect(preset.invalidTimezone).toBeUndefined()
   })
 })
 
 describe('the checklist that matters now', () => {
   const none = { done: {}, partners: {} }
   it('is the group with the open item due soonest', () => {
-    expect(currentChecklistGroup(junction, none)).toBe('prep')
+    expect(currentChecklistGroup(preset, none)).toBe('prep')
   })
 
   it('moves on as items are ticked off', () => {
-    const prepDone = Object.fromEntries(junction.checklist.filter((c) => c.group === 'prep').map((c) => [c.id, true]))
-    const next = currentChecklistGroup(junction, { done: prepDone, partners: {} })
+    const prepDone = Object.fromEntries(preset.checklist.filter((c) => c.group === 'prep').map((c) => [c.id, true]))
+    const next = currentChecklistGroup(preset, { done: prepDone, partners: {} })
     expect(next).not.toBe('prep')
-    const allDone = Object.fromEntries(junction.checklist.map((c) => [c.id, true]))
-    expect(currentChecklistGroup(junction, { done: allDone, partners: {} })).toBe('final')
+    const allDone = Object.fromEntries(preset.checklist.map((c) => [c.id, true]))
+    expect(currentChecklistGroup(preset, { done: allDone, partners: {} })).toBe('final')
   })
 })

@@ -5,7 +5,7 @@ const FILE = `---
 partner: OpenAI
 title: "Agents for public services"
 status: shortlist
-link: https://junction.example/c/openai
+link: https://hackathon.example/c/openai
 scores: { fit: 4, wow: 9, theme: "2" }
 ai:
   summary: "They want agents that do real work."
@@ -32,7 +32,7 @@ describe('challenge files', () => {
       partner: 'OpenAI',
       title: 'Agents for public services',
       status: 'shortlist',
-      link: 'https://junction.example/c/openai',
+      link: 'https://hackathon.example/c/openai',
       scores: { fit: 4, wow: 5, theme: 2 }, // clamped to 1–5, strings accepted
       ai: { summary: 'They want agents that do real work.', partnerTech: 'Realtime API', risks: ['Scope', 'Latency'] },
       description: 'Build an agent that **helps citizens**.\n\nUse our APIs.',

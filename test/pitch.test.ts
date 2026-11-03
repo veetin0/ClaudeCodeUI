@@ -57,7 +57,7 @@ describe('pitch script model', () => {
   })
 
   it('has a sensible default script', () => {
-    const s = defaultScript('Junction 2026')
+    const s = defaultScript('Weekend Hackathon')
     expect(s.scenes.map((x) => x.visual)).toEqual(['title', 'bullets', 'quote', 'screen', 'bullets', 'bullets', 'end'])
     expect(new Set(s.scenes.map((x) => x.id)).size).toBe(s.scenes.length)
     expect(totalSeconds(s)).toBeGreaterThan(40)
@@ -92,13 +92,13 @@ describe('PitchService', () => {
 
   it('scaffolds from the template without overwriting, and saves scripts', async () => {
     const { root, svc } = setup()
-    let s = await svc.scaffold('Junction 2026')
+    let s = await svc.scaffold('Weekend Hackathon')
     expect(s).toMatchObject({ exists: true, installed: false })
-    expect(s.script?.team).toBe('Built at Junction 2026')
+    expect(s.script?.team).toBe('Built at Weekend Hackathon')
     for (const f of ['package.json', 'src/Root.tsx', 'src/Pitch.tsx', 'src/timing.ts', 'public/audio/.gitkeep', '.gitignore']) expect(existsSync(join(root, 'pitch', f))).toBe(true)
     writeFileSync(join(root, 'pitch', 'src', 'Pitch.tsx'), '// customised')
     writeFileSync(join(root, 'pitch', 'public', 'demo.mp4'), 'x')
-    s = await svc.scaffold('Junction 2026')
+    s = await svc.scaffold('Weekend Hackathon')
     expect(readFileSync(join(root, 'pitch', 'src', 'Pitch.tsx'), 'utf8')).toBe('// customised')
     expect(s.media).toEqual(['demo.mp4'])
     s = await svc.saveScript({ ...s.script!, title: 'Gravity' })

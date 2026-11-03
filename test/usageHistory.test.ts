@@ -45,7 +45,7 @@ describe('usage history: what each turn used', () => {
     const now = Date.now()
     const ev = (e: Record<string, unknown>, ts = now) => store.record({ sessionId: 's1', ts, ...e } as HarnessEvent)
     const end = (modelUsage: Record<string, ModelTokens>, ts = now) => ev({ type: 'turn.end', isError: false, result: '', costUsd: 0, durationMs: 1, numTurns: 1, outputTokens: 0, modelUsage }, ts)
-    store.open({ id: 's1', cwd: '/proj/junction', title: 'Build API', createdAt: now, updatedAt: now, costUsd: 0 })
+    store.open({ id: 's1', cwd: '/proj/gridpulse', title: 'Build API', createdAt: now, updatedAt: now, costUsd: 0 })
     end({ 'claude-opus-5-5': tok(1000, 200, 5000, 300, 0.2) })
     end({ 'claude-opus-5-5': tok(1000, 200, 5000, 300, 0.2), 'claude-sonnet-5-5': tok(400, 100, 2000, 0, 0.05) })
     ev({ type: 'session.resumed', claudeSessionId: 'c1' })

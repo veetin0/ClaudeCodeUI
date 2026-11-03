@@ -21,28 +21,34 @@ describe('EventService', () => {
     const svc = new EventService(() => undefined, () => {})
     const s = await svc.state()
     expect(s).toMatchObject({ source: 'preset', projectReady: false })
-    expect(s.config.name).toBe('Junction 2026')
+    expect(s.config.name).toBe('Weekend Hackathon')
     await expect(svc.updateProgress({ done: { install: true } })).rejects.toThrow(/Link an event project/)
   })
 
   it('sets up a project, keeps existing files, and records progress', async () => {
     const d = tmp()
     mkdirSync(join(d, 'challenge', 'prompts'), { recursive: true })
-    writeFileSync(join(d, 'challenge', 'prompts', '10-junction-strategy.md'), 'OUR OWN')
+    writeFileSync(join(d, 'challenge', 'prompts', '10-event-strategy.md'), 'OUR OWN')
     writeFileSync(join(d, 'challenge', 'hackforge.yaml'), 'profile: deep   # we chose this\nstack_preferences: [python]\nloop:\n  target_score: 8.5\n')
     const pushed: number[] = []
-    const svc = new EventService(() => d, (s) => pushed.push(Object.keys(s.progress.done).length))
+    const svc = new EventService(
+      () => d,
+      (s) => pushed.push(Object.keys(s.progress.done).length),
+      'weekend-hackathon',
+      () => Date.parse('2026-10-28T10:00Z'),
+      () => 'Europe/Helsinki',
+    )
     const s = await svc.setup(d)
     expect(s).toMatchObject({ source: 'project', projectReady: true, projectDir: d })
     for (const sub of ['brief', 'data', 'assets', 'examples']) expect(existsSync(join(d, 'challenge', sub))).toBe(true)
-    expect(readFileSync(join(d, 'challenge', 'prompts', '10-junction-strategy.md'), 'utf8')).toBe('OUR OWN')
-    expect(readFileSync(join(d, 'challenge', 'brief', 'junction-2026-event.md'), 'utf8')).toMatch(/Final submissions/)
+    expect(readFileSync(join(d, 'challenge', 'prompts', '10-event-strategy.md'), 'utf8')).toBe('OUR OWN')
+    expect(readFileSync(join(d, 'challenge', 'brief', 'event-brief.md'), 'utf8')).toMatch(/Final submissions/)
     expect(readFileSync(join(d, '.gitattributes'), 'utf8')).toMatch(/^\*\.sh text eol=lf$/m)
 
     const yaml = readFileSync(join(d, 'challenge', 'hackforge.yaml'), 'utf8')
     expect(yaml).toMatch(/# we chose this/)
     const cfg = pickConfig(YAML.parse(yaml))
-    expect(cfg).toMatchObject({ challenge: 'Junction 2026', deadline: '2026-11-15T10:00+02:00', team: 4, plan: 'pro', fableOk: false, profile: 'auto', targetScore: 9, reserveMinutes: 240, checkpoints: ['decision', 'before_submit'] })
+    expect(cfg).toMatchObject({ challenge: 'Weekend Hackathon', deadline: '2026-11-15T10:00+02:00', team: 4, plan: 'pro', fableOk: false, profile: 'auto', targetScore: 9, reserveMinutes: 240, checkpoints: ['decision', 'before_submit'] })
     expect(YAML.parse(yaml).stack_preferences).toEqual(['python'])
     // Pro plans: no per-role overrides, so HackForge's lean profile picks the models.
     expect(YAML.parse(yaml).models).toMatchObject({ build: '', judge: '', architect: '' })
@@ -133,7 +139,13 @@ describe('EventService', () => {
   it('starts a new watcher after the old one fails', async () => {
     const d = tmp()
     const pushed: number[] = []
-    const svc = new EventService(() => d, (s) => pushed.push(Object.keys(s.progress.done).length))
+    const svc = new EventService(
+      () => d,
+      (s) => pushed.push(Object.keys(s.progress.done).length),
+      'weekend-hackathon',
+      () => Date.parse('2026-10-28T10:00Z'),
+      () => 'Europe/Helsinki',
+    )
     await svc.setup(d)
     const priv = svc as unknown as { watcher: FSWatcher | null }
     const first = priv.watcher!

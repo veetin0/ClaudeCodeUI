@@ -39,7 +39,7 @@ beforeAll(async () => {
   tmp = mkdtempSync(join(tmpdir(), 'harness-e2e-'))
   userData = join(tmp, 'user-data')
   claudeDir = join(tmp, 'claude')
-  eventDir = join(tmp, 'junction-project')
+  eventDir = join(tmp, 'event-project')
   for (const d of [userData, claudeDir]) mkdirSync(d)
 
   env = {}
@@ -87,7 +87,7 @@ describe('Harness (real Electron app)', () => {
 
   it('opens event mode with ⌘6 / Ctrl+6', async () => {
     await page.keyboard.press(process.platform === 'darwin' ? 'Meta+6' : 'Control+6')
-    await page.getByRole('heading', { name: 'Junction 2026' }).waitFor()
+    await page.getByRole('heading', { name: 'Weekend Hackathon' }).waitFor()
     await page.getByRole('button', { name: /Create or pick a folder/ }).waitFor()
     await shot('02-event-mode')
   })
