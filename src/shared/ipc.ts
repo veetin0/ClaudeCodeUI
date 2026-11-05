@@ -2,7 +2,7 @@ import type { HarnessEvent, PermissionMode } from './events'
 import type { HackforgeMode, HackforgeSnapshot } from './hackforge'
 import type { EventState } from './event'
 import type { ChallengePatch } from './challenges'
-import type { PitchScript, PitchState, Voice } from './pitch'
+import type { PitchChoice, PitchScript, PitchState, Voice } from './pitch'
 import type { Kit3dQuality, Kit3dState } from './kit3d'
 export type { PitchState, Voice, PitchJob } from './pitch'
 import type { MemberSession, TeamConfig, TeamState } from './team'
@@ -197,6 +197,10 @@ export interface HarnessApi {
   pitchState(): Promise<PitchState>
   /** Creates pitch/ (Remotion template + a starter script.json) in the event project. */
   pitchScaffold(eventName: string): Promise<PitchState>
+  /** Saves what kind of video the team wants (null: ask again); slides and 3D set up pitch/. */
+  pitchChoose(choice: Omit<PitchChoice, 'at'> | null, eventName: string): Promise<PitchState>
+  /** Downloads the cartoon short skill (once). */
+  pitchInstallCartoon(): Promise<PitchState>
   pitchSave(script: PitchScript): Promise<PitchState>
   pitchInstall(): Promise<PitchState>
   /** Generates ElevenLabs narration for scenes whose audio is missing or out of date. */
@@ -389,6 +393,8 @@ export const IPC = {
   setContext7Key: 'settings:context7-key',
   pitchState: 'pitch:state',
   pitchScaffold: 'pitch:scaffold',
+  pitchChoose: 'pitch:choose',
+  pitchInstallCartoon: 'pitch:install-cartoon',
   pitchSave: 'pitch:save',
   pitchInstall: 'pitch:install',
   pitchNarrate: 'pitch:narrate',

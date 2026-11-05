@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import type { PitchScript, PitchState, Voice } from '@shared/pitch'
+import type { PitchChoice, PitchScript, PitchState, Voice } from '@shared/pitch'
 import { ipcErrorMessage } from '@/lib/time'
 import { useApp } from './app'
 
@@ -15,6 +15,10 @@ interface PitchStore {
   edit(fn: (s: PitchScript) => PitchScript): void
   replace(script: PitchScript): Promise<void>
   scaffold(eventName: string): Promise<void>
+  /** Saves what kind of video the team wants (null: show the chooser again). */
+  choose(choice: Omit<PitchChoice, 'at'> | null, eventName: string): Promise<boolean>
+  /** Downloads the cartoon short skill. */
+  installCartoon(): Promise<boolean>
   install(): Promise<void>
   narrate(): Promise<void>
   loadVoices(): Promise<void>
@@ -29,12 +33,14 @@ export const usePitch = create<PitchStore>((set, get) => {
     // Take the file's version unless the user has unsaved edits.
     set((s) => ({ state, draft: s.dirty ? s.draft : state.script }))
   }
-  const run = async (fn: () => Promise<PitchState>) => {
+  const run = async (fn: () => Promise<PitchState>): Promise<boolean> => {
     try {
       apply(await fn())
       set({ error: null })
+      return true
     } catch (err) {
       set({ error: ipcErrorMessage(err) })
+      return false
     }
   }
   const flush = async () => {
@@ -74,7 +80,12 @@ export const usePitch = create<PitchStore>((set, get) => {
       set({ draft: script, dirty: true })
       await flush()
     },
-    scaffold: (name) => run(() => window.harness.pitchScaffold(name)),
+    scaffold: async (name) => void (await run(() => window.harness.pitchScaffold(name))),
+    choose: (choice, name) => run(() => window.harness.pitchChoose(choice, name)),
+    async installCartoon() {
+      const ok = await run(() => window.harness.pitchInstallCartoon())
+      return ok && get().state?.cartoon.status === 'ready'
+    },
     async install() {
       await run(() => window.harness.pitchInstall())
     },

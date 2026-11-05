@@ -177,7 +177,7 @@ export function defaultScript(eventName: string): PitchScript {
 export function writeScriptPrompt(targetSeconds: number): string {
   return `Write our hackathon pitch video script into ${PITCH_DIR}/${SCRIPT_FILE} (keep its JSON shape, voiceId, voiceName and accent; replace title, tagline and scenes). Read .hackforge/ (DECISION.md, PLAN.md, DEMO.md, VERIFY.md, STATE.md), challenge/brief/ and the README for what we actually built. Only claim what really works.
 
-Structure (the arc that wins on stage): the model everyone inherited → our flip (one sentence) → live demo → how it works (the partner technology it runs on) → why it matters (impact in numbers) → end card. The event theme is "European Tech Renaissance: who moves the center of gravity?".
+Structure (the arc that wins on stage): the model everyone inherited → our flip (one sentence) → live demo → how it works (the partner technology it runs on) → why it matters (impact in numbers) → end card. Tie it to the event's theme (challenge/event.yaml) where it fits naturally.
 
 Rules:
 - Total spoken length ≈ ${Math.round(targetSeconds * 0.85)} s at ~155 words per minute (about ${Math.round(targetSeconds * 0.85 * 2.6)} words across all narration), leaving room for the demo clip.
@@ -204,10 +204,115 @@ export interface PitchState {
   /** Videos and images in pitch/public/ (for "screen" scenes). */
   media: string[]
   job?: PitchJob
+  /** What kind of video the team chose (pitch/style.json); null until they answer. */
+  choice: PitchChoice | null
+  /** Finished videos in pitch/out/, newest first (file names). */
+  videos: string[]
+  /** The cartoon short skill, downloaded when the team picks Cartoon. */
+  cartoon: CartoonSkillState
+}
+
+export interface CartoonSkillState {
+  status: 'missing' | 'installing' | 'ready' | 'error'
+  error?: string
 }
 
 export interface Voice {
   id: string
   name: string
   description?: string
+}
+
+// ---------- what kind of video (or none) ----------
+
+export const STYLE_FILE = 'style.json'
+/** Finished videos made outside the slide video (cartoon, something else) go here. */
+export const VIDEO_OUT_DIR = 'out'
+export const PITCH_STYLES = ['slides', '3d', 'cartoon', 'custom', 'none'] as const
+export type PitchStyle = (typeof PITCH_STYLES)[number]
+export type VideoFormat = 'vertical' | 'horizontal'
+
+/** The team's answer to "Do you want a pitch or promo video?" (pitch/style.json, shared through git). */
+export interface PitchChoice {
+  style: PitchStyle
+  /** "Something else": what the team described. */
+  brief?: string
+  /** Cartoon: 9:16 or 16:9. */
+  format?: VideoFormat
+  at: number
+}
+
+export function parseChoice(raw: unknown): PitchChoice | null {
+  if (!raw || typeof raw !== 'object') return null
+  const o = raw as Record<string, unknown>
+  if (!PITCH_STYLES.includes(o.style as PitchStyle)) return null
+  const brief = typeof o.brief === 'string' && o.brief.trim() ? o.brief.trim().slice(0, 2000) : undefined
+  const format = o.format === 'vertical' || o.format === 'horizontal' ? o.format : undefined
+  return { style: o.style as PitchStyle, ...(brief ? { brief } : {}), ...(format ? { format } : {}), at: typeof o.at === 'number' ? o.at : 0 }
+}
+
+/** The three ready-made kinds of video the chooser offers (thumbnails live in the renderer's assets). */
+export const PITCH_TEMPLATES: { style: 'slides' | '3d' | 'cartoon'; title: string; line: string; needs: string; time: string }[] = [
+  {
+    style: 'slides',
+    title: 'Narrated slides',
+    line: 'Title, problem, your flip, the live demo and the end card, narrated scene by scene. You edit every line here.',
+    needs: 'Node',
+    time: 'About 20 min',
+  },
+  {
+    style: '3d',
+    title: '3D video',
+    line: 'The narrated video with 3D shots: your real app driven by a 3D cursor, a laptop or phone, problem cards, a logo sting.',
+    needs: 'Node, Python 3.10+, ffmpeg, Chrome',
+    time: 'About 1 h',
+  },
+  {
+    style: 'cartoon',
+    title: 'Cartoon short',
+    line: 'A ~60 s cartoon story about the problem you solve: 2D characters in a colourful 3D world, with voice, music and sound.',
+    needs: 'Node, Python 3, ffmpeg; about 2 GB free',
+    time: 'A few hours',
+  },
+]
+
+export function threeDVideoPrompt(targetSeconds: number): string {
+  return `Make our pitch video a 3D video (≈ ${targetSeconds} s) with HackForge's 3D pitch kit in video/kit3d/ (read its README), building on ${PITCH_DIR}/${SCRIPT_FILE}.
+
+1. If the script is still the starter script, write it first: read .hackforge/ (DECISION.md, PLAN.md, DEMO.md, VERIFY.md) and challenge/ for what we actually built, and only claim what really works.
+2. Pick 3D hero shots for the scenes that gain from them: the problem as cards, the real app driven by the 3D cursor (or on a laptop or phone) for the demo, and a logo sting for the end. A talking character film only if the product has an AI assistant.
+3. Add each clip to video/kit3d/story.py, render stills to check the look, then the final, and put each MP4 in ${PITCH_DIR}/public/3d/. Point the matching scenes at them ("visual": "screen", "media": "3d/<clip>.mp4", "seconds": <clip length>); change only visual, media and seconds, never audio, audioSeconds or audioHash.
+4. Keep the narration in the script; Harness narrates, previews and renders it.`
+}
+
+export function cartoonPrompt(format: VideoFormat): string {
+  const size =
+    format === 'vertical'
+      ? 'vertical 9:16 (1080x1920, final 1440x2560)'
+      : 'horizontal 16:9 (1920x1080, final 2560x1440); adapt the shot plan and camera framing to the wider frame'
+  return `Use the cartoon-3d-short skill to make a cartoon promo short for this hackathon project: ${size}, 55-70 s.
+
+- The story is about the problem our product solves, told with our OWN characters, story and voice: a relatable character runs into the problem, it escalates, then our product changes it, and the ending lands on what it makes possible. Read .hackforge/ (DECISION.md, PLAN.md, DEMO.md), challenge/ and the README so every claim is true. The product's name can be said, but there are no captions or labels in the video.
+- Build it as its own Remotion project in video/cartoon/ (copy the skill's templates/bridge as it says), not in ${PITCH_DIR}/.
+- Write the script first and show it to me before rendering anything heavy. Then follow the skill's pipeline: voice, shot plan, stills, look checks, the final render and the sound mix.
+- Set REMOTION_TMP, TEMP and TMP to a folder outside the project (Remotion copies public/ into it on every bundle) and clean it up when you're done.
+- Copy the final video to ${PITCH_DIR}/${VIDEO_OUT_DIR}/cartoon-short.mp4 so it shows up on Harness's Pitch tab.
+- Never upload, publish or send the skill's reference frames.`
+}
+
+export function customVideoPrompt(brief: string, targetSeconds: number): string {
+  return `Make our pitch or promo video. What the team wants:
+
+${brief.trim()}
+
+- Read .hackforge/ (DECISION.md, PLAN.md, DEMO.md, VERIFY.md), challenge/ and the README for what we actually built, and only claim what really works. Check challenge/brief/ for the rules (length, format, whether generated media is allowed).
+- Aim for about ${targetSeconds} s unless the description says otherwise. Plan it first (a short storyboard) and show it to me before rendering anything heavy.
+- Use HackForge's video skill and its 3D pitch kit where they fit. If ${PITCH_DIR}/${SCRIPT_FILE} exists, build on it; otherwise build the video in its own folder under video/.
+- Copy the finished video to ${PITCH_DIR}/${VIDEO_OUT_DIR}/ so it shows up on Harness's Pitch tab.`
+}
+
+export function videoChangePrompt(text: string, file?: string): string {
+  return `Change our ${file ? `video ${PITCH_DIR}/${VIDEO_OUT_DIR}/${file}` : 'pitch video'}: ${text.trim()}
+
+Work in the video's own project (video/ or ${PITCH_DIR}/), render it again, and copy the new version over the old one in ${PITCH_DIR}/${VIDEO_OUT_DIR}/.`
 }
