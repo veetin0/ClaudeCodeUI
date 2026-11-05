@@ -273,12 +273,23 @@ export function overrunMessage(m: { id: string }): string {
   return `[run] ${m.id} is over its time-box by half. Cut scope from DECISION.md's cut list (note it there), keep the last green state submittable, and finish ${m.id} with what works.`
 }
 
-export function finishMessage(loop: boolean, skipped: string[]): string {
+/** What kind of pitch video the team chose on the Pitch tab (pitch/style.json), if any. */
+export type PitchVideoChoice = 'slides' | '3d' | 'cartoon' | 'custom' | 'none' | undefined
+
+const PITCH_VIDEO_NOTE: Record<Exclude<PitchVideoChoice, undefined>, string> = {
+  slides: '',
+  '3d': ' The team wants a 3D pitch video: build on pitch/script.json with the 3D kit.',
+  none: ' The team chose no pitch video: write the pitch, but make no video.',
+  cartoon: ' The team is making a cartoon short on the Pitch tab, so make no other video.',
+  custom: ' The team is making its own video on the Pitch tab, so make no other video.',
+}
+
+export function finishMessage(loop: boolean, skipped: string[], video?: PitchVideoChoice): string {
   return [
     skipped.length
       ? `[run] Time is short, so the remaining milestones (${skipped.join(', ')}) are cut: note that in DECISION.md.`
       : '[run] All planned milestones are done.',
-    `Now run hackforge:pitch and hackforge:verify final${loop ? ', then hackforge:perfect (the improvement loop). In the loop you may hand independent fixes to the crew with mcp__harness__crew_dispatch while you work on one yourself' : ''}. End your turn when ${loop ? 'the loop ends' : 'verify final is written'}.`,
+    `Now run hackforge:pitch and hackforge:verify final${loop ? ', then hackforge:perfect (the improvement loop). In the loop you may hand independent fixes to the crew with mcp__harness__crew_dispatch while you work on one yourself' : ''}.${video ? PITCH_VIDEO_NOTE[video] : ''} End your turn when ${loop ? 'the loop ends' : 'verify final is written'}.`,
   ].join(' ')
 }
 
