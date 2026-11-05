@@ -1,8 +1,22 @@
-import { existsSync, type FSWatcher, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { existsSync, type FSWatcher, mkdirSync, mkdtempSync, readFileSync, rmSync, utimesSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
-import { audioState, defaultScript, narrationHash, parseScript, safeRelPath, sceneSeconds, totalSeconds, type PitchScript } from '@shared/pitch'
+import {
+  audioState,
+  cartoonPrompt,
+  customVideoPrompt,
+  defaultScript,
+  narrationHash,
+  parseChoice,
+  parseScript,
+  safeRelPath,
+  sceneSeconds,
+  threeDVideoPrompt,
+  totalSeconds,
+  writeScriptPrompt,
+  type PitchScript,
+} from '@shared/pitch'
 import { PitchService } from '../src/main/pitch/PitchService'
 
 const TEMPLATE = join(import.meta.dirname, '..', 'resources', 'pitch-template')
@@ -89,6 +103,43 @@ describe('PitchService', () => {
     for (let i = 0; i < 100 && (await svc.state()).job?.status === 'running'; i++) await new Promise((r) => setTimeout(r, 10))
     return svc.state()
   }
+
+  it('asks what kind of video first, and remembers the answer in pitch/style.json', async () => {
+    const { root, svc } = setup()
+    expect((await svc.state()).choice).toBeNull()
+    // Skipping makes no video project.
+    let s = await svc.choose({ style: 'none' }, 'Weekend Hackathon')
+    expect(s.choice).toMatchObject({ style: 'none' })
+    expect(s.exists).toBe(false)
+    // Changing your mind shows the chooser again.
+    s = await svc.choose(null, 'Weekend Hackathon')
+    expect(s.choice).toBeNull()
+    // Cartoon: no slide video, but pitch/out/ for the result, kept out of git.
+    s = await svc.choose({ style: 'cartoon', format: 'horizontal' }, 'Weekend Hackathon')
+    expect(s).toMatchObject({ exists: false, choice: { style: 'cartoon', format: 'horizontal' }, videos: [] })
+    expect(readFileSync(join(root, 'pitch', '.gitignore'), 'utf8')).toContain('out/')
+    writeFileSync(join(root, 'pitch', 'out', 'first.mp4'), 'a')
+    writeFileSync(join(root, 'pitch', 'out', 'second.mp4'), 'b')
+    writeFileSync(join(root, 'pitch', 'out', 'notes.txt'), 'c')
+    utimesSync(join(root, 'pitch', 'out', 'first.mp4'), new Date(2026, 0, 1), new Date(2026, 0, 1))
+    expect((await svc.state()).videos).toEqual(['second.mp4', 'first.mp4'])
+    // Slides set up the slide video.
+    s = await svc.choose({ style: 'slides' }, 'Weekend Hackathon')
+    expect(s).toMatchObject({ exists: true, choice: { style: 'slides' } })
+    expect(JSON.parse(readFileSync(join(root, 'pitch', 'style.json'), 'utf8'))).toMatchObject({ style: 'slides' })
+    svc.dispose()
+  })
+
+  it('treats a pitch made before the chooser as the slide video', async () => {
+    const { root, svc } = setup()
+    await svc.scaffold('Weekend Hackathon')
+    expect(existsSync(join(root, 'pitch', 'style.json'))).toBe(false)
+    expect((await svc.state()).choice).toMatchObject({ style: 'slides' })
+    mkdirSync(join(root, 'pitch'), { recursive: true })
+    writeFileSync(join(root, 'pitch', 'style.json'), '{ "style": "teleport" }')
+    expect((await svc.state()).choice).toBeNull()
+    svc.dispose()
+  })
 
   it('scaffolds from the template without overwriting, and saves scripts', async () => {
     const { root, svc } = setup()
@@ -295,5 +346,26 @@ describe('PitchService', () => {
     await svc.install()
     expect((await settle(svc)).job).toMatchObject({ kind: 'install', status: 'done' })
     svc.dispose()
+  })
+})
+
+describe('pitch video choices', () => {
+  it('reads only known styles and formats', () => {
+    expect(parseChoice({ style: 'cartoon', format: 'vertical', at: 5 })).toEqual({ style: 'cartoon', format: 'vertical', at: 5 })
+    expect(parseChoice({ style: 'custom', brief: '  a trailer  ', format: 'square' })).toEqual({ style: 'custom', brief: 'a trailer', at: 0 })
+    expect(parseChoice({ style: null })).toBeNull()
+    expect(parseChoice('slides')).toBeNull()
+  })
+
+  it('briefs Claude for each kind of video', () => {
+    expect(cartoonPrompt('vertical')).toMatch(/cartoon-3d-short skill.*vertical 9:16/s)
+    expect(cartoonPrompt('horizontal')).toMatch(/horizontal 16:9/)
+    expect(cartoonPrompt('vertical')).toMatch(/pitch\/out\/cartoon-short\.mp4/)
+    expect(cartoonPrompt('vertical')).toMatch(/Never upload, publish or send the skill's reference frames/)
+    expect(customVideoPrompt('A 30 s teaser', 120)).toMatch(/A 30 s teaser[\s\S]*pitch\/out\//)
+    expect(threeDVideoPrompt(90)).toMatch(/video\/kit3d\/[\s\S]*pitch\/public\/3d\//)
+    // The event is generic: no theme from a past event.
+    expect(writeScriptPrompt(120)).not.toMatch(/Renaissance/)
+    expect(writeScriptPrompt(120)).toMatch(/challenge\/event\.yaml/)
   })
 })

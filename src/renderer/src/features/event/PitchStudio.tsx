@@ -7,6 +7,7 @@ import {
   estimateSeconds,
   newSceneId,
   sceneSeconds,
+  threeDVideoPrompt,
   totalSeconds,
   VISUALS,
   words,
@@ -22,6 +23,7 @@ import { useApp } from '@/stores/app'
 import { useEvent } from '@/stores/event'
 import { usePitch } from '@/stores/pitch'
 import { Kit3dPanel } from './Kit3dPanel'
+import { NoPitch, PitchChooser, YourVideo } from './PitchChooser'
 import { SectorMeter } from '@/ui/Sectors'
 
 const field = 'selectable w-full rounded-md border border-line bg-surface-2 px-2.5 py-1.5 text-[13px] outline-none focus:border-accent-ink/60'
@@ -37,20 +39,23 @@ export function PitchStudio({ event }: { event: EventState }) {
 
   if (!event.projectDir) return <Empty text="Set up the project first (Build › Setup), or link one from the ⋯ menu. The pitch video lives in its pitch/ folder." />
   if (!state) return <Empty text="Loading…" />
+  const style = state.choice?.style
+  if (!style) return <PitchChooser event={event} />
+  if (style === 'none') return <NoPitch event={event} />
+  if (style === 'cartoon' || style === 'custom') return <YourVideo event={event} state={state} />
   if (!state.exists) {
+    // A teammate chose slides or 3D (pitch/style.json came through git), but pitch/ isn't set up here yet.
     return (
       <section className="rounded-2xl border border-dashed border-accent-ink/50 p-5">
         <div className="flex items-start gap-3">
           <Clapperboard className="mt-0.5 size-5 shrink-0 text-accent-ink" />
           <div>
-            <h2 className="text-[13px] font-semibold">Create the pitch studio</h2>
+            <h2 className="text-[13px] font-semibold">Set up the {style === '3d' ? '3D' : 'slide'} video</h2>
             <p className="mt-1 max-w-2xl text-[13px] text-muted">
-              Adds <code>pitch/</code> to the event project: a Remotion video driven by <code>pitch/script.json</code>, with title, bullet, statement, demo-clip and
-              end scenes, plus a progress bar. Each scene's narration is generated with ElevenLabs, and the video times itself to the voice. It starts from a script
-              shaped for this pitch: the inherited model, your flip, the live demo, how it works, and why it matters.
+              Adds <code>pitch/</code>: a Remotion video driven by <code>pitch/script.json</code>, narrated scene by scene, starting from a script shaped for a pitch.
             </p>
             <button onClick={() => void scaffold(event.config.name)} className="mt-3 rounded-md bg-accent px-3 py-1.5 text-[12px] font-medium text-white hover:brightness-110">
-              Create pitch/
+              Set up pitch/
             </button>
             {error && <div className="selectable mt-2 text-[12px] text-danger-ink">{error}</div>}
           </div>
@@ -60,7 +65,7 @@ export function PitchStudio({ event }: { event: EventState }) {
   }
   return (
     <div className="space-y-3">
-      <Toolbar />
+      <Toolbar threeD={style === '3d'} />
       {error && <div className="selectable rounded-lg border border-danger/40 bg-danger/5 px-3 py-2 text-[12px] text-danger-ink">{error}</div>}
       {state.scriptError && (
         <div className="flex items-center gap-2 rounded-lg border border-warn/40 bg-warn/[0.06] px-3 py-2 text-[12px]">
@@ -73,9 +78,10 @@ export function PitchStudio({ event }: { event: EventState }) {
       {draft && (
         <>
           <VoiceKey />
+          {style === '3d' && <Kit3dPanel />}
           <ScriptHeader script={draft} />
           <TimingBar script={draft} />
-          <Kit3dPanel />
+          {style !== '3d' && <Kit3dPanel />}
           <Scenes script={draft} media={state.media} />
         </>
       )}
@@ -91,7 +97,7 @@ function Empty({ text }: { text: string }) {
  * The pitch's one next step (Install Remotion → Write the script → Generate narration → Preview &
  * render), the narrator, and Rehearse; everything else is behind the ▾.
  */
-function Toolbar() {
+function Toolbar({ threeD }: { threeD: boolean }) {
   const { state, draft, install, narrate, dirty } = usePitch()
   const askClaude = useEvent((s) => s.askClaude)
   const { startSession, setView } = useApp()
@@ -101,8 +107,16 @@ function Toolbar() {
   const pending = draft ? draft.scenes.filter((s) => ['none', 'stale'].includes(audioState(s, draft.voiceId))).length : 0
   const noAudio = !draft || draft.scenes.every((s) => audioState(s, draft.voiceId) === 'none')
   type Step = { label: string; icon: typeof Bot; run: () => void; disabled?: boolean; hint?: string }
-  const steps: Record<'install' | 'script' | 'narrate' | 'render' | 'clips', Step> = {
+  const has3d = state!.media.some((m) => m.startsWith('3d/'))
+  const steps: Record<'install' | 'make3d' | 'script' | 'narrate' | 'render' | 'clips', Step> = {
     install: { label: 'Install Remotion', icon: Download, run: () => void install(), disabled: running },
+    make3d: {
+      label: 'Make the 3D video with Claude',
+      icon: Box,
+      run: () => void askClaude(threeDVideoPrompt(draft?.targetSeconds ?? 120), '3D video', { fresh: true }),
+      disabled: !draft,
+      hint: 'Claude writes the script if needed, picks the 3D shots, renders them with the 3D kit and puts them in the video',
+    },
     script: { label: 'Write the script with Claude', icon: Bot, run: () => void askClaude(writeScriptPrompt(draft?.targetSeconds ?? 120), 'Pitch script'), disabled: !draft },
     narrate: {
       label: `Generate narration${pending ? ` (${pending})` : ''}`,
@@ -129,11 +143,28 @@ function Toolbar() {
       hint: 'Picks a visual treatment for your subject and adds the clips as screen scenes',
     },
   }
-  const next: keyof typeof steps = !state!.installed ? 'install' : noAudio && !draft?.voiceId ? 'script' : pending > 0 && draft?.voiceId ? 'narrate' : 'render'
+  const next: keyof typeof steps = !state!.installed
+    ? 'install'
+    : threeD && !has3d
+      ? 'make3d'
+      : noAudio && !draft?.voiceId
+        ? 'script'
+        : pending > 0 && draft?.voiceId
+          ? 'narrate'
+          : 'render'
   const primary = steps[next]
-  const more: MenuItem[] = (Object.keys(steps) as (keyof typeof steps)[])
-    .filter((k) => k !== next && (k !== 'install' || !state!.installed))
-    .map((k) => ({ label: steps[k].label, icon: steps[k].icon, hint: steps[k].hint, disabled: steps[k].disabled, onSelect: steps[k].run }))
+  const more: MenuItem[] = [
+    ...(Object.keys(steps) as (keyof typeof steps)[])
+      .filter((k) => k !== next && (k !== 'install' || !state!.installed) && (k !== 'make3d' || threeD))
+      .map((k) => ({ label: steps[k].label, icon: steps[k].icon, hint: steps[k].hint, disabled: steps[k].disabled, onSelect: steps[k].run })),
+    'separator',
+    {
+      label: 'Change video type…',
+      icon: RotateCcw,
+      hint: 'Back to the choice of styles; pitch/ stays as it is',
+      onSelect: () => void usePitch.getState().choose(null, useEvent.getState().state?.config.name ?? 'the hackathon'),
+    },
+  ]
   return (
     <section className="rounded-2xl border border-line p-3">
       <div className="flex flex-wrap items-center gap-2">

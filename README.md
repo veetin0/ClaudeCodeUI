@@ -93,7 +93,7 @@ Harness is a local app. There is no account, no telemetry, no analytics and no a
 - **Keys you save in Settings** (Anthropic, ElevenLabs, Context7) are encrypted with the system keychain (macOS Keychain or Windows DPAPI). API keys you add in the Hackathon are stored the same way and also written to your event project's `.env`, which Harness adds to `.gitignore`, so your code can use them.
 - **Network calls Harness makes itself:**
   - **Library docs** is on by default: Claude's documentation lookups go to Context7. Turn it off in Settings › Tools.
-  - **impeccable's design detector** downloads its engine once from its GitHub releases. Other tools download only when you switch them on (Chromium for the browser, REA, the 3D kit, Remotion's renderer).
+  - **impeccable's design detector** downloads its engine once from its GitHub releases. Other tools download only when you switch them on (Chromium for the browser, REA, the 3D kit, Remotion's renderer, and the cartoon short skill from GitHub when you pick a cartoon pitch video).
   - **API key checks** and **ElevenLabs narration** run only when you add a key or press the button. For a key Harness doesn't know, it asks Claude in a new session to work out the service (the key itself never goes into the prompt).
   - **Phone alerts** (ntfy) are off until you turn them on, and never contain code or keys.
 - **Team mode** runs only if you start a team, through a [team server](relay/README.md) you host yourself (your laptop or your own deploy). Shared keys, code bundles and crew missions are encrypted with the team's key before they leave your laptop. The server does see the team's status: names, what each person is working on, session titles, plan usage and which files are changing.

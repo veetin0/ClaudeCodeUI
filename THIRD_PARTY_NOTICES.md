@@ -20,3 +20,4 @@ These are not part of the repository. Harness installs them into your project or
 - **Remotion** (Preview and the Pitch studio) has its own [license](https://www.remotion.dev/docs/license), which requires a company license for some commercial use.
 - **Playwright MCP**, **Context7** and the partner MCP servers listed under Settings › Tools.
 - **Blender** and the Blender MCP server (3D clips), and Kokoro / ElevenLabs voices (pitch narration).
+- The **cartoon short skill** ([mromidev/claude-animated-shorts](https://github.com/mromidev/claude-animated-shorts), MIT): downloaded at a pinned commit when a team picks *Cartoon short* on the Pitch tab, without its folder of reference contact sheets. Its reference frames are for style study only; Harness never uploads or publishes them.

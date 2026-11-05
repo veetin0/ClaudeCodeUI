@@ -1,6 +1,6 @@
 import { randomBytes } from 'node:crypto'
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
-import { dirname } from 'node:path'
+import { dirname, join } from 'node:path'
 import { canTake, type CrewMemberView, type MissionView } from '@shared/crew'
 import type { HarnessEvent, SessionStatus } from '@shared/events'
 import type { HackforgeSnapshot } from '@shared/hackforge'
@@ -11,6 +11,7 @@ import {
   contractsMessage,
   EMPTY_RUN,
   finishMessage,
+  type PitchVideoChoice,
   fixMessage,
   formatDuration,
   integrateMessage,
@@ -561,8 +562,9 @@ export class RunService {
     this.s.current = undefined
     if (skipped.length) this.log(`Time is short: ${skipped.join(', ')} cut. Your Claude finishes up.`, 'warn')
     else this.log('All milestones are done: your Claude writes the pitch, verifies and improves.', 'good')
-    const snap = await this.deps.hackforge(this.need().dir).catch(() => undefined)
-    this.enqueue({ text: finishMessage(snap?.config.loopEnabled !== false, skipped), kind: 'run', tag: { step: 'finish' } })
+    const dir = this.need().dir
+    const snap = await this.deps.hackforge(dir).catch(() => undefined)
+    this.enqueue({ text: finishMessage(snap?.config.loopEnabled !== false, skipped, pitchVideo(dir)), kind: 'run', tag: { step: 'finish' } })
   }
 
   private async finished() {
@@ -1071,4 +1073,14 @@ function describeTool(name: string, input: Record<string, unknown>): string {
   const s = (k: string) => (typeof input[k] === 'string' ? (input[k] as string) : '')
   const arg = s('command') || s('file_path') || s('pattern') || s('description') || s('url') || s('skill')
   return `${name}${arg ? `: ${arg.split('\n')[0].slice(0, 120)}` : ''}`
+}
+
+/** The kind of pitch video the team picked on the Pitch tab (pitch/style.json). */
+function pitchVideo(dir: string): PitchVideoChoice {
+  try {
+    const style = (JSON.parse(readFileSync(join(dir, 'pitch', 'style.json'), 'utf8')) as { style?: unknown }).style
+    return ['slides', '3d', 'cartoon', 'custom', 'none'].includes(style as string) ? (style as PitchVideoChoice) : undefined
+  } catch {
+    return undefined
+  }
 }

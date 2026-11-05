@@ -26,6 +26,7 @@ import { builtinPlugin, choosePlugin, installedPlugin } from './hackforge/plugin
 import { EventService } from './event/EventService'
 import { newMemberId, TeamService } from './team/TeamService'
 import { PitchService } from './pitch/PitchService'
+import { CartoonSkill } from './pitch/CartoonSkill'
 import { Kit3dService } from './kit3d/Kit3dService'
 import type { Kit3dQuality } from '@shared/kit3d'
 import { hackforgeLean, readHackforge } from './hackforge/HackforgeService'
@@ -72,6 +73,7 @@ let agents: AgentService
 let presence: Presence
 let team: TeamService
 let pitch: PitchService
+let cartoon: CartoonSkill
 let kit3d: Kit3dService
 let partners: PartnerService
 let resetQueue: ResetQueue
@@ -309,6 +311,11 @@ function registerIpc() {
   })
   ipcMain.handle(IPC.pitchState, () => pitch.state())
   ipcMain.handle(IPC.pitchScaffold, (_e, name: string) => pitch.scaffold(name))
+  ipcMain.handle(IPC.pitchChoose, (_e, choice, name: string) => pitch.choose(choice, name))
+  ipcMain.handle(IPC.pitchInstallCartoon, async () => {
+    await cartoon.install()
+    return pitch.state()
+  })
   ipcMain.handle(IPC.pitchSave, (_e, script) => pitch.saveScript(script))
   ipcMain.handle(IPC.pitchInstall, () => pitch.install())
   ipcMain.handle(IPC.pitchNarrate, () => pitch.narrate())
@@ -527,7 +534,9 @@ async function start() {
     plugins: () => {
       const p = hackforgePlugin()
       const hf = settings.get().hackforgeMode !== 'off' && p.source === 'builtin' && p.path ? [{ type: 'local' as const, path: p.path }] : []
-      return [...hf, ...design.sdkPlugins()]
+      // The cartoon short skill, once a team picked it on the Pitch tab (it's downloaded then).
+      const extra = cartoon?.plugin()
+      return [...hf, ...design.sdkPlugins(), ...(extra ? [extra] : [])]
     },
     claudeExecutablePath: resolveClaudeExecutable(),
     onRateLimit: (info) => team?.onRateLimit(info),
@@ -732,7 +741,9 @@ async function start() {
   // Waking from sleep after the reset: catch up straight away.
   powerMonitor.on('resume', () => resetQueue.check())
   partners.changed()
+  cartoon = new CartoonSkill({ dir: join(app.getPath('userData'), 'skills'), onChange: () => pitch?.refresh() })
   pitch = new PitchService({
+    cartoon: () => cartoon.state(),
     projectDir: () => settings.get().eventProject ?? undefined,
     elevenLabsKey: () => settings.getElevenLabsKey(),
     templateDir: join(app.getAppPath(), 'resources', 'pitch-template'),

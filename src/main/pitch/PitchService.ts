@@ -7,10 +7,15 @@ import {
   defaultScript,
   mp3Seconds,
   narrationHash,
+  parseChoice,
   parseScript,
   PITCH_DIR,
   SCRIPT_FILE,
+  STYLE_FILE,
   TTS_MODEL,
+  VIDEO_OUT_DIR,
+  type CartoonSkillState,
+  type PitchChoice,
   type PitchScript,
   type PitchJob,
   type PitchState,
@@ -27,10 +32,13 @@ export interface PitchDeps {
   fetch?: typeof fetch
   /** Runs npm install; injectable for tests. */
   runInstall?: (cwd: string, onLine: (line: string) => void) => Promise<number>
+  /** The cartoon short skill's download state (shown on the chooser). */
+  cartoon?: () => CartoonSkillState
 }
 
 const ELEVEN = 'https://api.elevenlabs.io/v1'
 const MEDIA_RE = /\.(mp4|webm|mov|m4v|png|jpe?g|gif|webp)$/i
+const VIDEO_RE = /\.(mp4|webm|mov|m4v)$/i
 
 async function copyMissing(from: string, to: string) {
   await mkdir(to, { recursive: true })
@@ -121,7 +129,8 @@ export class PitchService {
   async state(): Promise<PitchState> {
     const dir = this.pitchDir()
     this.ensureWatch(dir)
-    if (!dir) return { exists: false, installed: false, script: null, media: [], job: this.job }
+    const cartoon = this.deps.cartoon?.() ?? { status: 'missing' as const }
+    if (!dir) return { exists: false, installed: false, script: null, media: [], job: this.job, choice: null, videos: [], cartoon }
     const exists = existsSync(join(dir, 'package.json'))
     let script: PitchScript | null = null
     let scriptError: string | undefined
@@ -137,11 +146,44 @@ export class PitchService {
       .map((f) => String(f).replace(/\\/g, '/'))
       .filter((f) => MEDIA_RE.test(f) && !f.startsWith('audio/'))
       .sort()
-    return { dir, exists, installed: existsSync(join(dir, 'node_modules', 'remotion')), script, scriptError, media, job: this.job }
+    return {
+      dir,
+      exists,
+      installed: existsSync(join(dir, 'node_modules', 'remotion')),
+      script,
+      scriptError,
+      media,
+      job: this.job,
+      choice: await readChoice(dir, exists),
+      videos: await listVideos(join(dir, VIDEO_OUT_DIR)),
+      cartoon,
+    }
+  }
+
+  /**
+   * Saves the team's answer to "Do you want a pitch or promo video?" (null: ask again; the files stay).
+   * Slides and 3D build on the slide video, so they set it up.
+   */
+  async choose(choice: Omit<PitchChoice, 'at'> | null, eventName: string): Promise<PitchState> {
+    const dir = this.requireDir()
+    await mkdir(dir, { recursive: true })
+    await writeFile(join(dir, STYLE_FILE), JSON.stringify(choice ? { ...choice, at: Date.now() } : { style: null, at: Date.now() }, null, 2) + '\n')
+    if (choice?.style === 'slides' || choice?.style === '3d') return this.scaffold(eventName)
+    if (choice?.style === 'cartoon' || choice?.style === 'custom') {
+      // Rendered videos are big: keep them out of the team's repo.
+      if (!existsSync(join(dir, '.gitignore'))) await writeFile(join(dir, '.gitignore'), 'node_modules/\nout/\n')
+      await mkdir(join(dir, VIDEO_OUT_DIR), { recursive: true })
+    }
+    return this.state()
   }
 
   private async publish() {
     this.deps.push(await this.state())
+  }
+
+  /** Something outside pitch/ changed what the tab shows (the cartoon skill download). */
+  refresh() {
+    void this.publish()
   }
 
   async scaffold(eventName: string): Promise<PitchState> {
@@ -330,4 +372,22 @@ export class PitchService {
     clearTimeout(this.timer)
     this.watcher?.close()
   }
+}
+
+/** pitch/style.json; a project from before the chooser (it has the slide video) counts as slides. */
+async function readChoice(dir: string, slidesExist: boolean): Promise<PitchChoice | null> {
+  const raw = await readFile(join(dir, STYLE_FILE), 'utf8').catch(() => undefined)
+  if (raw === undefined) return slidesExist ? { style: 'slides', at: 0 } : null
+  try {
+    return parseChoice(JSON.parse(raw))
+  } catch {
+    return null
+  }
+}
+
+/** Finished videos, newest first. */
+async function listVideos(dir: string): Promise<string[]> {
+  const names = (await readdir(dir).catch(() => [] as string[])).filter((f) => VIDEO_RE.test(f))
+  const withTime = await Promise.all(names.map(async (f) => ({ f, t: (await stat(join(dir, f)).catch(() => null))?.mtimeMs ?? 0 })))
+  return withTime.sort((a, b) => b.t - a.t).map((x) => x.f)
 }

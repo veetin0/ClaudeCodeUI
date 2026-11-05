@@ -110,7 +110,19 @@ Prompts sent from the Hackathon go to a Claude session in the event project whil
 
 ### Pitch studio
 
-The **Pitch** tab creates `pitch/`, a Remotion video driven by `pitch/script.json`:
+The **Pitch** tab starts with one question: **Do you want a pitch or promo video?**
+
+![The Pitch tab's first question: three styles, something else, or no video](screenshots/pitch-chooser.png)
+
+- **Narrated slides:** the slide video below, narrated scene by scene.
+- **3D video:** the same video with 3D shots from HackForge's 3D kit. **Make the 3D video with Claude** writes the script if needed, picks the shots, renders them and puts them in the video.
+- **Cartoon short:** a ~60 s cartoon story about the problem you solve, 2D characters in a colourful 3D world, vertical 9:16 or horizontal 16:9 (you pick each time). Harness downloads the [cartoon short skill](https://github.com/mromidev/claude-animated-shorts) (MIT) once, then Claude makes the short in `video/cartoon/` in a new session. It shows you the script before rendering anything heavy, and the finished video appears on the tab.
+- **Something else:** describe the video you want; Claude plans it, shows you the plan, then builds it.
+- **Skip the pitch video:** the team run then writes the pitch text but makes no video.
+
+The answer is saved in `pitch/style.json`, so the whole team sees it, and the team run follows it. **Change video type** (on the card, or in the toolbar's ▾) asks again; nothing made so far is deleted. Finished cartoon and custom videos go to `pitch/out/`, where the tab plays them, with **Ask Claude to change it**.
+
+The slide video lives in `pitch/`, a Remotion video driven by `pitch/script.json`:
 - **Scenes:** title, bullet points, big statement, demo clip or screenshot, and end card, with a progress bar.
 - **Starter script:** the stage arc (the inherited model → the flip → live demo → how it works → why it matters).
 

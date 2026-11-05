@@ -6,7 +6,7 @@ import { describe, expect, it } from 'vitest'
 import type { CrewMemberView, MissionView } from '@shared/crew'
 import type { HarnessEvent, SessionStatus } from '@shared/events'
 import type { PermissionDecision } from '@shared/ipc'
-import { PLAN_PROMPT, RUN_ALLOW, pickContract, taskBrief, type Contract, type RunState } from '@shared/run'
+import { finishMessage, PLAN_PROMPT, RUN_ALLOW, pickContract, taskBrief, type Contract, type RunState } from '@shared/run'
 import type { PlanUsage } from '@shared/team'
 import type { AssignResult, MissionEvent, MissionSpec } from '../src/main/crew/CrewDriver'
 import { addFiles, createProject, hasChallenge, hasPrivateGuard, prepareProject, privateGuard, projectSlug, readContracts } from '../src/main/run/project'
@@ -336,10 +336,14 @@ describe('team run', () => {
     await h.endTurn()
     await h.finish('m-3', 'done')
     expect(h.sent.at(-1)).toContain('All of M2')
+    // The team chose no pitch video on the Pitch tab: the finish turn says so.
+    mkdirSync(join(h.run.state().project!.dir, 'pitch'), { recursive: true })
+    writeFileSync(join(h.run.state().project!.dir, 'pitch', 'style.json'), JSON.stringify({ style: 'none', at: 1 }))
     h.setContracts([h.contract('M1', 3, 'done'), h.contract('M2', 1, 'done')])
     await h.endTurn()
     expect(h.run.state().step).toBe('finishing')
     expect(h.sent.at(-1)).toContain('hackforge:perfect')
+    expect(h.sent.at(-1)).toContain('The team chose no pitch video: write the pitch, but make no video.')
     await h.endTurn()
     expect(h.run.state().stage).toBe('done')
   })
@@ -521,5 +525,15 @@ describe('team run', () => {
     expect(again.state()).toMatchObject({ stage: 'plan', step: 'planning', sessionId: 's1', sessionLive: false })
     expect(again.isRunProject(join(parent, 'keep'))).toBe(true)
     expect(h.run.state().stage).toBe('team')
+  })
+})
+
+describe('the finish turn and the pitch video', () => {
+  it('follows what the team picked on the Pitch tab', () => {
+    expect(finishMessage(true, [])).not.toMatch(/pitch video|cartoon/)
+    expect(finishMessage(true, [], 'slides')).not.toMatch(/pitch video|cartoon/)
+    expect(finishMessage(false, [], '3d')).toMatch(/3D pitch video: build on pitch\/script\.json/)
+    expect(finishMessage(false, [], 'cartoon')).toMatch(/cartoon short on the Pitch tab, so make no other video/)
+    expect(finishMessage(false, [], 'custom')).toMatch(/own video on the Pitch tab, so make no other video/)
   })
 })

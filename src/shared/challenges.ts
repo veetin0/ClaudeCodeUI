@@ -11,7 +11,7 @@ export const CRITERIA = [
   { key: 'fit', label: 'Team fit', weight: 20, hint: 'Our skills, tools and starter kits apply' },
   { key: 'feasibility', label: 'Feasible in ~40 h', weight: 20, hint: 'A solid end-to-end demo is realistic' },
   { key: 'wow', label: 'Demo wow', weight: 15, hint: 'A moment the judges remember' },
-  { key: 'theme', label: 'Theme', weight: 10, hint: 'Moves the center of gravity (European Tech Renaissance)' },
+  { key: 'theme', label: 'Theme', weight: 10, hint: 'Fits the event’s theme (challenge/event.yaml)' },
   { key: 'competition', label: 'Less competition', weight: 10, hint: 'Fewer strong teams likely to pick it' },
 ] as const
 export type CriterionKey = (typeof CRITERIA)[number]['key']
