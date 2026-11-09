@@ -208,6 +208,10 @@ export interface PitchState {
   choice: PitchChoice | null
   /** Finished videos in pitch/out/, newest first (file names). */
   videos: string[]
+  /** When each of those was last written (ms), so a replaced video isn't shown from cache. */
+  videoTimes: Record<string, number>
+  /** The pitch deck (pitch/deck.pdf), when one has been made. */
+  deck?: { path: string; mtime: number }
   /** The cartoon short skill, downloaded when the team picks Cartoon. */
   cartoon: CartoonSkillState
 }
@@ -228,6 +232,11 @@ export interface Voice {
 export const STYLE_FILE = 'style.json'
 /** Finished videos made outside the slide video (cartoon, something else) go here. */
 export const VIDEO_OUT_DIR = 'out'
+/** The pitch deck PDF many submissions ask for, next to its source in pitch/deck/ (shared through git). */
+export const DECK_FILE = 'deck.pdf'
+export const DECK_DIR = 'deck'
+/** The usual pitch video limit (2:00), used when the slide script doesn't set its own. */
+export const PITCH_LIMIT_SECONDS = 120
 export const PITCH_STYLES = ['slides', '3d', 'cartoon', 'custom', 'none'] as const
 export type PitchStyle = (typeof PITCH_STYLES)[number]
 export type VideoFormat = 'vertical' | 'horizontal'
@@ -309,6 +318,16 @@ ${brief.trim()}
 - Aim for about ${targetSeconds} s unless the description says otherwise. Plan it first (a short storyboard) and show it to me before rendering anything heavy.
 - Use HackForge's video skill and its 3D pitch kit where they fit. If ${PITCH_DIR}/${SCRIPT_FILE} exists, build on it; otherwise build the video in its own folder under video/.
 - Copy the finished video to ${PITCH_DIR}/${VIDEO_OUT_DIR}/ so it shows up on Harness's Pitch tab.`
+}
+
+export function deckPrompt(): string {
+  return `Make our pitch deck as a PDF: ${PITCH_DIR}/${DECK_FILE}.
+
+- Read challenge/ first: the brief and the rules in challenge/brief/ may say what the deck must contain, how long it can be and how the project is judged. Cover what they ask for, in the judges' own terms.
+- Then read .hackforge/ (DECISION.md, PLAN.md, DEMO.md, VERIFY.md), the README and ${PITCH_DIR}/${SCRIPT_FILE} if it exists, so the deck tells the same story as the pitch video. Only claim what really works; say what is mocked.
+- 8-10 slides, 16:9: the name and one-line punchline, the problem (with a number if we have one), what we built, how it works (the partner technology we use), the demo (real screenshots from ${PITCH_DIR}/public/ or the app), the impact, what is real today and what comes next, the team, and the links (demo, source, video). Big text, one idea per slide.
+- Build it as HTML in ${PITCH_DIR}/${DECK_DIR}/ (one slide per page) and print it to PDF with headless Chrome or Playwright. Render each page to an image and look at it: fix overflowing text, empty pages and anything unreadable.
+- Keep the source in ${PITCH_DIR}/${DECK_DIR}/ so a teammate can change it, and save the PDF as ${PITCH_DIR}/${DECK_FILE} so it shows up on Harness's Pitch tab.`
 }
 
 export function videoChangePrompt(text: string, file?: string): string {

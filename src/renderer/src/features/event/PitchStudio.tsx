@@ -24,6 +24,7 @@ import { useEvent } from '@/stores/event'
 import { usePitch } from '@/stores/pitch'
 import { Kit3dPanel } from './Kit3dPanel'
 import { NoPitch, PitchChooser, YourVideo } from './PitchChooser'
+import { PitchDeck } from './PitchDeck'
 import { SectorMeter } from '@/ui/Sectors'
 
 const field = 'selectable w-full rounded-md border border-line bg-surface-2 px-2.5 py-1.5 text-[13px] outline-none focus:border-accent-ink/60'
@@ -41,7 +42,7 @@ export function PitchStudio({ event }: { event: EventState }) {
   if (!state) return <Empty text="Loading…" />
   const style = state.choice?.style
   if (!style) return <PitchChooser event={event} />
-  if (style === 'none') return <NoPitch event={event} />
+  if (style === 'none') return <NoPitch event={event} state={state} />
   if (style === 'cartoon' || style === 'custom') return <YourVideo event={event} state={state} />
   if (!state.exists) {
     // A teammate chose slides or 3D (pitch/style.json came through git), but pitch/ isn't set up here yet.
@@ -85,6 +86,7 @@ export function PitchStudio({ event }: { event: EventState }) {
           <Scenes script={draft} media={state.media} />
         </>
       )}
+      <PitchDeck state={state} />
     </div>
   )
 }

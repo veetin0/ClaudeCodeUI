@@ -4,6 +4,7 @@ import { mkdir, readdir, readFile, rm, stat, writeFile } from 'node:fs/promises'
 import { dirname, join, relative } from 'node:path'
 import {
   audioState,
+  DECK_FILE,
   defaultScript,
   mp3Seconds,
   narrationHash,
@@ -130,7 +131,7 @@ export class PitchService {
     const dir = this.pitchDir()
     this.ensureWatch(dir)
     const cartoon = this.deps.cartoon?.() ?? { status: 'missing' as const }
-    if (!dir) return { exists: false, installed: false, script: null, media: [], job: this.job, choice: null, videos: [], cartoon }
+    if (!dir) return { exists: false, installed: false, script: null, media: [], job: this.job, choice: null, videos: [], videoTimes: {}, cartoon }
     const exists = existsSync(join(dir, 'package.json'))
     let script: PitchScript | null = null
     let scriptError: string | undefined
@@ -146,6 +147,7 @@ export class PitchService {
       .map((f) => String(f).replace(/\\/g, '/'))
       .filter((f) => MEDIA_RE.test(f) && !f.startsWith('audio/'))
       .sort()
+    const videos = await listVideos(join(dir, VIDEO_OUT_DIR))
     return {
       dir,
       exists,
@@ -155,7 +157,9 @@ export class PitchService {
       media,
       job: this.job,
       choice: await readChoice(dir, exists),
-      videos: await listVideos(join(dir, VIDEO_OUT_DIR)),
+      videos: videos.map((v) => v.name),
+      videoTimes: Object.fromEntries(videos.map((v) => [v.name, v.mtime])),
+      deck: await readDeck(join(dir, DECK_FILE)),
       cartoon,
     }
   }
@@ -353,9 +357,13 @@ export class PitchService {
       this.watcher = watch(root, { recursive: true }, (_e, file) => {
         const f = file ? relative(PITCH_DIR, String(file)).replace(/\\/g, '/') : ''
         if (!file || String(file).replace(/\\/g, '/').split('/')[0] !== PITCH_DIR) return
-        if (f.startsWith('node_modules') || f.startsWith('out/') || f.startsWith('.')) return
+        if (f.startsWith('node_modules') || f.startsWith('.')) return
+        // pitch/out/: only finished videos matter (a cartoon short copied in), and a render writes for a
+        // while, so wait for it to settle; nothing else there changes the tab.
+        const out = f.startsWith(`${VIDEO_OUT_DIR}/`)
+        if (out && !VIDEO_RE.test(f)) return
         clearTimeout(this.timer)
-        this.timer = setTimeout(() => void this.publish(), 250)
+        this.timer = setTimeout(() => void this.publish(), out ? 1500 : 250)
       })
       // E.g. the folder was moved or deleted. Drop the watcher so the next state() starts a new one.
       const w = this.watcher
@@ -385,9 +393,15 @@ async function readChoice(dir: string, slidesExist: boolean): Promise<PitchChoic
   }
 }
 
+/** pitch/deck.pdf, if it's there. */
+async function readDeck(path: string): Promise<PitchState['deck']> {
+  const st = await stat(path).catch(() => null)
+  return st?.isFile() ? { path, mtime: st.mtimeMs } : undefined
+}
+
 /** Finished videos, newest first. */
-async function listVideos(dir: string): Promise<string[]> {
+async function listVideos(dir: string): Promise<{ name: string; mtime: number }[]> {
   const names = (await readdir(dir).catch(() => [] as string[])).filter((f) => VIDEO_RE.test(f))
-  const withTime = await Promise.all(names.map(async (f) => ({ f, t: (await stat(join(dir, f)).catch(() => null))?.mtimeMs ?? 0 })))
-  return withTime.sort((a, b) => b.t - a.t).map((x) => x.f)
+  const withTime = await Promise.all(names.map(async (name) => ({ name, mtime: (await stat(join(dir, name)).catch(() => null))?.mtimeMs ?? 0 })))
+  return withTime.sort((a, b) => b.mtime - a.mtime)
 }

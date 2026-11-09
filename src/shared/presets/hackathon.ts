@@ -101,7 +101,7 @@ checklist:
   - { id: past-winners, group: prep, due: "${day(-11)}", label: "Past winners and challenges collected in challenge/examples/" }
   - { id: accounts, group: prep, due: "${day(-8)}", label: "Accounts and API keys for the services you might use (add them under Hackathon › Challenges → API keys)" }
   - { id: kits, group: prep, due: "${day(-8)}", label: "A tested hello-world starter kit per partner technology" }
-  - { id: boilerplates, group: prep, due: "${day(-5)}", label: "Boilerplates ready (web app, API + database, deploy script)", note: "Tools only — never the solution" }
+  - { id: boilerplates, group: prep, due: "${day(-5)}", label: "Boilerplates ready (web app, API + database, deploy script)", note: "Tools only, never the solution. Publish them as open source before the event: some rules allow only open-source code written beforehand" }
   - { id: practice, group: prep, due: "${day(-3)}", label: "A short practice run on a past challenge, on the real schedule" }
   - { id: rules, group: prep, due: "${day(-1)}", label: "Official rules into challenge/brief/ and run /hackforge:rules" }
   # Event-day logistics
@@ -120,6 +120,7 @@ checklist:
   - { id: f-freeze, group: final, due: "${at(2, '06:00')}", label: "Feature freeze at 06:00" }
   - { id: f-verify, group: final, due: "${at(2, '08:00')}", label: "/hackforge:verify final shows COMPLIANCE: PASS" }
   - { id: f-video, group: final, due: "${at(2, '08:30')}", label: "Demo video with narration, within the length limit" }
+  - { id: f-deck, group: final, due: "${at(2, '08:30')}", label: "Pitch deck PDF, if the submission asks for one (Pitch tab)" }
   - { id: f-readme, group: final, due: "${at(2, '08:30')}", label: "README: what it does, setup, what's real vs mocked, partner tech used" }
   - { id: f-demo, group: final, due: "${at(2, '08:30')}", label: "Deployed demo link works from a phone" }
   - { id: f-repo, group: final, due: "${at(2, '08:30')}", label: "Repository shared as the rules require" }
@@ -144,7 +145,9 @@ What tends to win a partner-track hackathon, in priority order:
 
 Working rules:
 
-- Never reuse pre-written solution code. Prepared tools, boilerplates and starter kits are fine; check the official rules.
+- Never reuse pre-written solution code. Prepared tools, boilerplates and starter kits are usually fine, but some events
+  allow only open-source code written before the event: publish them as open source beforehand or rebuild them there.
+  Check the official rules.
 - Split milestones across the team's laptops with /hackforge:team claim (one builder each, in worktrees) rather than
   running many parallel agents on one machine, which burns one person's plan while the others idle.
 - One driver: only one teammate runs the /hackforge:perfect loop (/hackforge:team driver); the others build their

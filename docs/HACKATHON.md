@@ -116,11 +116,13 @@ The **Pitch** tab starts with one question: **Do you want a pitch or promo video
 
 - **Narrated slides:** the slide video below, narrated scene by scene.
 - **3D video:** the same video with 3D shots from HackForge's 3D kit. **Make the 3D video with Claude** writes the script if needed, picks the shots, renders them and puts them in the video.
-- **Cartoon short:** a ~60 s cartoon story about the problem you solve, 2D characters in a colourful 3D world, vertical 9:16 or horizontal 16:9 (you pick each time). Harness downloads the [cartoon short skill](https://github.com/mromidev/claude-animated-shorts) (MIT) once, then Claude makes the short in `video/cartoon/` in a new session. It shows you the script before rendering anything heavy, and the finished video appears on the tab.
+- **Cartoon short:** a ~60 s cartoon story about the problem you solve, 2D characters in a colourful 3D world, horizontal 16:9 or vertical 9:16 (you pick each time; 16:9 is the default, because submission videos usually go on YouTube or Vimeo and play on the stage screen). Harness downloads the [cartoon short skill](https://github.com/mromidev/claude-animated-shorts) (MIT) once, then Claude makes the short in `video/cartoon/` in a new session. It shows you the script before rendering anything heavy, and the finished video appears on the tab.
 - **Something else:** describe the video you want; Claude plans it, shows you the plan, then builds it.
 - **Skip the pitch video:** the team run then writes the pitch text but makes no video.
 
-The answer is saved in `pitch/style.json`, so the whole team sees it, and the team run follows it. **Change video type** (on the card, or in the toolbar's ▾) asks again; nothing made so far is deleted. Finished cartoon and custom videos go to `pitch/out/`, where the tab plays them, with **Ask Claude to change it**.
+The answer is saved in `pitch/style.json`, so the whole team sees it, and the team run follows it. **Change video type** (on the card, or in the toolbar's ▾) asks again; nothing made so far is deleted. Finished cartoon and custom videos go to `pitch/out/`, where the tab plays them, with **Ask Claude to change it**. Each video shows its length, and one longer than the limit (2:00, or the slide script's time limit) gets a red warning: many events reject a longer video.
+
+**Pitch deck (PDF):** many submissions ask for a deck next to the video. The card at the bottom of the Pitch tab, there whatever video you chose (even none), asks Claude in a new session to build 8-10 slides from what you made and the rules in `challenge/brief/`. The source stays in `pitch/deck/` and the PDF is saved as `pitch/deck.pdf`, so the whole team gets it through git.
 
 The slide video lives in `pitch/`, a Remotion video driven by `pitch/script.json`:
 - **Scenes:** title, bullet points, big statement, demo clip or screenshot, and end card, with a progress bar.

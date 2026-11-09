@@ -1,9 +1,10 @@
-import { Clapperboard, FolderOpen, Loader2, MessageSquarePlus, Play, RotateCcw, Sparkles, Wand2 } from 'lucide-react'
-import { useState } from 'react'
+import { Clapperboard, FolderOpen, Loader2, MessageSquarePlus, Play, RotateCcw, Sparkles, TriangleAlert, Wand2 } from 'lucide-react'
+import { useEffect, useState } from 'react'
 import type { EventState } from '@shared/event'
 import {
   cartoonPrompt,
   customVideoPrompt,
+  PITCH_LIMIT_SECONDS,
   PITCH_TEMPLATES,
   VIDEO_OUT_DIR,
   videoChangePrompt,
@@ -18,9 +19,37 @@ import { usePitch } from '@/stores/pitch'
 import slidesThumb from '@/assets/pitch/slides.jpg'
 import threeDThumb from '@/assets/pitch/3d.jpg'
 import cartoonThumb from '@/assets/pitch/cartoon.jpg'
+import { PitchDeck } from './PitchDeck'
 
 const THUMBS = { slides: slidesThumb, '3d': threeDThumb, cartoon: cartoonThumb }
-const TARGET_SECONDS = 120
+const fmt = (s: number) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`
+/** Containers round a few frames either way; anything past that is over the limit. */
+const isOver = (s: number, limit: number) => s > limit + 0.1
+/** m:ss, with tenths when that's what puts it over the limit (2:00.4, not a red 2:00). */
+const length = (s: number, limit: number) => (isOver(s, limit) && Math.floor(s) <= limit ? `${fmt(s)}.${Math.floor((s % 1) * 10)}` : fmt(s))
+
+/** Each video's length in seconds, read from its metadata (by URL, so a replaced file is read again). */
+function useDurations(urls: Record<string, string>): Record<string, number> {
+  const [seconds, setSeconds] = useState<Record<string, number>>({})
+  const key = JSON.stringify(urls)
+  useEffect(() => {
+    const probes = Object.entries(urls).map(([name, url]) => {
+      const v = document.createElement('video')
+      v.preload = 'metadata'
+      v.onloadedmetadata = () => Number.isFinite(v.duration) && setSeconds((m) => ({ ...m, [name]: v.duration }))
+      v.src = url
+      return v
+    })
+    return () =>
+      probes.forEach((v) => {
+        v.onloadedmetadata = null
+        v.removeAttribute('src')
+        v.load()
+      })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [key])
+  return seconds
+}
 
 /** Downloads the cartoon skill if needed, then hands the short to Claude in a new session. */
 async function startCartoon(format: VideoFormat) {
@@ -36,7 +65,8 @@ async function startCartoon(format: VideoFormat) {
  */
 export function PitchChooser({ event }: { event: EventState }) {
   const { choose, error } = usePitch()
-  const [format, setFormat] = useState<VideoFormat>('vertical')
+  // 16:9 by default: submission videos usually go on YouTube or Vimeo and play on the stage screen.
+  const [format, setFormat] = useState<VideoFormat>('horizontal')
   const [brief, setBrief] = useState('')
   const [busy, setBusy] = useState<string | null>(null)
   const name = event.config.name
@@ -65,7 +95,7 @@ export function PitchChooser({ event }: { event: EventState }) {
               </div>
               {t.style === 'cartoon' && (
                 <div className="mt-2 flex gap-1 text-[12px]" role="radiogroup" aria-label="Format">
-                  {(['vertical', 'horizontal'] as const).map((f) => (
+                  {(['horizontal', 'vertical'] as const).map((f) => (
                     <button
                       key={f}
                       role="radio"
@@ -104,7 +134,7 @@ export function PitchChooser({ event }: { event: EventState }) {
         <button
           disabled={!brief.trim() || !!busy}
           onClick={() =>
-            void pick({ style: 'custom', brief }, () => useEvent.getState().askClaude(customVideoPrompt(brief, TARGET_SECONDS), 'Pitch video', { fresh: true }))
+            void pick({ style: 'custom', brief }, () => useEvent.getState().askClaude(customVideoPrompt(brief, PITCH_LIMIT_SECONDS), 'Pitch video', { fresh: true }))
           }
           className="mt-2 flex items-center gap-1.5 rounded-md bg-accent px-3 py-1.5 text-[12px] font-medium text-white hover:brightness-110 disabled:opacity-40"
         >
@@ -126,15 +156,18 @@ export function PitchChooser({ event }: { event: EventState }) {
 const changeType = (event: EventState) => void usePitch.getState().choose(null, event.config.name)
 
 /** The team chose no video. */
-export function NoPitch({ event }: { event: EventState }) {
+export function NoPitch({ event, state }: { event: EventState; state: PitchState }) {
   return (
-    <section className="rounded-2xl border border-dashed border-line p-5 text-[13px]">
-      <h2 className="font-semibold">No pitch video</h2>
-      <p className="mt-1 text-muted">The team skipped the video. The team run still writes the pitch itself, and the demo and the pitch text are what judges see.</p>
-      <button onClick={() => changeType(event)} className="mt-3 rounded-md border border-line px-3 py-1.5 text-[12px] hover:bg-surface-2">
-        Make one after all
-      </button>
-    </section>
+    <div className="space-y-3">
+      <section className="rounded-2xl border border-dashed border-line p-5 text-[13px]">
+        <h2 className="font-semibold">No pitch video</h2>
+        <p className="mt-1 text-muted">The team skipped the video. The team run still writes the pitch itself, and the demo and the pitch text are what judges see.</p>
+        <button onClick={() => changeType(event)} className="mt-3 rounded-md border border-line px-3 py-1.5 text-[12px] hover:bg-surface-2">
+          Make one after all
+        </button>
+      </section>
+      <PitchDeck state={state} />
+    </div>
   )
 }
 
@@ -144,11 +177,21 @@ export function YourVideo({ event, state }: { event: EventState; state: PitchSta
   const askClaude = useEvent((s) => s.askClaude)
   const error = usePitch((s) => s.error)
   const [change, setChange] = useState('')
-  const [playing, setPlaying] = useState<string | null>(state.videos[0] ?? null)
+  // null: follow the newest video; set when someone picks one.
+  const [playing, setPlaying] = useState<string | null>(null)
   const cartoon = choice.style === 'cartoon'
-  const format = choice.format ?? 'vertical'
+  const format = choice.format ?? 'horizontal'
   const outDir = `${state.dir}/${VIDEO_OUT_DIR}`
   const latest = state.videos[0]
+  // The query only busts the cache when a video is replaced; the file protocol ignores it.
+  const urls = Object.fromEntries(state.videos.map((v) => [v, `${fileUrl(`${outDir}/${v}`)}?v=${Math.round(state.videoTimes[v] ?? 0)}`]))
+  const durations = useDurations(urls)
+  // The slide script's limit when there is one (the team may have set the event's), else the usual 2:00.
+  const limit = state.script?.targetSeconds ?? PITCH_LIMIT_SECONDS
+  const over = state.videos.filter((v) => isOver(durations[v] ?? 0, limit))
+  // The newest video plays unless someone picked another, so one that arrives while the tab is open
+  // shows without a click; a deleted one stops showing.
+  const shown = playing && state.videos.includes(playing) ? playing : (latest ?? null)
   const status =
     cartoon && state.cartoon.status === 'installing'
       ? 'Downloading the cartoon short skill from GitHub…'
@@ -158,7 +201,7 @@ export function YourVideo({ event, state }: { event: EventState; state: PitchSta
           ? `${state.videos.length} video${state.videos.length === 1 ? '' : 's'} in pitch/${VIDEO_OUT_DIR}/`
           : 'Claude is making it in its own session: it shows you the script or plan first, then renders. The video appears here when it’s copied to pitch/out/.'
   const again = () =>
-    cartoon ? void startCartoon(format) : void askClaude(customVideoPrompt(choice.brief ?? '', TARGET_SECONDS), 'Pitch video', { fresh: true })
+    cartoon ? void startCartoon(format) : void askClaude(customVideoPrompt(choice.brief ?? '', limit), 'Pitch video', { fresh: true })
   return (
     <div className="space-y-3">
       <section className="flex gap-4 rounded-2xl border border-line p-4">
@@ -198,16 +241,23 @@ export function YourVideo({ event, state }: { event: EventState; state: PitchSta
               <button
                 key={v}
                 onClick={() => setPlaying(v)}
-                className={cn('flex items-center gap-1.5 rounded-md border px-2.5 py-1 text-[12px]', playing === v ? 'border-accent-ink bg-accent/10' : 'border-line hover:bg-surface-2')}
+                className={cn('flex items-center gap-1.5 rounded-md border px-2.5 py-1 text-[12px]', shown === v ? 'border-accent-ink bg-accent/10' : 'border-line hover:bg-surface-2')}
               >
                 <Play className="size-3" /> {v}
+                {durations[v] !== undefined && <span className={cn('num', isOver(durations[v], limit) ? 'font-medium text-danger-ink' : 'text-muted')}>{length(durations[v], limit)}</span>}
               </button>
             ))}
           </div>
-          {playing && (
+          {over.length > 0 && (
+            <p role="alert" className="mt-2 flex items-start gap-1.5 text-[12px] text-danger-ink">
+              <TriangleAlert className="mt-0.5 size-3.5 shrink-0" />
+              {over.length === 1 ? `${over[0]} is` : `${over.length} videos are`} over the {fmt(limit)} limit. Many events reject a longer video: ask Claude to cut it below.
+            </p>
+          )}
+          {shown && urls[shown] && (
             <video
-              key={playing}
-              src={fileUrl(`${outDir}/${playing}`)}
+              key={urls[shown]}
+              src={urls[shown]}
               controls
               className={cn('mt-3 rounded-lg bg-black', cartoon && format === 'vertical' ? 'mx-auto max-h-[70vh]' : 'w-full')}
             />
@@ -216,14 +266,14 @@ export function YourVideo({ event, state }: { event: EventState; state: PitchSta
             <input
               value={change}
               onChange={(e) => setChange(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && change.trim() && (void askClaude(videoChangePrompt(change, playing ?? undefined), 'Video change'), setChange(''))}
+              onKeyDown={(e) => e.key === 'Enter' && change.trim() && (void askClaude(videoChangePrompt(change, shown ?? undefined), 'Video change'), setChange(''))}
               placeholder="Ask Claude to change it, e.g. a shorter ending, a warmer voice"
               className="selectable min-w-0 flex-1 rounded-md border border-line bg-surface-2 px-2.5 py-1.5 text-[12px] outline-none focus:border-accent-ink/60"
             />
             <button
               disabled={!change.trim()}
               onClick={() => {
-                void askClaude(videoChangePrompt(change, playing ?? undefined), 'Video change')
+                void askClaude(videoChangePrompt(change, shown ?? undefined), 'Video change')
                 setChange('')
               }}
               className="flex items-center gap-1.5 rounded-md border border-line px-3 text-[12px] hover:bg-surface-2 disabled:opacity-40"
@@ -233,6 +283,7 @@ export function YourVideo({ event, state }: { event: EventState; state: PitchSta
           </div>
         </section>
       )}
+      <PitchDeck state={state} />
       {error && <div className="selectable text-[12px] text-danger-ink">{error}</div>}
     </div>
   )

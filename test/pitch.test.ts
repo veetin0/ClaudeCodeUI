@@ -6,6 +6,7 @@ import {
   audioState,
   cartoonPrompt,
   customVideoPrompt,
+  deckPrompt,
   defaultScript,
   narrationHash,
   parseChoice,
@@ -122,12 +123,40 @@ describe('PitchService', () => {
     writeFileSync(join(root, 'pitch', 'out', 'second.mp4'), 'b')
     writeFileSync(join(root, 'pitch', 'out', 'notes.txt'), 'c')
     utimesSync(join(root, 'pitch', 'out', 'first.mp4'), new Date(2026, 0, 1), new Date(2026, 0, 1))
-    expect((await svc.state()).videos).toEqual(['second.mp4', 'first.mp4'])
+    s = await svc.state()
+    expect(s.videos).toEqual(['second.mp4', 'first.mp4'])
+    expect(s.videoTimes['first.mp4']).toBe(new Date(2026, 0, 1).getTime())
     // Slides set up the slide video.
     s = await svc.choose({ style: 'slides' }, 'Weekend Hackathon')
     expect(s).toMatchObject({ exists: true, choice: { style: 'slides' } })
     expect(JSON.parse(readFileSync(join(root, 'pitch', 'style.json'), 'utf8'))).toMatchObject({ style: 'slides' })
     svc.dispose()
+  })
+
+  it('finds the pitch deck PDF, whatever video the team chose', async () => {
+    const { root, svc } = setup()
+    expect((await svc.state()).deck).toBeUndefined()
+    await svc.choose({ style: 'none' }, 'Weekend Hackathon')
+    expect((await svc.state()).deck).toBeUndefined()
+    writeFileSync(join(root, 'pitch', 'deck.pdf'), '%PDF-1.7')
+    utimesSync(join(root, 'pitch', 'deck.pdf'), new Date(2026, 10, 14), new Date(2026, 10, 14))
+    expect((await svc.state()).deck).toEqual({ path: join(root, 'pitch', 'deck.pdf'), mtime: new Date(2026, 10, 14).getTime() })
+    // A folder of that name isn't a deck.
+    rmSync(join(root, 'pitch', 'deck.pdf'))
+    mkdirSync(join(root, 'pitch', 'deck.pdf'))
+    expect((await svc.state()).deck).toBeUndefined()
+    svc.dispose()
+  })
+
+  it('shows a video as soon as it lands in pitch/out/', async () => {
+    const t = setup()
+    await t.svc.choose({ style: 'cartoon', format: 'horizontal' }, 'Weekend Hackathon')
+    // Let the watcher start delivering events (macOS needs a moment; see eventService.test.ts).
+    await new Promise((r) => setTimeout(r, 500))
+    const before = t.pushed.length
+    writeFileSync(join(t.root, 'pitch', 'out', 'cartoon-short.mp4'), 'x')
+    await expect.poll(() => (t.pushed.slice(before) as { videos: string[] }[]).some((s) => s.videos.includes('cartoon-short.mp4')), { timeout: 6000 }).toBe(true)
+    t.svc.dispose()
   })
 
   it('treats a pitch made before the chooser as the slide video', async () => {
@@ -364,6 +393,10 @@ describe('pitch video choices', () => {
     expect(cartoonPrompt('vertical')).toMatch(/Never upload, publish or send the skill's reference frames/)
     expect(customVideoPrompt('A 30 s teaser', 120)).toMatch(/A 30 s teaser[\s\S]*pitch\/out\//)
     expect(threeDVideoPrompt(90)).toMatch(/video\/kit3d\/[\s\S]*pitch\/public\/3d\//)
+    // The deck follows the event's own rules, keeps its source editable and lands where the tab finds it.
+    expect(deckPrompt()).toMatch(/challenge\/brief\//)
+    expect(deckPrompt()).toMatch(/Only claim what really works/)
+    expect(deckPrompt()).toMatch(/pitch\/deck\/[\s\S]*save the PDF as pitch\/deck\.pdf/)
     // The event is generic: no theme from a past event.
     expect(writeScriptPrompt(120)).not.toMatch(/Renaissance/)
     expect(writeScriptPrompt(120)).toMatch(/challenge\/event\.yaml/)
