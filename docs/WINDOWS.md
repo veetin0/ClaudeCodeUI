@@ -27,7 +27,7 @@ If Claude Code can't find Git Bash, set `CLAUDE_CODE_GIT_BASH_PATH` to
 ```powershell
 npm install
 npm run dev          # run from source
-npm run build:win    # or build the installer → dist\Harness-Setup-0.1.0.exe
+npm run build:win    # or build the installer → dist\Harness-Setup-<version>.exe
 ```
 
 Build the installer **on Windows**. npm only downloads the Windows Claude Code binary on Windows, so

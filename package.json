@@ -1,7 +1,7 @@
 {
   "name": "harness",
   "productName": "Harness",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Desktop app for macOS and Windows that runs Claude Code and shows its work live",
   "main": "./out/main/index.js",
   "type": "module",
