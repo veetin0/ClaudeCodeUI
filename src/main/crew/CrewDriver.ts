@@ -722,10 +722,20 @@ export class CrewDriver {
     return this.crew()
   }
 
-  /** Left the team: forget who the crew was (missions stay for the record). */
+  /**
+   * Left the team: forget who the crew was and the team's finished missions, so a new team (at the
+   * event, after a test) starts with an empty Crew card and crew_status. A mission still running
+   * stays: with its crew member gone it's reported as stopped, and goes at the next leave.
+   */
   reset() {
     this.payloads.clear()
     this.statuses.clear()
+    const done = this.missions.filter((m) => isFinal(this.stateOf(m)) && !m.settling)
+    if (done.length) {
+      for (const m of done) this.cancel.delete(m.id)
+      this.missions = this.missions.filter((m) => !done.includes(m))
+      this.save()
+    }
     this.publish()
   }
 

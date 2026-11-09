@@ -225,6 +225,52 @@ describe('crew driver bookkeeping', () => {
     expect(driver.payload()!.cancel).toEqual([])
   })
 
+  it('forgets the finished missions of a team you leave, and keeps the one still running', async () => {
+    const file = join(mkdtempSync(join(tmpdir(), 'crew-state-')), 'crew-missions.json')
+    let now = NOW
+    const dir = project()
+    const make = () =>
+      new CrewDriver({
+        me: () => ({ id: 'me', name: 'Alex' }),
+        myUsage: () => ({ source: 'unknown' }),
+        nudge: () => {},
+        push: () => {},
+        deliver: () => true,
+        autoReports: () => true,
+        joinCommand: () => undefined,
+        files: memoryFiles(),
+        tmpDir: mkdtempSync(join(tmpdir(), 'crew-tmp-')),
+        file,
+        now: () => now,
+      })
+    const driver = make()
+    driver.received([
+      { member: member('a', 'Ada', now), payload: crewPayload() },
+      { member: member('b', 'Ben', now), payload: crewPayload() },
+    ])
+    const [test, live] = [...(await driver.dispatch('s1', dir, [{ title: 'Hello file', brief: 'x', to: 'Ada' }, { title: 'API', brief: 'y', to: 'Ben' }])).matchAll(/✓ (m-[0-9a-f]+)/g)].map((m) => m[1])
+    driver.received([
+      { member: member('a', 'Ada', now), payload: crewPayload({ missions: [{ id: test, title: 'Hello file', state: 'done', summary: 'hello.txt added' }] }) },
+      { member: member('b', 'Ben', now), payload: crewPayload({ missions: [{ id: live, title: 'API', state: 'working' }] }) },
+    ])
+    await expect.poll(() => driver.settled(test)).toBe(true)
+    expect(driver.statusText()).toMatch(/Hello file/)
+
+    driver.reset()
+    const ids = driver.state().missions.map((m) => m.id)
+    expect(ids).toEqual([live])
+    expect(driver.statusText()).not.toMatch(/Hello file/)
+    // The saved list follows, so a restart of Harness doesn't bring it back.
+    expect(make().state().missions.map((m) => m.id)).toEqual([live])
+    // With Ben gone, his mission ends as stopped; the next leave clears it too.
+    now += 11 * 60_000
+    driver.received([])
+    await expect.poll(() => driver.state().missions.find((m) => m.id === live)?.state).toBe('stopped')
+    await expect.poll(() => driver.settled(live)).toBe(true)
+    driver.reset()
+    expect(driver.state().missions).toEqual([])
+  })
+
   it('cancels a mission nobody picked up yet', async () => {
     const { driver, dir, tick, at } = setup()
     driver.received([{ member: member('a', 'Ada', NOW), payload: crewPayload() }])
