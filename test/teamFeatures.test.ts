@@ -9,6 +9,7 @@ import { parseDiffRanges, parseStatus, repoId, scanChanges } from '../src/main/t
 import { checkoutHandoff, planHandoff, pushSnapshot } from '../src/main/team/handoff'
 import { openSecrets, sealSecrets } from '../src/main/team/secrets'
 import { TeamService, type TeamDeps, type TeamKeys } from '../src/main/team/TeamService'
+import { freePorts } from './freePorts'
 
 const git = (cwd: string, ...args: string[]) => execFileSync('git', args, { cwd, encoding: 'utf8', env: { ...process.env, GIT_TERMINAL_PROMPT: '0' } }).trim()
 const root = mkdtempSync(join(tmpdir(), 'harness-team-'))
@@ -253,9 +254,9 @@ describe('two laptops through the relay', () => {
     const conflictsSeen: Conflict[][] = []
     const keysSeen: TeamKeys[] = []
     const handoffsSeen: OpenHandoff[] = []
-    const port = 48000 + Math.floor(Math.random() * 1000)
+    const [port, portBo] = await freePorts(2)
     const ada = laptop('ada00001', port, adaDir, { sharedSecrets: () => ({ EXA_API_KEY: 'exa-secret' }) })
-    const bo = laptop('bo000001', port + 1, boDir, { onConflicts: (c) => conflictsSeen.push(c), onTeamKeys: (k) => keysSeen.push(k), onHandoff: (h) => handoffsSeen.push(h) })
+    const bo = laptop('bo000001', portBo, boDir, { onConflicts: (c) => conflictsSeen.push(c), onTeamKeys: (k) => keysSeen.push(k), onHandoff: (h) => handoffsSeen.push(h) })
     await ada.svc.create({ name: 'Ada', host: true })
     await bo.svc.join(makeJoinCode(`http://127.0.0.1:${port}`, ada.config()!.token), 'Bo')
     await ada.svc.sync()

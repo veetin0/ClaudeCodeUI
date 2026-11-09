@@ -4,6 +4,7 @@ import { afterEach, describe, expect, it } from 'vitest'
 import { headroom, isOnline, makeJoinCode, parseJoinCode, pickMember, usageAdvice, type MemberStatus, type TeamConfig, type TeamState } from '@shared/team'
 import { createRelay } from '../relay/relay.mjs'
 import { TeamService, type TeamDeps } from '../src/main/team/TeamService'
+import { freePorts } from './freePorts'
 
 const NOW = Date.parse('2026-11-14T10:00:00Z')
 const member = (name: string, usage: MemberStatus['usage'], updatedAt = NOW): MemberStatus => ({ id: name.toLowerCase(), name, sessions: [], usage, updatedAt })
@@ -69,9 +70,9 @@ describe('relay + TeamService', () => {
   }
 
   it('moves files between teammates through the relay, sealed with the team key', async () => {
-    const port = 47000 + Math.floor(Math.random() * 1500)
+    const [port, portB] = await freePorts(2)
     const a = laptop('aaaa', port)
-    const b = laptop('bbbb', port + 1)
+    const b = laptop('bbbb', portB)
     await a.svc.create({ name: 'Ada', host: true })
     await b.svc.join(a.svc.joinCode()!.replace(/HT1\.\S+/, (c) => c), 'Ben')
     const data = Buffer.from('PACK git bundle bytes '.repeat(1000))
@@ -159,7 +160,7 @@ describe('relay + TeamService', () => {
   })
 
   it('one laptop hosts, another joins with the code, both see each other', async () => {
-    const port = 47000 + Math.floor(Math.random() * 1000)
+    const [port, guestPort] = await freePorts(2)
     const host = laptop('host0001', port)
     const created = await host.svc.create({ name: 'Ada', host: true })
     expect(created.connected).toBe(true)
@@ -167,7 +168,7 @@ describe('relay + TeamService', () => {
 
     // The joiner reaches the host over loopback here (on a real network it's the LAN URL).
     const code = makeJoinCode(`http://127.0.0.1:${port}`, host.config()!.token)
-    const guest = laptop('guest001', port + 1)
+    const guest = laptop('guest001', guestPort)
     guest.svc.setLocal({ sessions: [{ title: 'Build API', project: 'gridpulse', status: 'running', activity: 'Bash: npm test', subagents: 2 }] })
     guest.svc.onRateLimit({ status: 'allowed_warning', rateLimitType: 'five_hour', utilization: 0.82, resetsAt: Math.floor(NOW / 1000) })
     guest.svc.update({ focus: 'M2 backend' })
@@ -211,7 +212,7 @@ describe('relay + TeamService', () => {
   })
 
   it('says so when the relay port is taken, and hosts once it is free', async () => {
-    const port = 46000 + Math.floor(Math.random() * 1000)
+    const [port] = await freePorts()
     const blocker = createServer().listen(port)
     await new Promise((r) => blocker.once('listening', r))
     const l = laptop('hostbusy', port)
