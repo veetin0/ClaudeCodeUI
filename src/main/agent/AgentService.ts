@@ -12,6 +12,7 @@ import {
   type SdkMcpToolDefinition,
   type SdkPluginConfig,
 } from '@anthropic-ai/claude-agent-sdk'
+import { advisorOptions, isAdvisorChoice, type AdvisorChoice } from '@shared/advisor'
 import { EXEC_TOOLS, type AgentId, type HarnessEvent, type ImageAttachment, type PermissionMode, type SessionStatus, type TodoItem } from '@shared/events'
 import { toVisual } from '@shared/visuals'
 import { normPath } from '@shared/paths'
@@ -47,6 +48,8 @@ export interface AgentServiceDeps {
   onRateLimit?: (info: SDKRateLimitInfo) => void
   /** Usage saver settings; read when a session starts (and when its model picker changes). */
   usageSaver?: () => UsageSaverSettings
+  /** The advisor from Settings, read when a session starts ('' or absent: Claude Code's own setting). */
+  advisor?: () => AdvisorChoice
   /** This folder's HackForge settings pick Sonnet for the main session (Pro plan / lean profile). */
   hackforgeLean?: (cwd: string) => boolean
   /** Team radar: a heads-up when a file about to be edited is also changed by teammates. */
@@ -206,6 +209,9 @@ class AgentSession {
     const factory = this.deps.queryFactory ?? query
     const harnessUrl = this.deps.telemetry?.register(this.telemetryToken, (p) => this.onTelemetry(p))
     const mcp = this.deps.mcp?.(opts.cwd)
+    // A choice made for this session (the team run's lead) wins over the one in Settings.
+    const chosen = opts.advisor ?? this.deps.advisor?.()
+    const advisor = advisorOptions(isAdvisorChoice(chosen) ? chosen : '')
 
     this.q = factory({
       prompt: this.input,
@@ -227,6 +233,7 @@ class AgentSession {
             .join('\n\n'),
         },
         plugins: this.deps.plugins?.(opts.cwd),
+        ...(advisor.settings ? { settings: advisor.settings } : {}),
         mcpServers: { ...mcp?.servers, ...this.extras.mcpServers, harness: createHarnessServer(this.deps.harnessTools?.({ id: this.id, cwd: opts.cwd })) },
         allowedTools: ['mcp__harness', ...(mcp?.allow ?? []), ...(this.extras.allow ?? [])],
         // Same CLAUDE.md, settings, MCP servers and skills as the terminal CLI.
@@ -238,7 +245,7 @@ class AgentSession {
         canUseTool,
         hooks: this.hooks(),
         abortController: this.abort,
-        env: { ...this.deps.getEnv(), ...this.deps.extraEnv?.(opts.cwd), ...this.extras.env, ...(harnessUrl ? { HARNESS_URL: harnessUrl } : {}) },
+        env: { ...this.deps.getEnv(), ...this.deps.extraEnv?.(opts.cwd), ...this.extras.env, ...advisor.env, ...(harnessUrl ? { HARNESS_URL: harnessUrl } : {}) },
         pathToClaudeCodeExecutable: this.deps.claudeExecutablePath,
         stderr: (data) => {
           this.stderrTail.push(data)

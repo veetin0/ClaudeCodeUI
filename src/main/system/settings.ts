@@ -19,6 +19,7 @@ interface StoredSettings extends Omit<AppSettings, 'hasApiKey' | 'hasElevenLabsK
 
 const DEFAULTS: StoredSettings = {
   defaultModel: '',
+  advisor: '',
   defaultPermissionMode: 'default',
   recentProjects: [],
   observeTerminalSessions: true,

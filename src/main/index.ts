@@ -2,6 +2,7 @@ import { app, BrowserWindow, dialog, ipcMain, nativeTheme, powerMonitor, powerSa
 import { randomUUID } from 'node:crypto'
 import { homedir } from 'node:os'
 import { basename, join } from 'node:path'
+import { isAdvisorChoice, type AdvisorChoice, type LeadSetup } from '@shared/advisor'
 import { IPC, type ObserveStatus, type PermissionDecision, type PtyOptions, type StartSessionOptions } from '@shared/ipc'
 import type { ImageAttachment, PermissionMode, TodoItem } from '@shared/events'
 import { AgentService } from './agent/AgentService'
@@ -245,7 +246,7 @@ function registerIpc() {
     agents.close(id)
     store.delete(id)
   })
-  ipcMain.handle(IPC.resumeSession, (_e, id: string, opts?: { permissionMode?: PermissionMode; model?: string }) => {
+  ipcMain.handle(IPC.resumeSession, (_e, id: string, opts?: { permissionMode?: PermissionMode; model?: string; advisor?: AdvisorChoice }) => {
     const loaded = store.load(id)
     if (!loaded) throw new Error('Session not found')
     const { summary, events } = loaded
@@ -259,7 +260,13 @@ function registerIpc() {
     const lastRoute = events.findLast((e) => e.type === 'saver' && e.note.kind === 'route')
     const saverTier = lastRoute?.type === 'saver' && lastRoute.note.kind === 'route' ? lastRoute.note.model : undefined
     const resumed = agents.start(
-      { cwd: summary.cwd, permissionMode: opts?.permissionMode ?? settings.get().defaultPermissionMode, model: opts?.model ?? summary.model },
+      {
+        cwd: summary.cwd,
+        permissionMode: opts?.permissionMode ?? settings.get().defaultPermissionMode,
+        model: opts?.model ?? summary.model,
+        // The team run's lead keeps its advisor however its session comes back.
+        advisor: isAdvisorChoice(opts?.advisor) ? opts.advisor : run?.leadAdvisor(summary.cwd),
+      },
       { summary, claudeSessionId: summary.claudeSessionId, todos, saverTier },
     )
     store.open(resumed)
@@ -358,8 +365,8 @@ function registerIpc() {
   ipcMain.handle(IPC.runState, () => run.state())
   ipcMain.handle(IPC.runStartTeam, (_e, name: string) => run.startTeam(name))
   ipcMain.handle(IPC.runGoTo, (_e, stage: RunStage) => run.goTo(stage))
-  ipcMain.handle(IPC.runCreateProject, (_e, o: { name: string; parent: string; deadline?: string; plan: ClaudePlan }) => run.createProject(o))
-  ipcMain.handle(IPC.runUseFolder, (_e, o: { dir: string; name: string; deadline?: string; plan: ClaudePlan }) => run.useFolder(o))
+  ipcMain.handle(IPC.runCreateProject, (_e, o: { name: string; parent: string; deadline?: string; plan: ClaudePlan; lead?: LeadSetup }) => run.createProject(o))
+  ipcMain.handle(IPC.runUseFolder, (_e, o: { dir: string; name: string; deadline?: string; plan: ClaudePlan; lead?: LeadSetup }) => run.useFolder(o))
   ipcMain.handle(IPC.runSetupInfo, () => run.setupInfo())
   ipcMain.handle(IPC.runSetChallenge, (_e, text: string) => run.setChallenge(text))
   ipcMain.handle(IPC.runAddFiles, (_e, kind: FileKind, paths: string[]) => run.addFiles(kind, paths))
@@ -541,6 +548,7 @@ async function start() {
     claudeExecutablePath: resolveClaudeExecutable(),
     onRateLimit: (info) => team?.onRateLimit(info),
     usageSaver: () => settings.get().usageSaver,
+    advisor: () => settings.get().advisor,
     hackforgeLean,
     teamRadar: (abs) => team?.radarFor(abs),
     extraEnv: (cwd) => ({ ...design.env(), ...partners.envFor(cwd) }),

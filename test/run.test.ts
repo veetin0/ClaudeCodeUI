@@ -243,6 +243,20 @@ async function planned(h: ReturnType<typeof harness>) {
 }
 
 describe('team run', () => {
+  it('keeps the lead’s model and advisor with the project, for its session wherever it comes back', async () => {
+    const h = harness()
+    const parent = mkdtempSync(join(tmpdir(), 'hrun-lead-'))
+    await h.run.createProject({ name: 'Grid Pulse', parent, plan: 'pro', lead: { model: 'opus', advisor: 'fable' } })
+    const dir = h.run.state().project!.dir
+    expect(h.run.state().project!.lead).toEqual({ model: 'opus', advisor: 'fable' })
+    expect(h.run.leadAdvisor(dir)).toBe('fable')
+    expect(h.run.leadAdvisor(parent)).toBeUndefined()
+    // Anything odd from the renderer is cleaned up; the defaults leave Settings in charge.
+    await h.run.useFolder({ dir, name: 'Grid Pulse', plan: 'pro', lead: { model: 'opus; rm -rf', advisor: 'gpt' as never } })
+    expect(h.run.state().project!.lead).toEqual({ model: '', advisor: '' })
+    expect(h.run.leadAdvisor(dir)).toBeUndefined()
+  })
+
   it('goes from the challenge to a plan, asking the lead when Claude stops early', async () => {
     const h = harness()
     await planned(h)

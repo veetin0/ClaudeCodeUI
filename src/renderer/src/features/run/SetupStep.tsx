@@ -1,5 +1,6 @@
 import { ArrowLeft, ArrowRight, FileText, FolderOpen, GitBranch, Lock, Paperclip, Plus, ShieldCheck } from 'lucide-react'
 import { useEffect, useRef, useState, type DragEvent } from 'react'
+import { LEAD_SETUPS } from '@shared/advisor'
 import type { ClaudePlan, FileKind } from '@shared/run'
 import { basename, cn } from '@/lib/format'
 import { useApp } from '@/stores/app'
@@ -40,12 +41,16 @@ function NewProject() {
   const [parent, setParent] = useState(() => (settings?.recentProjects[0] ? dirname(settings.recentProjects[0]) : ''))
   const [deadline, setDeadline] = useState('')
   const [plan, setPlan] = useState<ClaudePlan>('pro')
+  const [leadId, setLeadId] = useState(LEAD_SETUPS[0].id)
+  const lead = LEAD_SETUPS.find((l) => l.id === leadId) ?? LEAD_SETUPS[0]
   const creating = useBusy('create')
   const opening = useBusy('folder')
-  const create = () => void act('create', () => window.harness.runCreateProject({ name: name.trim(), parent, deadline: localToIso(deadline), plan }))
+  const create = () =>
+    void act('create', () => window.harness.runCreateProject({ name: name.trim(), parent, deadline: localToIso(deadline), plan, lead: lead.setup }))
   const useFolder = async () => {
     const dir = await window.harness.pickDirectory()
-    if (dir) await act('folder', () => window.harness.runUseFolder({ dir, name: name.trim() || basename(dir), deadline: localToIso(deadline), plan }))
+    if (dir)
+      await act('folder', () => window.harness.runUseFolder({ dir, name: name.trim() || basename(dir), deadline: localToIso(deadline), plan, lead: lead.setup }))
   }
   return (
     <div className="mx-auto max-w-xl p-8">
@@ -89,6 +94,16 @@ function NewProject() {
               </select>
             </Field>
           </div>
+          <Field label="Your Claude">
+            <select value={leadId} onChange={(e) => setLeadId(e.target.value)} className={inputCls}>
+              {LEAD_SETUPS.map((l) => (
+                <option key={l.id} value={l.id}>
+                  {l.label}
+                </option>
+              ))}
+            </select>
+            {lead.note && <span className="mt-1 block text-[11px] text-muted">{lead.note}</span>}
+          </Field>
         </div>
         <Primary className="mt-5 w-full" busy={creating} disabled={!name.trim() || !parent.trim()} onClick={create}>
           Create project
@@ -122,7 +137,7 @@ function Inputs() {
     void act('plan', async () => {
       await saveChallenge.current?.()
       // The lead's Claude: edits allowed, anything else asks (in the inbox). Back from the plan step: the same one.
-      const id = run.sessionId && run.sessionLive ? run.sessionId : await useApp.getState().startQuiet(project.dir, 'acceptEdits')
+      const id = run.sessionId && run.sessionLive ? run.sessionId : await useApp.getState().startQuiet(project.dir, 'acceptEdits', project.lead)
       await window.harness.runPlan(id)
     })
   const saveChallenge = useRef<(() => Promise<void>) | null>(null)

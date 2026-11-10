@@ -36,6 +36,34 @@ describe('AgentService', () => {
     svc.close(b.id)
   })
 
+  it('gives each session the advisor from Settings, or the one chosen for it', () => {
+    const seen: { settings?: { advisorModel?: string }; env: Record<string, string | undefined> }[] = []
+    const factory = (({ options }: { options: (typeof seen)[number] }) => {
+      seen.push(options)
+      return Object.assign((async function* () {})(), { interrupt: async () => {} })
+    }) as unknown as QueryFactory
+    const bus = { emit: () => {} } as unknown as EventBus
+    let advisor: '' | 'off' | 'opus' | 'fable' = 'fable'
+    const svc = new AgentService({ bus, getEnv: () => ({}), queryFactory: factory, advisor: () => advisor })
+    const dir = folder('advisor')
+    const ids = [svc.start({ cwd: dir }).id]
+    advisor = 'off'
+    ids.push(svc.start({ cwd: dir }).id)
+    advisor = ''
+    ids.push(svc.start({ cwd: dir }).id)
+    // The team run's lead: its own choice wins over Settings.
+    ids.push(svc.start({ cwd: dir, advisor: 'opus' }).id)
+    expect(seen.map((o) => [o.settings?.advisorModel, o.env.CLAUDE_CODE_DISABLE_ADVISOR_TOOL])).toEqual([
+      ['fable', undefined],
+      [undefined, '1'],
+      [undefined, undefined],
+      ['opus', undefined],
+    ])
+    // Claude Code's own setting stays untouched when Harness has no say.
+    expect('settings' in seen[2]).toBe(false)
+    for (const id of ids) svc.close(id)
+  })
+
   it('passes AskUserQuestion answers back as updatedInput', async () => {
     let result: { behavior: string; updatedInput?: Record<string, unknown> } | undefined
     const input = { questions: [{ question: 'Which option?', header: 'Decision', multiSelect: false, options: [{ label: 'A' }, { label: 'B' }] }] }

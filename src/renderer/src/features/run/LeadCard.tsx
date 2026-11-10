@@ -73,7 +73,7 @@ function Reconnect({ id }: { id: string }) {
         className="ml-auto shrink-0"
         onClick={() =>
           void useRunStore.getState().act('reconnect', async () => {
-            await useApp.getState().resumeQuiet(id, 'acceptEdits')
+            await useApp.getState().resumeQuiet(id, 'acceptEdits', useRunStore.getState().state.project?.lead)
             await window.harness.runReconnect(id)
           })
         }

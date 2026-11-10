@@ -99,6 +99,9 @@ export class EventNormalizer {
           const update = toVisual(name.slice(HARNESS_TOOL_PREFIX.length), input, String(block.id), this.cwd)
           if (update) out.push({ type: 'visual', agentId, toolUseId: String(block.id), source: 'tool', update })
         }
+      } else if (block.type.endsWith('_tool_result') && typeof block.tool_use_id === 'string') {
+        // A server tool (the advisor, web search) answers inside the same assistant message.
+        out.push({ type: 'tool.end', toolUseId: block.tool_use_id, ...serverToolResult(block) })
       }
     })
 
@@ -286,6 +289,18 @@ export class EventNormalizer {
       ...(Object.keys(usage).length ? { modelUsage: usage } : {}),
     })
   }
+}
+
+/** What a server tool's result block says, for its tool card. Advice from current models is encrypted: only Claude reads it. */
+export function serverToolResult(block: Block): { isError: boolean; output: string } {
+  const c = (block.content ?? {}) as Record<string, unknown>
+  const kind = Array.isArray(block.content) ? 'list' : String(c.type ?? '')
+  if (kind.endsWith('_error') || typeof c.error_code === 'string') return { isError: true, output: `${block.type === 'advisor_tool_result' ? 'Advisor' : 'Tool'} error: ${String(c.error_code ?? 'unknown')}` }
+  if (block.type === 'advisor_tool_result') {
+    if (kind === 'advisor_result' && typeof c.text === 'string') return { isError: false, output: truncate(c.text) }
+    return { isError: false, output: 'Advice received. It goes straight to Claude (encrypted), so only Claude can read it.' }
+  }
+  return { isError: false, output: truncate(stringifyToolContent(block.content)) }
 }
 
 function stringifyToolContent(content: unknown): string {

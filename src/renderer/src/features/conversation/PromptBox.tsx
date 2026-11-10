@@ -24,6 +24,7 @@ export const AUTO_OPTION = { value: AUTO_MODEL, label: 'Auto (Usage saver)' }
 
 export const MODELS = [
   { value: '', label: 'Default model' },
+  { value: 'fable', label: 'Fable' },
   { value: 'opus', label: 'Opus' },
   { value: 'sonnet', label: 'Sonnet' },
   { value: 'haiku', label: 'Haiku' },

@@ -8,12 +8,13 @@ import { useTeamState } from '@/stores/team'
 import { Segmented } from '@/ui/Segmented'
 import { Sheet } from '@/ui/Sheet'
 
-/** Fixed: the color follows the model family, never its rank (validated palette slots 1–4). */
+/** Fixed: the color follows the model family, never its rank (validated palette slots 1–5). */
 const COLOR: Record<ModelFamily, string> = {
   sonnet: 'var(--series-1)',
   opus: 'var(--series-2)',
   haiku: 'var(--series-3)',
   other: 'var(--series-4)',
+  fable: 'var(--series-5)',
 }
 
 function useWidth<T extends HTMLElement>() {

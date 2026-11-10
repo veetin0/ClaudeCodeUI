@@ -7,16 +7,16 @@ export interface ModelTokens {
   costUsd: number
 }
 
-export type ModelFamily = 'sonnet' | 'opus' | 'haiku' | 'other'
+export type ModelFamily = 'sonnet' | 'opus' | 'haiku' | 'fable' | 'other'
 
 /** Fixed order: chart colors follow the family, never its rank. */
-export const FAMILIES: ModelFamily[] = ['sonnet', 'opus', 'haiku', 'other']
+export const FAMILIES: ModelFamily[] = ['sonnet', 'opus', 'haiku', 'fable', 'other']
 
-export const FAMILY_LABEL: Record<ModelFamily, string> = { sonnet: 'Sonnet', opus: 'Opus', haiku: 'Haiku', other: 'Other' }
+export const FAMILY_LABEL: Record<ModelFamily, string> = { sonnet: 'Sonnet', opus: 'Opus', haiku: 'Haiku', fable: 'Fable', other: 'Other' }
 
 export function familyOf(model: string): ModelFamily {
   const m = model.toLowerCase()
-  return m.includes('sonnet') ? 'sonnet' : m.includes('opus') ? 'opus' : m.includes('haiku') ? 'haiku' : 'other'
+  return m.includes('sonnet') ? 'sonnet' : m.includes('opus') ? 'opus' : m.includes('haiku') ? 'haiku' : m.includes('fable') ? 'fable' : 'other'
 }
 
 /**
@@ -68,5 +68,5 @@ export interface UsageHistory {
   samples: { ts: number; fivePct?: number; sevenPct?: number }[]
 }
 
-export const emptyFamilies = (): Record<ModelFamily, number> => ({ sonnet: 0, opus: 0, haiku: 0, other: 0 })
-export const sumFamilies = (t: Record<ModelFamily, number>) => t.sonnet + t.opus + t.haiku + t.other
+export const emptyFamilies = (): Record<ModelFamily, number> => ({ sonnet: 0, opus: 0, haiku: 0, fable: 0, other: 0 })
+export const sumFamilies = (t: Record<ModelFamily, number>) => t.sonnet + t.opus + t.haiku + t.fable + t.other

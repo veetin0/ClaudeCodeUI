@@ -21,6 +21,8 @@ export interface StartSessionOptions {
   /** A model alias or ID, or 'auto' for the Usage saver to pick per turn. */
   model?: string
   permissionMode?: PermissionMode
+  /** The advisor for this session, instead of the one in Settings. */
+  advisor?: import('./advisor').AdvisorChoice
 }
 
 export interface SessionSummary {
@@ -77,6 +79,8 @@ export interface AppSettings {
   hasApiKey: boolean
   observeTerminalSessions: boolean
   defaultModel: string
+  /** Claude Code's advisor for the sessions Harness starts ('' = Claude Code's own setting). */
+  advisor: import('./advisor').AdvisorChoice
   defaultPermissionMode: PermissionMode
   recentProjects: string[]
   /** macOS notifications when Claude needs approval or finishes while Harness is in the background. */
@@ -127,7 +131,7 @@ export interface HarnessApi {
   listHistory(): Promise<SessionSummary[]>
   loadSession(sessionId: string): Promise<LoadedSession | null>
   /** Restarts a saved session's agent, continuing its Claude conversation. */
-  resumeSession(sessionId: string, opts?: { permissionMode?: PermissionMode; model?: string }): Promise<SessionSummary>
+  resumeSession(sessionId: string, opts?: { permissionMode?: PermissionMode; model?: string; advisor?: import('./advisor').AdvisorChoice }): Promise<SessionSummary>
   deleteSession(sessionId: string): Promise<void>
   /** Project files (relative paths), from git when available. */
   listFiles(cwd: string): Promise<string[]>
@@ -295,8 +299,8 @@ export interface HarnessApi {
   /** Starts the team on the team server from Settings (or hosted here). */
   runStartTeam(name: string): Promise<void>
   runGoTo(stage: import('./run').RunStage): Promise<void>
-  runCreateProject(o: { name: string; parent: string; deadline?: string; plan: import('./run').ClaudePlan }): Promise<void>
-  runUseFolder(o: { dir: string; name: string; deadline?: string; plan: import('./run').ClaudePlan }): Promise<void>
+  runCreateProject(o: { name: string; parent: string; deadline?: string; plan: import('./run').ClaudePlan; lead?: import('./advisor').LeadSetup }): Promise<void>
+  runUseFolder(o: { dir: string; name: string; deadline?: string; plan: import('./run').ClaudePlan; lead?: import('./advisor').LeadSetup }): Promise<void>
   runSetupInfo(): Promise<import('./run').SetupInfo | null>
   runSetChallenge(text: string): Promise<import('./run').SetupInfo | null>
   runAddFiles(kind: import('./run').FileKind, paths: string[]): Promise<import('./run').SetupInfo | null>

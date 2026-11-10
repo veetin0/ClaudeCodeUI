@@ -1,6 +1,7 @@
 import { randomBytes } from 'node:crypto'
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
+import { parseLeadSetup, type AdvisorChoice, type LeadSetup } from '@shared/advisor'
 import { canTake, type CrewMemberView, type MissionView } from '@shared/crew'
 import type { HarnessEvent, SessionStatus } from '@shared/events'
 import type { HackforgeSnapshot } from '@shared/hackforge'
@@ -193,6 +194,12 @@ export class RunService {
     return !!dir && this.s.stage !== 'done' && norm(cwd) === norm(dir)
   }
 
+  /** The advisor chosen for the lead's Claude, for a session in the run's project (resumed however it is). */
+  leadAdvisor(cwd: string): AdvisorChoice | undefined {
+    const advisor = this.s.project?.lead?.advisor
+    return advisor && this.isRunProject(cwd) ? advisor : undefined
+  }
+
   // ---------- Team ----------
 
   startTeam(name: string): Promise<void> {
@@ -213,15 +220,15 @@ export class RunService {
 
   // ---------- Setup ----------
 
-  createProject(o: { name: string; parent: string; deadline?: string; plan: ClaudePlan }): Promise<void> {
+  createProject(o: { name: string; parent: string; deadline?: string; plan: ClaudePlan; lead?: LeadSetup }): Promise<void> {
     return this.serial(async () => {
       const team = this.deps.crew.members().length + 1
       const dir = await createProject({ ...o, team, author: this.deps.author?.(), now: this.now() })
-      this.setProject({ dir, name: o.name, deadline: o.deadline, plan: o.plan })
+      this.setProject({ dir, name: o.name, deadline: o.deadline, plan: o.plan, lead: o.lead })
     })
   }
 
-  useFolder(o: { dir: string; name: string; deadline?: string; plan: ClaudePlan }): Promise<void> {
+  useFolder(o: { dir: string; name: string; deadline?: string; plan: ClaudePlan; lead?: LeadSetup }): Promise<void> {
     return this.serial(async () => {
       const team = this.deps.crew.members().length + 1
       await prepareProject(o.dir, { ...o, team, author: this.deps.author?.(), now: this.now() })
@@ -229,8 +236,10 @@ export class RunService {
     })
   }
 
-  private setProject(o: { dir: string; name: string; deadline?: string; plan: ClaudePlan }) {
-    this.s = { ...structuredClone(EMPTY_RUN), stage: 'setup', project: { ...o, createdAt: this.now() } }
+  private setProject(o: { dir: string; name: string; deadline?: string; plan: ClaudePlan; lead?: LeadSetup }) {
+    const lead = parseLeadSetup(o.lead)
+    const project = { dir: o.dir, name: o.name, deadline: o.deadline, plan: o.plan, ...(lead ? { lead } : {}), createdAt: this.now() }
+    this.s = { ...structuredClone(EMPTY_RUN), stage: 'setup', project }
     this.i = structuredClone(EMPTY_INTERNAL)
     this.deps.onProject?.(o.dir)
     this.log(`Project ${o.name} is ready in ${o.dir}.`, 'good')

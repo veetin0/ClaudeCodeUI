@@ -21,6 +21,8 @@ export interface RunProject {
   /** ISO with offset. */
   deadline?: string
   plan: ClaudePlan
+  /** The lead's Claude: main model and advisor (absent: the user's defaults). */
+  lead?: import('./advisor').LeadSetup
   /** Public GitHub repository, once created. */
   github?: string
   githubProblem?: string

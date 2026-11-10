@@ -5,6 +5,41 @@ import { loadFixture, normalizeAll } from './replay'
 
 const types = (events: { type: string }[]) => events.map((e) => e.type)
 
+describe('EventNormalizer and server tools', () => {
+  const assistant = (content: unknown[], uuid: string) =>
+    ({ type: 'assistant', uuid, parent_tool_use_id: null, session_id: 'c1', message: { id: `msg_${uuid}`, role: 'assistant', model: 'claude-opus-5-5', content } }) as unknown as SDKMessage
+
+  it('ends an advisor card when its advice arrives, and says why when it fails', () => {
+    const events = normalizeAll([
+      assistant(
+        [
+          { type: 'server_tool_use', id: 'srv_1', name: 'advisor', input: {} },
+          { type: 'advisor_tool_result', tool_use_id: 'srv_1', content: { type: 'advisor_redacted_result', encrypted_content: 'xyz', stop_reason: 'end_turn' } },
+          { type: 'text', text: 'Following the advice: smaller steps.' },
+        ],
+        'a1',
+      ),
+      assistant(
+        [
+          { type: 'server_tool_use', id: 'srv_2', name: 'advisor', input: {} },
+          { type: 'advisor_tool_result', tool_use_id: 'srv_2', content: { type: 'advisor_tool_result_error', error_code: 'max_uses_exceeded' } },
+        ],
+        'a2',
+      ),
+    ])
+    expect(events.filter((e) => e.type === 'tool.start').map((e) => (e.type === 'tool.start' ? [e.toolUseId, e.name] : []))).toEqual([
+      ['srv_1', 'advisor'],
+      ['srv_2', 'advisor'],
+    ])
+    const ends = events.filter((e) => e.type === 'tool.end')
+    expect(ends).toMatchObject([
+      { toolUseId: 'srv_1', isError: false, output: expect.stringMatching(/Advice received/) },
+      { toolUseId: 'srv_2', isError: true, output: 'Advisor error: max_uses_exceeded' },
+    ])
+    expect(events.some((e) => e.type === 'assistant.text')).toBe(true)
+  })
+})
+
 describe('EventNormalizer on a recorded session (tasks + foreground subagent)', () => {
   const events = normalizeAll(loadFixture('tasks-and-subagent.json'))
 

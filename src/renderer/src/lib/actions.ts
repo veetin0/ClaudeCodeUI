@@ -159,7 +159,7 @@ export const KNOWN_COMMANDS: Record<string, CommandInfo> = {
   context: { description: 'Show what is using the context window.' },
   usage: { description: 'Show usage and cost for this session.' },
   recap: { description: 'Summarize what happened in this session so far.' },
-  model: { description: 'Switch model.', args: { key: 'args', label: 'Model', example: 'opus', options: ['opus', 'sonnet', 'haiku'] } },
+  model: { description: 'Switch model.', args: { key: 'args', label: 'Model', example: 'opus', options: ['fable', 'opus', 'sonnet', 'haiku'] } },
 }
 
 /** Commands that only make sense in the terminal UI. */

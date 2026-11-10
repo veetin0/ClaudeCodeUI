@@ -1,5 +1,6 @@
 import { create } from 'zustand'
 import { produce } from 'immer'
+import type { LeadSetup } from '@shared/advisor'
 import type { HarnessEvent, PermissionMode } from '@shared/events'
 import type { AppSettings, PermissionDecision, SessionSummary, SettingsPatch } from '@shared/ipc'
 import type { Composition, PreviewState, ProjectInfo } from '@shared/preview'
@@ -102,10 +103,10 @@ interface AppState {
   openHackathon(tab?: HackathonTab): void
   /** Back from the Hackathon place: to the session you were in, or Home. */
   leaveHackathon(): void
-  /** Starts a session in the background (the team run's lead): it opens in the sidebar, the view stays. */
-  startQuiet(cwd: string, permissionMode: PermissionMode): Promise<string>
+  /** Starts a session in the background (the team run's lead): it opens in the sidebar, the view stays. `lead` picks its model and advisor. */
+  startQuiet(cwd: string, permissionMode: PermissionMode, lead?: LeadSetup): Promise<string>
   /** Brings a saved session back to life in the background (the team run's lead after a restart). */
-  resumeQuiet(id: string, permissionMode: PermissionMode): Promise<void>
+  resumeQuiet(id: string, permissionMode: PermissionMode, lead?: LeadSetup): Promise<void>
   interrupt(): Promise<void>
   setPermissionMode(mode: PermissionMode): Promise<void>
   setModel(model: string): Promise<void>
@@ -358,10 +359,10 @@ export const useApp = create<AppState>((set, get) => ({
   openHackathon: (tab) => set((st) => ({ place: 'hackathon', hackathonTab: tab ?? st.hackathonTab })),
   leaveHackathon: () => set((st) => ({ place: st.activeId ? 'session' : 'home' })),
 
-  async startQuiet(cwd, permissionMode) {
+  async startQuiet(cwd, permissionMode, lead) {
     const saver = get().settings?.usageSaver
-    const model = saver?.enabled && saver.autoModel ? AUTO_MODEL : get().settings?.defaultModel || undefined
-    const summary = await api().startSession({ cwd, permissionMode, model })
+    const model = lead?.model || (saver?.enabled && saver.autoModel ? AUTO_MODEL : get().settings?.defaultModel || undefined)
+    const summary = await api().startSession({ cwd, permissionMode, model, ...(lead?.advisor ? { advisor: lead.advisor } : {}) })
     set((st) => ({
       sessions: { ...st.sessions, [summary.id]: createSession(summary, permissionMode, true) },
       order: [summary.id, ...st.order],
@@ -372,7 +373,7 @@ export const useApp = create<AppState>((set, get) => ({
     return summary.id
   },
 
-  async resumeQuiet(id, permissionMode) {
+  async resumeQuiet(id, permissionMode, lead) {
     if (!get().sessions[id]) {
       const loaded = await api().loadSession(id)
       if (!loaded) throw new Error('Your Claude’s session is no longer in history.')
@@ -384,7 +385,7 @@ export const useApp = create<AppState>((set, get) => ({
       set((st) => ({ sessions: { ...st.sessions, [id]: session }, order: [id, ...st.order.filter((x) => x !== id)] }))
     }
     const s = get().sessions[id]
-    if (!s.live) await api().resumeSession(id, { permissionMode, model: s.saver?.auto ? AUTO_MODEL : s.model })
+    if (!s.live) await api().resumeSession(id, { permissionMode, model: s.saver?.auto ? AUTO_MODEL : s.model, ...(lead?.advisor ? { advisor: lead.advisor } : {}) })
   },
 
   async interrupt() {

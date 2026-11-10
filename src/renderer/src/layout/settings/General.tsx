@@ -1,6 +1,7 @@
 import { Bell, KeyRound, Smartphone } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import qrcode from 'qrcode-generator'
+import { ADVISOR_CHOICES, ADVISOR_LABEL, type AdvisorChoice } from '@shared/advisor'
 import { newAlertTopic, subscribeUrl, type PhoneAlertSettings } from '@shared/alerts'
 import type { PermissionMode } from '@shared/events'
 import { ipcErrorMessage } from '@/lib/time'
@@ -87,6 +88,31 @@ export function GeneralTab() {
           </select>
         </Field>
       </div>
+
+      <Field
+        label="Advisor"
+        hint={
+          <>
+            The main model does the work and asks a more capable one for short advice at key moments: planning, when stuck, before calling a task done. It must be
+            at least as capable as the main model (Fable advises Opus or Sonnet), and subagents may ask it too. Fable uses your plan limits faster than Opus; on
+            some plans, or past a share of the limit, it bills to usage credits (Claude Code says so when it does). Enable Fable once in a terminal:{' '}
+            <code>claude</code>, then <code>/model fable</code>. Applies to new sessions.
+          </>
+        }
+      >
+        <select
+          value={settings.advisor}
+          onChange={(e) => void updateSettings({ advisor: e.target.value as AdvisorChoice })}
+          className="w-full rounded-md border border-line bg-surface-2 px-2 py-1.5 sm:w-1/2"
+          aria-label="Advisor"
+        >
+          {ADVISOR_CHOICES.map((a) => (
+            <option key={a} value={a}>
+              {ADVISOR_LABEL[a]}
+            </option>
+          ))}
+        </select>
+      </Field>
 
       <Row
         icon={<Bell className="size-3.5" />}

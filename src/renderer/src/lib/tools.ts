@@ -5,6 +5,7 @@ import {
   FileText,
   FolderSearch,
   Globe,
+  Lightbulb,
   ListTodo,
   type LucideIcon,
   Plug,
@@ -43,6 +44,8 @@ const KIND: Record<string, ToolKind> = {
   EnterPlanMode: 'plan',
   ToolSearch: 'search',
   Skill: 'other',
+  // Claude Code's advisor: a more capable model gives Claude advice.
+  advisor: 'agent',
 }
 
 export function toolKind(name: string): ToolKind {
@@ -65,6 +68,7 @@ const ICONS: Record<ToolKind, LucideIcon> = {
 export function toolIcon(name: string): LucideIcon {
   if (name === 'Write') return FilePlus
   if (name === 'Glob' || name === 'LS') return FolderSearch
+  if (name === 'advisor') return Lightbulb
   return ICONS[toolKind(name)]
 }
 
@@ -144,6 +148,8 @@ export function toolSummary(name: string, input: Record<string, unknown>): strin
       return short(str('query').replace(/^select:/, ''), 32)
     case 'Skill':
       return str('skill') || str('command')
+    case 'advisor':
+      return 'asked for advice'
     default:
       return ''
   }
@@ -154,5 +160,6 @@ export function toolDisplayName(name: string): string {
     const [, server, tool] = name.split('__')
     return `${server}·${tool}`
   }
+  if (name === 'advisor') return 'Advisor'
   return name
 }

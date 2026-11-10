@@ -21,7 +21,7 @@ describe('usage history: what each turn used', () => {
   })
 
   it('groups models into families', () => {
-    expect(['claude-opus-5-5', 'claude-sonnet-5-5', 'claude-haiku-4-5-20251001', 'claude-fable-5-1'].map(familyOf)).toEqual(['opus', 'sonnet', 'haiku', 'other'])
+    expect(['claude-opus-5-5', 'claude-sonnet-5-5', 'claude-haiku-4-5-20251001', 'claude-fable-5-2', 'claude-mythos-5-2'].map(familyOf)).toEqual(['opus', 'sonnet', 'haiku', 'fable', 'other'])
   })
 
   it('reads per-model usage from the result message', () => {
@@ -64,7 +64,7 @@ describe('usage history: what each turn used', () => {
     expect(h.days).toHaveLength(7)
     expect(h.days.at(-1)).toMatchObject({ day: localDay(now), tokens: { opus: 1500, sonnet: 600, haiku: 0, other: 0 }, cacheRead: 7000 })
     expect(h.days.at(-2)?.tokens.haiku).toBe(20)
-    expect(h.totals.tokens).toEqual({ opus: 1500, sonnet: 600, haiku: 20, other: 0 })
+    expect(h.totals.tokens).toEqual({ opus: 1500, sonnet: 600, haiku: 20, fable: 0, other: 0 })
     expect(h.topSessions[0]).toMatchObject({ id: 's1', title: 'Build API', tokens: 2120 })
     expect(h.saver).toEqual({ sonnetTurns: 1, opusTurns: 0, takeovers: 1, compactions: 1, compactedTokens: 100_000, skipped: 1, skippedTokens: 50_000 })
     expect(h.samples.map((s) => s.fivePct)).toEqual([42, 60])
