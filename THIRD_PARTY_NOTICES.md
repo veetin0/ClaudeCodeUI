@@ -9,7 +9,7 @@ Harness is MIT licensed (see [LICENSE](LICENSE)). It bundles or downloads the fo
 | [impeccable](https://github.com/pbakaus/impeccable) design skill, by Paul Bakaus | `resources/design/impeccable/` | Apache-2.0 | Shipped unmodified with its [LICENSE](resources/design/impeccable/LICENSE) and [NOTICE](resources/design/impeccable/NOTICE.md), which credits ehmo's platform-design-skills (MIT). |
 | [UI/UX Pro Max](https://github.com/nextlevelbuilder/ui-ux-pro-max-skill) design skill, by Next Level Builder | `resources/design/ui-ux-pro-max/` | MIT | Core skill only, with its [LICENSE](resources/design/ui-ux-pro-max/LICENSE); the plugin manifest is rewritten for Harness. |
 | [ECC](https://github.com/affaan-m/ECC) (agents, skills, commands, hooks, rules), by Affaan Mustafa | `resources/ecc/` | MIT | Copied unmodified from the commit in [HARNESS_SOURCE.json](resources/ecc/HARNESS_SOURCE.json), with its [LICENSE](resources/ecc/LICENSE); docs and images left out. Its hook scripts' packages ([js-yaml](https://github.com/nodeca/js-yaml), [ajv](https://github.com/ajv-validator/ajv), [@iarna/toml](https://github.com/iarna/iarna-toml)) are in `resources/ecc/node_modules/`, and their dependencies, each with its own license file there (MIT, ISC, BSD-3-Clause, PSF-2.0). |
-| HackForge plugin | `resources/hackforge/` | MIT | Part of this project ([LICENSE](resources/hackforge/LICENSE)). Its [NOTICE](resources/hackforge/NOTICE.md) credits ideas from Chachamaru127/claude-code-harness (MIT), reimplemented without copying code. |
+| 3D kit for promo videos | `resources/kit3d/` | MIT | Part of this project (it came with HackForge, an earlier part of Harness). |
 | Barlow Semi Condensed typeface, via [@fontsource](https://fontsource.org/fonts/barlow-semi-condensed) | bundled into the app at build time | SIL Open Font License 1.1 | |
 
 The npm packages Harness depends on (Electron, React, the Claude Agent SDK and others) are listed in `package.json`; each is distributed under its own license in `node_modules/`.
@@ -18,7 +18,7 @@ The npm packages Harness depends on (Electron, React, the Claude Agent SDK and o
 
 These are not part of the repository. Harness installs them into your project or runs them with `npx` only when you turn the feature on, and their own terms apply:
 
-- **Remotion** (Preview and the Pitch studio) has its own [license](https://www.remotion.dev/docs/license), which requires a company license for some commercial use.
-- **Playwright MCP**, **Context7** and the partner MCP servers listed under Settings › Tools.
-- **Blender** and the Blender MCP server (3D clips), and Kokoro / ElevenLabs voices (pitch narration).
-- The **cartoon short skill** ([mromidev/claude-animated-shorts](https://github.com/mromidev/claude-animated-shorts), MIT): downloaded at a pinned commit when a team picks *Cartoon short* on the Pitch tab, without its folder of reference contact sheets. Its reference frames are for style study only; Harness never uploads or publishes them.
+- **Remotion** (Preview and the Promo studio) has its own [license](https://www.remotion.dev/docs/license), which requires a company license for some commercial use.
+- **Playwright MCP**, **Context7**, the service MCP servers listed under Settings › Tools, and the servers from ECC's catalog you add under Project › Keys.
+- **Blender** and the Blender MCP server (3D clips), and ElevenLabs voices (promo narration).
+- The **cartoon short skill** ([mromidev/claude-animated-shorts](https://github.com/mromidev/claude-animated-shorts), MIT): downloaded at a pinned commit when you pick *Cartoon short* in Project › Promo, without its folder of reference contact sheets. Its reference frames are for style study only; Harness never uploads or publishes them.

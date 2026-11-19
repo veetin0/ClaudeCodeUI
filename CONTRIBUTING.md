@@ -68,19 +68,23 @@ Everything the UI shows is derived from one typed event stream (`src/shared/even
 | `src/main/observe/hooks.ts` | Status hook bridge and safe settings.json install/remove |
 | `src/main/pty/PtyService.ts` | node-pty terminals streamed to xterm.js |
 | `src/main/preview/PreviewService.ts` | Remotion Studio, dev servers, renders, URL detection |
-| `src/main/team/`, `relay/`, `crew/` | Team run: the team service, the relay server and the `harness-crew` CLI |
+| `src/main/project/ProjectService.ts` | Build it: creates projects, reads ECC's output (PRD, plan, scores), the `project_stage` tool, rule packs, the MCP catalog |
+| `src/shared/project.ts`, `src/shared/mcpCatalog.ts` | The project model and prompts (autopilot, make it better); ECC's MCP catalog |
+| `src/main/ecc/plugin.ts` | The built-in ECC plugin (or an installed newer one) |
+| `src/main/keys/PartnerService.ts` | Project › Keys: API keys in the keychain, the project's `.env`, service notes |
+| `src/main/pitch/`, `src/main/kit3d/` | Project › Promo: the promo video, narration, the deck and 3D clips |
+| `src/main/system/UsageMonitor.ts` | Plan usage (5-hour and weekly windows) for the status chip, limit banner and run-at-reset |
 | `src/shared/parseOutput.ts` | Progress/metric extraction from command output |
 | `src/renderer/src/stores/reducer.ts` | Events → session state (pure; unit-tested) |
-| `src/renderer/src/features/` | Conversation, agents, mission graph and timeline, files and diffs, preview, hackathon, usage |
+| `src/renderer/src/features/` | Conversation, agents, mission graph and timeline, files and diffs, preview, project (Build, Promo, Keys), usage |
 | `src/renderer/src/ui/` | Shared pieces: ⋯ menu, popover, one-main-action button, tabs, sheet, sector bars |
-| `src/renderer/src/lib/actions.ts`, `lib/actionMenu.ts`, `lib/nextStep.ts` | Quick actions, the / menu and the HackForge next step |
+| `src/renderer/src/lib/actions.ts`, `lib/eccActions.ts`, `lib/actionMenu.ts` | Quick actions, ECC's actions and the / menu |
 | `test/fixtures/` | Real SDK sessions recorded for tests |
 
 ## Maintainer notes
 
-These are only needed to update bundled third-party content or publish packages:
+These are only needed to update bundled third-party content or publish a release:
 
 - `npm run design:sync -- --impeccable ~/src/impeccable --uipro ~/src/ui-ux-pro-max-skill` refreshes the bundled design skills in `resources/design/` from local clones of [impeccable](https://github.com/pbakaus/impeccable) and [ui-ux-pro-max-skill](https://github.com/nextlevelbuilder/ui-ux-pro-max-skill).
-- `npm run hackforge:sync -- <path to a hackforge-marketplace folder or its hackforge/ folder>` copies a HackForge plugin into `resources/hackforge/` (add `--force` to go back to an older version).
-- `npm run crew:publish` builds and publishes the `harness-crew` package to npm (requires `npm login`).
+- `npm run ecc:sync -- <path to an ECC checkout>` refreshes the bundled [ECC](https://github.com/affaan-m/ECC) in `resources/ecc/`: what Claude Code uses (no docs or images), the packages its hook scripts require, and the commit in `HARNESS_SOURCE.json`.
 - Signing, notarizing and Windows builds: [docs/RELEASING.md](docs/RELEASING.md).

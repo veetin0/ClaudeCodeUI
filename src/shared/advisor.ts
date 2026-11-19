@@ -25,7 +25,7 @@ export function advisorOptions(choice: AdvisorChoice | undefined): { settings?: 
   return {}
 }
 
-/** How the team run's lead Claude works: its main model and advisor ('' = the user's defaults). */
+/** How a project build's Claude works: its main model and advisor ('' = the user's defaults). */
 export interface LeadSetup {
   model: string
   advisor: AdvisorChoice
@@ -42,15 +42,3 @@ export const LEAD_SETUPS: { id: string; label: string; setup: LeadSetup; note?: 
   { id: 'default', label: 'Your default (Settings)', setup: { model: '', advisor: '' } },
 ]
 
-export function leadSetupId(s: LeadSetup | undefined): string {
-  return LEAD_SETUPS.find((x) => s && x.setup.model === s.model && x.setup.advisor === s.advisor)?.id ?? 'default'
-}
-
-/** A run project's saved lead setup, read defensively. */
-export function parseLeadSetup(raw: unknown): LeadSetup | undefined {
-  if (!raw || typeof raw !== 'object') return undefined
-  const o = raw as Record<string, unknown>
-  const model = typeof o.model === 'string' && /^[a-z0-9.\-[\]]{0,60}$/i.test(o.model) ? o.model : ''
-  const advisor = isAdvisorChoice(o.advisor) ? o.advisor : ''
-  return { model, advisor }
-}

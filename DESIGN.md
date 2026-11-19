@@ -335,11 +335,11 @@ Harness reads like the live timing graphics of a race broadcast laid over a deve
 
 The system is dense and calm on purpose. Most controls are 28px high, most type is 12 or 13px, and structure comes from hairlines and small tonal steps rather than shadows. Colour is scarce and always means something. There are four timing colours, each with one job: green means running or done, yellow means waiting for you, red means failed, and violet marks the best result and the one primary action. Everything else is ink, slate and graphite. One thing moves: a highlight sweeping across the live sector, like a sector being timed.
 
-The world refuses the category default: a grey macOS sidebar, white panes, one brand-orange accent and smooth progress bars. It should read as clearly at 3 a.m. on a hackathon weekend as on a Tuesday afternoon.
+The world refuses the category default: a grey macOS sidebar, white panes, one brand-orange accent and smooth progress bars. A build you come back to after an hour should read as clearly as the moment you started it.
 
 **Key Characteristics:**
 - A graphite rail (the timing tower) in both modes; anything inside it, menus included, switches to dark tokens.
-- Mini-sector strips wherever progress or history shows: run steps, HackForge phases, tool calls, milestones, meters.
+- Mini-sector strips wherever progress or history shows: project stages, evaluator scores, tool calls, meters.
 - Condensed tabular figures for every readout; the same face at heading size.
 - Four timing colours with one job each, each a fill paired with a text-safe ink.
 - Crisp corners from 1px to a 10px ceiling, square status flags and 28px controls.
@@ -360,7 +360,7 @@ A graphite-and-ink neutral world with four timing colours. Each colour is a fill
 
 ### Tertiary
 - **Subagent Blue** (`info` #2a78d6, ink #1f63b8; dark #3987e5 / #7cb2f5): information and subagents. Subagent icons, the compacting status, in-progress task icons, and the marker for something ready in a tab (a Remotion project ready to preview).
-- **Forge Flame** (`forge` #eb6834; dark #f07a45): HackForge's mark only. The flame icon on HackForge headers, empty states and the side panel. It is a brand mark, not a state.
+- **Forge** (`forge` #eb6834; dark #f07a45): the warm orange for file writes (a written file's icon in an agent's detail view). It is a mark, not a state.
 - **Categorical series** (`series-1` to `series-8`, with dark-mode partners): the validated chart and tool-kind palette, assigned in order. Tool kinds are fixed to it: read 1 (blue), write 2 (orange), exec 3 (teal), plan 4 (amber), agent 5 (pink), search 6 (green), web 7 (indigo); MCP and other calls use slate.
 
 ### Neutral
@@ -396,7 +396,7 @@ A graphite-and-ink neutral world with four timing colours. Each colour is a fill
 ### Hierarchy
 - **Display** (600, 34px, 1.25): the Home question only ("What do you want to build?").
 - **Headline** (600, 24px, 1.25): the title of a place or step: the run board's current milestone, each team-run step, and the event name at 26px.
-- **Title Large** (600, 20px, 1.25): a view's heading inside a place: the Agents board, the HackForge challenge name.
+- **Title Large** (600, 20px, 1.25): a view's heading inside a place: the Agents board, the project's name on Project › Build.
 - **Title** (600, 18px, 1.25): sheet and dialog titles (Settings, Usage, Hand off).
 - **Body** (400, 13px, 1.5): the app's base size, used for text, menu items and card titles (titles at 600, in the platform sans and not the display face). Chat prose sits in a 768px column.
 - **Control** (500, 13px): button labels and rail rows.
@@ -415,7 +415,7 @@ A graphite-and-ink neutral world with four timing colours. Each colour is a fill
 
 ## Layout
 
-A fixed two-column shell: the 240px graphite rail on the left, the work area on the right with a 48px top bar (session title and status, the Chat · Agents · Preview segmented control, and the status chip on the far right). The rail has three parts: where to go (Home, Hackathon with its race clock and five-sector run strip, New session), the session list, and a footer with plan usage as 20 sectors and Settings. On macOS, the rail's first 48px are left free for the traffic lights.
+A fixed two-column shell: the 240px graphite rail on the left, the work area on the right with a 48px top bar (session title and status, the Chat · Agents · Preview segmented control, and the status chip on the far right). The rail has three parts: where to go (Home, the current project, New session), the session list, and a footer with plan usage as 20 sectors and Settings. On macOS, the rail's first 48px are left free for the traffic lights.
 
 Content columns are centred and capped by purpose: Home at 672px, the conversation at 768px, sheets at 672px (wide sheets 1024px), and the run board at 1280px. The run board splits 3:2 from 1280px; tile rows go from two to four columns at 768px; teammate cards pair up at 768px; agent cards fill an auto grid of 320px minimum columns with 12px gaps. The window's minimum size is 960×600, and the top bar drops secondary labels (such as the side-panel summary) below 1180px.
 
@@ -452,7 +452,7 @@ Status is always a square, never a circle. Full rounding is kept for controls wh
 ### Buttons
 Quiet, confident and few: one violet button per screen or card, everything else in ink.
 - **Shape:** gently squared (6px) when standalone; 4px when nested in the prompt box.
-- **Primary:** violet fill, white 13px medium label, 28px high with 12px side padding. A step's one action in the team run grows to 8px × 16px padding. When a primary has alternatives, they sit behind an attached ▾ segment divided by a 25% white hairline, so the next thing to do is obvious and nothing is lost.
+- **Primary:** violet fill, white 13px medium label, 28px high with 12px side padding. A page's one big action (Build it, Start building) grows to 32px high with 14px side padding. When a primary has alternatives, they sit behind an attached ▾ segment divided by a 25% white hairline, so the next thing to do is obvious and nothing is lost.
 - **Hover / Focus:** brightness 110% on hover, 95% when pressed; disabled at 40–60% opacity. Focus is the global 2px violet-ink ring at a 1px offset.
 - **Busy:** a spinner replaces the button's icon and the button disables. The label stays.
 - **Secondary:** a white surface with a hairline border and an ink label, the hover wash on hover. Pause and Resume, Copy, Usage history.
@@ -479,11 +479,11 @@ Quiet, confident and few: one violet button per screen or card, everything else 
 
 ### Navigation
 - **Rail rows:** 32px, 4px corners, 13px medium labels at 90% ink with slate shortcut hints in condensed figures on the right. Hover takes the rail hover wash; the current place takes the active wash and full ink. Session rows lead with a status square and end with the elapsed turn time in semibold condensed figures while live, or the cost in slate when idle. Date groups (TODAY, YESTERDAY) are labels.
-- **Segmented control:** the one tab style (session views, Hackathon tabs, Agents modes, Settings tabs). A sunken track with a hairline and 2px padding holds 24px tabs in 12px slate. The selected tab is a white segment in medium ink with the thumb shadow. A small green square marks something live in a tab; a blue one marks something ready.
+- **Segmented control:** the one tab style (session views, Project tabs, Agents modes, Settings tabs). A sunken track with a hairline and 2px padding holds 24px tabs in 12px slate. The selected tab is a white segment in medium ink with the thumb shadow. A small green square marks something live in a tab; a blue one marks something ready.
 - **Menus and the palette:** popovers on the pop shadow with 4px-cornered items (6px × 10px padding), slate icons, caption hints and condensed shortcut hints. Arrow keys move between items and Escape closes the innermost layer first.
 
 ### Mini-Sectors (signature)
-Progress and history are drawn as a row of equal segments with 2px gaps and 1px corners, 3–6px tall, like a lap split into timed sectors. Done is green; the live sector is green with a white highlight sweeping across it; waiting is yellow; failed is red; best is violet; a plain amount is ink at 70%; still to come is slate at 30%. Variants: the meter (a value as N filled sectors: 20 for plan usage, 8 in the status chip, 24 for progress), steps (named stages with condensed uppercase labels under each sector, as in the team-run and HackForge phase steppers), and the activity strip (one 6px sector per tool call, coloured by tool kind, 4–14px wide). Every one carries an accessible label or meter role.
+Progress and history are drawn as a row of equal segments with 2px gaps and 1px corners, 3–6px tall, like a lap split into timed sectors. Done is green; the live sector is green with a white highlight sweeping across it; waiting is yellow; failed is red; best is violet; a plain amount is ink at 70%; still to come is slate at 30%. Variants: the meter (a value as N filled sectors: 20 for plan usage, 8 in the status chip, 24 for progress), steps (named stages with condensed uppercase labels under each sector, as in the project's stage stepper), and the activity strip (one 6px sector per tool call, coloured by tool kind, 4–14px wide). Every one carries an accessible label or meter role.
 
 ### Agent Card (signature)
 A live tile per agent: icon, name and role, a status square with its word (Working, Needs you, Done, Failed), the current action in 13px medium, a "now" widget (the tail of the file being written, with line numbers and a caret, or the running command in a graphite command well with a green $ and a ticking timer), progress as sector meters, up to four metric tiles with sparklines, then a footer readout of the activity strip, call count, tokens and elapsed time in semibold ink. Inactive agents drop to 85% opacity.

@@ -182,7 +182,7 @@
       },
       "forge": {
         "role": "tertiary",
-        "displayName": "Forge Flame",
+        "displayName": "Forge",
         "mode": "light",
         "canonical": "#eb6834",
         "tonalRamp": [
@@ -630,7 +630,7 @@
       },
       "forge-dark": {
         "role": "tertiary",
-        "displayName": "Forge Flame (dark)",
+        "displayName": "Forge (dark)",
         "mode": "dark",
         "canonical": "#f07a45",
         "tonalRamp": [
@@ -1024,7 +1024,7 @@
       },
       "title-lg": {
         "displayName": "Title Large",
-        "purpose": "A view's heading inside a place: the Agents board, the HackForge challenge."
+        "purpose": "A view's heading inside a place: the Agents board, the project's name on Project › Build."
       },
       "title": {
         "displayName": "Title",
@@ -1235,10 +1235,10 @@
   ],
   "narrative": {
     "northStar": "The Timing Tower",
-    "overview": "Harness reads like the live timing graphics of a race broadcast laid over a developer's desk. A graphite tower runs down the left edge in both light and dark mode, listing every session the way a timing tower lists cars: a square status flag, a short name, and a condensed lap time ticking on the right. The work area beside it is cool and quiet: white in light mode, graphite in dark. Progress and history are drawn as rows of timed sectors, never as smooth bars. Every number is set in Barlow Semi Condensed tabular figures, so times, costs and percentages line up and can be read from across the room.\n\nThe system is dense and calm on purpose. Most controls are 28px high, most type is 12 or 13px, and structure comes from hairlines and small tonal steps rather than shadows. Colour is scarce and always means something. There are four timing colours, each with one job: green means running or done, yellow means waiting for you, red means failed, and violet marks the best result and the one primary action. Everything else is ink, slate and graphite. One thing moves: a highlight sweeping across the live sector, like a sector being timed.\n\nThe world refuses the category default: a grey macOS sidebar, white panes, one brand-orange accent and smooth progress bars. It should read as clearly at 3 a.m. on a hackathon weekend as on a Tuesday afternoon.",
+    "overview": "Harness reads like the live timing graphics of a race broadcast laid over a developer's desk. A graphite tower runs down the left edge in both light and dark mode, listing every session the way a timing tower lists cars: a square status flag, a short name, and a condensed lap time ticking on the right. The work area beside it is cool and quiet: white in light mode, graphite in dark. Progress and history are drawn as rows of timed sectors, never as smooth bars. Every number is set in Barlow Semi Condensed tabular figures, so times, costs and percentages line up and can be read from across the room.\n\nThe system is dense and calm on purpose. Most controls are 28px high, most type is 12 or 13px, and structure comes from hairlines and small tonal steps rather than shadows. Colour is scarce and always means something. There are four timing colours, each with one job: green means running or done, yellow means waiting for you, red means failed, and violet marks the best result and the one primary action. Everything else is ink, slate and graphite. One thing moves: a highlight sweeping across the live sector, like a sector being timed.\n\nThe world refuses the category default: a grey macOS sidebar, white panes, one brand-orange accent and smooth progress bars. A build you come back to after an hour should read as clearly as the moment you started it.",
     "keyCharacteristics": [
       "A graphite rail (the timing tower) in both modes; anything inside it, menus included, switches to dark tokens.",
-      "Mini-sector strips wherever progress or history shows: run steps, HackForge phases, tool calls, milestones, meters.",
+      "Mini-sector strips wherever progress or history shows: project stages, evaluator scores, tool calls, meters.",
       "Condensed tabular figures for every readout; the same face at heading size.",
       "Four timing colours with one job each, each a fill paired with a text-safe ink.",
       "Crisp corners from 1px to a 10px ceiling, square status flags and 28px controls.",

@@ -17,9 +17,9 @@ Security fixes go to the `main` branch and ship in the next [release](https://gi
 
 Things that matter most in Harness:
 
-- **Stored secrets:** the Anthropic, ElevenLabs and Context7 keys saved in Settings (encrypted with the operating system's keychain via Electron `safeStorage`), and partner API keys.
-- **Permissions:** anything that lets Claude run a tool or touch a file without the permission prompt, or gets around the private-files guard in team runs.
-- **The team server** (`relay/`) and team sync: anything that exposes a team's encrypted payloads, keys or code bundles to someone without the team token.
+- **Stored secrets:** the Anthropic, ElevenLabs and Context7 keys saved in Settings (encrypted with the operating system's keychain via Electron `safeStorage`), and the API keys added to projects (also written to the project's git-ignored `.env`).
+- **Permissions:** anything that lets Claude run a tool or touch a file without the permission prompt (in the mode you chose).
+- **Projects:** anything that writes a key into a committed file, or lets a project file make Harness open or run something outside the project.
 - **The local endpoints** Harness opens on `localhost` (script progress, the status hook bridge): anything reachable from outside the machine or from a web page.
 - **The renderer:** cross-site scripting through session content, file previews or Markdown that could reach Electron APIs.
 

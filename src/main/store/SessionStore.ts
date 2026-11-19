@@ -251,13 +251,6 @@ export class SessionStore {
     return { days: list, totals, topSessions, saver, samples }
   }
 
-  /** Today's tokens, for the team board. */
-  usageToday(now = Date.now()): { tokens: number; costUsd: number; byModel: Record<string, number> } {
-    const h = this.usageHistory(1, now)
-    const t = h.totals.tokens
-    return { tokens: sumFamilies(t), costUsd: h.totals.costUsd, byModel: { Sonnet: t.sonnet, Opus: t.opus, Haiku: t.haiku, Other: t.other } }
-  }
-
   close() {
     if (this.closed) return
     this.flush()

@@ -4,8 +4,8 @@
 
 # Harness
 
-**Watch Claude Code work, live.**
-A desktop app that runs Claude Code and shows every agent, tool call, file change and token as it happens.
+**One idea in. A built, tested, polished product out.**
+A desktop app where Claude plans your project, a team of agents builds and scores it, and you watch every step and make it better.
 
 [![Latest release](https://img.shields.io/github/v/release/veetin0/ClaudeCodeUI?label=download&color=1f9d55)](https://github.com/veetin0/ClaudeCodeUI/releases/latest)
 [![CI](https://github.com/veetin0/ClaudeCodeUI/actions/workflows/ci.yml/badge.svg)](https://github.com/veetin0/ClaudeCodeUI/actions/workflows/ci.yml)
@@ -14,12 +14,22 @@ A desktop app that runs Claude Code and shows every agent, tool call, file chang
 
 </div>
 
-![Three agents working in parallel, one streaming live training progress](docs/screenshots/board.png)
+![Project › Build: where the build is, the evaluator's score per round, what was written and the commits](docs/screenshots/project-build.png)
 
-Claude Code is powerful, but in a terminal most of what it does scrolls past. Harness puts it on one screen: which agents are running, what each one is doing right now, how far along it is, what it changed, and how much of your plan it's using. You stay in control with one obvious next step on every screen.
+Describe what you want to build and press **Build it**. Harness sets up the project, and Claude runs [ECC](https://github.com/affaan-m/ECC)'s pipeline on it:
+1. a product spec;
+2. a plan;
+3. an MVP built in thin slices, each scored in the running app by an evaluator agent until it's good;
+4. code and security review;
+5. a final design pass.
+
+You see all of it as it happens: every agent, tool call, file change and token. One box asks Claude to make it better, add a feature or fix a bug.
 
 ## What you get
 
+- **Build it.** One idea becomes a project: a folder with git and ECC's rules, then a session that goes from PRD to plan to MVP to review to polish, asking you only what truly decides the product. [How it works](docs/PROJECTS.md).
+- **The Project place.** The build's stage, the evaluator's score per round, the PRD, plan and commits, and **Make it better**. Its **Promo** tab makes a promo video and a presentation deck; **Keys** holds the project's API keys and adds tools like GitHub, Supabase or Vercel from ECC's catalog.
+- **ECC built in.** 72 agents, 327 skills and 98 commands in every session, with hooks that stop risky commands, all one **/** away.
 - **Live agent cards.** Every agent and subagent as a card: the file it's writing, the command it's running, progress bars with an ETA, metric charts and the results it shows.
 - **Graph and timeline.** Who spawned whom, and a lane per agent with every tool call on it.
 - **Files and diffs.** Every changed file with a side-by-side diff, plus **Revert** and **Accept**.
@@ -27,11 +37,10 @@ Claude Code is powerful, but in a terminal most of what it does scrolls past. Ha
 - **Preview.** Your dev server, Remotion Studio or a 3D model next to the agents building it, with **Click to change** on any element.
 - **Usage saver.** Picks Opus or Sonnet per message and compacts between tasks, so your plan limits last longer, with usage history to see where it went.
 - **History and replay.** Every session is saved; replay it with a scrubber, or resume it where it stopped.
-- **Hackathon mode.** One place for a team to go from an empty laptop to a finished entry. [More below](#hackathon-mode).
 
 <table>
   <tr>
-    <td width="50%"><img src="docs/screenshots/home.png" alt="Home: one box to start"></td>
+    <td width="50%"><img src="docs/screenshots/board.png" alt="Agents working in parallel as live cards"></td>
     <td width="50%"><img src="docs/screenshots/agent-detail.png" alt="An agent's detail view with progress, metrics and its timeline"></td>
   </tr>
   <tr>
@@ -71,41 +80,49 @@ npm install
 npm run dev
 ```
 
-Pick a folder, type what you want built, and press Enter.
+Describe what you want to build and press **Build it**.
 
 **Build an app you can install:** `npm run build:mac` (a `.dmg`) or `npm run build:win` (an installer), both in `dist/`. Signing, notarizing and publishing a release are in [docs/RELEASING.md](docs/RELEASING.md). To update a source checkout later: `git pull && npm install`.
 
 Harness loads your usual `~/.claude` settings, `CLAUDE.md` files, MCP servers and skills.
 
-## Hackathon mode
+## From an idea to a product
 
-![Hackathon › Build: the team run, with the HackForge score under it](docs/screenshots/hackathon.png)
+![Home: the idea, then Build it's setup](docs/screenshots/home.png)
 
-The **Hackathon** place (⌘4) runs a whole hackathon from one laptop: **Team → Setup → Plan → Run → Done**. Teammates lend their Claude with one command (`npx harness-crew …`, no app to install), and Harness hands each of them tasks based on how much plan usage they have left. It also has a challenge board, a place for the API keys you get at the event (paste one and Claude works out how to use it), and a pitch-video studio. It's built on [HackForge](docs/HACKFORGE.md), a Claude Code plugin for hackathons that ships inside Harness.
+1. **Describe it** on Home and press **Build it**.
+2. **Set up the project:** a name, where it goes, which Claude builds it (Opus with Fable as advisor by default), and how much it asks (auto mode, or a prompt before each command).
+3. **Claude builds it** with ECC's pipeline:
+   - a PRD, then a plan with a modern stack;
+   - an MVP in thin slices, built by a generator agent and scored in the running app by an evaluator agent;
+   - code review, security review and verification;
+   - a design pass and a README.
 
-It works for any event: a generic *Weekend Hackathon* example is built in (its dates always lie a couple of weeks ahead), and your own event is one `event.yaml` away. Read the full guide in [docs/HACKATHON.md](docs/HACKATHON.md).
+   Each slice lands as its own commit.
+4. **Follow it** on **Project** (⌘4): the stage, the score per round, what ECC wrote. Then **make it better**, add a feature, fix a bug, or make the promo video.
+
+A real build needs your Claude login and an hour or more of Claude time for a small app. The full guide is in [docs/PROJECTS.md](docs/PROJECTS.md).
 
 ## Privacy
 
 Harness is a local app. There is no account, no telemetry, no analytics and no auto-update phoning home.
 
 - **Your sessions** are saved in a SQLite database on your computer, and Claude Code talks to Anthropic exactly as it does in the terminal.
-- **Keys you save in Settings** (Anthropic, ElevenLabs, Context7) are encrypted with the system keychain (macOS Keychain or Windows DPAPI). API keys you add in the Hackathon are stored the same way and also written to your event project's `.env`, which Harness adds to `.gitignore`, so your code can use them.
+- **Keys you save in Settings** (Anthropic, ElevenLabs, Context7) are encrypted with the system keychain (macOS Keychain or Windows DPAPI). API keys you add to a project are stored the same way and also written to the project's `.env`, which git ignores, so your code can use them. Tools from ECC's catalog get their keys the same way; no key is written into any other project file.
 - **Network calls Harness makes itself:**
   - **Library docs** is on by default: Claude's documentation lookups go to Context7. Turn it off in Settings › Tools.
-  - **impeccable's design detector** downloads its engine once from its GitHub releases. Other tools download only when you switch them on (Chromium for the browser, REA, the 3D kit, Remotion's renderer, and the cartoon short skill from GitHub when you pick a cartoon pitch video).
+  - **impeccable's design detector** downloads its engine once from its GitHub releases. Other tools download only when you switch them on (Chromium for the browser, REA, the 3D kit, Remotion's renderer, and the cartoon short skill from GitHub when you pick a cartoon promo video).
   - **API key checks** and **ElevenLabs narration** run only when you add a key or press the button. For a key Harness doesn't know, it asks Claude in a new session to work out the service (the key itself never goes into the prompt).
   - **Phone alerts** (ntfy) are off until you turn them on, and never contain code or keys.
-- **Team mode** runs only if you start a team, through a [team server](relay/README.md) you host yourself (your laptop or your own deploy). Shared keys, code bundles and crew missions are encrypted with the team's key before they leave your laptop. The server does see the team's status: names, what each person is working on, session titles, plan usage and which files are changing.
+- **MCP servers from ECC's catalog** run only when you add them to a project, and talk to their own services.
 
 ## Learn more
 
 | | |
 |---|---|
+| [Projects](docs/PROJECTS.md) | Build it, ECC's pipeline, the Project place (Build, Promo, Keys), ECC in every session |
 | [Features](docs/FEATURES.md) | The three places, shortcuts, agents, graph and timeline, files and diffs, terminal, Preview, the / menu, history |
-| [Usage saver](docs/USAGE.md) | How Harness stretches your Claude plan, and the usage history |
-| [Hackathon mode](docs/HACKATHON.md) | Team run, team board, crew mode, challenges, API keys, pitch studio |
-| [HackForge](docs/HACKFORGE.md) | The built-in hackathon plugin and its dashboard |
+| [Usage saver](docs/USAGE.md) | How Harness stretches your Claude plan, the advisor, and the usage history |
 | [Design skills and dev tools](docs/TOOLS.md) | impeccable, UI/UX Pro Max, the browser, library docs, reverse engineering, Blender |
 | [Windows](docs/WINDOWS.md) · [Releasing](docs/RELEASING.md) | Setup on Windows; building, signing and notarizing |
 

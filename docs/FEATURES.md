@@ -1,6 +1,6 @@
 # Features
 
-Everything Harness does in a session, in one place. For hackathon teams, see [Hackathon mode](HACKATHON.md).
+Everything Harness does in a session, in one place. For building a project from an idea, see [Projects](PROJECTS.md).
 
 ← [Back to the README](../README.md)
 
@@ -8,32 +8,31 @@ Everything Harness does in a session, in one place. For hackathon teams, see [Ha
 
 Harness has three places, and every screen has one main button: the next thing to do.
 
-- **Home** (⇧⌘H): one box, "What do you want to build?", and the folder to work in. Press Enter and Claude starts there. Below it are the hackathon at a glance and up to four sessions to continue.
+- **Home** (⇧⌘H): one box, "What do you want to build?". **Build it** turns the idea into a project that Claude builds with ECC ([Projects](PROJECTS.md)); **Chat in a folder** starts a plain session with your text as the first message. Below it are the current project and up to four sessions to continue.
 - **A session** has three views: **Chat**, **Agents** and **Preview** (⌘1–⌘3).
-  - Type **/** in the prompt box, or press **+**, for every action and command: the suggested next step, HackForge's commands, quick actions (parallel agents, train a model, fix tests…) and the project's own slash commands. Each one opens a short form showing the exact prompt it will send.
-  - In HackForge projects, a **Next:** chip above the box follows the project's phase: Kickoff → Build → Verify → Pitch.
+  - Type **/** in the prompt box, or press **+**, for every action and command: ECC's build flow (PRD, plan, MVP, make it better, reviews…), quick actions (parallel agents, train a model, fix tests…) and the project's own slash commands. Each one opens a short form showing the exact prompt it will send.
   - The **mode chip** in the box holds the permission mode, the model and the Usage saver.
   - The **status chip** in the top bar holds context, plan usage, tokens and cost.
-  - **⋯** holds the terminal, replay, handoff, Click to change and focus mode.
-  - The **side panel** (⌘I) shows the task list, changed files, running agents, and HackForge's phase and score.
-- **Hackathon** (⌘4): the team run, the challenges, your API keys, the pitch and the HackForge dashboard, all for one project, in three tabs: **Build**, **Challenges** and **Pitch**. In a team, the **Team** button in its header opens the team board.
+  - **⋯** holds the terminal, replay, Click to change and focus mode.
+  - The **side panel** (⌘I) shows the session's project, the task list, changed files and running agents.
+- **Project** (⌘4): the current project in three tabs: **Build** (the stage, the evaluator's scores, what ECC wrote, make it better), **Promo** (a promo video and a presentation deck) and **Keys** (API keys, and more tools from ECC's catalog). See [Projects](PROJECTS.md#the-project-place).
 
 **Usage** (⌘5) and **Settings** (⌘,) open on top of whatever you're doing.
-- **Settings** has four tabs: General, Team, Tools and Advanced. Each tool is one switch that sets itself up when you turn it on.
+- **Settings** has three tabs: General, Tools and Advanced. Each tool is one switch that sets itself up when you turn it on.
 - **⌘K** still finds every command, place, session and action.
 
 | Shortcut | Goes to |
 |---|---|
 | ⇧⌘H | Home |
 | ⌘1 / ⌘2 / ⌘3 | Chat / Agents / Preview |
-| ⌘4 | Hackathon |
+| ⌘4 | Project |
 | ⌘5 | Usage |
 | ⌘I | Side panel |
 | ⌘J | Terminal |
 | ⌘K | Command palette |
 | ⌘, | Settings |
 
-![Home: one box to start, the hackathon at a glance](screenshots/home.png)
+![Home: describe the idea, then Build it](screenshots/home.png)
 
 ## The conversation
 
@@ -93,7 +92,7 @@ How the "before" is known: the SDK's `PreToolUse` hook snapshots each file just 
 
 **Observe mode** shows Claude Code sessions you start outside Harness (iTerm, Terminal, an editor, `claude -p` in a script) in the sidebar with a terminal icon. You get the full live UI for them: conversation, agent cards, graph and timeline, files and cost. It needs no setup. Harness watches the transcripts Claude Code writes to `~/.claude/projects/`, attributes subagent work through each subagent's metadata file, and saves the session to History so you can resume it later. Sessions Harness runs itself, and other Agent SDK apps, are skipped.
 
-For instant "needs approval", "done" and "ended" status, **Settings › Team → Install hooks** adds a tiny `curl` hook for four events to `~/.claude/settings.json`. The file is backed up first, existing hooks are kept, and **Remove hooks** takes out only Harness's entries. The hook never blocks or fails Claude Code (`curl -m 1 … || true`).
+For instant "needs approval", "done" and "ended" status, **Settings › Advanced → Install hooks** adds a tiny `curl` hook for four events to `~/.claude/settings.json`. The file is backed up first, existing hooks are kept, and **Remove hooks** takes out only Harness's entries. The hook never blocks or fails Claude Code (`curl -m 1 … || true`).
 
 ![Watching a terminal session](screenshots/observed.png)
 
@@ -124,18 +123,17 @@ Its main button is **Ask Claude to change**, which sends a screenshot plus the p
 ## The / menu instead of /commands
 
 Type **/** in an empty prompt box, or press **+**, and one searchable list has everything:
-- **Suggested:** the next step in a HackForge project;
-- **HackForge:** its commands, once the project uses it;
+- **Build with ECC:** Write the PRD, Plan it, Build the MVP, Make it better, Add a feature, Fix a bug, Polish the UI, Code review, Security review, Verify, Fix the build, Add tests, Remove dead code, Update the docs (type `/ecc:` for all of ECC's commands);
 - **Quick actions:** parallel agents, train a model, analyze data, fix tests, build a feature, debug, explain, Remotion video, commit;
 - **Project commands:** the session's own slash commands and skills.
 
-Type a few letters to filter it; names rank above descriptions, so `/ver` finds Verify. Each action opens a form prefilled with example parameters and a preview of the exact prompt. **Run** (⌘⏎) sends it; **Edit in prompt** drops it into the box. A full `/command with arguments` still sends as typed.
+Type a few letters to filter it; a command typed out ranks first, then names, then descriptions, so `/plan` finds Plan it. Each action opens a form prefilled with example parameters and a preview of the exact prompt. **Run** (⌘⏎) sends it; **Edit in prompt** drops it into the box. A full `/command with arguments` still sends as typed.
 
 ![The / menu](screenshots/actions.png)
 
 ## Everyday polish
 
-- **Readable at a glance:** the sidebar is a dark rail in light and dark mode, and four colours each mean one thing: green is working, yellow is waiting for you, red failed, violet is the best result and the main button. Progress shows as segmented bars everywhere (the team run, HackForge phases, agent progress, tool calls, plan and context usage), and every time, cost and count is set in a condensed font with even-width digits. [DESIGN.md](../DESIGN.md) has the full design system.
+- **Readable at a glance:** the sidebar is a dark rail in light and dark mode, and four colours each mean one thing: green is working, yellow is waiting for you, red failed, violet is the best result and the main button. Progress shows as segmented bars everywhere (project stages, evaluator scores, agent progress, tool calls, plan and context usage), and every time, cost and count is set in a condensed font with even-width digits. [DESIGN.md](../DESIGN.md) has the full design system.
 - **Native menu** with every command and its shortcut. It also makes ⌘C/⌘V/⌘Z work everywhere.
 - **⌘K command palette:** commands, places and tabs, open sessions, History, projects, and every action from the / menu.
 - **Notifications:** when Claude needs approval, or finishes a turn longer than 15 s, while Harness is in the background or you're looking at another session. Clicking a notification jumps to the session. You can turn them off in Settings.

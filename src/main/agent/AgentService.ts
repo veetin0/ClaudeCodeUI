@@ -204,7 +204,7 @@ class AgentSession {
     const factory = this.deps.queryFactory ?? query
     const harnessUrl = this.deps.telemetry?.register(this.telemetryToken, (p) => this.onTelemetry(p))
     const mcp = this.deps.mcp?.(opts.cwd)
-    // A choice made for this session (the team run's lead) wins over the one in Settings.
+    // A choice made for this session (a project build) wins over the one in Settings.
     const chosen = opts.advisor ?? this.deps.advisor?.()
     const advisor = advisorOptions(isAdvisorChoice(chosen) ? chosen : '')
 

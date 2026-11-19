@@ -68,7 +68,6 @@ describe('usage history: what each turn used', () => {
     expect(h.topSessions[0]).toMatchObject({ id: 's1', title: 'Build API', tokens: 2120 })
     expect(h.saver).toEqual({ sonnetTurns: 1, opusTurns: 0, takeovers: 1, compactions: 1, compactedTokens: 100_000, skipped: 1, skippedTokens: 50_000 })
     expect(h.samples.map((s) => s.fivePct)).toEqual([42, 60])
-    expect(store.usageToday(now)).toMatchObject({ tokens: 2100, byModel: { Opus: 1500, Sonnet: 600 } })
     store.close()
   })
 })

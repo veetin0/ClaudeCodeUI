@@ -51,7 +51,7 @@ describe('AgentService', () => {
     ids.push(svc.start({ cwd: dir }).id)
     advisor = ''
     ids.push(svc.start({ cwd: dir }).id)
-    // The team run's lead: its own choice wins over Settings.
+    // A project build: its own choice wins over Settings.
     ids.push(svc.start({ cwd: dir, advisor: 'opus' }).id)
     expect(seen.map((o) => [o.settings?.advisorModel, o.env.CLAUDE_CODE_DISABLE_ADVISOR_TOOL])).toEqual([
       ['fable', undefined],
