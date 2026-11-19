@@ -2,7 +2,7 @@ import { spawn } from 'node:child_process'
 import { join } from 'node:path'
 import type { SdkPluginConfig } from '@anthropic-ai/claude-agent-sdk'
 import { DESIGN_PLUGINS, type DesignPluginInfo, type DesignSkillsSettings, type DesignState } from '@shared/design'
-import { bundledPlugin, choosePlugin, installedNamed } from '../hackforge/plugin'
+import { bundledPlugin, choosePlugin, installedNamed } from '../plugins/bundled'
 
 export interface DesignDeps {
   appPath: string

@@ -18,3 +18,7 @@ __pycache__/
 *.pem
 *.p12
 *.key
+
+# ECC's hook scripts run from disk with the packages they require, shipped next to them.
+!resources/ecc/node_modules/
+!resources/ecc/node_modules/**/dist/

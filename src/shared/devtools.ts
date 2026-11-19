@@ -26,8 +26,9 @@ export interface DevToolsSettings {
 
 export const DEFAULT_DEV_TOOLS: DevToolsSettings = { browser: true, showBrowser: false, docs: true, partnerServers: true, rea: false, blender: false }
 
-/** MCP server names sessions see (tools are mcp__<name>__<tool>). */
-export const BROWSER_SERVER = 'browser'
+/** MCP server names sessions see (tools are mcp__<name>__<tool>). The browser is named like Playwright's own
+ * server, so agents that list mcp__playwright__* tools (ECC's evaluator) can use it. */
+export const BROWSER_SERVER = 'playwright'
 export const DOCS_SERVER = 'context7'
 export const REA_SERVER = 'rea'
 export const BLENDER_SERVER = 'blender'

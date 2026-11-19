@@ -3,7 +3,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { CARTOON_SKILL, CartoonSkill, type Run } from '../src/main/pitch/CartoonSkill'
-import { bundledPlugin } from '../src/main/hackforge/plugin'
+import { bundledPlugin } from '../src/main/plugins/bundled'
 
 describe('cartoon short skill', () => {
   it('fetches the pinned commit without the reference sheets and wraps it as a plugin', async () => {

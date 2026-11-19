@@ -20,6 +20,8 @@ asarUnpack:
   - resources/hackforge/**
   # The design plugins (impeccable, UI/UX Pro Max): their launcher, hooks and Python scripts run from disk.
   - resources/design/**
+  # ECC: Claude Code runs its hook scripts (Node, with the packages next to them) from disk.
+  - resources/ecc/**
 # node-pty ships N-API prebuilds for macOS and Windows; no recompiling (no Xcode / Visual Studio) needed.
 npmRebuild: false
 mac:

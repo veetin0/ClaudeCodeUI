@@ -6,6 +6,7 @@ import { DEFAULT_USAGE_SAVER } from '@shared/usageSaver'
 import { DEFAULT_PHONE_ALERTS, newAlertTopic } from '@shared/alerts'
 import { DEFAULT_DESIGN_SKILLS } from '@shared/design'
 import { DEFAULT_DEV_TOOLS } from '@shared/devtools'
+import { DEFAULT_ECC, parseEccSettings } from '@shared/ecc'
 import { randomBytes } from 'node:crypto'
 
 interface StoredSettings extends Omit<AppSettings, 'hasApiKey' | 'hasElevenLabsKey' | 'hasContext7Key'> {
@@ -20,6 +21,7 @@ interface StoredSettings extends Omit<AppSettings, 'hasApiKey' | 'hasElevenLabsK
 const DEFAULTS: StoredSettings = {
   defaultModel: '',
   advisor: '',
+  ecc: DEFAULT_ECC,
   defaultPermissionMode: 'default',
   recentProjects: [],
   observeTerminalSessions: true,
@@ -56,6 +58,7 @@ export class SettingsStore {
           resetQueue: { ...DEFAULTS.resetQueue, ...stored.resetQueue },
           designSkills: { ...DEFAULT_DESIGN_SKILLS, ...stored.designSkills },
           devTools: { ...DEFAULT_DEV_TOOLS, ...stored.devTools },
+          ecc: parseEccSettings(stored.ecc),
         }
       } catch {
         // Corrupt settings: fall back to defaults rather than refusing to start.

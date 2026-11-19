@@ -122,7 +122,7 @@ describe('dev tools in sessions', () => {
   it('gives a session the bundled browser, Context7 and the partners’ servers', () => {
     const { svc, dataDir } = service({ key: 'c7' })
     const servers = svc.mcpServers('/event/app')
-    expect(servers.browser).toEqual({
+    expect(servers.playwright).toEqual({
       type: 'stdio',
       command: '/Harness',
       args: [
@@ -145,13 +145,13 @@ describe('dev tools in sessions', () => {
       env: { ELECTRON_RUN_AS_NODE: '1', HOSTINGER_API_TOKEN: 't' },
     })
     // Browser and docs run without prompts; partner servers still ask.
-    expect(svc.allowedTools()).toEqual(['mcp__browser', 'mcp__context7'])
+    expect(svc.allowedTools()).toEqual(['mcp__playwright', 'mcp__context7'])
   })
 
   it('leaves out what is switched off, and partner servers outside the event project', () => {
-    expect(Object.keys(service().svc.mcpServers('/elsewhere'))).toEqual(['browser', 'context7'])
+    expect(Object.keys(service().svc.mcpServers('/elsewhere'))).toEqual(['playwright', 'context7'])
     expect(service().svc.mcpServers('/elsewhere').context7).toEqual({ type: 'http', url: 'https://mcp.context7.com/mcp' })
-    expect(service({ settings: { showBrowser: true } }).svc.mcpServers('/x').browser).not.toMatchObject({ args: expect.arrayContaining(['--headless']) })
+    expect(service({ settings: { showBrowser: true } }).svc.mcpServers('/x').playwright).not.toMatchObject({ args: expect.arrayContaining(['--headless']) })
     const off = service({ settings: { browser: false, docs: false, partnerServers: false } }).svc
     expect(off.mcpServers('/event/app')).toEqual({})
     expect(off.allowedTools()).toEqual([])
@@ -161,13 +161,13 @@ describe('dev tools in sessions', () => {
   it('downloads Chromium when there is no Chrome or Edge, then uses it', async () => {
     const { svc, pushed, installs, dataDir } = service({ browser: null })
     expect(svc.state().browser).toEqual({ status: 'missing' })
-    expect(svc.mcpServers('/x').browser).toBeUndefined()
+    expect(svc.mcpServers('/x').playwright).toBeUndefined()
     const s = await svc.installBrowser()
     expect(installs[0].script).toBe(join('/app', 'node_modules', '@playwright', 'mcp', 'node_modules', 'playwright-core', 'cli.js'))
     expect(installs[0].env.PLAYWRIGHT_BROWSERS_PATH).toBe(join(dataDir, 'ms-playwright'))
     expect(pushed.map((p) => p.browser.status)).toEqual(['installing', 'ready'])
     expect(s.browser).toMatchObject({ status: 'ready', via: 'Chromium (downloaded by Harness)' })
-    expect(svc.mcpServers('/x').browser).toMatchObject({
+    expect(svc.mcpServers('/x').playwright).toMatchObject({
       args: expect.arrayContaining([join(dataDir, 'ms-playwright', 'chromium-1247', 'chrome-linux64', 'chrome')]),
     })
   })
@@ -182,7 +182,7 @@ describe('dev tools in sessions', () => {
 
   it('tells Claude when to use each tool, only for the tools it has', () => {
     const g = service().svc.guide('/event/app')!
-    expect(g).toMatch(/Browser \(mcp__browser__\*\): check UI work in a real browser/)
+    expect(g).toMatch(/Browser \(mcp__playwright__\*\): check UI work in a real browser/)
     expect(g).toMatch(/explicit filename under \.hackforge\/evidence\//)
     expect(g).toMatch(/Library docs \(mcp__context7__\*\): before writing code against a library or SDK/)
     expect(g).toMatch(/mcp__exa__\* for Exa, mcp__hostinger__\* for Hostinger/)

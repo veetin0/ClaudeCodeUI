@@ -79,6 +79,8 @@ export interface AppSettings {
   hasApiKey: boolean
   observeTerminalSessions: boolean
   defaultModel: string
+  /** ECC (agents, skills, commands, hooks) in every session, and how strict its hooks are. */
+  ecc: import('./ecc').EccSettings
   /** Claude Code's advisor for the sessions Harness starts ('' = Claude Code's own setting). */
   advisor: import('./advisor').AdvisorChoice
   defaultPermissionMode: PermissionMode
@@ -276,6 +278,8 @@ export interface HarnessApi {
   onDesign(cb: (state: DesignState) => void): () => void
   /** Browser, library docs, partner servers and reverse engineering (REA) sessions get. */
   devToolsState(): Promise<DevToolsState>
+  /** The ECC copy sessions get and what's in it. */
+  eccInfo(): Promise<import('./ecc').EccInfo>
   /** Downloads Chromium for the browser tools when there's no Chrome or Edge. */
   devToolsInstallBrowser(): Promise<DevToolsState>
   /** Installs REA (reverse engineering) with the user's npm. */
@@ -439,6 +443,7 @@ export const IPC = {
   designPrepare: 'design:prepare',
   designPush: 'design:push',
   devToolsState: 'devtools:state',
+  eccInfo: 'ecc:info',
   devToolsInstallBrowser: 'devtools:install-browser',
   devToolsInstallRea: 'devtools:install-rea',
   devToolsSetupBlender: 'devtools:setup-blender',

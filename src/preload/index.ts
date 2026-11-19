@@ -165,6 +165,7 @@ const api: HarnessApi = {
     return () => ipcRenderer.removeListener(IPC.designPush, l)
   },
   devToolsState: () => ipcRenderer.invoke(IPC.devToolsState),
+  eccInfo: () => ipcRenderer.invoke(IPC.eccInfo),
   devToolsInstallBrowser: () => ipcRenderer.invoke(IPC.devToolsInstallBrowser),
   devToolsInstallRea: () => ipcRenderer.invoke(IPC.devToolsInstallRea),
   devToolsSetupBlender: () => ipcRenderer.invoke(IPC.devToolsSetupBlender),

@@ -1,6 +1,7 @@
-import { Binary, Box, Flame, Globe, LibraryBig, Palette, Plug, Sparkles } from 'lucide-react'
+import { Binary, Bot, Box, Flame, Globe, LibraryBig, Palette, Plug, Sparkles } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import type { DesignSkillsSettings, DesignState } from '@shared/design'
+import { ECC_HOOK_PROFILES, ECC_PROFILE_LABEL, type EccHookProfile, type EccInfo } from '@shared/ecc'
 import { REA_NODE, type BlenderInfo, type DevToolsSettings, type DevToolsState, type ReaInfo } from '@shared/devtools'
 import type { HackforgeMode } from '@shared/hackforge'
 import { ipcErrorMessage } from '@/lib/time'
@@ -16,9 +17,11 @@ export function ToolsTab() {
   const { settings, updateSettings } = useApp()
   const [dev, setDev] = useState<DevToolsState | null>(null)
   const [design, setDesign] = useState<DesignState | null>(null)
+  const [ecc, setEcc] = useState<EccInfo | null>(null)
   const [error, setError] = useState<string | null>(null)
   useEffect(() => {
     void window.harness.devToolsState().then(setDev)
+    void window.harness.eccInfo().then(setEcc)
     void window.harness.designState().then(setDesign)
     const off1 = window.harness.onDevTools(setDev)
     const off2 = window.harness.onDesign(setDesign)
@@ -58,6 +61,38 @@ export function ToolsTab() {
     <div className="space-y-3">
       <p className="text-[12px] text-muted">Claude uses these by itself when they help. Their definitions load only when needed, so unused tools cost little. Changes apply to new sessions.</p>
       {error && <div className="selectable rounded-lg border border-danger/40 bg-danger/5 px-3 py-2 text-[12px] text-danger-ink">{error}</div>}
+
+      <Row
+        icon={<Bot className="size-3.5 text-accent-ink" />}
+        title="ECC"
+        via={eccVia(ecc)}
+        description={
+          <>
+            {ecc?.counts.agents || 'Dozens of'} agents, {ecc?.counts.skills || 'hundreds of'} skills and {ecc?.counts.commands || 'many'} commands (<code>/ecc:…</code>) for planning,
+            building, reviewing and testing, from <ExtLink url="https://github.com/affaan-m/ECC">affaan-m/ECC</ExtLink>. Its hooks check edits and stop risky commands; new
+            projects get its rules for their languages.
+          </>
+        }
+        on={settings.ecc.enabled}
+        onToggle={(enabled) => void updateSettings({ ecc: { ...settings.ecc, enabled } })}
+        options={
+          <label className="flex items-center gap-1.5">
+            Hooks:
+            <select
+              value={settings.ecc.hookProfile}
+              onChange={(e) => void updateSettings({ ecc: { ...settings.ecc, hookProfile: e.target.value as EccHookProfile } })}
+              className="rounded-md border border-line bg-surface-2 px-2 py-1 text-[12px]"
+              aria-label="ECC hook profile"
+            >
+              {ECC_HOOK_PROFILES.map((p) => (
+                <option key={p} value={p}>
+                  {ECC_PROFILE_LABEL[p]}
+                </option>
+              ))}
+            </select>
+          </label>
+        }
+      />
 
       <Row
         icon={<Flame className="size-3.5 text-forge" />}
@@ -356,4 +391,13 @@ function BlenderStatus({ info, on, setDev, act }: { info: BlenderInfo; on: boole
       )}
     </>
   )
+}
+
+/** "built in · 2.2.3 · 3f14a10" or "your installed ecc@ecc 2.3.0". */
+function eccVia(ecc: EccInfo | null): string | undefined {
+  if (!ecc) return undefined
+  const p = ecc.plugin
+  if (p.source === 'installed') return `your installed ecc@ecc${p.version ? ` ${p.version}` : ''}`
+  if (p.source === 'builtin') return `built in · ${p.version}${ecc.commit ? ` · ${ecc.commit.slice(0, 7)}` : ''}`
+  return 'missing from this build'
 }

@@ -3,6 +3,7 @@ import { randomUUID } from 'node:crypto'
 import { homedir } from 'node:os'
 import { basename, join } from 'node:path'
 import { isAdvisorChoice, type AdvisorChoice, type LeadSetup } from '@shared/advisor'
+import { eccEnv } from '@shared/ecc'
 import { IPC, type ObserveStatus, type PermissionDecision, type PtyOptions, type StartSessionOptions } from '@shared/ipc'
 import type { ImageAttachment, PermissionMode, TodoItem } from '@shared/events'
 import { AgentService } from './agent/AgentService'
@@ -38,6 +39,8 @@ import { ResetQueue } from './system/resetQueue'
 import { PartnerService } from './event/PartnerService'
 import { checkoutHandoff, planHandoff, pushSnapshot } from './team/handoff'
 import { cancelPick, pickElement, type Rect } from './preview/pick'
+import { chooseEcc, eccInfo } from './ecc/plugin'
+import { installedNamed } from './plugins/bundled'
 import { DesignService } from './design/DesignService'
 import { designGuide } from '@shared/design'
 import { DevToolsService } from './devtools/DevToolsService'
@@ -116,6 +119,8 @@ const eventService = new EventService(
 )
 /** The HackForge sessions get: the copy built into Harness, unless an installed one is newer. */
 const hackforgePlugin = () => choosePlugin(builtinPlugin(app.getAppPath()), installedPlugin(claudeDir))
+/** ECC: the built-in copy, or the user's installed ecc@ecc when it's newer. */
+const eccPlugin = () => chooseEcc(app.getAppPath(), claudeDir)
 const hackforge = new HackforgeService(hackforgePlugin, (snap) => {
   for (const w of BrowserWindow.getAllWindows()) w.webContents.send(IPC.hackforgeUpdate, snap)
   // An improvement loop that was running has ended: worth a ping when you're away.
@@ -391,6 +396,10 @@ function registerIpc() {
   ipcMain.handle(IPC.designState, () => design.state())
   ipcMain.handle(IPC.designPrepare, () => design.prepare())
   ipcMain.handle(IPC.devToolsState, () => devTools.stateFresh())
+  ipcMain.handle(IPC.eccInfo, () => {
+    const p = eccPlugin()
+    return eccInfo(p, p.source === 'installed' ? installedNamed(claudeDir, 'ecc')?.path : undefined)
+  })
   ipcMain.handle(IPC.devToolsInstallBrowser, () => devTools.installBrowser())
   ipcMain.handle(IPC.devToolsInstallRea, () => devTools.installRea())
   ipcMain.handle(IPC.devToolsSetupBlender, () => devTools.setupBlender())
@@ -541,9 +550,12 @@ async function start() {
     plugins: () => {
       const p = hackforgePlugin()
       const hf = settings.get().hackforgeMode !== 'off' && p.source === 'builtin' && p.path ? [{ type: 'local' as const, path: p.path }] : []
+      // ECC in every session: its agents, skills, commands and hooks (an installed copy loads by itself).
+      const e = eccPlugin()
+      const ecc = settings.get().ecc.enabled && e.source === 'builtin' && e.path ? [{ type: 'local' as const, path: e.path }] : []
       // The cartoon short skill, once a team picked it on the Pitch tab (it's downloaded then).
       const extra = cartoon?.plugin()
-      return [...hf, ...design.sdkPlugins(), ...(extra ? [extra] : [])]
+      return [...ecc, ...hf, ...design.sdkPlugins(), ...(extra ? [extra] : [])]
     },
     claudeExecutablePath: resolveClaudeExecutable(),
     onRateLimit: (info) => team?.onRateLimit(info),
@@ -551,7 +563,7 @@ async function start() {
     advisor: () => settings.get().advisor,
     hackforgeLean,
     teamRadar: (abs) => team?.radarFor(abs),
-    extraEnv: (cwd) => ({ ...design.env(), ...partners.envFor(cwd) }),
+    extraEnv: (cwd) => ({ ...design.env(), ...eccEnv(settings.get().ecc), ...partners.envFor(cwd) }),
     mcp: (cwd) => {
       // A project with private files gets the guard's latest rules (they now cover REA too) before REA can read anything.
       if (settings.get().devTools.rea && hasPrivateGuard(cwd)) privateGuard(cwd)
