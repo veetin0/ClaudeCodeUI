@@ -1,0 +1,267 @@
+/*
+ * The 8-bit theme (Settings › General › Theme), on <html data-theme="pixel">.
+ *
+ * Cream and night-indigo surfaces, saturated retro state colours, pixel fonts for the UI
+ * (Claude's replies, code and the terminal stay readable), square corners, 2px ink outlines,
+ * hard block shadows, bevelled buttons, and motion that only ever steps.
+ *
+ * These rules are unlayered on purpose: unlayered CSS wins over Tailwind's utility layer, so
+ * every screen follows without per-file classes. Inline styles still win (the world's walking).
+ */
+
+[data-theme='pixel'] {
+  --ff-display: 'Pixelify Sans', system-ui, sans-serif;
+  --ff-ui: 'Pixelify Sans', system-ui, sans-serif;
+  --ff-num: 'VT323', ui-monospace, Menlo, monospace;
+
+  --rail: #211a35;
+  --surface: #f6f0e1;
+  --surface-2: #ebe2cc;
+  --line: rgb(33 26 53 / 0.2);
+  --fg: #211a35;
+  --muted: #5d5571;
+  --hover: rgb(33 26 53 / 0.07);
+  --active: rgb(33 26 53 / 0.12);
+  --accent: #6b3fd4;
+  --accent-ink: #6233c9;
+  --ok: #38a14a;
+  --ok-ink: #1e6b2d;
+  --warn: #f2b11a;
+  --warn-ink: #855700;
+  --danger: #d33f49;
+  --danger-ink: #a8242e;
+  --idle: #a39cb0;
+  --info: #3468d1;
+  --info-ink: #2552ad;
+  --forge: #e8702a;
+  --grid: rgb(33 26 53 / 0.09);
+  /* Outlines and block shadows. */
+  --px-ink: #211a35;
+  --px-hi: rgb(255 255 255 / 0.35);
+  --px-lo: rgb(0 0 0 / 0.28);
+  --shadow-pop: 4px 4px 0 var(--px-ink);
+  --px-drop: 3px 3px 0 rgb(33 26 53 / 0.22);
+}
+
+@media (prefers-color-scheme: dark) {
+  [data-theme='pixel'] {
+    --rail: #0e0b19;
+    --surface: #1d1832;
+    --surface-2: #272043;
+    --line: rgb(242 236 220 / 0.13);
+    --fg: #f2ecdc;
+    --muted: #a8a0c0;
+    --hover: rgb(242 236 220 / 0.06);
+    --active: rgb(242 236 220 / 0.11);
+    --accent: #7650ea;
+    --accent-ink: #b9a0ff;
+    --ok: #4cc35a;
+    --ok-ink: #7be08a;
+    --warn: #ffc53d;
+    --warn-ink: #ffd36b;
+    --danger: #f2545b;
+    --danger-ink: #ff8a8f;
+    --idle: #6f6888;
+    --info: #4f86f0;
+    --info-ink: #8db4ff;
+    --forge: #f38a4a;
+    --grid: rgb(242 236 220 / 0.08);
+    --px-ink: #05040a;
+    --px-hi: rgb(255 255 255 / 0.22);
+    --px-lo: rgb(0 0 0 / 0.4);
+    --shadow-pop: 4px 4px 0 #05040a;
+    --px-drop: 3px 3px 0 rgb(0 0 0 / 0.45);
+  }
+}
+
+/* The rail stays night indigo in both modes. */
+[data-theme='pixel'] .rail {
+  --surface: #2b2346;
+  --surface-2: #342a55;
+  --line: rgb(242 236 220 / 0.12);
+  --fg: #f2ecdc;
+  --muted: #a8a0c0;
+  --hover: rgb(242 236 220 / 0.07);
+  --active: rgb(242 236 220 / 0.13);
+  --accent-ink: #b9a0ff;
+  --ok-ink: #7be08a;
+  --warn-ink: #ffd36b;
+  --danger-ink: #ff8a8f;
+  --idle: #6f6888;
+  --info-ink: #8db4ff;
+  --px-ink: #05040a;
+  --px-drop: 3px 3px 0 rgb(0 0 0 / 0.45);
+  --shadow-pop: 4px 4px 0 #05040a;
+}
+[data-theme='pixel'] aside.rail {
+  box-shadow: inset -2px 0 0 #05040a;
+}
+
+/* Square everything, except inside the code editor and the terminal. */
+[data-theme='pixel'] *:not(.monaco-editor *, .xterm *),
+[data-theme='pixel'] *::before,
+[data-theme='pixel'] *::after {
+  border-radius: 0;
+}
+
+/* Pixel fonts for the UI; reading stays readable. */
+[data-theme='pixel']
+  :is(button, [role='tab'], [role='menuitem'], [role='switch'], [role='button'], select, label, h1, h2, h3, h4, .label-caps, .font-display, .ui-pixel) {
+  font-family: var(--ff-ui);
+}
+[data-theme='pixel'] :is(code, pre, kbd, .font-mono) {
+  font-family: var(--ff-mono);
+}
+[data-theme='pixel'] :is(textarea, input, .prose, .selectable.whitespace-pre-wrap, .ui-read) {
+  font-family: var(--ff-sans);
+}
+/* VT323 has a small x-height: size readouts up so 11–13px stays legible. */
+[data-theme='pixel'] .num {
+  font-size-adjust: ex-height 0.5;
+  letter-spacing: 0.02em;
+}
+[data-theme='pixel'] .label-caps {
+  font-family: var(--ff-ui);
+  letter-spacing: 0.06em;
+}
+[data-theme='pixel'] :is(h1, h2, h3, .font-display) {
+  letter-spacing: 0.01em;
+}
+
+/* Chunky lines. */
+[data-theme='pixel'] .border {
+  border-width: 2px;
+}
+[data-theme='pixel'] .border-t {
+  border-top-width: 2px;
+}
+[data-theme='pixel'] .border-b {
+  border-bottom-width: 2px;
+}
+[data-theme='pixel'] .border-l {
+  border-left-width: 2px;
+}
+[data-theme='pixel'] .border-r {
+  border-right-width: 2px;
+}
+[data-theme='pixel'] .border-y {
+  border-block-width: 2px;
+}
+[data-theme='pixel'] .border-x {
+  border-inline-width: 2px;
+}
+
+/* Panels: cards, dialogs, menus. An ink outline; the larger ones cast a block shadow. */
+[data-theme='pixel'] :is(.border.bg-surface, .border.bg-surface-2, [role='dialog'], [role='menu'], [role='listbox'], .chat-bubble) {
+  border-color: var(--px-ink);
+}
+[data-theme='pixel'] :is(.border.bg-surface, .border.bg-surface-2):is(.rounded-lg, .rounded-xl, .rounded-2xl),
+[data-theme='pixel'] .chat-bubble {
+  box-shadow: var(--px-drop);
+}
+[data-theme='pixel'] :is([role='dialog'], [role='menu'], [role='listbox']) {
+  border-width: 2px;
+  border-style: solid;
+  box-shadow: var(--shadow-pop);
+}
+[data-theme='pixel'] .chat-bubble {
+  border: 2px solid var(--px-ink);
+}
+/* Inputs: an inset pixel well. */
+[data-theme='pixel'] :is(input, textarea, select).border {
+  border-color: var(--px-ink);
+  box-shadow: inset 2px 2px 0 var(--hover);
+}
+[data-theme='pixel'] :is(.border.bg-surface, .border.bg-surface-2):has(:is(input, textarea):focus),
+[data-theme='pixel'] :is(input, textarea).border:focus {
+  border-color: var(--accent-ink);
+}
+
+/* Buttons: primary ones are bevelled blocks that press down. */
+[data-theme='pixel'] :is(button, a).bg-accent {
+  border: 2px solid var(--px-ink);
+  box-shadow:
+    inset -2px -2px 0 var(--px-lo),
+    inset 2px 2px 0 var(--px-hi);
+  filter: none;
+}
+[data-theme='pixel'] :is(button, a).bg-accent:hover:not(:disabled) {
+  background-color: color-mix(in srgb, var(--accent) 88%, white);
+}
+[data-theme='pixel'] :is(button, a).bg-accent:active:not(:disabled) {
+  transform: translate(1px, 1px);
+  box-shadow: inset 2px 2px 0 var(--px-lo);
+}
+[data-theme='pixel'] button.border.bg-surface:active:not(:disabled) {
+  transform: translate(1px, 1px);
+}
+
+/* Tabs: one chunky strip; the chosen tab is inked in. */
+[data-theme='pixel'] [role='tablist'] {
+  border: 2px solid var(--px-ink);
+  background: var(--surface-2);
+  padding: 2px;
+  gap: 2px;
+}
+[data-theme='pixel'] [role='tab'] {
+  box-shadow: none;
+}
+[data-theme='pixel'] [role='tab'][aria-selected='true'] {
+  background: var(--fg);
+  color: var(--surface);
+}
+[data-theme='pixel'] [role='tab'][aria-selected='true'] .bg-fg {
+  background: var(--surface);
+  color: var(--fg);
+}
+
+/* Switches: a square track and knob. */
+[data-theme='pixel'] [role='switch'] {
+  outline: 2px solid var(--px-ink);
+  outline-offset: -2px;
+}
+[data-theme='pixel'] [role='switch'] > span {
+  box-shadow: inset -2px -2px 0 rgb(0 0 0 / 0.2);
+  outline: 2px solid var(--px-ink);
+  outline-offset: -2px;
+}
+
+/* Icons: thicker, square-capped strokes sit better next to pixel type. */
+[data-theme='pixel'] .lucide {
+  stroke-width: 2.25;
+  stroke-linecap: square;
+  stroke-linejoin: miter;
+}
+
+/* Square scrollbars. */
+[data-theme='pixel'] ::-webkit-scrollbar-thumb {
+  border-radius: 0;
+  border-width: 2px;
+  background: color-mix(in srgb, var(--fg) 30%, transparent);
+  background-clip: content-box;
+}
+[data-theme='pixel'] ::-webkit-scrollbar-thumb:hover {
+  background: color-mix(in srgb, var(--fg) 50%, transparent);
+  background-clip: content-box;
+}
+
+/* Motion only steps: no colour fades, spinners and the live sector tick. */
+[data-theme='pixel'] *,
+[data-theme='pixel'] *::before,
+[data-theme='pixel'] *::after {
+  transition-duration: 0s;
+}
+[data-theme='pixel'] .animate-spin {
+  animation-timing-function: steps(8, end);
+}
+[data-theme='pixel'] .sector-live {
+  animation-timing-function: steps(6, end);
+}
+[data-theme='pixel'] ::selection {
+  background: color-mix(in srgb, var(--accent) 35%, transparent);
+}
+/* Keyboard focus on controls: a dashed ring. Text fields show focus with their outline instead. */
+[data-theme='pixel'] :is(button, a, summary, [role='tab'], [role='button'], [role='switch'], [role='menuitem']):focus-visible {
+  outline: 2px dashed var(--accent-ink);
+  outline-offset: 2px;
+}

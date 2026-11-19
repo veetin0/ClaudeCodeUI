@@ -14,6 +14,7 @@ import type { CommandId } from '@shared/commands'
 import { CommandPalette } from './layout/CommandPalette'
 import { useResetQueueRunner } from './stores/resetQueue'
 import { UsageSheet } from './features/usage/UsageView'
+import { applyTheme } from './lib/theme'
 
 const VIEW_KEYS: Record<string, CommandId> = { '1': 'view-chat', '2': 'view-agents', '3': 'view-preview', '4': 'project', '5': 'usage' }
 
@@ -73,6 +74,11 @@ export function App() {
   const activeId = useApp((s) => s.activeId)
   const watching = place === 'session' ? activeId : null
   useEffect(() => window.harness.setActiveSession(watching), [watching])
+
+  const theme = useApp((s) => s.settings?.theme)
+  useEffect(() => {
+    if (theme) applyTheme(theme)
+  }, [theme])
 
   const inSession = place === 'session' && !!session
   return (

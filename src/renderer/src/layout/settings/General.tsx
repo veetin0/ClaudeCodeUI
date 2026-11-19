@@ -1,4 +1,4 @@
-import { Bell, KeyRound, Smartphone, Users } from 'lucide-react'
+import { Bell, Gamepad2, KeyRound, Smartphone, Users } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import qrcode from 'qrcode-generator'
 import { ADVISOR_CHOICES, ADVISOR_LABEL, type AdvisorChoice } from '@shared/advisor'
@@ -114,6 +114,23 @@ export function GeneralTab() {
           ))}
         </select>
       </Field>
+
+      <Row
+        icon={<Gamepad2 className="size-3.5" />}
+        title="Theme"
+        description="8-bit: pixel fonts, square panels and block shadows, with Claude's replies, code and the terminal kept readable. Classic: the clean timing-tower look. Light or dark follows your system."
+        control={
+          <select
+            value={settings.theme}
+            onChange={(e) => void updateSettings({ theme: e.target.value as 'pixel' | 'classic' })}
+            className="rounded-md border border-line bg-surface-2 px-2 py-1 text-[12px]"
+            aria-label="Theme"
+          >
+            <option value="pixel">8-bit</option>
+            <option value="classic">Classic</option>
+          </select>
+        }
+      />
 
       <Row
         icon={<Bell className="size-3.5" />}

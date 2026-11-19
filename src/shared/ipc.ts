@@ -83,6 +83,12 @@ export interface AppSettings {
   notifications: boolean
   /** The team: agents shown as pixel characters (animated, still, or off for plain icons). */
   teamCharacters: 'animated' | 'still' | 'off'
+  /** The look: 8-bit (pixel fonts, square panels, block shadows) or Classic. Light and dark follow the system. */
+  theme: 'pixel' | 'classic'
+  /** The strip of the team's workshop along the bottom of every screen. */
+  worldStrip: boolean
+  /** Chiptune blips when an agent joins, finishes, fails or needs you. */
+  sounds: boolean
   /** The project Harness is building (the Project place, promo video, API keys). */
   project: string | null
   /** Where new projects go (the last place you picked); null: ~/Projects. */

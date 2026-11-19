@@ -188,7 +188,7 @@ function OpenRow({ s, active, onSelect, onClose }: { s: SessionState; active: bo
     <div
       onClick={onSelect}
       className={cn(
-        'group flex cursor-default items-center gap-2.5 rounded-md px-2.5 py-1.5',
+        'ui-pixel group flex cursor-default items-center gap-2.5 rounded-md px-2.5 py-1.5',
         active ? 'bg-active' : 'hover:bg-hover',
       )}
     >
@@ -229,7 +229,7 @@ function RowReadout({ s }: { s: SessionState }) {
 
 function HistoryRow({ h, onOpen, onDelete }: { h: SessionSummary; onOpen: () => void; onDelete: () => void }) {
   return (
-    <div onClick={onOpen} className="group flex cursor-default items-center gap-2 rounded-md px-2.5 py-1.5 text-fg/85 hover:bg-hover hover:text-fg">
+    <div onClick={onOpen} className="ui-pixel group flex cursor-default items-center gap-2 rounded-md px-2.5 py-1.5 text-fg/85 hover:bg-hover hover:text-fg">
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-1 truncate">
           {h.observed && <SquareTerminal className="size-3 shrink-0 text-muted" aria-label="Terminal session" />}

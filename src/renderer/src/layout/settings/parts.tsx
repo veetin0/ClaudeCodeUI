@@ -7,7 +7,7 @@ export function Field({ label, hint, children }: { label: string; hint?: React.R
     <label className="block">
       <div className="mb-1.5 font-medium">{label}</div>
       {children}
-      {hint && <div className="mt-1 text-[11px] text-muted">{hint}</div>}
+      {hint && <div className="ui-read mt-1 text-[11px] text-muted">{hint}</div>}
     </label>
   )
 }
@@ -61,7 +61,7 @@ export function Row({
     <div className="rounded-xl border border-line p-3">
       <div className="flex items-start gap-3">
         <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-1.5 font-medium">
+          <div className="ui-pixel flex items-center gap-1.5 font-medium">
             {icon}
             {title}
             {via && <span className="text-[11px] font-normal text-muted">· {via}</span>}

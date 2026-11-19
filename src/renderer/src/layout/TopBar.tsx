@@ -17,7 +17,7 @@ export function TopBar() {
   const place = useApp((s) => s.place)
   const focusMode = useApp((s) => s.focusMode)
   return (
-    <header className={cn('flex h-12 shrink-0 items-center gap-3 border-b border-line px-4 text-[12px]', isMac && 'drag', isMac && focusMode && 'pl-20')}>
+    <header className={cn('ui-pixel flex h-12 shrink-0 items-center gap-3 border-b border-line px-4 text-[12px]', isMac && 'drag', isMac && focusMode && 'pl-20')}>
       {focusMode && (
         <button onClick={() => runCommand({ id: 'focus-mode' })} className="no-drag rounded p-1 text-muted hover:bg-hover" title={shortcut('Show the sidebar (⌘\\)')}>
           <PanelLeft className="size-4" />
