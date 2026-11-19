@@ -62,28 +62,6 @@ const api: HarnessApi = {
     return () => ipcRenderer.removeListener(IPC.command, l)
   },
   setActiveSession: (id) => ipcRenderer.send(IPC.activeSession, id),
-  hackforgeWatch: (cwd) => ipcRenderer.invoke(IPC.hackforgeWatch, cwd),
-  hackforgeUnwatch: (cwd) => ipcRenderer.send(IPC.hackforgeUnwatch, cwd),
-  hackforgeStopLoop: (cwd) => ipcRenderer.invoke(IPC.hackforgeStopLoop, cwd),
-  hackforgeSetProfile: (cwd, profile) => ipcRenderer.invoke(IPC.hackforgeSetProfile, cwd, profile),
-  hackforgeOpenView: (cwd, name) => ipcRenderer.invoke(IPC.hackforgeOpenView, cwd, name),
-  onHackforge: (cb) => {
-    const l = (_: unknown, s: import('../shared/hackforge').HackforgeSnapshot) => cb(s)
-    ipcRenderer.on(IPC.hackforgeUpdate, l)
-    return () => ipcRenderer.removeListener(IPC.hackforgeUpdate, l)
-  },
-  eventState: () => ipcRenderer.invoke(IPC.eventState),
-  eventLink: (dir) => ipcRenderer.invoke(IPC.eventLink, dir),
-  eventSetup: (dir) => ipcRenderer.invoke(IPC.eventSetup, dir),
-  onEvent: (cb) => {
-    const l = (_: unknown, s: import('../shared/event').EventState) => cb(s)
-    ipcRenderer.on(IPC.eventPush, l)
-    return () => ipcRenderer.removeListener(IPC.eventPush, l)
-  },
-  challengeAdd: (c) => ipcRenderer.invoke(IPC.challengeAdd, c),
-  challengeUpdate: (id, patch) => ipcRenderer.invoke(IPC.challengeUpdate, id, patch),
-  challengeDelete: (id) => ipcRenderer.invoke(IPC.challengeDelete, id),
-  challengeChoose: (id) => ipcRenderer.invoke(IPC.challengeChoose, id),
   setElevenLabsKey: (key) => ipcRenderer.invoke(IPC.setElevenLabsKey, key),
   setContext7Key: (key) => ipcRenderer.invoke(IPC.setContext7Key, key),
   pitchState: () => ipcRenderer.invoke(IPC.pitchState),
@@ -111,21 +89,6 @@ const api: HarnessApi = {
     ipcRenderer.on(IPC.pitchPush, l)
     return () => ipcRenderer.removeListener(IPC.pitchPush, l)
   },
-  teamState: () => ipcRenderer.invoke(IPC.teamState),
-  teamCreate: (opts) => ipcRenderer.invoke(IPC.teamCreate, opts),
-  teamJoin: (code, name) => ipcRenderer.invoke(IPC.teamJoin, code, name),
-  teamLeave: () => ipcRenderer.invoke(IPC.teamLeave),
-  teamUpdate: (patch) => ipcRenderer.invoke(IPC.teamUpdate, patch),
-  teamSetLocal: (local) => ipcRenderer.send(IPC.teamSetLocal, local),
-  onTeam: (cb) => {
-    const l = (_: unknown, s: import('../shared/team').TeamState) => cb(s)
-    ipcRenderer.on(IPC.teamPush, l)
-    return () => ipcRenderer.removeListener(IPC.teamPush, l)
-  },
-  handoffPlan: (sessionId) => ipcRenderer.invoke(IPC.handoffPlan, sessionId),
-  handoffOffer: (opts) => ipcRenderer.invoke(IPC.handoffOffer, opts),
-  handoffWithdraw: (id) => ipcRenderer.invoke(IPC.handoffWithdraw, id),
-  handoffTake: (id) => ipcRenderer.invoke(IPC.handoffTake, id),
   resetQueueState: () => ipcRenderer.invoke(IPC.resetQueueState),
   resetQueueAdd: (item) => ipcRenderer.invoke(IPC.resetQueueAdd, item),
   resetQueueRemove: (id) => ipcRenderer.invoke(IPC.resetQueueRemove, id),
@@ -142,8 +105,7 @@ const api: HarnessApi = {
   },
   phoneTest: () => ipcRenderer.invoke(IPC.phoneTest),
   partnersState: () => ipcRenderer.invoke(IPC.partnersState),
-  partnerSetKey: (env, value, share) => ipcRenderer.invoke(IPC.partnerSetKey, env, value, share),
-  partnerSetShare: (env, share) => ipcRenderer.invoke(IPC.partnerSetShare, env, share),
+  partnerSetKey: (env, value) => ipcRenderer.invoke(IPC.partnerSetKey, env, value),
   partnerSetDocs: (kitId, url) => ipcRenderer.invoke(IPC.partnerSetDocs, kitId, url),
   partnerSetMcp: (kitId, url) => ipcRenderer.invoke(IPC.partnerSetMcp, kitId, url),
   partnerAdd: (opts) => ipcRenderer.invoke(IPC.partnerAdd, opts),
@@ -165,6 +127,13 @@ const api: HarnessApi = {
     return () => ipcRenderer.removeListener(IPC.designPush, l)
   },
   devToolsState: () => ipcRenderer.invoke(IPC.devToolsState),
+  projectSet: (dir) => ipcRenderer.invoke(IPC.projectSet, dir),
+  usageState: () => ipcRenderer.invoke(IPC.usageState),
+  onUsage: (cb) => {
+    const l = (_: unknown, u: import('../shared/planUsage').PlanUsage) => cb(u)
+    ipcRenderer.on(IPC.usagePush, l)
+    return () => ipcRenderer.removeListener(IPC.usagePush, l)
+  },
   eccInfo: () => ipcRenderer.invoke(IPC.eccInfo),
   devToolsInstallBrowser: () => ipcRenderer.invoke(IPC.devToolsInstallBrowser),
   devToolsInstallRea: () => ipcRenderer.invoke(IPC.devToolsInstallRea),
@@ -176,40 +145,6 @@ const api: HarnessApi = {
     ipcRenderer.on(IPC.devToolsPush, l)
     return () => ipcRenderer.removeListener(IPC.devToolsPush, l)
   },
-  crewState: () => ipcRenderer.invoke(IPC.crewState),
-  crewAnswer: (askId, allow, always) => ipcRenderer.invoke(IPC.crewAnswer, askId, allow, always),
-  crewCancel: (missionId) => ipcRenderer.invoke(IPC.crewCancel, missionId),
-  onCrew: (cb) => {
-    const l = (_: unknown, s: import('../shared/crew').CrewState) => cb(s)
-    ipcRenderer.on(IPC.crewPush, l)
-    return () => ipcRenderer.removeListener(IPC.crewPush, l)
-  },
-  runState: () => ipcRenderer.invoke(IPC.runState),
-  onRun: (cb) => {
-    const l = (_: unknown, s: import('../shared/run').RunState) => cb(s)
-    ipcRenderer.on(IPC.runPush, l)
-    return () => ipcRenderer.removeListener(IPC.runPush, l)
-  },
-  runStartTeam: (name) => ipcRenderer.invoke(IPC.runStartTeam, name),
-  runGoTo: (stage) => ipcRenderer.invoke(IPC.runGoTo, stage),
-  runCreateProject: (o) => ipcRenderer.invoke(IPC.runCreateProject, o),
-  runUseFolder: (o) => ipcRenderer.invoke(IPC.runUseFolder, o),
-  runSetupInfo: () => ipcRenderer.invoke(IPC.runSetupInfo),
-  runSetChallenge: (text) => ipcRenderer.invoke(IPC.runSetChallenge, text),
-  runAddFiles: (kind, paths) => ipcRenderer.invoke(IPC.runAddFiles, kind, paths),
-  runPickFiles: () => ipcRenderer.invoke(IPC.runPickFiles),
-  runGithub: () => ipcRenderer.invoke(IPC.runGithub),
-  runPlan: (sessionId) => ipcRenderer.invoke(IPC.runPlan, sessionId),
-  runAccept: () => ipcRenderer.invoke(IPC.runAccept),
-  runRevise: (change) => ipcRenderer.invoke(IPC.runRevise, change),
-  runAnswer: (itemId, a) => ipcRenderer.invoke(IPC.runAnswer, itemId, a),
-  runDismiss: (itemId) => ipcRenderer.invoke(IPC.runDismiss, itemId),
-  runPause: () => ipcRenderer.invoke(IPC.runPause),
-  runResume: () => ipcRenderer.invoke(IPC.runResume),
-  runStop: () => ipcRenderer.invoke(IPC.runStop),
-  runReset: () => ipcRenderer.invoke(IPC.runReset),
-  runReconnect: (sessionId) => ipcRenderer.invoke(IPC.runReconnect, sessionId),
-  teamTestServer: (url) => ipcRenderer.invoke(IPC.teamTestServer, url),
   pathForFile: (file) => webUtils.getPathForFile(file),
   onEvents: (cb) => {
     const listener = (_: unknown, events: HarnessEvent[]) => cb(events)

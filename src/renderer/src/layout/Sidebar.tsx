@@ -1,4 +1,4 @@
-import { ChevronDown, Flame, FolderOpen, Home, Plus, Rocket, Search, Settings, SquareTerminal, Trash2, X } from 'lucide-react'
+import { ChevronDown, FolderOpen, Hammer, Home, Plus, Search, Settings, SquareTerminal, Trash2, X } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import type { SessionSummary } from '@shared/ipc'
 import { basename, cn, formatCost, formatDuration } from '@/lib/format'
@@ -6,16 +6,13 @@ import { useElapsed } from '@/features/meters/useElapsed'
 import { dateGroup, relativeTime } from '@/lib/time'
 import { useApp } from '@/stores/app'
 import type { SessionState } from '@/stores/reducer'
-import { useHackathonSummary } from '@/features/hackathon/summary'
 import { Menu, menuItems } from '@/ui/Menu'
-import { Sectors, SectorMeter, type SectorTone } from '@/ui/Sectors'
-import { RUN_STAGES } from '@shared/run'
-import { newHackforgeProject } from '@/lib/projects'
+import { SectorMeter } from '@/ui/Sectors'
 import { StatusDot, STATUS_LABEL } from './StatusDot'
 import { usePlanUsage } from './StatusChip'
 import { isMac, shortcut } from '@/lib/keys'
 
-/** Three parts: where to go (Home, Hackathon, a new session), your sessions, and usage + settings. */
+/** Three parts: where to go (Home, the Project, a new session), your sessions, and usage + settings. */
 export function Sidebar() {
   const { order, sessions, history, activeId, place, select, closeSession, openSaved, deleteSaved, goHome } = useApp()
   const [query, setQuery] = useState('')
@@ -45,7 +42,7 @@ export function Sidebar() {
         <NavRow icon={<Home className="size-4 text-muted" aria-hidden />} active={place === 'home'} onClick={goHome} keys={shortcut('⇧⌘H')}>
           Home
         </NavRow>
-        <HackathonRow />
+        <ProjectRow />
         <NewSessionRow />
       </nav>
 
@@ -104,46 +101,33 @@ function NavRow({ icon, active, onClick, keys, children }: { icon: React.ReactNo
   )
 }
 
-/** The hackathon: team run and event in one row, with the race clock and the run as five sectors. */
-function HackathonRow() {
-  const h = useHackathonSummary()
-  const open = useApp((s) => s.place === 'hackathon')
-  const at = RUN_STAGES.indexOf(h.stage)
-  const sectors = RUN_STAGES.map((_, i): { tone: SectorTone } => ({ tone: i < at ? 'done' : i === at ? (h.inbox > 0 ? 'wait' : 'live') : 'todo' }))
+/** The current project in one row: its name and where it is (opens the Project place, ⌘4). */
+function ProjectRow() {
+  const dir = useApp((s) => s.settings?.project ?? null)
+  const open = useApp((s) => s.place === 'project')
   return (
     <button
-      onClick={() => useApp.getState().openHackathon()}
-      title={shortcut('Hackathon: team run, challenges and pitch (⌘4)')}
+      onClick={() => useApp.getState().openProject()}
+      title={shortcut('Project: build, promo video and API keys (⌘4)')}
       className={cn('no-drag flex w-full items-start gap-2.5 rounded-md px-2.5 py-2 text-left hover:bg-hover', open && 'bg-active')}
     >
-      <Rocket className="mt-0.5 size-4 shrink-0 text-accent-ink" aria-hidden />
+      <Hammer className="mt-0.5 size-4 shrink-0 text-accent-ink" aria-hidden />
       <span className="min-w-0 flex-1">
-        <span className="flex items-center gap-2">
-          <span className="min-w-0 flex-1 truncate font-medium">{h.name}</span>
-          {h.inbox > 0 && <span className="num rounded-sm bg-warn px-1.5 text-[12px] font-semibold leading-[18px] text-rail">{h.inbox}</span>}
-        </span>
-        <span className="mt-0.5 flex items-baseline gap-2 text-[12px]">
-          <span className="min-w-0 flex-1 truncate text-muted">{h.status}</span>
-          {h.clock && (
-            <span title={h.countdown} className={cn('num shrink-0 font-semibold', h.urgent ? 'text-danger-ink' : 'text-fg/80')}>
-              {h.clock}
-            </span>
-          )}
-        </span>
-        <Sectors items={sectors} height={3} className="mt-2" label={`Team run: ${h.status}`} />
+        <span className="block truncate font-medium">{dir ? basename(dir) : 'Project'}</span>
+        <span className="mt-0.5 block truncate text-[12px] text-muted">{dir ? 'Build, promo and keys' : 'Build something from an idea'}</span>
       </span>
     </button>
   )
 }
 
-/** New session (a folder picker); its ▾ starts one in a recent folder or a new HackForge project. */
+/** New session (a folder picker); its ▾ starts one in a recent folder. */
 function NewSessionRow() {
-  const { settings, openProject, startSession, order, sessions } = useApp()
+  const { settings, openFolder, startSession, order, sessions } = useApp()
   const openDirs = new Set(order.map((id) => sessions[id].cwd))
   const recents = (settings?.recentProjects ?? []).filter((d) => !openDirs.has(d)).slice(0, 6)
   return (
     <div className="group flex h-8 items-center rounded-md hover:bg-hover">
-      <button onClick={() => void openProject()} className="no-drag flex h-full min-w-0 flex-1 items-center gap-2.5 whitespace-nowrap px-2.5 text-left font-medium text-fg/90">
+      <button onClick={() => void openFolder()} className="no-drag flex h-full min-w-0 flex-1 items-center gap-2.5 whitespace-nowrap px-2.5 text-left font-medium text-fg/90">
         <Plus className="size-4 text-muted" aria-hidden />
         New session
         <kbd className="num ml-auto text-[12px] font-normal text-muted">{shortcut('⌘O')}</kbd>
@@ -157,8 +141,7 @@ function NewSessionRow() {
           recents.length > 0 && { heading: 'Start in' },
           ...recents.map((dir) => ({ label: basename(dir), hint: dir, icon: FolderOpen, onSelect: () => void startSession(dir) })),
           recents.length > 0 && 'separator',
-          { label: 'Open folder…', icon: FolderOpen, keys: shortcut('⌘O'), onSelect: () => void openProject() },
-          settings?.hackforgeMode !== 'off' && { label: 'New HackForge project…', icon: Flame, hint: 'Pick a folder, then set it up', onSelect: () => void newHackforgeProject() },
+          { label: 'Open folder…', icon: FolderOpen, keys: shortcut('⌘O'), onSelect: () => void openFolder() },
         )}
       />
     </div>

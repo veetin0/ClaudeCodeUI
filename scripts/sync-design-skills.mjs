@@ -4,7 +4,7 @@
 // (clones of github.com/pbakaus/impeccable and github.com/nextlevelbuilder/ui-ux-pro-max-skill; either flag alone works)
 // impeccable: its Claude Code plugin folder (plugin/), as published.
 // ui-ux-pro-max: only the core ui-ux-pro-max skill; the repo's slides/brand/banner/logo skills overlap
-// HackForge's pitch work and are left out.
+// the promo studio and are left out.
 import { cpSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { basename, join, resolve } from 'node:path'
 

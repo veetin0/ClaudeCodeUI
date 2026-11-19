@@ -1,8 +1,7 @@
 import { app, BrowserWindow, dialog, ipcMain, nativeTheme, powerMonitor, powerSaveBlocker, safeStorage, shell } from 'electron'
-import { randomUUID } from 'node:crypto'
 import { homedir } from 'node:os'
-import { basename, join } from 'node:path'
-import { isAdvisorChoice, type AdvisorChoice, type LeadSetup } from '@shared/advisor'
+import { join } from 'node:path'
+import { isAdvisorChoice, type AdvisorChoice } from '@shared/advisor'
 import { eccEnv } from '@shared/ecc'
 import { IPC, type ObserveStatus, type PermissionDecision, type PtyOptions, type StartSessionOptions } from '@shared/ipc'
 import type { ImageAttachment, PermissionMode, TodoItem } from '@shared/events'
@@ -23,21 +22,14 @@ import { installMenu } from './system/menu'
 import { Presence, projectName } from './system/presence'
 import appIcon from '../../resources/icon.png?asset'
 import { SettingsStore } from './system/settings'
-import { HackforgeService } from './hackforge/HackforgeService'
-import { builtinPlugin, choosePlugin, installedPlugin } from './hackforge/plugin'
-import { EventService } from './event/EventService'
-import { newMemberId, TeamService } from './team/TeamService'
 import { PitchService } from './pitch/PitchService'
 import { CartoonSkill } from './pitch/CartoonSkill'
 import { Kit3dService } from './kit3d/Kit3dService'
 import type { Kit3dQuality } from '@shared/kit3d'
-import { hackforgeLean, readHackforge } from './hackforge/HackforgeService'
-import { hackforgeGuide } from '@shared/hackforge'
-import { takeOverPrompt } from '@shared/handoff'
 import { PhoneAlerts } from './system/phone'
 import { ResetQueue } from './system/resetQueue'
-import { PartnerService } from './event/PartnerService'
-import { checkoutHandoff, planHandoff, pushSnapshot } from './team/handoff'
+import { PartnerService } from './keys/PartnerService'
+import { UsageMonitor } from './system/UsageMonitor'
 import { cancelPick, pickElement, type Rect } from './preview/pick'
 import { chooseEcc, eccInfo } from './ecc/plugin'
 import { installedNamed } from './plugins/bundled'
@@ -45,13 +37,6 @@ import { DesignService } from './design/DesignService'
 import { designGuide } from '@shared/design'
 import { DevToolsService } from './devtools/DevToolsService'
 import { BlenderService } from './devtools/blender'
-import { CrewDriver } from './crew/CrewDriver'
-import { driverCrewTools } from './crew/crewTools'
-import { CREW_GUIDE } from '@shared/crew'
-import { makeJoinCode } from '@shared/team'
-import { RUN_ALLOW, RUN_GUIDE, type ClaudePlan, type FileKind, type RunStage } from '@shared/run'
-import { RunService } from './run/RunService'
-import { ghCli, hasPrivateGuard, privateGuard } from './run/project'
 
 // Tests (and a second, throwaway profile) can keep everything out of the real profile folder.
 if (process.env.HARNESS_USER_DATA) app.setPath('userData', process.env.HARNESS_USER_DATA)
@@ -75,14 +60,12 @@ let settings: SettingsStore
 let store: SessionStore
 let agents: AgentService
 let presence: Presence
-let team: TeamService
+let usage: UsageMonitor
 let pitch: PitchService
 let cartoon: CartoonSkill
 let kit3d: Kit3dService
 let partners: PartnerService
 let resetQueue: ResetQueue
-let crew: CrewDriver
-let run: RunService
 const design = new DesignService({
   appPath: app.getAppPath(),
   claudeDir,
@@ -97,7 +80,7 @@ const devTools = new DevToolsService({
   settings: () => settings.get().devTools,
   context7Key: () => settings.getContext7Key(),
   partnerServers: (cwd) => partners?.mcpServers(cwd) ?? [],
-  eventProject: () => settings.get().eventProject ?? undefined,
+  projectDir: () => settings.get().project ?? undefined,
   push: (state) => broadcast(IPC.devToolsPush, state),
 })
 /** Sends to every window (there's normally one). */
@@ -109,30 +92,8 @@ const phone = new PhoneAlerts({
   // Away = screen locked, or no keyboard/mouse input for 90 seconds.
   away: () => powerMonitor.getSystemIdleState(90) !== 'active',
 })
-/** HackForge loops seen running, so their end can be announced. */
-const loopsRunning = new Set<string>()
-const eventService = new EventService(
-  () => settings?.get().eventProject ?? undefined,
-  (state) => {
-    for (const w of BrowserWindow.getAllWindows()) w.webContents.send(IPC.eventPush, state)
-  },
-)
-/** The HackForge sessions get: the copy built into Harness, unless an installed one is newer. */
-const hackforgePlugin = () => choosePlugin(builtinPlugin(app.getAppPath()), installedPlugin(claudeDir))
 /** ECC: the built-in copy, or the user's installed ecc@ecc when it's newer. */
 const eccPlugin = () => chooseEcc(app.getAppPath(), claudeDir)
-const hackforge = new HackforgeService(hackforgePlugin, (snap) => {
-  for (const w of BrowserWindow.getAllWindows()) w.webContents.send(IPC.hackforgeUpdate, snap)
-  // An improvement loop that was running has ended: worth a ping when you're away.
-  if (snap.loop?.active) loopsRunning.add(snap.cwd)
-  else if (loopsRunning.delete(snap.cwd)) {
-    const best = snap.loop?.bestScore
-    void phone.alert('finished', 'HackForge loop finished', `${basename(snap.cwd)}${best !== undefined ? ` · best score ${best.toFixed(1)}` : ''}`, {
-      tags: ['checkered_flag'],
-    })
-  }
-})
-
 /** macOS: inset traffic lights over the graphite rail. Windows/Linux: the standard frame and menu bar. */
 function windowChrome(): Electron.BrowserWindowConstructorOptions {
   // The rail's colour (styles.css --rail), so the window never flashes another one while loading.
@@ -188,6 +149,17 @@ function trackerFor(id: string): ChangeTracker {
     detachedTrackers.set(id, t)
   }
   return t
+}
+
+/** Makes a folder the current project: API keys, partner servers, the promo video and the 3D kit follow it. */
+async function setProject(dir: string | null) {
+  settings.update({ project: dir })
+  if (dir) settings.addRecentProject(dir)
+  partners.changed()
+  devTools.publish()
+  pitch.refresh()
+  broadcast(IPC.kit3dPush, await kit3d.state(true))
+  return settings.get()
 }
 
 async function observeStatus(): Promise<ObserveStatus> {
@@ -269,8 +241,7 @@ function registerIpc() {
         cwd: summary.cwd,
         permissionMode: opts?.permissionMode ?? settings.get().defaultPermissionMode,
         model: opts?.model ?? summary.model,
-        // The team run's lead keeps its advisor however its session comes back.
-        advisor: isAdvisorChoice(opts?.advisor) ? opts.advisor : run?.leadAdvisor(summary.cwd),
+        advisor: isAdvisorChoice(opts?.advisor) ? opts.advisor : undefined,
       },
       { summary, claudeSessionId: summary.claudeSessionId, todos, saverTier },
     )
@@ -288,30 +259,6 @@ function registerIpc() {
     const r = await dialog.showOpenDialog({ properties: ['openDirectory', 'createDirectory'] })
     return r.canceled ? null : r.filePaths[0]
   })
-  ipcMain.handle(IPC.hackforgeWatch, (_e, cwd: string) => hackforge.watch(cwd))
-  ipcMain.on(IPC.hackforgeUnwatch, (_e, cwd: string) => hackforge.unwatch(cwd))
-  ipcMain.handle(IPC.hackforgeOpenView, (_e, cwd: string, name: string) => shell.openPath(hackforge.viewPath(cwd, name)))
-  ipcMain.handle(IPC.hackforgeStopLoop, (_e, cwd: string) => hackforge.stopLoop(cwd))
-  ipcMain.handle(IPC.hackforgeSetProfile, (_e, cwd: string, profile: string) => hackforge.setProfile(cwd, profile))
-  ipcMain.handle(IPC.eventState, () => eventService.state())
-  ipcMain.handle(IPC.eventLink, (_e, dir: string | null) => {
-    settings.update({ eventProject: dir })
-    partners.changed()
-    void crew.setProject(dir ?? undefined)
-    return eventService.state()
-  })
-  ipcMain.handle(IPC.eventSetup, async (_e, dir: string) => {
-    settings.update({ eventProject: dir })
-    settings.addRecentProject(dir)
-    void crew.setProject(dir)
-    const state = await eventService.setup(dir)
-    partners.changed()
-    return state
-  })
-  ipcMain.handle(IPC.challengeAdd, (_e, c) => eventService.addChallenge(c))
-  ipcMain.handle(IPC.challengeUpdate, (_e, id: string, patch) => eventService.updateChallenge(id, patch))
-  ipcMain.handle(IPC.challengeDelete, (_e, id: string) => eventService.deleteChallenge(id))
-  ipcMain.handle(IPC.challengeChoose, (_e, id: string) => eventService.chooseChallenge(id))
   ipcMain.handle(IPC.setElevenLabsKey, (_e, key: string | null) => {
     settings.setElevenLabsKey(key)
     return settings.get()
@@ -339,16 +286,6 @@ function registerIpc() {
   ipcMain.handle(IPC.kit3dRender, (_e, clip: string, quality: Kit3dQuality) => kit3d.render(clip, quality))
   ipcMain.handle(IPC.kit3dCancel, () => kit3d.cancel())
   ipcMain.handle(IPC.kit3dAddToPitch, (_e, clip: string) => kit3d.addToPitch(clip))
-  ipcMain.handle(IPC.teamState, () => team.state())
-  ipcMain.handle(IPC.teamCreate, (_e, opts: { name: string; host: boolean; relayUrl?: string }) => team.create(opts))
-  ipcMain.handle(IPC.teamJoin, (_e, code: string, name: string) => team.join(code, name))
-  ipcMain.handle(IPC.teamLeave, async () => {
-    const s = await team.leave()
-    crew.reset()
-    return s
-  })
-  ipcMain.handle(IPC.teamUpdate, (_e, patch: { name?: string; focus?: string }) => team.update(patch))
-  ipcMain.on(IPC.teamSetLocal, (_e, local) => team.setLocal(local))
   ipcMain.handle(IPC.getSettings, () => settings.get())
   ipcMain.handle(IPC.setApiKey, (_e, key: string | null) => settings.setApiKey(key))
   ipcMain.handle(IPC.updateSettings, (_e, patch) => {
@@ -360,39 +297,11 @@ function registerIpc() {
       if (next.designSkills.impeccable && !before.impeccable) void design.prepare()
       else broadcast(IPC.designPush, design.state())
     }
-    if ('devTools' in patch || 'eventProject' in patch) devTools.publish()
-    if ('crewAutoReports' in patch) crew.publish()
+    if ('devTools' in patch || 'project' in patch) devTools.publish()
     return next
   })
-  ipcMain.handle(IPC.crewState, () => crew.state())
-  ipcMain.handle(IPC.crewAnswer, (_e, askId: string, allow: boolean, always?: boolean) => crew.answer(askId, allow, always))
-  ipcMain.handle(IPC.crewCancel, (_e, missionId: string) => void crew.stop(missionId, 'Stopped from the Team board.'))
-  ipcMain.handle(IPC.runState, () => run.state())
-  ipcMain.handle(IPC.runStartTeam, (_e, name: string) => run.startTeam(name))
-  ipcMain.handle(IPC.runGoTo, (_e, stage: RunStage) => run.goTo(stage))
-  ipcMain.handle(IPC.runCreateProject, (_e, o: { name: string; parent: string; deadline?: string; plan: ClaudePlan; lead?: LeadSetup }) => run.createProject(o))
-  ipcMain.handle(IPC.runUseFolder, (_e, o: { dir: string; name: string; deadline?: string; plan: ClaudePlan; lead?: LeadSetup }) => run.useFolder(o))
-  ipcMain.handle(IPC.runSetupInfo, () => run.setupInfo())
-  ipcMain.handle(IPC.runSetChallenge, (_e, text: string) => run.setChallenge(text))
-  ipcMain.handle(IPC.runAddFiles, (_e, kind: FileKind, paths: string[]) => run.addFiles(kind, paths))
-  ipcMain.handle(IPC.runPickFiles, async () => {
-    const r = await dialog.showOpenDialog({
-      properties: ['openFile', 'multiSelections', ...(process.platform === 'darwin' ? (['openDirectory'] as const) : [])],
-    })
-    return r.canceled ? [] : r.filePaths
-  })
-  ipcMain.handle(IPC.runGithub, () => run.github())
-  ipcMain.handle(IPC.runPlan, (_e, sessionId: string) => run.plan(sessionId))
-  ipcMain.handle(IPC.runAccept, () => run.acceptPlan())
-  ipcMain.handle(IPC.runRevise, (_e, change: string) => run.revisePlan(change))
-  ipcMain.handle(IPC.runAnswer, (_e, id: string, a) => run.answer(id, a))
-  ipcMain.handle(IPC.runDismiss, (_e, id: string) => run.dismiss(id))
-  ipcMain.handle(IPC.runPause, () => run.pauseRun())
-  ipcMain.handle(IPC.runResume, () => run.resumeRun())
-  ipcMain.handle(IPC.runStop, () => run.stop())
-  ipcMain.handle(IPC.runReset, () => run.reset())
-  ipcMain.handle(IPC.runReconnect, (_e, sessionId: string) => run.reconnect(sessionId))
-  ipcMain.handle(IPC.teamTestServer, (_e, url: string) => team.testServer(url))
+  ipcMain.handle(IPC.projectSet, (_e, dir: string | null) => setProject(dir))
+  ipcMain.handle(IPC.usageState, () => usage.state())
   ipcMain.handle(IPC.designState, () => design.state())
   ipcMain.handle(IPC.designPrepare, () => design.prepare())
   ipcMain.handle(IPC.devToolsState, () => devTools.stateFresh())
@@ -409,59 +318,6 @@ function registerIpc() {
     return r.canceled ? null : (r.filePaths[0] ?? null)
   })
 
-  // Handoffs: put work on the team board, or take a teammate's.
-  ipcMain.handle(IPC.handoffPlan, async (_e, sessionId: string) => {
-    const s = store.get(sessionId)
-    if (!s) throw new Error('Session not found')
-    const member = settings.get().team?.memberName ?? null
-    return { ...(await planHandoff(s.cwd, member ?? 'teammate')), member }
-  })
-  ipcMain.handle(IPC.handoffOffer, async (_e, o: { sessionId: string; title: string; note: string; reason: 'limit' | 'manual'; push: boolean }) => {
-    const s = store.get(o.sessionId)
-    if (!s) throw new Error('Session not found')
-    const member = settings.get().team?.memberName ?? 'teammate'
-    const plan = await planHandoff(s.cwd, member)
-    let pushError: string | undefined
-    let branch: string | undefined
-    if (o.push && plan.git && plan.remote) {
-      try {
-        await pushSnapshot(s.cwd, plan.branch, `WIP handoff from ${member}: ${o.title}`.slice(0, 200), member)
-        branch = plan.branch
-      } catch (err) {
-        pushError = err instanceof Error ? err.message : String(err)
-      }
-    }
-    const state = team.offerHandoff({
-      id: randomUUID(),
-      title: o.title.slice(0, 160),
-      note: o.note,
-      branch,
-      repo: plan.repo,
-      project: basename(s.cwd),
-      reason: o.reason,
-      createdAt: Date.now(),
-    })
-    return { state, pushError }
-  })
-  ipcMain.handle(IPC.handoffWithdraw, (_e, id: string) => team.withdrawHandoff(id))
-  ipcMain.handle(IPC.handoffTake, async (_e, id: string) => {
-    const h = team.findHandoff(id)
-    if (!h) throw new Error('That handoff is no longer on the board.')
-    const project = settings.get().eventProject
-    let dir: string
-    if (h.branch) {
-      if (!project) throw new Error('Link the team’s project first (Hackathon › ⋯ › Use a different project), so Harness knows which repository to check the work out from.')
-      dir = await checkoutHandoff(project, h.branch, h.repo)
-      const dirs = settings.get().handoffDirs
-      if (!dirs.includes(dir)) settings.update({ handoffDirs: [dir, ...dirs].slice(0, 20) })
-      partners.changed()
-    } else if (project) dir = project
-    else throw new Error('This handoff has no branch, and no event project is linked to open it in.')
-    team.markTaken(id)
-    settings.addRecentProject(dir)
-    return { dir, prompt: takeOverPrompt(h.note) }
-  })
-
   // Run when the limit resets.
   ipcMain.handle(IPC.resetQueueState, () => resetQueue.state())
   ipcMain.handle(IPC.resetQueueAdd, (_e, item) => resetQueue.add(item))
@@ -475,8 +331,7 @@ function registerIpc() {
 
   // Partner API keys.
   ipcMain.handle(IPC.partnersState, () => partners.state())
-  ipcMain.handle(IPC.partnerSetKey, (_e, env: string, value: string | null, share?: boolean) => partners.setKey(env, value, share))
-  ipcMain.handle(IPC.partnerSetShare, (_e, env: string, share: boolean) => partners.setShare(env, share))
+  ipcMain.handle(IPC.partnerSetKey, (_e, env: string, value: string | null) => partners.setKey(env, value))
   ipcMain.handle(IPC.partnerSetDocs, (_e, kitId: string, url: string) => partners.setDocs(kitId, url))
   ipcMain.handle(IPC.partnerSetMcp, (_e, kitId: string, url: string) => partners.setMcp(kitId, url))
   ipcMain.handle(IPC.partnerAdd, (_e, opts: { key: string; name?: string }) => partners.addKey(opts))
@@ -515,8 +370,7 @@ async function start() {
         return undefined
       }
     },
-    projectDir: () => settings.get().eventProject ?? undefined,
-    extraDirs: () => settings.get().handoffDirs,
+    projectDir: () => settings.get().project ?? undefined,
     push: (state) => {
       broadcast(IPC.partnersPush, state)
       // A key set or removed changes which partner servers sessions get.
@@ -535,42 +389,25 @@ async function start() {
     telemetry,
     snapshots: store,
     promptAppend: (cwd) => {
-      const mode = settings.get().hackforgeMode
-      const present = mode !== 'off' && hackforge.isProject(cwd)
-      const hf = mode !== 'off' && (present || mode === 'always') ? hackforgeGuide(present) : undefined
       const loaded = design.plugins().filter((p) => p.source === 'builtin' || p.source === 'installed')
       const ds = designGuide({ impeccable: loaded.some((p) => p.key === 'impeccable'), uiUxProMax: loaded.some((p) => p.key === 'uiUxProMax') })
-      // In a team run Harness hands out the crew work, so the lead's Claude gets the run guide instead.
-      const rg = run?.isRunProject(cwd) ? RUN_GUIDE : undefined
-      const cg = settings.get().team && !rg ? CREW_GUIDE : undefined
-      return [hf, ds, devTools.guide(cwd), cg, rg].filter(Boolean).join('\n\n') || undefined
+      return [ds, devTools.guide(cwd)].filter(Boolean).join('\n\n') || undefined
     },
-    // Every session (unless HackForge is off) gets the plugin, so /hackforge:init works in a new folder too.
-    // Its hooks do nothing outside HackForge projects. The design skills (impeccable, UI/UX Pro Max) come too.
+    // Every session gets ECC and the design skills (impeccable, UI/UX Pro Max).
     plugins: () => {
-      const p = hackforgePlugin()
-      const hf = settings.get().hackforgeMode !== 'off' && p.source === 'builtin' && p.path ? [{ type: 'local' as const, path: p.path }] : []
       // ECC in every session: its agents, skills, commands and hooks (an installed copy loads by itself).
       const e = eccPlugin()
       const ecc = settings.get().ecc.enabled && e.source === 'builtin' && e.path ? [{ type: 'local' as const, path: e.path }] : []
-      // The cartoon short skill, once a team picked it on the Pitch tab (it's downloaded then).
+      // The cartoon short skill, once you picked it in Project › Promo (it's downloaded then).
       const extra = cartoon?.plugin()
-      return [...ecc, ...hf, ...design.sdkPlugins(), ...(extra ? [extra] : [])]
+      return [...ecc, ...design.sdkPlugins(), ...(extra ? [extra] : [])]
     },
     claudeExecutablePath: resolveClaudeExecutable(),
-    onRateLimit: (info) => team?.onRateLimit(info),
+    onRateLimit: (info) => usage?.onRateLimit(info),
     usageSaver: () => settings.get().usageSaver,
     advisor: () => settings.get().advisor,
-    hackforgeLean,
-    teamRadar: (abs) => team?.radarFor(abs),
     extraEnv: (cwd) => ({ ...design.env(), ...eccEnv(settings.get().ecc), ...partners.envFor(cwd) }),
-    mcp: (cwd) => {
-      // A project with private files gets the guard's latest rules (they now cover REA too) before REA can read anything.
-      if (settings.get().devTools.rea && hasPrivateGuard(cwd)) privateGuard(cwd)
-      return { servers: devTools.mcpServers(cwd), allow: [...devTools.allowedTools(cwd), ...(run?.isRunProject(cwd) ? RUN_ALLOW : [])] }
-    },
-    // Crew tools for every session: they explain how to get a team when there's none.
-    harnessTools: (s) => driverCrewTools({ ...crew.toolsFor(s.id, s.cwd), askDriver: run?.isRunProject(s.cwd) ? (q) => run.ask(q) : undefined }),
+    mcp: (cwd) => ({ servers: devTools.mcpServers(cwd), allow: devTools.allowedTools(cwd) }),
     getEnv: () => {
       const key = settings.getApiKey()
       return agentEnv(key ? { ANTHROPIC_API_KEY: key } : {})
@@ -598,154 +435,26 @@ async function start() {
   presence.createTray()
   installMenu()
   if (process.platform === 'darwin' && !app.isPackaged) app.dock?.setIcon(appIcon)
-  if (!settings.get().teamMemberId) settings.update({ teamMemberId: newMemberId() })
-  crew = new CrewDriver({
-    me: () => {
-      const c = settings.get().team
-      return c ? { id: c.memberId, name: c.memberName } : null
-    },
-    myUsage: () => team.state().myUsage,
-    file: join(app.getPath('userData'), 'crew-missions.json'),
-    nudge: () => team.nudge(),
-    push: (state) => broadcast(IPC.crewPush, state),
-    deliver: (sessionId, text) => {
-      // The run's lead takes crew messages between Harness's own turns.
-      if (run?.owns(sessionId)) return run.deliver(text)
-      if (!agents.status(sessionId)) return false
-      agents.send(sessionId, text, undefined, 'crew')
-      return true
-    },
-    autoReports: (sessionId) => settings.get().crewAutoReports || (!!sessionId && !!run?.owns(sessionId)),
-    files: { put: (id, data) => team.putFile(id, data), get: (id) => team.getFile(id) },
-    tmpDir: join(app.getPath('userData'), 'crew-bundles'),
-    joinCommand: () => {
-      const st = team.state()
-      const c = st.config
-      // Hosting: the address teammates reach now (the laptop's IP can change), as the board shows it.
-      return c ? `npx -y harness-crew ${makeJoinCode(c.hosting && st.hostUrls?.[0] ? st.hostUrls[0] : c.relayUrl, c.token)}` : undefined
-    },
-    notify: (title, body, kind) => {
-      presence.notifyApp(title, body)
-      if (kind !== 'done') void phone.alert('team', title, body, { tags: [kind === 'ask' ? 'speech_balloon' : 'warning'], priority: kind === 'ask' ? 4 : 3 })
-    },
-  })
-  team = new TeamService({
-    port: envPort('HARNESS_RELAY_PORT'),
-    getConfig: () => settings.get().team,
-    setConfig: (c) => settings.update({ team: c }),
-    memberId: () => settings.get().teamMemberId,
+  usage = new UsageMonitor({
     usesApiKey: () => settings.get().hasApiKey,
     planUsage: () => agents.planUsage(),
-    projectDir: () => settings.get().eventProject ?? undefined,
-    hackforge: async (dir) => {
-      const s = await readHackforge(dir, hackforgePlugin)
-      if (!s.present) return undefined
-      return {
-        phase: s.state.phase,
-        milestone: s.state.milestone,
-        mockScore: s.verify?.mockScore ?? s.state.latestMockScore,
-        loopIteration: s.loop?.iteration,
-        loopActive: s.loop?.active,
-      }
-    },
-    push: (state) => {
-      for (const w of BrowserWindow.getAllWindows()) w.webContents.send(IPC.teamPush, state)
-      // New usage readings can move (or reveal) the reset time.
+    push: (u) => {
+      broadcast(IPC.usagePush, u)
+      // New readings can move (or reveal) the reset time.
       resetQueue?.refresh()
-      const u = state.myUsage
       const live = (w?: { pct: number; resetsAt?: number }) => (w && (!w.resetsAt || w.resetsAt > Date.now()) ? w.pct : w ? 0 : undefined)
       if (u.source === 'plan') store.recordPlanSample(live(u.fiveHour), live(u.sevenDay))
     },
-    today: () => store.usageToday(),
-    sharedSecrets: () => partners.sharedSecrets(),
-    onTeamKeys: (keys) => partners.setTeamKeys(keys),
-    onConflicts: (list) => {
-      const c = list[0]
-      const others = c.members.filter((m) => m.id !== settings.get().teamMemberId).map((m) => m.name)
-      const title =
-        list.length > 1 ? `${list.length} files are being changed by two people` : `${others.join(' and ')} is also changing ${c.path.split('/').pop()}`
-      const body =
-        list.length > 1
-          ? list
-              .slice(0, 3)
-              .map((x) => x.path)
-              .join(', ')
-          : `${c.overlap === 'lines' ? 'Same lines: merging will conflict.' : 'Different parts of the file.'} Agree who merges first.`
-      presence.notifyApp(title, body)
-      void phone.alert('team', title, body, { tags: ['warning'] })
-    },
-    onHandoff: (h) => {
-      presence.notifyApp(`${h.fromName} handed off work`, `${h.title} · open the Team board to take it over`)
-      void phone.alert('team', `${h.fromName} handed off work`, h.title, { tags: ['handshake'], priority: 4 })
-    },
-    crew: { payload: () => crew.payload(), received: (entries) => crew.received(entries), fast: () => crew.fast() },
     onLimitReached: (resetsAt) => {
       const at = resetsAt ? new Date(resetsAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : undefined
-      void phone.alert('limits', 'Claude usage limit reached', `${at ? `Resets ${at}. ` : ''}Hand off to a teammate, or queue messages to run at the reset.`, {
-        tags: ['hourglass'],
-        priority: 4,
-      })
+      void phone.alert('limits', 'Claude usage limit reached', `${at ? `Resets ${at}. ` : ''}Queue messages to run at the reset.`, { tags: ['hourglass'], priority: 4 })
     },
   })
-  team.start()
-  run = new RunService({
-    file: join(app.getPath('userData'), 'run.json'),
-    push: (state) => broadcast(IPC.runPush, state),
-    notify: (title, body, kind) => {
-      presence.notifyApp(title, body)
-      void phone.alert(kind === 'done' ? 'finished' : 'team', title, body, {
-        tags: [kind === 'ask' ? 'raised_hand' : kind === 'done' ? 'white_check_mark' : 'warning'],
-        priority: kind === 'ask' ? 4 : 3,
-      })
-    },
-    team: {
-      me: () => {
-        const c = settings.get().team
-        return c ? { id: c.memberId, name: c.memberName } : null
-      },
-      start: async (name) => {
-        const url = settings.get().teamServer.trim()
-        await team.create({ name, host: !url, relayUrl: url || undefined })
-      },
-      myUsage: () => team.state().myUsage,
-    },
-    crew: {
-      assign: (sessionId, cwd, specs, o) => crew.assign(sessionId, cwd, specs, o),
-      onMission: (fn) => crew.onMission(fn),
-      mission: (id) => crew.mission(id),
-      members: () => crew.members(),
-      stop: (id, reason) => crew.stop(id, reason),
-    },
-    lead: {
-      send: (id, text) => agents.send(id, text, undefined, 'run'),
-      status: (id) => agents.status(id),
-      respond: (id, requestId, d) => agents.respondPermission(id, requestId, d),
-      interrupt: (id) => agents.interrupt(id),
-    },
-    hackforge: (dir) => readHackforge(dir, hackforgePlugin),
-    gh: ghCli,
-    onProject: (dir) => {
-      if (dir) {
-        settings.update({ eventProject: dir })
-        settings.addRecentProject(dir)
-      }
-      partners.changed()
-      devTools.publish()
-      void crew.setProject(dir)
-    },
-    author: () => settings.get().team?.memberName,
-  })
-  bus.subscribe((e) => run.onEvents([e]))
-  run.start()
-  void crew.setProject(settings.get().eventProject ?? undefined)
-  // The Crew card's "project for the crew" line follows pushes and new remotes.
-  setInterval(() => {
-    if (settings.get().team) void crew.setProject(settings.get().eventProject ?? undefined)
-  }, 30_000).unref()
+  usage.start()
   resetQueue = new ResetQueue({
     file: join(app.getPath('userData'), 'reset-queue.json'),
     settings: () => settings.get().resetQueue,
-    usage: () => team.state().myUsage,
+    usage: () => usage.state(),
     push: (state) => broadcast(IPC.resetQueuePush, state),
     fire: (items) => {
       const w = BrowserWindow.getAllWindows()[0]
@@ -764,7 +473,7 @@ async function start() {
   cartoon = new CartoonSkill({ dir: join(app.getPath('userData'), 'skills'), onChange: () => pitch?.refresh() })
   pitch = new PitchService({
     cartoon: () => cartoon.state(),
-    projectDir: () => settings.get().eventProject ?? undefined,
+    projectDir: () => settings.get().project ?? undefined,
     elevenLabsKey: () => settings.getElevenLabsKey(),
     templateDir: join(app.getAppPath(), 'resources', 'pitch-template'),
     push: (state) => {
@@ -772,12 +481,8 @@ async function start() {
     },
   })
   kit3d = new Kit3dService({
-    projectDir: () => settings.get().eventProject ?? undefined,
-    // The kit from the HackForge in use: a newer installed one brings its newer kit.
-    templateDir: () => {
-      const inst = hackforgePlugin().source === 'installed' ? installedPlugin(claudeDir)?.path : undefined
-      return inst ? join(inst, 'skills', 'video', 'kit3d') : join(app.getAppPath(), 'resources', 'hackforge', 'skills', 'video', 'kit3d')
-    },
+    projectDir: () => settings.get().project ?? undefined,
+    templateDir: () => join(app.getAppPath(), 'resources', 'kit3d'),
     push: (state) => broadcast(IPC.kit3dPush, state),
     browserPath: () => devTools.browser().path,
     node: { command: process.execPath, env: { ELECTRON_RUN_AS_NODE: '1' } },
@@ -797,10 +502,7 @@ app.on('before-quit', () => {
   ptys.killAll()
   presence?.destroy()
   preview.stopAll()
-  hackforge.dispose()
-  eventService.dispose()
-  team?.dispose()
-  run?.dispose()
+  usage?.dispose()
   pitch?.dispose()
   kit3d?.dispose()
   resetQueue?.dispose()

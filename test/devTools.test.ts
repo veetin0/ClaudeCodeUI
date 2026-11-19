@@ -5,7 +5,7 @@ import { describe, expect, it } from 'vitest'
 import { DEFAULT_DEV_TOOLS, devToolsGuide, nodeRunsRea, REA_VERSION, reaRunsWithoutAsking, type DevToolsSettings, type DevToolsState } from '@shared/devtools'
 import { kitNote, PARTNER_KITS, resolvePartnerMcp, type PartnerKit } from '@shared/partners'
 import { DevToolsService, downloadedChromium, systemBrowsers } from '../src/main/devtools/DevToolsService'
-import { PartnerService } from '../src/main/event/PartnerService'
+import { PartnerService } from '../src/main/keys/PartnerService'
 
 const tmp = () => mkdtempSync(join(tmpdir(), 'harness-devtools-'))
 const kit = (id: string) => PARTNER_KITS.find((k) => k.id === id)!
@@ -47,20 +47,19 @@ describe('partner MCP servers', () => {
 
   it('tells Claude about the server in the kit note', () => {
     expect(kitNote(kit('exa'), ['EXA_API_KEY'])).toMatch(
-      /## MCP server\n- Harness sessions in this project get the `mcp__exa__\*` tools \(hosted by the partner\)/,
+      /## MCP server\n- Harness sessions in this project get the `mcp__exa__\*` tools \(hosted by the service\)/,
     )
-    expect(kitNote(kit('cala'), [], undefined, 'https://x.example/mcp')).toMatch(/`mcp__cala__\*` tools \(the MCP URL your team added\)/)
+    expect(kitNote(kit('cala'), [], undefined, 'https://x.example/mcp')).toMatch(/`mcp__cala__\*` tools \(the MCP URL you added\)/)
     expect(kitNote(kit('openai'), [])).not.toMatch(/MCP server/)
   })
 
-  it('gives servers only to sessions in the event project, and keeps event URLs', () => {
+  it('gives servers only to sessions in the current project, and keeps the URLs you set', () => {
     const project = tmp()
     const svc = new PartnerService({
       file: join(tmp(), 'keys.json'),
       encrypt: (v) => v,
       decrypt: (e) => e,
       projectDir: () => project,
-      extraDirs: () => [],
       push: () => {},
     })
     svc.setKey('HOSTINGER_API_TOKEN', 'tok')
@@ -104,7 +103,7 @@ describe('dev tools in sessions', () => {
               ...(cwd === undefined ? [{ id: 'cloudinary', name: 'Cloudinary', server: { missing: ['CLOUDINARY_API_KEY'] } }] : []),
             ]
           : [],
-      eventProject: () => '/event',
+      projectDir: () => '/event',
       push: (s) => pushed.push(s),
       node: { command: '/Harness', env: { ELECTRON_RUN_AS_NODE: '1' } },
       findBrowser: () => (opts.browser === undefined ? { path: '/Chrome', via: 'Google Chrome' } : opts.browser),
@@ -183,11 +182,11 @@ describe('dev tools in sessions', () => {
   it('tells Claude when to use each tool, only for the tools it has', () => {
     const g = service().svc.guide('/event/app')!
     expect(g).toMatch(/Browser \(mcp__playwright__\*\): check UI work in a real browser/)
-    expect(g).toMatch(/explicit filename under \.hackforge\/evidence\//)
+    expect(g).toMatch(/explicit filename under docs\/screenshots\//)
     expect(g).toMatch(/Library docs \(mcp__context7__\*\): before writing code against a library or SDK/)
     expect(g).toMatch(/mcp__exa__\* for Exa, mcp__hostinger__\* for Hostinger/)
-    expect(g).toMatch(/ask before anything that changes the partner account/)
-    expect(service().svc.guide('/elsewhere')).not.toMatch(/Partner servers/)
+    expect(g).toMatch(/ask before anything that changes the account/)
+    expect(service().svc.guide('/elsewhere')).not.toMatch(/Service servers/)
     expect(devToolsGuide({ browser: false, docs: false, partners: [] })).toBeUndefined()
   })
 
@@ -246,7 +245,7 @@ describe('reverse engineering (REA)', () => {
       settings: () => ({ ...DEFAULT_DEV_TOOLS, browser: false, docs: false, partnerServers: false, rea: true }),
       context7Key: () => undefined,
       partnerServers: () => [],
-      eventProject: () => undefined,
+      projectDir: () => undefined,
       push: (s) => pushed.push(s),
       findNode: () => (node ? { version: node, path: '/usr/local/bin/node' } : null),
       runNpm: async (args) => {
@@ -268,7 +267,7 @@ describe('reverse engineering (REA)', () => {
       settings: () => DEFAULT_DEV_TOOLS,
       context7Key: () => undefined,
       partnerServers: () => [],
-      eventProject: () => undefined,
+      projectDir: () => undefined,
       push: () => {},
       findBrowser: () => null,
       findNode: () => {
@@ -298,7 +297,7 @@ describe('reverse engineering (REA)', () => {
       settings: () => ({ ...DEFAULT_DEV_TOOLS, rea: true }),
       context7Key: () => undefined,
       partnerServers: () => [],
-      eventProject: () => undefined,
+      projectDir: () => undefined,
       push: () => {},
       findBrowser: () => null,
       findNode: () => (lookups++, { version, path: '/n' }),

@@ -13,7 +13,7 @@ interface Kit3dStore {
   stills(clip: string): Promise<void>
   render(clip: string, quality: Kit3dQuality): Promise<void>
   cancel(): Promise<void>
-  /** Copies the clip into the pitch and puts it in a screen scene (a new one, or the one already using it). */
+  /** Copies the clip into the promo video and puts it in a screen scene (a new one, or the one already using it). */
   addToPitch(clip: string): Promise<void>
 }
 

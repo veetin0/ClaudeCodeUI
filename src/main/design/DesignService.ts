@@ -39,7 +39,7 @@ function defaultRun(launcher: string, arg: string): Promise<{ code: number; out:
 /**
  * The design plugins sessions get (Harness's copies, unless you installed a newer one yourself),
  * and impeccable's detector engine, fetched once per computer in the background so the first
- * session doesn't wait for it (and doesn't have to download it on venue wifi).
+ * session doesn't wait for it (and doesn't have to download it mid-task).
  */
 export class DesignService {
   private engine: DesignState['engine'] = { status: 'unknown' }
@@ -64,7 +64,7 @@ export class DesignService {
   }
 
   /**
-   * Environment for sessions: where impeccable's launcher is (HackForge's `tools design-scan` runs its
+   * Environment for sessions: where impeccable's launcher is (a design scan runs its
    * detector through it) and its quiet mode (only problems, no "clean file" notes).
    */
   env(): Record<string, string> {

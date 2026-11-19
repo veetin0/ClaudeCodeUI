@@ -4,38 +4,18 @@ import { Sidebar } from './layout/Sidebar'
 import { TopBar } from './layout/TopBar'
 import { Conversation } from './features/conversation/Conversation'
 import { Home } from './features/home/Home'
-import { HackathonView } from './features/hackathon/HackathonView'
+import { ProjectView } from './features/project/ProjectView'
 import { SettingsDialog } from './layout/SettingsDialog'
 import { TerminalPanel } from './features/terminal/TerminalPanel'
 import { useApp } from './stores/app'
 import { useDisplaySession } from './stores/replay'
-import { useRunStore } from './stores/run'
 import { runCommand } from './lib/commands'
 import type { CommandId } from '@shared/commands'
 import { CommandPalette } from './layout/CommandPalette'
-import { useTeamReporter } from './stores/team'
 import { useResetQueueRunner } from './stores/resetQueue'
-import { HandoffDialog } from './features/team/HandoffDialog'
 import { UsageSheet } from './features/usage/UsageView'
-import { TeamSheet } from './features/team/TeamSheet'
 
-const VIEW_KEYS: Record<string, CommandId> = { '1': 'view-chat', '2': 'view-agents', '3': 'view-preview', '4': 'hackathon', '5': 'usage' }
-
-/** Opens on the Hackathon while a team run is planning or running, otherwise on Home. */
-function useLaunchPlace() {
-  useEffect(() => {
-    let decided = false
-    const decide = () => {
-      const { loaded, state } = useRunStore.getState()
-      if (decided || !loaded) return
-      decided = true
-      const app = useApp.getState()
-      if (app.place === 'home' && !app.activeId && (state.stage === 'plan' || state.stage === 'run')) app.openHackathon('build')
-    }
-    void useRunStore.getState().load().then(decide, () => {})
-    return useRunStore.subscribe(decide)
-  }, [])
-}
+const VIEW_KEYS: Record<string, CommandId> = { '1': 'view-chat', '2': 'view-agents', '3': 'view-preview', '4': 'project', '5': 'usage' }
 
 export function App() {
   const session = useDisplaySession()
@@ -43,10 +23,7 @@ export function App() {
   const place = useApp((s) => s.place)
   const panelOpen = useApp((s) => s.panelOpen)
   const usageOpen = useApp((s) => s.usageOpen)
-  const teamOpen = useApp((s) => s.teamOpen)
-  useTeamReporter()
   useResetQueueRunner()
-  useLaunchPlace()
 
   useEffect(() => {
     void useApp.getState().init()
@@ -73,11 +50,9 @@ export function App() {
       const app = useApp.getState()
       if (e.key !== 'Escape' || app.detailAgent || app.diffPath || app.paletteOpen) return
       if (app.settingsOpen) app.setSettingsOpen(false)
-      else if (app.handoffFor) app.openHandoff(null)
       else if (app.usageOpen) app.setUsageOpen(false)
-      else if (app.teamOpen) app.setTeamOpen(false)
       else if (app.actionForm && app.place === 'session') app.setActionForm(null)
-      else if (app.place === 'hackathon' && app.activeId) app.leaveHackathon()
+      else if (app.place === 'project' && app.activeId) app.leaveProject()
       else if (app.replay) app.setReplay(null)
       else if (app.place === 'session' && app.activeId && app.sessions[app.activeId]?.status === 'running') void app.interrupt()
     }
@@ -106,15 +81,13 @@ export function App() {
       <main className="flex min-w-0 flex-1 flex-col bg-surface shadow-[-1px_0_0_var(--line)]">
         <TopBar />
         <div className="flex min-h-0 flex-1">
-          <div className="flex min-w-0 flex-1 flex-col">{place === 'hackathon' ? <HackathonView /> : inSession ? <Conversation session={session} /> : <Home />}</div>
+          <div className="flex min-w-0 flex-1 flex-col">{place === 'project' ? <ProjectView /> : inSession ? <Conversation session={session} /> : <Home />}</div>
           {inSession && panelOpen && !focusMode && <SidePanel session={session} />}
         </div>
         <TerminalPanel />
       </main>
       {usageOpen && <UsageSheet />}
-      {teamOpen && <TeamSheet />}
       <SettingsDialog />
-      <HandoffDialog />
       <CommandPalette />
     </div>
   )

@@ -1,4 +1,4 @@
-import { AlertTriangle, Archive, Bot, Info, Leaf, Route, Users, Zap } from 'lucide-react'
+import { AlertTriangle, Archive, Info, Leaf, Route, Zap } from 'lucide-react'
 import { useEffect, useLayoutEffect, useRef } from 'react'
 import { cn, formatCost, formatDuration } from '@/lib/format'
 import type { Item, SessionState } from '@/stores/reducer'
@@ -73,12 +73,11 @@ function BlockView({ block, session }: { block: Block; session: SessionState }) 
   switch (block.kind) {
     case 'user':
       if (block.via) {
-        // A crew report, a teammate's Claude or a team run step, delivered by Harness: not something you typed.
-        const Icon = block.via === 'run' ? Route : Bot
+        // Sent by Harness for you (a project build's instructions): not something you typed.
         return (
           <div className="selectable flex gap-2 rounded-xl border border-accent-ink/25 bg-accent/[0.05] px-3 py-2 text-[13px] leading-relaxed">
-            <Icon className="mt-0.5 size-4 shrink-0 text-accent-ink" />
-            <div className="min-w-0 whitespace-pre-wrap">{block.text.replace(/^\[(crew|run)\] ?/gm, '')}</div>
+            <Route className="mt-0.5 size-4 shrink-0 text-accent-ink" />
+            <div className="min-w-0 whitespace-pre-wrap">{block.text}</div>
           </div>
         )
       }
@@ -134,7 +133,7 @@ function BlockView({ block, session }: { block: Block; session: SessionState }) 
       )
     }
     case 'notice': {
-      const Icon = block.source === 'team' ? Users : Info
+      const Icon = Info
       return (
         <div
           data-notice={block.tone}

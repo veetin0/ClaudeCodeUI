@@ -6,7 +6,7 @@ import { describe, expect, it } from 'vitest'
 import { clipTitle, kit3dChangePrompt, kit3dClipPrompt, type Kit3dState } from '@shared/kit3d'
 import { Kit3dService, type Runner } from '../src/main/kit3d/Kit3dService'
 
-const KIT = join(__dirname, '..', 'resources', 'hackforge', 'skills', 'video', 'kit3d')
+const KIT = join(__dirname, '..', 'resources', 'kit3d')
 const tmp = () => mkdtempSync(join(tmpdir(), 'harness-kit3d-'))
 const realPython = (args: string[], cwd?: string) => {
   try {
@@ -153,7 +153,7 @@ describe('3D clips', () => {
     expect(still).toMatchObject({ cmd: 'node', args: ['render.mjs', 'stills', 'product'], env: { CHROME_PATH: '/Chrome' } })
   })
 
-  it('renders a clip with effects only, resumes a stopped render, and adds it to the pitch', async () => {
+  it('renders a clip with effects only, resumes a stopped render, and adds it to the promo video', async () => {
     const { run, calls } = fakeRun({ frames: 6 })
     const { svc, kit, project } = service({ run, browser: '/Chrome' })
     await svc.setup()
@@ -172,7 +172,7 @@ describe('3D clips', () => {
 
     // Into the pitch: same timestamp as the render, so it reads as current.
     expect(await svc.addToPitch('product')).toEqual({ media: '3d/product.mp4', seconds: 0.2 })
-    expect(Math.abs(statSync(join(project, 'pitch', 'public', '3d', 'product.mp4')).mtimeMs - statSync(join(kit, 'out', 'product.mp4')).mtimeMs)).toBeLessThan(5)
+    expect(Math.abs(statSync(join(project, 'promo', 'public', '3d', 'product.mp4')).mtimeMs - statSync(join(kit, 'out', 'product.mp4')).mtimeMs)).toBeLessThan(5)
     expect((await svc.state()).clips.find((c) => c.name === 'product')!.pitch).toBe('current')
 
     // Frames 0-3 of the same timeline and size are kept (the last one may be half-written).

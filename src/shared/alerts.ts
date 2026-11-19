@@ -14,10 +14,9 @@ export interface PhoneAlertSettings {
   approvals: boolean
   finished: boolean
   limits: boolean
-  team: boolean
 }
 
-export type PhoneAlertKind = 'approvals' | 'finished' | 'limits' | 'team'
+export type PhoneAlertKind = 'approvals' | 'finished' | 'limits'
 
 export const DEFAULT_PHONE_ALERTS: PhoneAlertSettings = {
   enabled: false,
@@ -27,7 +26,6 @@ export const DEFAULT_PHONE_ALERTS: PhoneAlertSettings = {
   approvals: true,
   finished: true,
   limits: true,
-  team: true,
 }
 
 /** "harness-k3v9…": 26 random characters, unguessable. */

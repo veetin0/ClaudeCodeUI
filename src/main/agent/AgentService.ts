@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto'
 import { statSync, type FSWatcher } from 'node:fs'
-import { isAbsolute, join } from 'node:path'
+import { join } from 'node:path'
 import {
   query,
   type CanUseTool,
@@ -40,9 +40,9 @@ export interface AgentServiceDeps {
   telemetry?: TelemetryServer
   /** Enables change tracking (snapshots, diffs, revert) and the project watcher. */
   snapshots?: SnapshotStore
-  /** Extra system-prompt text for a session in this folder (e.g. HackForge mode). */
+  /** Extra system-prompt text for a session in this folder (design skills, dev tools). */
   promptAppend?: (cwd: string) => string | undefined
-  /** Plugins loaded into a session in this folder, on top of the user's installed ones (HackForge). */
+  /** Plugins loaded into a session in this folder, on top of the user's installed ones (ECC, design skills). */
   plugins?: (cwd: string) => SdkPluginConfig[]
   /** Plan rate-limit updates (claude.ai subscriptions) as the CLI reports them. */
   onRateLimit?: (info: SDKRateLimitInfo) => void
@@ -50,19 +50,15 @@ export interface AgentServiceDeps {
   usageSaver?: () => UsageSaverSettings
   /** The advisor from Settings, read when a session starts ('' or absent: Claude Code's own setting). */
   advisor?: () => AdvisorChoice
-  /** This folder's HackForge settings pick Sonnet for the main session (Pro plan / lean profile). */
-  hackforgeLean?: (cwd: string) => boolean
-  /** Team radar: a heads-up when a file about to be edited is also changed by teammates. */
-  teamRadar?: (absPath: string) => { text: string; names: string[] } | undefined
-  /** Extra environment for sessions in this folder (partner API keys in the event project). */
+  /** Extra environment for sessions in this folder (API keys in the current project, ECC's hook profile). */
   extraEnv?: (cwd: string) => Record<string, string>
   /** Extra MCP servers for sessions in this folder (dev tools, partner servers) and the ones allowed without asking. */
   mcp?: (cwd: string) => { servers: Record<string, McpServerConfig>; allow: string[] }
-  /** More tools on the `harness` server for this session (crew tools for the driver). */
+  /** More tools on the `harness` server for this session (a project build's progress tool). */
   harnessTools?: (session: { id: string; cwd: string }) => SdkMcpToolDefinition<any>[] // eslint-disable-line @typescript-eslint/no-explicit-any
 }
 
-/** Per-session additions on top of the per-folder ones (a crew mission's prompt, tools and allowlist). */
+/** Per-session additions on top of the per-folder ones (a prompt addition, servers and an allowlist). */
 export interface SessionExtras {
   append?: string
   mcpServers?: Record<string, McpServerConfig>
@@ -117,8 +113,6 @@ class AgentSession {
   private delivery: Promise<void> = Promise.resolve()
   /** Turns Harness runs itself (the saver's compaction), oldest first; resolved when each ends. */
   private internalTurns: (() => void)[] = []
-  /** Files the team radar already warned about in this session (once each is enough). */
-  private radarWarned = new Set<string>()
 
   constructor(
     private readonly deps: AgentServiceDeps,
@@ -150,7 +144,6 @@ class AgentSession {
           },
           compact: () => this.runInternal(COMPACT_COMMAND),
         },
-        () => deps.hackforgeLean?.(cwd) ?? false,
         resume ? { tier: resume.saverTier } : undefined,
       )
     }
@@ -268,33 +261,6 @@ class AgentSession {
             const target = 'tool_input' in input ? editTarget((input.tool_input ?? {}) as Record<string, unknown>) : null
             if (target) await this.tracker?.beforeEdit(target)
             return {}
-          },
-        ],
-      })
-    }
-    const radar = this.deps.teamRadar
-    if (radar) {
-      preToolUse.push({
-        matcher: [...EDIT_TOOLS].join('|'),
-        hooks: [
-          async (input) => {
-            const target = 'tool_input' in input ? editTarget((input.tool_input ?? {}) as Record<string, unknown>) : null
-            if (!target) return {}
-            const abs = normPath(isAbsolute(target) ? target : join(this.summary.cwd, target))
-            if (this.radarWarned.has(abs)) return {}
-            const hit = radar(abs)
-            if (!hit) return {}
-            this.radarWarned.add(abs)
-            const file = abs.split('/').pop()
-            this.emit({
-              type: 'notice',
-              tone: 'warn',
-              source: 'team',
-              text: `Team radar: ${hit.names.join(' and ')} ${hit.names.length > 1 ? 'are' : 'is'} also changing ${file}. Claude was told to keep its edit there small; agree who merges first.`,
-              sessionId: this.id,
-              ts: Date.now(),
-            })
-            return { hookSpecificOutput: { hookEventName: 'PreToolUse' as const, additionalContext: hit.text } }
           },
         ],
       })
@@ -421,7 +387,7 @@ class AgentSession {
     })
   }
 
-  send(text: string, images?: ImageAttachment[], via?: 'crew' | 'run') {
+  send(text: string, images?: ImageAttachment[], via?: 'harness') {
     if (this.status === 'closed') throw new Error('Session is closed')
     const id = randomUUID()
     // A message sent while Claude is working joins that turn; the saver only prepares fresh turns.
@@ -550,7 +516,7 @@ export class AgentService {
     return s
   }
 
-  send(id: string, text: string, images?: ImageAttachment[], via?: 'crew' | 'run') {
+  send(id: string, text: string, images?: ImageAttachment[], via?: 'harness') {
     this.get(id).send(text, images, via)
   }
 

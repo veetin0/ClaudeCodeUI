@@ -25,12 +25,11 @@ export interface TerminalTab {
   exitCode?: number
 }
 
-/** Harness's three places: start or continue work, a session, the hackathon. */
-export type Place = 'home' | 'session' | 'hackathon'
+/** Harness's three places: start or continue work, a session, the project you're building. */
+export type Place = 'home' | 'session' | 'project'
 export type MainView = 'chat' | 'agents' | 'preview'
 export type AgentsMode = 'cards' | 'graph' | 'activity'
-export type HackathonTab = 'build' | 'challenges' | 'pitch'
-export type SettingsTab = 'general' | 'team' | 'tools' | 'advanced'
+export type SettingsTab = 'general' | 'tools' | 'advanced'
 
 /** What the Preview view is showing for a project. */
 export type PreviewTarget = { kind: 'server'; id: string } | { kind: 'url'; url: string } | { kind: 'model'; path: string }
@@ -46,8 +45,7 @@ interface AppState {
   place: Place
   view: MainView
   agentsMode: AgentsMode
-  hackathonTab: HackathonTab
-  /** The session's side panel (tasks, changed files, running agents, HackForge). */
+  /** The session's side panel (tasks, changed files, running agents). */
   panelOpen: boolean
   /** agentKey of the agent whose detail panel is open. */
   detailAgent: string | null
@@ -76,10 +74,6 @@ interface AppState {
   startError: string | null
   /** Usage history, as a sheet over the current place. */
   usageOpen: boolean
-  /** The team board, over whatever place you're in (from the Hackathon header's Team button). */
-  teamOpen: boolean
-  /** Session whose handoff dialog is open. */
-  handoffFor: string | null
 
   init(): Promise<void>
   applyEvents(events: HarnessEvent[]): void
@@ -87,25 +81,22 @@ interface AppState {
   refreshHistory(): Promise<void>
   openSaved(id: string): Promise<void>
   deleteSaved(id: string): Promise<void>
-  openProject(): Promise<void>
+  /** Picks a folder and starts a session in it. */
+  openFolder(): Promise<void>
   select(id: string): void
   closeSession(id: string): Promise<void>
   send(text: string, images?: ImageAttachment[]): Promise<void>
   /** Sends to a given session (resuming it if it's saved), e.g. a queued message at the reset. */
   sendTo(id: string, text: string, images?: ImageAttachment[]): Promise<void>
-  openHandoff(sessionId: string | null): void
-  /** Opens a teammate's handed-off work: a session in its folder with the first message ready. */
-  takeOver(dir: string, prompt: string): Promise<void>
   setUsageOpen(open: boolean): void
-  setTeamOpen(open: boolean): void
   goHome(): void
-  /** The Hackathon place, on a tab (or the one it was on). */
-  openHackathon(tab?: HackathonTab): void
-  /** Back from the Hackathon place: to the session you were in, or Home. */
-  leaveHackathon(): void
-  /** Starts a session in the background (the team run's lead): it opens in the sidebar, the view stays. `lead` picks its model and advisor. */
+  /** The Project place (the current project's build, promo and keys). */
+  openProject(): void
+  /** Back from the Project place: to the session you were in, or Home. */
+  leaveProject(): void
+  /** Starts a session in the background (a project build): it opens in the sidebar, the view stays. `lead` picks its model and advisor. */
   startQuiet(cwd: string, permissionMode: PermissionMode, lead?: LeadSetup): Promise<string>
-  /** Brings a saved session back to life in the background (the team run's lead after a restart). */
+  /** Brings a saved session back to life in the background (a project build after a restart). */
   resumeQuiet(id: string, permissionMode: PermissionMode, lead?: LeadSetup): Promise<void>
   interrupt(): Promise<void>
   setPermissionMode(mode: PermissionMode): Promise<void>
@@ -156,7 +147,6 @@ export const useApp = create<AppState>((set, get) => ({
   place: 'home',
   view: 'chat',
   agentsMode: 'cards',
-  hackathonTab: 'build',
   panelOpen: false,
   detailAgent: null,
   detailTool: null,
@@ -178,8 +168,6 @@ export const useApp = create<AppState>((set, get) => ({
   terminalHeight: 260,
   startError: null,
   usageOpen: false,
-  teamOpen: false,
-  handoffFor: null,
 
   async init() {
     set({ settings: await api().getSettings() })
@@ -277,7 +265,7 @@ export const useApp = create<AppState>((set, get) => ({
     }
   },
 
-  async openProject() {
+  async openFolder() {
     const dir = await api().pickDirectory()
     if (dir) await get().startSession(dir)
   },
@@ -346,18 +334,10 @@ export const useApp = create<AppState>((set, get) => ({
     await api().sendMessage(id, text, images)
   },
 
-  openHandoff: (handoffFor) => set({ handoffFor }),
-
-  async takeOver(dir, prompt) {
-    await get().startSession(dir)
-    get().setDraft(prompt)
-  },
-
-  setUsageOpen: (usageOpen) => set({ usageOpen, ...(usageOpen ? { settingsOpen: false, teamOpen: false } : {}) }),
-  setTeamOpen: (teamOpen) => set({ teamOpen, ...(teamOpen ? { settingsOpen: false, usageOpen: false } : {}) }),
+  setUsageOpen: (usageOpen) => set({ usageOpen, ...(usageOpen ? { settingsOpen: false } : {}) }),
   goHome: () => set({ place: 'home', replay: null }),
-  openHackathon: (tab) => set((st) => ({ place: 'hackathon', hackathonTab: tab ?? st.hackathonTab })),
-  leaveHackathon: () => set((st) => ({ place: st.activeId ? 'session' : 'home' })),
+  openProject: () => set({ place: 'project', replay: null }),
+  leaveProject: () => set((st) => ({ place: st.activeId ? 'session' : 'home' })),
 
   async startQuiet(cwd, permissionMode, lead) {
     const saver = get().settings?.usageSaver
@@ -433,7 +413,7 @@ export const useApp = create<AppState>((set, get) => ({
   setDraft: (text) =>
     set((st) => (st.activeId ? { drafts: { ...st.drafts, [st.activeId]: text } } : {})),
   toggleFocusMode: () => set((st) => ({ focusMode: !st.focusMode })),
-  setSettingsOpen: (settingsOpen, tab) => set((st) => ({ settingsOpen, settingsTab: tab ?? st.settingsTab, ...(settingsOpen ? { usageOpen: false, teamOpen: false } : {}) })),
+  setSettingsOpen: (settingsOpen, tab) => set((st) => ({ settingsOpen, settingsTab: tab ?? st.settingsTab, ...(settingsOpen ? { usageOpen: false } : {}) })),
   setPaletteOpen: (paletteOpen) => set({ paletteOpen }),
   setActionForm: (actionForm) => set({ actionForm }),
 

@@ -72,7 +72,7 @@ export function installMenu() {
         viewItem('Chat', 'view-chat', 'CmdOrCtrl+1'),
         viewItem('Agents', 'view-agents', 'CmdOrCtrl+2'),
         viewItem('Preview', 'view-preview', 'CmdOrCtrl+3'),
-        viewItem('Hackathon', 'hackathon', 'CmdOrCtrl+4'),
+        viewItem('Project', 'project', 'CmdOrCtrl+4'),
         viewItem('Usage', 'usage', 'CmdOrCtrl+5'),
         { type: 'separator' },
         viewItem('Side Panel', 'toggle-panel', 'CmdOrCtrl+I'),

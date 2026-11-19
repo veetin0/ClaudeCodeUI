@@ -6,7 +6,7 @@ export type CommandId =
   | 'view-chat'
   | 'view-agents'
   | 'view-preview'
-  | 'hackathon'
+  | 'project'
   | 'toggle-panel'
   | 'toggle-terminal'
   | 'new-terminal'
@@ -16,7 +16,6 @@ export type CommandId =
   | 'palette'
   | 'replay'
   | 'interrupt'
-  | 'handoff'
   | 'usage'
   | 'pick-element'
 

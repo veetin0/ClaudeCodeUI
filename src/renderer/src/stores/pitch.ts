@@ -14,9 +14,9 @@ interface PitchStore {
   load(): Promise<void>
   edit(fn: (s: PitchScript) => PitchScript): void
   replace(script: PitchScript): Promise<void>
-  scaffold(eventName: string): Promise<void>
-  /** Saves what kind of video the team wants (null: show the chooser again). */
-  choose(choice: Omit<PitchChoice, 'at'> | null, eventName: string): Promise<boolean>
+  scaffold(projectName: string): Promise<void>
+  /** Saves what kind of video you want (null: show the chooser again). */
+  choose(choice: Omit<PitchChoice, 'at'> | null, projectName: string): Promise<boolean>
   /** Downloads the cartoon short skill. */
   installCartoon(): Promise<boolean>
   install(): Promise<void>

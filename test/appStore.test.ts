@@ -42,15 +42,12 @@ describe('app store with a saved (not running) session', () => {
 })
 
 describe('panels over the place you are in', () => {
-  it('shows one of Team board, Usage and Settings at a time', () => {
+  it('shows one of Usage and Settings at a time', () => {
     const app = useApp.getState()
     app.setSettingsOpen(true)
-    app.setTeamOpen(true)
-    expect(useApp.getState()).toMatchObject({ teamOpen: true, settingsOpen: false, usageOpen: false })
     app.setUsageOpen(true)
-    expect(useApp.getState()).toMatchObject({ teamOpen: false, usageOpen: true })
-    app.setTeamOpen(true)
+    expect(useApp.getState()).toMatchObject({ usageOpen: true, settingsOpen: false })
     app.setSettingsOpen(true)
-    expect(useApp.getState()).toMatchObject({ teamOpen: false, settingsOpen: true })
+    expect(useApp.getState()).toMatchObject({ usageOpen: false, settingsOpen: true })
   })
 })

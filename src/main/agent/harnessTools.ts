@@ -9,7 +9,7 @@ const ok = (text = 'Shown in Harness.') => ({ content: [{ type: 'text' as const,
  *
  * The handlers do nothing but acknowledge: the UI reads the tool *inputs* from the SDK message
  * stream, where each call already carries the calling agent's id. `extra` adds session-specific
- * tools (the driver's crew tools).
+ * tools (a project build's progress tool).
  */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function createHarnessServer(extra: SdkMcpToolDefinition<any>[] = []) {

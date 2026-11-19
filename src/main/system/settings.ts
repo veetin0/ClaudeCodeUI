@@ -7,6 +7,7 @@ import { DEFAULT_PHONE_ALERTS, newAlertTopic } from '@shared/alerts'
 import { DEFAULT_DESIGN_SKILLS } from '@shared/design'
 import { DEFAULT_DEV_TOOLS } from '@shared/devtools'
 import { DEFAULT_ECC, parseEccSettings } from '@shared/ecc'
+import { migrateStored } from './settingsMigrate'
 import { randomBytes } from 'node:crypto'
 
 interface StoredSettings extends Omit<AppSettings, 'hasApiKey' | 'hasElevenLabsKey' | 'hasContext7Key'> {
@@ -26,18 +27,12 @@ const DEFAULTS: StoredSettings = {
   recentProjects: [],
   observeTerminalSessions: true,
   notifications: true,
-  hackforgeMode: 'projects',
-  eventProject: null,
-  team: null,
-  teamMemberId: '',
+  project: null,
   usageSaver: DEFAULT_USAGE_SAVER,
   phoneAlerts: DEFAULT_PHONE_ALERTS,
   resetQueue: { enabled: true, keepAwake: true },
-  handoffDirs: [],
   designSkills: DEFAULT_DESIGN_SKILLS,
   devTools: DEFAULT_DEV_TOOLS,
-  crewAutoReports: true,
-  teamServer: '',
 }
 
 export class SettingsStore {
@@ -48,7 +43,8 @@ export class SettingsStore {
     this.data = { ...DEFAULTS }
     if (existsSync(this.file)) {
       try {
-        const stored = JSON.parse(readFileSync(this.file, 'utf8')) as Partial<StoredSettings>
+        // Older files: the event project becomes the current project; retired settings are dropped.
+        const stored = migrateStored(JSON.parse(readFileSync(this.file, 'utf8')) as Record<string, unknown>) as Partial<StoredSettings>
         // Settings added in later versions get their defaults (the Usage saver starts on).
         this.data = {
           ...DEFAULTS,

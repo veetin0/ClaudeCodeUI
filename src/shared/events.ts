@@ -64,9 +64,8 @@ export type HarnessEvent =
   | E<'session.resumed', { claudeSessionId: string }>
   | E<'status', { status: SessionStatus }>
   /** `images`: pictures sent with the message (e.g. a screenshot from Click to change). */
-  /** `via: 'crew'`: a crew report or teammate's message Harness delivered, not something you typed. */
-  /** `via`: delivered by Harness (a crew report or message, a team run step), not typed by you. */
-  | E<'user.message', { id: string; text: string; images?: ImageAttachment[]; via?: 'crew' | 'run' }>
+  /** `via`: a message Harness sent for you (a project build's instructions), not typed by you. */
+  | E<'user.message', { id: string; text: string; images?: ImageAttachment[]; via?: 'harness' }>
   | E<'text.delta', { agentId: AgentId; text: string }>
   | E<'thinking.delta', { agentId: AgentId; text: string }>
   | E<'assistant.text', { id: string; agentId: AgentId; text: string }>
@@ -130,7 +129,7 @@ export type HarnessEvent =
   /** What the Usage saver did: the model it picked for a turn, a compaction, a skipped file… */
   | E<'saver', { note: SaverNote }>
   /** Something Harness wants you to know in this session, e.g. the team radar spotting a shared file. */
-  | E<'notice', { tone: 'info' | 'warn'; text: string; source: 'team' | 'harness' }>
+  | E<'notice', { tone: 'info' | 'warn'; text: string; source: 'harness' }>
   | E<'error', { message: string }>
 
 export type HarnessEventType = HarnessEvent['type']

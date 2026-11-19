@@ -42,8 +42,8 @@ export class UsageSaver {
   private ctx = 0
   private window = 200_000
   private opusOk = true
-  /** The latest prompt was a HackForge command: HackForge picks its agents' models and has its own advisor. */
-  private hfTurn = false
+  /** The latest prompt was an ECC command: it runs its own agents (with their own models), so don't switch mid-turn. */
+  private eccTurn = false
   private compacting = false
   private streak = 0
   private escalated = false
@@ -57,7 +57,6 @@ export class UsageSaver {
     model: string | undefined,
     mode: PermissionMode,
     private readonly host: SaverHost,
-    private readonly hackforgeLean: () => boolean,
     resumed?: { tier?: SaverTier },
   ) {
     this.auto = cfg.enabled && model === AUTO_MODEL
@@ -147,7 +146,7 @@ export class UsageSaver {
    * (unless you're mid-debugging), then put the right model on it.
    */
   async beforeTurn(text: string) {
-    this.hfTurn = /^\/hackforge:/i.test(text.trim())
+    this.eccTurn = /^\/ecc:/i.test(text.trim())
     const route = () =>
       routeTurn({
         prompt: text,
@@ -157,7 +156,6 @@ export class UsageSaver {
         contextTokens: this.ctx,
         contextWindow: this.window,
         opusAvailable: this.opusOk,
-        hackforgeLean: this.hackforgeLean(),
       })
     let d = route()
     if (this.cfg.enabled && this.cfg.compact && !d.escalation && !d.passthrough && this.ctx >= compactThreshold(this.window)) {
@@ -194,7 +192,7 @@ export class UsageSaver {
 
   /** Sonnet keeps failing within one turn: hand the rest of it to Opus. */
   private onStruggle() {
-    if (!this.auto || this.tier !== 'sonnet' || this.hfTurn || this.escalated || !this.opusOk) return
+    if (!this.auto || this.tier !== 'sonnet' || this.eccTurn || this.escalated || !this.opusOk) return
     this.escalated = true
     this.switchMidTurn('opus', 'think', `${STRUGGLE_LIMIT} steps failed in a row`, `Opus took over mid-task: ${STRUGGLE_LIMIT} steps failed in a row.`)
   }

@@ -1,9 +1,8 @@
-import { Binary, Bot, Box, Flame, Globe, LibraryBig, Palette, Plug, Sparkles } from 'lucide-react'
+import { Binary, Bot, Box, Globe, LibraryBig, Palette, Plug, Sparkles } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import type { DesignSkillsSettings, DesignState } from '@shared/design'
 import { ECC_HOOK_PROFILES, ECC_PROFILE_LABEL, type EccHookProfile, type EccInfo } from '@shared/ecc'
 import { REA_NODE, type BlenderInfo, type DevToolsSettings, type DevToolsState, type ReaInfo } from '@shared/devtools'
-import type { HackforgeMode } from '@shared/hackforge'
 import { ipcErrorMessage } from '@/lib/time'
 import { useApp } from '@/stores/app'
 import { ExtLink, ok, Row, smallBtn, warn } from './parts'
@@ -95,23 +94,6 @@ export function ToolsTab() {
       />
 
       <Row
-        icon={<Flame className="size-3.5 text-forge" />}
-        title="HackForge"
-        description="Sessions get the /hackforge:* skills, the Next step suggestion and the HackForge actions in the / menu."
-        control={
-          <select
-            value={settings.hackforgeMode}
-            onChange={(e) => void updateSettings({ hackforgeMode: e.target.value as HackforgeMode })}
-            className="rounded-md border border-line bg-surface-2 px-2 py-1 text-[12px]"
-          >
-            <option value="projects">In projects that use it</option>
-            <option value="always">In every session</option>
-            <option value="off">Off</option>
-          </select>
-        }
-      />
-
-      <Row
         icon={<Palette className="size-3.5 text-accent-ink" />}
         title="impeccable"
         via={pluginInfo(design, 'impeccable')}
@@ -138,7 +120,7 @@ export function ToolsTab() {
         icon={<Globe className="size-3.5" />}
         title="Browser"
         via="Playwright, built in"
-        description="Claude opens the running app, clicks through the demo, reads console errors and saves screenshots. HackForge's verifier keeps them as evidence."
+        description="Claude opens the running app, clicks through it, reads console errors and saves screenshots. ECC's evaluator uses it to score each build."
         on={s.browser}
         onToggle={(on) => toggle('browser', on)}
         status={s.browser && dev && <BrowserStatus dev={dev} onRetry={() => act(async () => setDev(await window.harness.devToolsInstallBrowser()))} />}
@@ -152,7 +134,7 @@ export function ToolsTab() {
         icon={<LibraryBig className="size-3.5" />}
         title="Library docs"
         via="Context7, hosted"
-        description="Current docs for any library or SDK, so Claude looks up a partner's SDK instead of guessing its API. Works without a key; a free key raises the limits."
+        description="Current docs for any library or SDK, so Claude looks up a new SDK instead of guessing its API. Works without a key; a free key raises the limits."
         on={s.docs}
         onToggle={(on) => toggle('docs', on)}
         status={s.docs && (settings.hasContext7Key ? <span className={ok}>key saved</span> : 'no key (fine for most use)')}
@@ -160,8 +142,8 @@ export function ToolsTab() {
       />
       <Row
         icon={<Plug className="size-3.5" />}
-        title="Partner servers"
-        description="A partner's own MCP server, in sessions in the event project once its key is set (Hackathon › Challenges). Anything that changes a partner account still asks first."
+        title="Service servers"
+        description="A service's own MCP server, in sessions in the current project once its key is set (Project › Keys). Anything that changes an account still asks first."
         on={s.partnerServers}
         onToggle={(on) => toggle('partnerServers', on)}
         status={
@@ -172,7 +154,7 @@ export function ToolsTab() {
                 <span
                   key={p.id}
                   className={p.status === 'ready' ? 'rounded-sm bg-ok/10 px-2 text-ok-ink' : 'rounded-sm bg-surface-2 px-2'}
-                  title={p.status === 'ready' ? `Sessions in the event project get mcp__${p.id}__*` : 'Set its key under Hackathon › Challenges'}
+                  title={p.status === 'ready' ? `Sessions in the current project get mcp__${p.id}__*` : 'Set its key under Project › Keys'}
                 >
                   {p.name} {p.status === 'ready' ? '· ready' : '· needs key'}
                 </span>
@@ -185,7 +167,7 @@ export function ToolsTab() {
         icon={<Binary className="size-3.5" />}
         title="Reverse engineering"
         via="REA, installed when you turn it on"
-        description="Claude works out how existing software works, with evidence: a partner's site or a HAR capture becomes its real API, an SDK bundle, DLL or APK shows how it's called. Running a target still asks first. Only for software you own or may analyse."
+        description="Claude works out how existing software works, with evidence: a service's site or a HAR capture becomes its real API, an SDK bundle, DLL or APK shows how it's called. Running a target still asks first. Only for software you own or may analyse."
         on={s.rea}
         onToggle={(on) => toggle('rea', on)}
         status={s.rea && dev && <ReaStatus rea={dev.rea} onInstall={() => act(async () => setDev(await window.harness.devToolsInstallRea()))} />}
@@ -194,7 +176,7 @@ export function ToolsTab() {
         icon={<Box className="size-3.5" />}
         title="Blender"
         via="live, through MCP for Blender (community, open source)"
-        description="Claude builds and adjusts 3D objects and scenes in your open Blender, looks at the result, and exports a .glb for the product, the pitch or a 3D clip. Running code in Blender, importing assets and AI generation ask first."
+        description="Claude builds and adjusts 3D objects and scenes in your open Blender, looks at the result, and exports a .glb for the product, the promo video or a 3D clip. Running code in Blender, importing assets and AI generation ask first."
         on={s.blender}
         onToggle={(on) => toggle('blender', on)}
         status={dev && <BlenderStatus info={dev.blender} on={s.blender} setDev={setDev} act={act} />}
@@ -235,7 +217,7 @@ function EngineStatus({ design, onRetry }: { design: DesignState | null; onRetry
           </button>
         </>
       )}
-      <span className="block text-[11px]">Downloaded once per computer from impeccable’s GitHub releases; do it before the event, not on venue wifi.</span>
+      <span className="block text-[11px]">Downloaded once per computer from impeccable’s GitHub releases.</span>
     </>
   )
 }

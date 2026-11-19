@@ -1,16 +1,12 @@
-import { ArrowRight, ArrowUp, ChevronDown, Flame, FolderOpen, History, KeyRound, Rocket } from 'lucide-react'
+import { ArrowRight, ArrowUp, ChevronDown, FolderOpen, Hammer, History, KeyRound } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
-import { basename, cn, formatCost } from '@/lib/format'
+import { basename, formatCost } from '@/lib/format'
 import { relativeTime } from '@/lib/time'
-import { newHackforgeProject } from '@/lib/projects'
 import { useApp } from '@/stores/app'
-import { useHackathonSummary } from '../hackathon/summary'
 import { Menu, menuItems } from '@/ui/Menu'
-import { Sectors, type SectorTone } from '@/ui/Sectors'
-import { RUN_STAGES } from '@shared/run'
 import { StatusDot, STATUS_LABEL } from '@/layout/StatusDot'
 
-/** Home: one box to start something, the hackathon at a glance, and what to continue. */
+/** Home: one box to start something, the current project, and what to continue. */
 export function Home() {
   const { settings, history, order, sessions, startSession, openSaved, select, startError, setSettingsOpen } = useApp()
   const recents = settings?.recentProjects ?? []
@@ -86,7 +82,6 @@ export function Home() {
                 ...recents.slice(0, 6).map((d) => ({ label: basename(d), hint: d, icon: FolderOpen, checked: d === folder, onSelect: () => setDir(d) })),
                 recents.length > 0 && 'separator',
                 { label: 'Choose a folder…', icon: FolderOpen, onSelect: () => void pick() },
-                settings?.hackforgeMode !== 'off' && { label: 'New HackForge project…', icon: Flame, hint: 'Pick a folder, then set it up', onSelect: () => void newHackforgeProject() },
               )}
             />
             <button
@@ -100,7 +95,7 @@ export function Home() {
         </div>
         {startError && <div className="selectable mt-3 text-center text-[12px] text-danger-ink">{startError}</div>}
 
-        <HackathonCard />
+        <ProjectCard />
 
         {cont.length > 0 && (
           <div className="mt-8">
@@ -155,37 +150,20 @@ function Card({ onClick, icon, title, sub, cost }: { onClick: () => void; icon: 
   )
 }
 
-/** The hackathon at a glance: the race clock, the run as five sectors, and one button. */
-function HackathonCard() {
-  const h = useHackathonSummary()
-  const started = h.stage !== 'team'
-  const at = RUN_STAGES.indexOf(h.stage)
-  const sectors = RUN_STAGES.map((_, i): { tone: SectorTone } => ({ tone: i < at ? 'done' : i === at ? (h.inbox > 0 ? 'wait' : 'live') : 'todo' }))
+/** The current project at a glance, one click from its Project place. */
+function ProjectCard() {
+  const dir = useApp((s) => s.settings?.project ?? null)
+  if (!dir) return null
   return (
-    <button
-      onClick={() => useApp.getState().openHackathon(started ? undefined : 'build')}
-      className="mt-6 w-full rounded-lg border border-line px-4 py-3.5 text-left hover:bg-hover"
-    >
-      <span className="flex items-center gap-3">
-        <Rocket className="size-5 shrink-0 text-accent-ink" aria-hidden />
-        <span className="min-w-0 flex-1">
-          <span className="flex items-center gap-2">
-            <span className="truncate font-semibold">{h.name}</span>
-            {h.inbox > 0 && <span className="num rounded-sm bg-warn px-1.5 text-[12px] font-semibold leading-[18px] text-rail">{h.inbox} waiting</span>}
-          </span>
-          <span className="block truncate text-[12px] text-muted">{h.status}</span>
-        </span>
-        {h.clock && (
-          <span className="shrink-0 text-right" title={h.countdown}>
-            <span className={cn('num block text-[22px] font-semibold leading-none', h.urgent ? 'text-danger-ink' : 'text-fg')}>{h.clock}</span>
-            {h.clockLabel && <span className="mt-1 block text-[12px] text-muted">{h.clockLabel}</span>}
-          </span>
-        )}
-        <span className="flex shrink-0 items-center gap-1 pl-2 font-medium text-accent-ink">
-          {started ? 'Continue' : 'Start a hackathon'} <ArrowRight className="size-3.5" aria-hidden />
-        </span>
+    <button onClick={() => useApp.getState().openProject()} className="mt-6 flex w-full items-center gap-3 rounded-lg border border-line px-4 py-3.5 text-left hover:bg-hover">
+      <Hammer className="size-5 shrink-0 text-accent-ink" aria-hidden />
+      <span className="min-w-0 flex-1">
+        <span className="block truncate font-semibold">{basename(dir)}</span>
+        <span className="block truncate text-[12px] text-muted">{dir}</span>
       </span>
-      <Sectors items={sectors} height={3} className="mt-3" label={`Team run: ${h.status}`} />
+      <span className="flex shrink-0 items-center gap-1 pl-2 font-medium text-accent-ink">
+        Open the project <ArrowRight className="size-3.5" aria-hidden />
+      </span>
     </button>
   )
 }

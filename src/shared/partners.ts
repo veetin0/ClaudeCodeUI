@@ -1,13 +1,12 @@
 /**
- * API keys for the hackathon (Hackathon › Challenges → API keys). The list starts empty: you add a key,
- * Harness writes it to the project's .env (gitignored), passes it to every session in the project, can
- * share it with the team (encrypted), and writes a note to challenge/partners/ that HackForge and
- * Claude read. For a service Harness knows (the kits below, common hackathon sponsors) the note, key
- * check and MCP server come from the kit; for anything else Claude works out what the key is for and
- * writes the note itself (partnerResearchPrompt).
+ * API keys for the current project (Project › Keys). The list starts empty: you add a key, Harness
+ * writes it to the project's .env (gitignored), passes it to every session in the project, and writes
+ * a note to .harness/services/ that Claude reads. For a service Harness knows (the kits below) the
+ * note, key check and MCP server come from the kit; for anything else Claude works out what the key is
+ * for and writes the note itself (partnerResearchPrompt).
  *
  * Researched in October 2026. Details that couldn't be confirmed from public sources are marked
- * `unverified`; check those at the event.
+ * `unverified`; check those before relying on them.
  */
 
 import YAML from 'yaml'
@@ -35,15 +34,15 @@ export interface PartnerKit {
   /** Harness can check the key with a cheap request. */
   checkable?: boolean
   notes?: string[]
-  /** Public details couldn't be confirmed before the event. */
+  /** Public details couldn't be confirmed. */
   unverified?: boolean
-  /** Added by the team: a service Harness doesn't know (Claude researches it). */
+  /** Added by you: a service Harness doesn't know (Claude researches it). */
   custom?: boolean
-  /** What the team called it when adding the key (custom kits; empty when they just pasted a key). */
+  /** What you called it when adding the key (custom kits; empty when you just pasted a key). */
   label?: string
   /** Custom kits: Claude is still working out what the key is for, or has written its findings. */
   research?: 'pending' | 'done'
-  /** The partner's own MCP server, added to sessions in the event project once its keys are set. */
+  /** The service's own MCP server, added to sessions in the project once its keys are set. */
   mcp?: PartnerMcp
 }
 
@@ -67,8 +66,8 @@ const fill = (v: string, values: Record<string, string>) => v.replace(PLACEHOLDE
 const needs = (v: string) => [...v.matchAll(PLACEHOLDER)].map((m) => m[1])
 
 /**
- * The MCP server a kit gives sessions, or the keys it still needs. An MCP URL the team pasted at the
- * event wins over the built-in spec; it gets `Authorization: Bearer <the kit's secret key>` when one is set.
+ * The MCP server a kit gives sessions, or the keys it still needs. An MCP URL you pasted wins over the
+ * built-in spec; it gets `Authorization: Bearer <the kit's secret key>` when one is set.
  */
 export function resolvePartnerMcp(kit: PartnerKit, values: Record<string, string>, eventUrl?: string): ResolvedPartnerMcp | { missing: string[] } | null {
   if (eventUrl) {
@@ -102,28 +101,23 @@ export function resolvePartnerMcp(kit: PartnerKit, values: Record<string, string
 }
 
 export interface PartnerKeyInfo {
-  /** Your own key, or one a teammate shared. */
-  source: 'me' | 'team'
-  from?: string
-  /** You share it with the team (your own keys only). */
-  share: boolean
   /** Masked for secrets ("sk-…9f2c"), in full for names like a cloud name. */
   preview: string
 }
 
 /** What the API keys section shows. Key values never leave the main process; only masked previews. */
 export interface PartnersState {
-  /** The keys you added (and services a teammate shared a key for). */
+  /** The keys you added. */
   kits: PartnerKit[]
   /** Services Harness knows, for name suggestions when adding a key. */
   known: string[]
   keys: Record<string, PartnerKeyInfo>
   checks: Record<string, { ok: boolean; message: string; at: number }>
-  /** Docs links the team added (e.g. for a partner whose API turned up at the event). */
+  /** Docs links you added for a service. */
   docs: Record<string, string>
-  /** MCP server URLs the team added at the event (e.g. a partner announcing one at the opening). */
+  /** MCP server URLs you added for a service. */
   mcp: Record<string, string>
-  /** The event project the keys are written to. */
+  /** The project the keys are written to. */
   project?: string
   writeError?: string
 }
@@ -166,11 +160,11 @@ const { results } = await res.json()`,
       code: `import OpenAI from 'openai'
 const openai = new OpenAI() // reads OPENAI_API_KEY
 // Pick a current model from https://platform.openai.com/docs/models
-const reply = await openai.responses.create({ model: process.env.OPENAI_MODEL!, input: 'Say hello to the hackathon' })
+const reply = await openai.responses.create({ model: process.env.OPENAI_MODEL!, input: 'Say hello' })
 console.log(reply.output_text)`,
     },
     checkable: true,
-    notes: ['Model names change often: check the models page at the event and put the one you use in OPENAI_MODEL.'],
+    notes: ['Model names change often: check the models page and put the one you use in OPENAI_MODEL.'],
   },
   {
     id: 'featherless',
@@ -207,7 +201,7 @@ const chat = await featherless.chat.completions.create({ model: '<model id>', me
     snippet: {
       lang: 'ts',
       code: `import { v2 as cloudinary } from 'cloudinary' // reads CLOUDINARY_URL
-const uploaded = await cloudinary.uploader.upload('demo.jpg', { folder: 'hackathon' })
+const uploaded = await cloudinary.uploader.upload('demo.jpg', { folder: 'my-app' })
 console.log(uploaded.secure_url)`,
     },
     checkable: true,
@@ -242,7 +236,7 @@ console.log(uploaded.secure_url)`,
       lang: 'python',
       code: `import modal
 
-app = modal.App("hackathon-demo")
+app = modal.App("my-app")
 
 @app.function(gpu="T4")
 def square(x: int) -> int:
@@ -310,7 +304,7 @@ with psycopg.connect(os.environ["DATABASE_URL"]) as conn:
     id: 'arduino',
     name: 'Arduino',
     site: 'https://www.arduino.cc',
-    what: 'Microcontroller boards and Arduino Cloud for connected devices, for hardware challenges.',
+    what: 'Microcontroller boards and Arduino Cloud for connected devices.',
     keys: [
       { env: 'ARDUINO_CLIENT_ID', label: 'Cloud API client ID (optional)', secret: false },
       { env: 'ARDUINO_CLIENT_SECRET', label: 'Cloud API client secret', secret: true },
@@ -364,7 +358,7 @@ arduino-cli upload  --fqbn arduino:avr:uno -p /dev/cu.usbmodem* sketch/`,
     snippet: { lang: 'bash', code: `# Endpoints (from the LangChain integration): POST /v1/knowledge/search, POST /v1/knowledge/query, GET /v1/entities` },
     unverified: true,
     notes: [
-      'Get the key at console.cala.ai. If the docs don’t give the base URL and auth header, ask the Cala team, then tell Claude.',
+      'Get the key at console.cala.ai. If the docs don’t give the base URL and auth header, ask Cala, then tell Claude.',
       'LangChain has a Cala retriever that reads CALA_API_KEY.',
     ],
   },
@@ -377,7 +371,10 @@ export function allPartnerEnvs(kits: PartnerKit[]): string[] {
 
 export const ENV_NAME_RE = /^[A-Z][A-Z0-9_]{1,63}$/
 
-/** The kit note Claude reads (challenge/partners/<id>.md). Never contains key values. */
+/** Where the notes Claude reads about each service go, in the project. */
+export const NOTES_DIR = '.harness/services'
+
+/** The kit note Claude reads (.harness/services/<id>.md). Never contains key values. */
 export function kitNote(kit: PartnerKit, ready: string[], docs?: string, mcpUrl?: string): string {
   const lines = [`# ${kit.name}`, '', kit.what, '']
   if (kit.keys.length) {
@@ -396,7 +393,7 @@ export function kitNote(kit: PartnerKit, ready: string[], docs?: string, mcpUrl?
   if (kit.mcp || mcpUrl) {
     lines.push(
       '## MCP server',
-      `- Harness sessions in this project get the \`mcp__${kit.id}__*\` tools (${mcpUrl ? 'the MCP URL your team added' : kit.mcp?.kind === 'http' ? 'hosted by the partner' : 'bundled with Harness'}) once the keys above are set and Settings › Tools › Partner servers is on.`,
+      `- Harness sessions in this project get the \`mcp__${kit.id}__*\` tools (${mcpUrl ? 'the MCP URL you added' : kit.mcp?.kind === 'http' ? 'hosted by the service' : 'bundled with Harness'}) once the keys above are set and Settings › Tools › Service servers is on.`,
       '',
     )
   }
@@ -408,18 +405,18 @@ export function kitNote(kit: PartnerKit, ready: string[], docs?: string, mcpUrl?
     `Site: ${kit.site}`,
   ].filter(Boolean)
   lines.push('## Links', ...links.map((l) => `- ${l}`))
-  if (kit.unverified) lines.push('', '_Some details weren’t publicly confirmed before the event; check the docs before relying on them._')
+  if (kit.unverified) lines.push('', '_Some details weren’t publicly confirmed; check the docs before relying on them._')
   return lines.join('\n') + '\n'
 }
 
-/** challenge/partners/README.md: which partner APIs are ready to use. */
+/** .harness/services/README.md: which services are ready to use. */
 export function kitIndex(kits: PartnerKit[], ready: string[]): string {
   const withApi = kits.filter((k) => k.keys.length)
   const isReady = (k: PartnerKit) => k.keys.some((x) => ready.includes(x.env))
   const lines = [
-    '# Partner APIs',
+    '# Services',
     '',
-    'Written by Harness (Hackathon › Challenges → API keys). Keys live in `.env` (gitignored) and in every Harness session’s environment in this project. One file per service has the env names, how to install and use it, and a minimal example.',
+    'Written by Harness (Project › Keys). Keys live in `.env` (gitignored) and in every Harness session’s environment in this project. One file per service has the env names, how to install and use it, and a minimal example.',
     '',
     '| Partner | Ready | Env vars | Kit |',
     '|---|---|---|---|',
@@ -490,7 +487,7 @@ export function envNameFor(name: string): string | undefined {
   return ENV_NAME_RE.test(env) ? env : undefined
 }
 
-/** What Claude found out about a key, from the front matter of challenge/partners/<id>.md. */
+/** What Claude found out about a key, from the front matter of .harness/services/<id>.md. */
 export interface PartnerNote {
   status?: string
   name?: string
@@ -538,7 +535,7 @@ export function pendingNote(kit: PartnerKit): string {
     '---',
     `# ${title}`,
     '',
-    `An API key the team added, in \`${env}\` (the project's .env and every Harness session's environment).`,
+    `An API key you added, in \`${env}\` (the project's .env and every Harness session's environment).`,
     'Harness asks Claude to work out which service it is for and how to use it; Claude replaces this note with what it finds.',
     '',
     'Read the key from the environment; never hard-code or print it, and never commit .env.',
@@ -549,16 +546,16 @@ export function pendingNote(kit: PartnerKit): string {
 /** What Claude gets asked when a key for an unknown service is added (the key's value is never in it). */
 export function partnerResearchPrompt(kit: PartnerKit): string {
   const env = kit.keys[0]?.env ?? 'API_KEY'
-  const file = `challenge/partners/${kit.id}.md`
+  const file = `${NOTES_DIR}/${kit.id}.md`
   const labelled = kit.label ? `, labelled "${kit.label}"` : ', without a name'
   const firstChars = 'printf %s "$' + env + '" | cut -c1-4'
-  return `A teammate added an API key to this hackathon project. It's in the environment variable ${env} (also in .env at the project root)${labelled}. Work out what it's for and how we can use it.
+  return `I added an API key to this project. It's in the environment variable ${env} (also in .env at the project root)${labelled}. Work out what it's for and how we can use it.
 
 1. Never print, echo, log or commit the key's value, and don't paste it anywhere. To recognise its format you may look at its first 4 characters only (for example: ${firstChars}).
 2. Identify the service from the label, the key's format and web search. If you can't tell, say so in the note.
 3. Find the official API docs and how to authenticate (the header or SDK option, and the environment variable the official SDK reads).
 4. If the API has a cheap read-only call (list models, account info, one tiny search), make exactly one with the key from the environment to see whether it works. Don't do anything that costs money or changes data.
-5. Read challenge/ to see how this API could help with our challenge.
+5. Read the README, .claude/prds/ and .claude/plans/ (when they exist) to see how this API could help the product.
 6. Replace ${file} with this front matter, then the notes:
 
 ---
@@ -572,8 +569,8 @@ what: <one line: what it does and what we'd use it for>
 ---
 ## How to use it
 The install command and a minimal working example that reads the key from process.env / os.environ (never hard-coded).
-## Ideas for our challenge
-Two to four concrete ways it could help, based on challenge/.
+## Ideas for the product
+Two to four concrete ways it could help, based on what the project is building.
 
 Keep it short. Harness shows the front matter on the key's card, and if you change env it renames the variable in .env for you.`
 }

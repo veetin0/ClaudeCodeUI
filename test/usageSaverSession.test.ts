@@ -55,11 +55,11 @@ function engine(script: Script) {
   return { factory, log, options: () => options }
 }
 
-function setup(factory: QueryFactory, saver: Partial<UsageSaverSettings> = {}, extra: { hackforgeLean?: (cwd: string) => boolean } = {}) {
+function setup(factory: QueryFactory, saver: Partial<UsageSaverSettings> = {}) {
   const events: HarnessEvent[] = []
   const bus = { emit: (e: HarnessEvent | HarnessEvent[]) => events.push(...(Array.isArray(e) ? e : [e])) } as unknown as EventBus
   const cfg = { ...DEFAULT_USAGE_SAVER, ...saver }
-  const svc = new AgentService({ bus, getEnv: () => ({}), queryFactory: factory, usageSaver: () => cfg, ...extra })
+  const svc = new AgentService({ bus, getEnv: () => ({}), queryFactory: factory, usageSaver: () => cfg })
   const notes = () => events.flatMap((e) => (e.type === 'saver' ? [e.note] : []))
   const routes = () => notes().filter((n): n is Extract<SaverNote, { kind: 'route' }> => n.kind === 'route')
   return { svc, events, notes, routes }
@@ -196,13 +196,17 @@ describe('Usage saver in a session', () => {
     svc.close(id)
   })
 
-  it('lets HackForge pick its own models on the Pro profile', async () => {
+  it('gives ECC’s planning and build flows Opus, and its bookkeeping Sonnet', async () => {
     const e = engine(() => [assistant('ok'), result()])
-    const { svc } = setup(e.factory, {}, { hackforgeLean: () => true })
+    const { svc, routes } = setup(e.factory)
     const { id } = svc.start({ cwd: '/tmp', model: 'auto' })
-    svc.send(id, '/hackforge:run --auto')
+    svc.send(id, '/ecc:plan-prd a habit tracker')
     await settle()
-    expect(e.log).toEqual(['msg:/hackforge:run --auto'])
+    expect(e.log).toEqual(['model:opus', 'msg:/ecc:plan-prd a habit tracker'])
+    expect(routes().at(-1)).toMatchObject({ model: 'opus', reason: 'ECC’s plan-prd' })
+    svc.send(id, '/ecc:save-session')
+    await settle()
+    expect(e.log.slice(2)).toEqual(['model:sonnet', 'msg:/ecc:save-session'])
     svc.close(id)
   })
 })
@@ -258,7 +262,7 @@ describe('Usage saver: what counts as struggling', () => {
   it('ignores steps you (or the saver) refused', async () => {
     const { UsageSaver } = await import('../src/main/agent/UsageSaver')
     const models: string[] = []
-    const saver = new UsageSaver(DEFAULT_USAGE_SAVER, 'auto', 'default', { cwd: '/tmp', note: () => {}, setModel: async (m) => void models.push(m), compact: async () => {} }, () => true)
+    const saver = new UsageSaver(DEFAULT_USAGE_SAVER, 'auto', 'default', { cwd: '/tmp', note: () => {}, setModel: async (m) => void models.push(m), compact: async () => {} })
     const base = { sessionId: 's', ts: 1 }
     for (const n of [1, 2, 3]) {
       const toolUseId = `t${n}`

@@ -1,6 +1,7 @@
 import { AlarmClock, Leaf } from 'lucide-react'
 import type { UsageSaverSettings } from '@shared/usageSaver'
 import { useApp } from '@/stores/app'
+import { ObserveSection } from './Observe'
 import { Row } from './parts'
 
 const SAVER_FEATURES: { key: Exclude<keyof UsageSaverSettings, 'enabled'>; label: string; hint: string }[] = [
@@ -74,6 +75,8 @@ export function AdvancedTab() {
           </span>
         </label>
       </Row>
+
+      <ObserveSection />
 
       <p className="text-[11px] leading-relaxed text-muted">
         Sessions load your usual <code>~/.claude</code> settings, CLAUDE.md files, MCP servers and skills.

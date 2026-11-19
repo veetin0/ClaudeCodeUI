@@ -7,7 +7,7 @@ import { spawnTool } from '../system/proc'
 /**
  * The cartoon short skill (github.com/mromidev/claude-animated-shorts, MIT): 2D characters in a 3D
  * world, rendered with three.js inside Remotion. Not bundled with Harness: it's fetched at a pinned
- * commit when a team picks "Cartoon short" on the Pitch tab, wrapped as a plugin, and given to new
+ * commit when you pick "Cartoon short" in Project › Promo, wrapped as a plugin, and given to new
  * sessions. Its folder of reference contact sheets (1,200 frames from someone else's channel, for
  * style study only) is left out; the few reference frames it ships stay on this computer.
  */
@@ -114,7 +114,7 @@ export class CartoonSkill {
         {
           name: CARTOON_SKILL.name,
           version: CARTOON_SKILL.commit.slice(0, 7),
-          description: 'Cartoon 3D story shorts with three.js inside Remotion (by mromidev, MIT). Downloaded by Harness when a team picks a cartoon pitch video.',
+          description: 'Cartoon 3D story shorts with three.js inside Remotion (by mromidev, MIT). Downloaded by Harness when you pick a cartoon promo video.',
           author: { name: 'mromidev' },
           homepage: CARTOON_SKILL.repo,
           license: 'MIT',

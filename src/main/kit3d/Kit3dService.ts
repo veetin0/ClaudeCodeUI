@@ -31,7 +31,7 @@ export type Probe = (cmd: string, args: string[], cwd?: string) => string | unde
 
 export interface Kit3dDeps {
   projectDir(): string | undefined
-  /** The kit in the HackForge in use (skills/video/kit3d). */
+  /** The kit Harness ships (resources/kit3d). */
   templateDir(): string
   push(state: Kit3dState): void
   /** The browser the dev tools use (Chrome, Edge or a downloaded Chromium), for rendering. */
@@ -99,7 +99,7 @@ const mtime = (path: string) => {
 class Stopped extends Error {}
 
 /**
- * The 3D kit in the event project (video/kit3d): sets it up (npm packages and a Python venv), lists
+ * The 3D kit in the current project (video/kit3d): sets it up (npm packages and a Python venv), lists
  * the clips in its story.py, renders stills and clips with progress, and copies a finished clip into
  * the pitch. One job at a time: a render keeps every core busy.
  */
@@ -130,7 +130,7 @@ export class Kit3dService {
 
   private requireDir(): string {
     const d = this.dir()
-    if (!d) throw new Error('Link an event project first.')
+    if (!d) throw new Error('Pick or create a project first.')
     return d
   }
 
@@ -505,7 +505,7 @@ export class Kit3dService {
     return this.state()
   }
 
-  /** Copies the clip into pitch/public/3d/; the Pitch studio then puts it in a screen scene. */
+  /** Copies the clip into promo/public/3d/; the Promo studio then puts it in a screen scene. */
   async addToPitch(clip: string): Promise<{ media: string; seconds?: number }> {
     const dir = this.requireDir()
     const project = this.deps.projectDir()!
@@ -516,7 +516,7 @@ export class Kit3dService {
     await mkdir(destDir, { recursive: true })
     const dst = join(destDir, `${clip}.mp4`)
     await copyFile(src, dst)
-    // Same timestamp as the render, so the panel can tell the pitch has the latest one.
+    // Same timestamp as the render, so the panel can tell the video has the latest one.
     await utimes(dst, st.atime, st.mtime)
     const side = readJson(join(dir, 'out', `${clip}.json`))
     void this.publish()

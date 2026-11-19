@@ -63,7 +63,7 @@ describe('pitch script model', () => {
       targetSeconds: -5,
       scenes: [{ id: 'a', visual: 'nope', narration: 'Hi', media: '../../etc/passwd', audio: '/abs/../x.mp3', bullets: ['a', 3, 'b'] }, { id: 'a', title: 'dup id' }, 'junk', null],
     })!
-    expect(s.targetSeconds).toBe(120)
+    expect(s.targetSeconds).toBe(90)
     expect(s.scenes).toHaveLength(2)
     expect(s.scenes[0]).toMatchObject({ id: 'a', visual: 'title', media: 'etc/passwd', audio: 'abs/x.mp3', bullets: ['a', 'b'] })
     expect(s.scenes[1].id).not.toBe('a')
@@ -72,7 +72,7 @@ describe('pitch script model', () => {
   })
 
   it('has a sensible default script', () => {
-    const s = defaultScript('Weekend Hackathon')
+    const s = defaultScript('Orbit')
     expect(s.scenes.map((x) => x.visual)).toEqual(['title', 'bullets', 'quote', 'screen', 'bullets', 'bullets', 'end'])
     expect(new Set(s.scenes.map((x) => x.id)).size).toBe(s.scenes.length)
     expect(totalSeconds(s)).toBeGreaterThan(40)
@@ -105,85 +105,87 @@ describe('PitchService', () => {
     return svc.state()
   }
 
-  it('asks what kind of video first, and remembers the answer in pitch/style.json', async () => {
+  it('asks what kind of video first, and remembers the answer in promo/style.json', async () => {
     const { root, svc } = setup()
     expect((await svc.state()).choice).toBeNull()
     // Skipping makes no video project.
-    let s = await svc.choose({ style: 'none' }, 'Weekend Hackathon')
+    let s = await svc.choose({ style: 'none' }, 'Orbit')
     expect(s.choice).toMatchObject({ style: 'none' })
     expect(s.exists).toBe(false)
     // Changing your mind shows the chooser again.
-    s = await svc.choose(null, 'Weekend Hackathon')
+    s = await svc.choose(null, 'Orbit')
     expect(s.choice).toBeNull()
-    // Cartoon: no slide video, but pitch/out/ for the result, kept out of git.
-    s = await svc.choose({ style: 'cartoon', format: 'horizontal' }, 'Weekend Hackathon')
+    // Cartoon: no slide video, but promo/out/ for the result, kept out of git.
+    s = await svc.choose({ style: 'cartoon', format: 'horizontal' }, 'Orbit')
     expect(s).toMatchObject({ exists: false, choice: { style: 'cartoon', format: 'horizontal' }, videos: [] })
-    expect(readFileSync(join(root, 'pitch', '.gitignore'), 'utf8')).toContain('out/')
-    writeFileSync(join(root, 'pitch', 'out', 'first.mp4'), 'a')
-    writeFileSync(join(root, 'pitch', 'out', 'second.mp4'), 'b')
-    writeFileSync(join(root, 'pitch', 'out', 'notes.txt'), 'c')
-    utimesSync(join(root, 'pitch', 'out', 'first.mp4'), new Date(2026, 0, 1), new Date(2026, 0, 1))
+    expect(readFileSync(join(root, 'promo', '.gitignore'), 'utf8')).toContain('out/')
+    writeFileSync(join(root, 'promo', 'out', 'first.mp4'), 'a')
+    writeFileSync(join(root, 'promo', 'out', 'second.mp4'), 'b')
+    writeFileSync(join(root, 'promo', 'out', 'notes.txt'), 'c')
+    utimesSync(join(root, 'promo', 'out', 'first.mp4'), new Date(2026, 0, 1), new Date(2026, 0, 1))
     s = await svc.state()
     expect(s.videos).toEqual(['second.mp4', 'first.mp4'])
     expect(s.videoTimes['first.mp4']).toBe(new Date(2026, 0, 1).getTime())
     // Slides set up the slide video.
-    s = await svc.choose({ style: 'slides' }, 'Weekend Hackathon')
+    s = await svc.choose({ style: 'slides' }, 'Orbit')
     expect(s).toMatchObject({ exists: true, choice: { style: 'slides' } })
-    expect(JSON.parse(readFileSync(join(root, 'pitch', 'style.json'), 'utf8'))).toMatchObject({ style: 'slides' })
+    expect(JSON.parse(readFileSync(join(root, 'promo', 'style.json'), 'utf8'))).toMatchObject({ style: 'slides' })
     svc.dispose()
   })
 
-  it('finds the pitch deck PDF, whatever video the team chose', async () => {
+  it('finds the presentation deck PDF, whatever video you chose', async () => {
     const { root, svc } = setup()
     expect((await svc.state()).deck).toBeUndefined()
-    await svc.choose({ style: 'none' }, 'Weekend Hackathon')
+    await svc.choose({ style: 'none' }, 'Orbit')
     expect((await svc.state()).deck).toBeUndefined()
-    writeFileSync(join(root, 'pitch', 'deck.pdf'), '%PDF-1.7')
-    utimesSync(join(root, 'pitch', 'deck.pdf'), new Date(2026, 10, 14), new Date(2026, 10, 14))
-    expect((await svc.state()).deck).toEqual({ path: join(root, 'pitch', 'deck.pdf'), mtime: new Date(2026, 10, 14).getTime() })
+    writeFileSync(join(root, 'promo', 'deck.pdf'), '%PDF-1.7')
+    utimesSync(join(root, 'promo', 'deck.pdf'), new Date(2026, 10, 14), new Date(2026, 10, 14))
+    expect((await svc.state()).deck).toEqual({ path: join(root, 'promo', 'deck.pdf'), mtime: new Date(2026, 10, 14).getTime() })
     // A folder of that name isn't a deck.
-    rmSync(join(root, 'pitch', 'deck.pdf'))
-    mkdirSync(join(root, 'pitch', 'deck.pdf'))
+    rmSync(join(root, 'promo', 'deck.pdf'))
+    mkdirSync(join(root, 'promo', 'deck.pdf'))
     expect((await svc.state()).deck).toBeUndefined()
     svc.dispose()
   })
 
-  it('shows a video as soon as it lands in pitch/out/', async () => {
+  it('shows a video as soon as it lands in promo/out/', async () => {
     const t = setup()
-    await t.svc.choose({ style: 'cartoon', format: 'horizontal' }, 'Weekend Hackathon')
+    await t.svc.choose({ style: 'cartoon', format: 'horizontal' }, 'Orbit')
     // Let the watcher start delivering events (macOS needs a moment; see eventService.test.ts).
     await new Promise((r) => setTimeout(r, 500))
     const before = t.pushed.length
-    writeFileSync(join(t.root, 'pitch', 'out', 'cartoon-short.mp4'), 'x')
+    writeFileSync(join(t.root, 'promo', 'out', 'cartoon-short.mp4'), 'x')
     await expect.poll(() => (t.pushed.slice(before) as { videos: string[] }[]).some((s) => s.videos.includes('cartoon-short.mp4')), { timeout: 6000 }).toBe(true)
     t.svc.dispose()
   })
 
-  it('treats a pitch made before the chooser as the slide video', async () => {
+  it('treats a promo video made before the chooser as the slide video', async () => {
     const { root, svc } = setup()
-    await svc.scaffold('Weekend Hackathon')
-    expect(existsSync(join(root, 'pitch', 'style.json'))).toBe(false)
+    await svc.scaffold('Orbit')
+    expect(existsSync(join(root, 'promo', 'style.json'))).toBe(false)
     expect((await svc.state()).choice).toMatchObject({ style: 'slides' })
-    mkdirSync(join(root, 'pitch'), { recursive: true })
-    writeFileSync(join(root, 'pitch', 'style.json'), '{ "style": "teleport" }')
+    mkdirSync(join(root, 'promo'), { recursive: true })
+    writeFileSync(join(root, 'promo', 'style.json'), '{ "style": "teleport" }')
     expect((await svc.state()).choice).toBeNull()
     svc.dispose()
   })
 
   it('scaffolds from the template without overwriting, and saves scripts', async () => {
     const { root, svc } = setup()
-    let s = await svc.scaffold('Weekend Hackathon')
+    let s = await svc.scaffold('Orbit')
     expect(s).toMatchObject({ exists: true, installed: false })
-    expect(s.script?.team).toBe('Built at Weekend Hackathon')
-    for (const f of ['package.json', 'src/Root.tsx', 'src/Pitch.tsx', 'src/timing.ts', 'public/audio/.gitkeep', '.gitignore']) expect(existsSync(join(root, 'pitch', f))).toBe(true)
-    writeFileSync(join(root, 'pitch', 'src', 'Pitch.tsx'), '// customised')
-    writeFileSync(join(root, 'pitch', 'public', 'demo.mp4'), 'x')
-    s = await svc.scaffold('Weekend Hackathon')
-    expect(readFileSync(join(root, 'pitch', 'src', 'Pitch.tsx'), 'utf8')).toBe('// customised')
+    // A starter script for the project: its name on the title and end cards, 1:30 long.
+    expect(s.script).toMatchObject({ title: 'Orbit', targetSeconds: 90 })
+    expect(s.script?.scenes.at(-1)).toMatchObject({ visual: 'end', title: 'Orbit' })
+    for (const f of ['package.json', 'src/Root.tsx', 'src/Pitch.tsx', 'src/timing.ts', 'public/audio/.gitkeep', '.gitignore']) expect(existsSync(join(root, 'promo', f))).toBe(true)
+    writeFileSync(join(root, 'promo', 'src', 'Pitch.tsx'), '// customised')
+    writeFileSync(join(root, 'promo', 'public', 'demo.mp4'), 'x')
+    s = await svc.scaffold('Orbit')
+    expect(readFileSync(join(root, 'promo', 'src', 'Pitch.tsx'), 'utf8')).toBe('// customised')
     expect(s.media).toEqual(['demo.mp4'])
     s = await svc.saveScript({ ...s.script!, title: 'Gravity' })
-    expect(JSON.parse(readFileSync(join(root, 'pitch', 'script.json'), 'utf8')).title).toBe('Gravity')
-    writeFileSync(join(root, 'pitch', 'script.json'), '{ broken')
+    expect(JSON.parse(readFileSync(join(root, 'promo', 'script.json'), 'utf8')).title).toBe('Gravity')
+    writeFileSync(join(root, 'promo', 'script.json'), '{ broken')
     expect((await svc.state()).scriptError).toMatch(/isn't valid JSON/)
     svc.dispose()
   })
@@ -208,7 +210,7 @@ describe('PitchService', () => {
     expect(calls[0]).toContain('eleven_multilingual_v2')
     const first = s.script!.scenes[0]
     expect(first).toMatchObject({ audioSeconds: 2, audioHash: narrationHash(first.narration, 'voice1') })
-    expect(existsSync(join(root, 'pitch', 'public', first.audio!))).toBe(true)
+    expect(existsSync(join(root, 'promo', 'public', first.audio!))).toBe(true)
 
     // Nothing changed → no new request.
     await svc.narrate()
@@ -220,7 +222,7 @@ describe('PitchService', () => {
     await svc.narrate()
     s = await settle(svc)
     expect(calls).toHaveLength(2)
-    expect(existsSync(join(root, 'pitch', 'public', first.audio!))).toBe(false)
+    expect(existsSync(join(root, 'promo', 'public', first.audio!))).toBe(false)
     expect(audioState(s.script!.scenes[0], 'voice1')).toBe('fresh')
     svc.dispose()
   })
@@ -244,7 +246,7 @@ describe('PitchService', () => {
     let root = ''
     const fakeFetch = (async () => {
       // Someone edits script.json mid-request: renames scene 1, rewrites scene 2's narration.
-      const file = join(root, 'pitch', 'script.json')
+      const file = join(root, 'promo', 'script.json')
       const cur = JSON.parse(readFileSync(file, 'utf8'))
       cur.scenes[0].title = 'Renamed meanwhile'
       cur.scenes[1].narration = 'Rewritten meanwhile.'
@@ -287,7 +289,7 @@ describe('PitchService', () => {
     const t = setup((async () => (calls++, new Response(new Uint8Array(16000), { status: 200 }))) as unknown as typeof fetch)
     await t.svc.scaffold('J')
     // E.g. "Write script with Claude" leaving out the ids.
-    writeFileSync(join(t.root, 'pitch', 'script.json'), JSON.stringify({ title: 'X', voiceId: 'v', scenes: [{ title: 'A', narration: 'Hello there.' }, { title: 'B', narration: 'Second.' }] }))
+    writeFileSync(join(t.root, 'promo', 'script.json'), JSON.stringify({ title: 'X', voiceId: 'v', scenes: [{ title: 'A', narration: 'Hello there.' }, { title: 'B', narration: 'Second.' }] }))
     expect((await t.svc.state()).script!.scenes.map((s) => s.id)).toEqual((await t.svc.state()).script!.scenes.map((s) => s.id))
     await t.svc.narrate()
     const s = (await settle(t.svc)).script!
@@ -345,7 +347,7 @@ describe('PitchService', () => {
     // Let the new watcher start delivering events (macOS needs a moment; see eventService.test.ts).
     await new Promise((r) => setTimeout(r, 500))
     const before = t.pushed.length
-    writeFileSync(join(t.root, 'pitch', 'script.json'), JSON.stringify({ title: 'Edited by hand', scenes: [] }))
+    writeFileSync(join(t.root, 'promo', 'script.json'), JSON.stringify({ title: 'Edited by hand', scenes: [] }))
     await expect.poll(() => t.pushed.length, { timeout: 5000 }).toBeGreaterThan(before)
     t.svc.dispose()
   })
@@ -363,7 +365,7 @@ describe('PitchService', () => {
       await Promise.all([t.svc.saveScript({ ...draft, title: last }), new Promise((r) => setTimeout(r, 1))])
     }
     await settle(t.svc)
-    const saved = JSON.parse(readFileSync(join(t.root, 'pitch', 'script.json'), 'utf8'))
+    const saved = JSON.parse(readFileSync(join(t.root, 'promo', 'script.json'), 'utf8'))
     expect(saved.title).toBe(last || draft.title)
     expect(parseScript(saved)!.scenes.filter((x) => x.narration.trim()).every((x) => audioState(x, 'v') === 'fresh')).toBe(true)
     t.svc.dispose()
@@ -389,16 +391,17 @@ describe('pitch video choices', () => {
   it('briefs Claude for each kind of video', () => {
     expect(cartoonPrompt('vertical')).toMatch(/cartoon-3d-short skill.*vertical 9:16/s)
     expect(cartoonPrompt('horizontal')).toMatch(/horizontal 16:9/)
-    expect(cartoonPrompt('vertical')).toMatch(/pitch\/out\/cartoon-short\.mp4/)
+    expect(cartoonPrompt('vertical')).toMatch(/promo\/out\/cartoon-short\.mp4/)
     expect(cartoonPrompt('vertical')).toMatch(/Never upload, publish or send the skill's reference frames/)
-    expect(customVideoPrompt('A 30 s teaser', 120)).toMatch(/A 30 s teaser[\s\S]*pitch\/out\//)
-    expect(threeDVideoPrompt(90)).toMatch(/video\/kit3d\/[\s\S]*pitch\/public\/3d\//)
-    // The deck follows the event's own rules, keeps its source editable and lands where the tab finds it.
-    expect(deckPrompt()).toMatch(/challenge\/brief\//)
+    expect(customVideoPrompt('A 30 s teaser', 90)).toMatch(/A 30 s teaser[\s\S]*promo\/out\//)
+    expect(threeDVideoPrompt(90)).toMatch(/video\/kit3d\/[\s\S]*promo\/public\/3d\//)
+    // The deck keeps its source editable and lands where the tab finds it.
     expect(deckPrompt()).toMatch(/Only claim what really works/)
-    expect(deckPrompt()).toMatch(/pitch\/deck\/[\s\S]*save the PDF as pitch\/deck\.pdf/)
-    // The event is generic: no theme from a past event.
-    expect(writeScriptPrompt(120)).not.toMatch(/Renaissance/)
-    expect(writeScriptPrompt(120)).toMatch(/challenge\/event\.yaml/)
+    expect(deckPrompt()).toMatch(/promo\/deck\/[\s\S]*save the PDF as promo\/deck\.pdf/)
+    // Every brief reads the project's own story: the README, the PRD and plan, and the app.
+    for (const p of [writeScriptPrompt(90), deckPrompt(), cartoonPrompt('vertical'), customVideoPrompt('x', 90), threeDVideoPrompt(90)]) {
+      expect(p).toMatch(/README, the PRD and plan in \.claude\/prds\/ and \.claude\/plans\//)
+      expect(p).not.toMatch(/hackathon|hackforge|challenge\/|judge|event/i)
+    }
   })
 })

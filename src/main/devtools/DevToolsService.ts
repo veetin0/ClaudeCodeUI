@@ -33,13 +33,14 @@ export interface DevToolsDeps {
   context7Key(): string | undefined
   /** Partner servers: for a session's folder, or all of them (with missing keys) when no folder is given. */
   partnerServers(cwd?: string): { id: string; name: string; server: ResolvedPartnerMcp | { missing: string[] } }[]
-  eventProject(): string | undefined
+  /** The current project (service servers load there). */
+  projectDir(): string | undefined
   push(state: DevToolsState): void
   /** Runs a bundled Node script (Electron as Node). Injected for tests. */
   node?: { command: string; env: Record<string, string> }
   findBrowser?(): { path: string; via: string } | null
   runInstall?(script: string, env: Record<string, string>): Promise<{ code: number; out: string }>
-  /** Where a bundled module's file is (harness-crew installs them next to itself, not under appPath). */
+  /** Where a bundled module's file is (injected for tests). */
   resolveModule?(rel: string): string
   /** Who downloaded Chromium, for the browser's label (default Harness). */
   appName?: string
@@ -160,7 +161,7 @@ function defaultInstall(command: string, baseEnv: Record<string, string>) {
 /**
  * The dev tools sessions get: Playwright's browser tools (bundled), Context7's library docs (hosted),
  * partners' own MCP servers and REA's reverse engineering (installed on demand). Bundled servers run
- * with Electron as Node, so nothing is downloaded at the event; only the browser itself is, once,
+ * with Electron as Node, so nothing is downloaded mid-session; only the browser itself is, once,
  * when there's no Chrome or Edge. REA runs on the user's own Node: Electron's is older than it needs.
  */
 export class DevToolsService {
@@ -353,7 +354,7 @@ export class DevToolsService {
         : [],
       rea: this.rea(undefined, fresh),
       blender: this.blender(undefined, fresh),
-      eventProject: this.deps.eventProject(),
+      project: this.deps.projectDir(),
     }
   }
 

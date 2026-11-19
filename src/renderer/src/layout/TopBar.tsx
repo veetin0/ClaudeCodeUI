@@ -1,6 +1,6 @@
-import { Bot, Handshake, MessageSquare, MonitorPlay, MousePointerClick, PanelLeft, PanelRight, Play, SquareTerminal } from 'lucide-react'
+import { Bot, MessageSquare, MonitorPlay, MousePointerClick, PanelLeft, PanelRight, Play, SquareTerminal } from 'lucide-react'
 import { useElapsed } from '@/features/meters/useElapsed'
-import { HackathonBar } from '@/features/hackathon/HackathonView'
+import { ProjectBar } from '@/features/project/ProjectView'
 import { basename, cn, formatDuration } from '@/lib/format'
 import { useApp } from '@/stores/app'
 import { useDisplaySession } from '@/stores/replay'
@@ -23,7 +23,7 @@ export function TopBar() {
           <PanelLeft className="size-4" />
         </button>
       )}
-      {place === 'hackathon' ? <HackathonBar /> : place === 'session' && session ? <SessionBar session={session} /> : <div className="text-[13px] font-semibold">Home</div>}
+      {place === 'project' ? <ProjectBar /> : place === 'session' && session ? <SessionBar session={session} /> : <div className="text-[13px] font-semibold">Home</div>}
     </header>
   )
 }
@@ -99,7 +99,6 @@ function MoreMenu({ session }: { session: SessionState }) {
         { label: 'New Claude terminal', icon: SquareTerminal, keys: shortcut('⇧⌘T'), onSelect: () => runCommand({ id: 'new-claude-terminal' }) },
         'separator',
         { label: replaying ? 'Stop replay' : 'Replay this session', icon: Play, keys: shortcut('⇧⌘R'), onSelect: () => runCommand({ id: 'replay' }) },
-        session.live && !session.observed && { label: 'Hand off to the team', icon: Handshake, onSelect: () => runCommand({ id: 'handoff' }) },
         { label: 'Click to change', icon: MousePointerClick, hint: 'Pick an element in the preview', onSelect: () => runCommand({ id: 'pick-element' }) },
         'separator',
         { label: 'Focus mode', icon: PanelLeft, keys: shortcut('⌘\\'), onSelect: () => runCommand({ id: 'focus-mode' }) },

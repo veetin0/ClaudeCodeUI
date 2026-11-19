@@ -11,7 +11,7 @@ export interface SegmentedOption<T extends string> {
   title?: string
 }
 
-/** The one tab style: session views, Hackathon tabs, Agents modes, Settings tabs. */
+/** The one tab style: session views, Project tabs, Agents modes, Settings tabs. */
 export function Segmented<T extends string>({
   value,
   onChange,

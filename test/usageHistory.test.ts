@@ -98,7 +98,7 @@ describe('click to change', () => {
   })
 
   it('lets the Usage saver judge the request, not the element details around it', () => {
-    const opts = { firstTurn: true, permissionMode: 'default' as const, hackforgeLean: true }
+    const opts = { firstTurn: true, permissionMode: 'default' as const }
     expect(classifyPrompt(changePrompt(el, 'make it green and a bit bigger'), opts)).toMatchObject({ kind: 'build', reason: 'a change to one element on the page' })
     expect(classifyPrompt(changePrompt(el, 'redesign this whole form'), opts).kind).toBe('think')
   })

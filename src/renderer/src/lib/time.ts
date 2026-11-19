@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react'
 const DAY = 86_400_000
 
 function startOfDay(t: number): number {
@@ -32,4 +33,14 @@ export function relativeTime(t: number, now = Date.now()): string {
 export function ipcErrorMessage(err: unknown): string {
   const msg = err instanceof Error ? err.message : String(err)
   return msg.replace(/^Error invoking remote method '[^']+': (Error: )?/, '')
+}
+
+/** The current time, updated every `ms`. */
+export function useNow(ms = 1000): number {
+  const [now, setNow] = useState(Date.now)
+  useEffect(() => {
+    const t = setInterval(() => setNow(Date.now()), ms)
+    return () => clearInterval(t)
+  }, [ms])
+  return now
 }

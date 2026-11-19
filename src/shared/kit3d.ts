@@ -1,12 +1,12 @@
 /**
- * 3D clips in the Pitch studio: HackForge's 3D pitch kit (skills/video/kit3d) copied into the event
- * project's video/kit3d/. Claude writes each clip into its story.py; Harness sets the kit up, renders
- * stills and the clip with progress, and puts the MP4 into pitch/public/3d/ as a screen scene.
+ * 3D clips in the Promo studio: Harness's 3D kit (resources/kit3d) copied into the project's
+ * video/kit3d/. Claude writes each clip into its story.py; Harness sets the kit up, renders stills
+ * and the clip with progress, and puts the MP4 into promo/public/3d/ as a screen scene.
  */
 
-/** Where the kit lives in the event project (the same place /hackforge:video uses). */
+/** Where the kit lives in the project. */
 export const KIT3D_DIR = 'video/kit3d'
-/** Where finished clips go in the pitch (pitch/public/<this>/<clip>.mp4). */
+/** Where finished clips go in the promo video (promo/public/<this>/<clip>.mp4). */
 export const KIT3D_PITCH_DIR = '3d'
 
 export const KIT3D_TYPES = [
@@ -20,7 +20,7 @@ export const KIT3D_TYPES = [
 ] as const
 export type Kit3dType = (typeof KIT3D_TYPES)[number]['id']
 
-/** Draft: quick to check the pacing. Final: what goes in the pitch. */
+/** Draft: quick to check the pacing. Final: what goes in the video. */
 export const KIT3D_QUALITY = {
   draft: { w: 960, h: 540, sub: 2, label: 'Draft (540p)' },
   final: { w: 1920, h: 1080, sub: 5, label: 'Final (1080p)' },
@@ -49,7 +49,7 @@ export interface Kit3dClip {
   /** Absolute paths of the latest stills. */
   stills: string[]
   video?: { path: string; quality: Kit3dQuality; seconds?: number; mtime: number }
-  /** Its copy in pitch/public/3d/: none, the same as the latest render, or older. */
+  /** Its copy in promo/public/3d/: none, the same as the latest render, or older. */
   pitch: 'none' | 'current' | 'stale'
 }
 
@@ -66,7 +66,7 @@ export interface Kit3dJob {
 }
 
 export interface Kit3dState {
-  /** Absolute path of video/kit3d (when an event project is linked). */
+  /** Absolute path of video/kit3d (when there is a current project). */
   dir?: string
   exists: boolean
   /** Node packages and the Python environment are installed. */
@@ -83,33 +83,33 @@ const TYPE_GUIDE: Record<Kit3dType, string> = {
   phone:
     "a `device` clip on a phone: `f.device('phone', open=(0.2, 1.0))`, `f.app(navigator='cursor', mode='device')`; capture the app at a phone viewport (`export const viewport = [390, 844]` in ui_states.mjs).",
   product:
-    'a `product` clip: `f.product(model=..., explode=(t0, t1), callouts=[(t, part, text), ...])` with a `product_orbit` shot. Use a .glb from the project (assets/ or challenge/assets/) with named top-level parts if there is one; otherwise the demo model as a stand-in, and say so.',
-  cards: 'a `cards` clip: `f.card_beat([...], t0, every=..., out=...)` with the real problem in 3-5 short card texts (from the pitch script or BRIEF.md), and a `studio_mid` shot.',
+    'a `product` clip: `f.product(model=..., explode=(t0, t1), callouts=[(t, part, text), ...])` with a `product_orbit` shot. Use a .glb from the project (e.g. assets/) with named top-level parts if there is one; otherwise the demo model as a stand-in, and say so.',
+  cards: 'a `cards` clip: `f.card_beat([...], t0, every=..., out=...)` with the real problem in 3-5 short card texts (from the promo script or the PRD in .claude/prds/), and a `studio_mid` shot.',
   logo: "a `logo` clip: `f.logo(at=0.2)`, with LOGO's colours, wordmark and tagline from the brand (and `icon` set to the app's icon if there is one).",
   film: 'the character film: `f.app(navigator=\'hero\')`, `f.intro()`, `f.enter(...)`, `f.go(...)` beats, `f.outro(...)`; the character in scene/character.js, its LINES and PROBLEM in story.py (see the mascot skill if there is no character yet).',
 }
 
 /** The prompt Harness sends Claude to write a new clip into the kit's story.py. */
 export function kit3dClipPrompt(type: Kit3dType, description: string): string {
-  return `Add a new 3D clip to ${KIT3D_DIR}/story.py (HackForge's 3D pitch kit; read its README.md and film.py's docstrings first).
+  return `Add a new 3D clip to ${KIT3D_DIR}/story.py (Harness's 3D kit; read its README.md and film.py's docstrings first).
 
-What it should show: ${description.trim() || 'pick what fits the pitch best'}
+What it should show: ${description.trim() || 'pick what fits the promo video best'}
 Kind: ${TYPE_GUIDE[type]}
 
 How:
 - Write it as a new function in story.py with a one-line docstring saying what it shows, and add it to CLIPS. Give it a short snake_case name. Don't change the other clips.
-- Brand: set APP, LOGO (tile colours, wordmark, tagline, the app's icon as \`icon\`) and SET from the project (DESIGN.md, pitch/script.json's accent, the app's own colours) if they still hold the kit's example values.
+- Brand: set APP, LOGO (tile colours, wordmark, tagline, the app's icon as \`icon\`) and SET from the project (DESIGN.md, promo/script.json's accent, the app's own colours) if they still hold the kit's example values.
 - If it shows the app: point ui_states.mjs at the running app (start it if needed), list the screens and targets the clip uses, and run \`node capture_ui.mjs\` in ${KIT3D_DIR}. Check build/ui/ looks right.
-- Keep it short: 4-10 s for a clip that goes into the narrated pitch, ending with \`f.end(seconds, fade=0)\`.
+- Keep it short: 4-10 s for a clip that goes into the narrated video, ending with \`f.end(seconds, fade=0)\`.
 - Check it with \`python3 story.py <name>\` in ${KIT3D_DIR} (use .venv/bin/python3 if it exists) and fix what it reports.
-- Don't render frames: Harness renders it (Hackathon › Pitch → 3D clips) once you're done. Tell me the clip's name.`
+- Don't render frames: Harness renders it (Project › Promo → 3D clips) once you're done. Tell me the clip's name.`
 }
 
 /** The prompt for changing an existing clip. */
 export function kit3dChangePrompt(clip: string, change: string): string {
-  return `In ${KIT3D_DIR}/story.py (HackForge's 3D pitch kit), change the clip \`${clip}\`: ${change.trim()}
+  return `In ${KIT3D_DIR}/story.py (Harness's 3D kit), change the clip \`${clip}\`: ${change.trim()}
 
-Keep its name. Check it with \`python3 story.py ${clip}\` in ${KIT3D_DIR} (use .venv/bin/python3 if it exists) and fix what it reports. If it needs new app screens, update ui_states.mjs and run \`node capture_ui.mjs\`. Don't render frames: Harness renders it from Hackathon › Pitch.`
+Keep its name. Check it with \`python3 story.py ${clip}\` in ${KIT3D_DIR} (use .venv/bin/python3 if it exists) and fix what it reports. If it needs new app screens, update ui_states.mjs and run \`node capture_ui.mjs\`. Don't render frames: Harness renders it from Project › Promo.`
 }
 
 /** "product_hero" → "Product hero". */

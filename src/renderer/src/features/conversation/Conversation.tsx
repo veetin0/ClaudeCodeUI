@@ -10,9 +10,8 @@ import { ActionDock } from './ActionForm'
 import { MessageList } from './MessageList'
 import { PermissionCard } from './PermissionCard'
 import { QuestionCard } from './QuestionCard'
-import { CheckpointBar } from '../hackforge/CheckpointBar'
 import { PromptBox } from './PromptBox'
-import { LimitBanner, QueuedMessages } from '../team/LimitBanner'
+import { LimitBanner, QueuedMessages } from '../usage/LimitBanner'
 
 // Monaco is large; load it only when a diff is first opened.
 const DiffView = lazy(() => import('../files/DiffView'))
@@ -55,10 +54,9 @@ export function Conversation({ session }: { session: SessionState }) {
           </div>
         )
       )}
-      {session.live && !session.observed && <CheckpointBar session={session} />}
       {!(session.observed && session.live) && (
         <>
-          <LimitBanner session={session} />
+          <LimitBanner />
           <QueuedMessages session={session} />
           <ActionDock session={session} />
         </>

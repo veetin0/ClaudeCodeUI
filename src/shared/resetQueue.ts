@@ -1,4 +1,4 @@
-import type { PlanUsage } from './team'
+import type { PlanUsage } from './planUsage'
 
 /** A message waiting for the usage window to reset. */
 export interface QueuedPrompt {

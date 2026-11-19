@@ -1,10 +1,8 @@
-import { BarChart3, Leaf, Table2, Users } from 'lucide-react'
+import { BarChart3, Leaf, Table2 } from 'lucide-react'
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
-import { isOnline, type TeamState } from '@shared/team'
 import { FAMILIES, FAMILY_LABEL, sumFamilies, type DayUsage, type ModelFamily, type UsageHistory } from '@shared/usageHistory'
 import { basename, formatCost, formatTokens } from '@/lib/format'
 import { useApp } from '@/stores/app'
-import { useTeamState } from '@/stores/team'
 import { Segmented } from '@/ui/Segmented'
 import { Sheet } from '@/ui/Sheet'
 
@@ -36,7 +34,7 @@ const dayLabel = (day: string, short = false) => {
   return d.toLocaleDateString([], short ? { day: 'numeric' } : { weekday: 'short', day: 'numeric', month: 'short' })
 }
 
-/** Usage history: tokens per day by model, plan usage over time, the saver's work, the team today. */
+/** Usage history: tokens per day by model, plan usage over time, the saver's work, the top sessions. */
 /** Usage history as a sheet over whatever you're doing (⌘5). */
 export function UsageSheet() {
   const [days, setDays] = useState(14)
@@ -52,7 +50,6 @@ export function UsageSheet() {
       clearInterval(t)
     }
   }, [days])
-  const team = useTeamState()
   const close = () => useApp.getState().setUsageOpen(false)
   const today = data?.days.at(-1)
   return (
@@ -116,59 +113,11 @@ export function UsageSheet() {
               <SaverCard s={data.saver} />
             </div>
 
-            <div className="grid gap-4 lg:grid-cols-2">
-              <TopSessions list={data.topSessions} />
-              {team?.config && <TeamToday team={team} />}
-            </div>
+            <TopSessions list={data.topSessions} />
           </>
         )}
       </div>
     </Sheet>
-  )
-}
-
-function TeamToday({ team }: { team: TeamState }) {
-  const now = Date.now()
-  const members = (team?.members ?? []).filter((m) => m.today || isOnline(m, now))
-  const max = Math.max(1, ...members.map((m) => m.today?.tokens ?? 0))
-  return (
-    <section className="rounded-2xl border border-line p-4">
-      <h2 className="mb-2 flex items-center gap-1.5 text-[13px] font-semibold">
-        <Users className="size-3.5" /> Team today
-      </h2>
-      <div className="space-y-2">
-        {members.map((m) => {
-          const t = m.today
-          const five = m.usage.fiveHour && (!m.usage.fiveHour.resetsAt || m.usage.fiveHour.resetsAt > now) ? Math.round(m.usage.fiveHour.pct) : undefined
-          return (
-            <div key={m.id} className="text-[12px]">
-              <div className="flex items-center gap-2">
-                <span className="font-medium">{m.name}</span>
-                <span className="text-muted">{t ? `${formatTokens(t.tokens)} tokens` : 'no reading yet'}</span>
-                <span className="ml-auto num text-muted">{m.usage.source === 'api-key' ? 'API key' : five !== undefined ? `5 h ${five}%` : ''}</span>
-              </div>
-              {t && t.tokens > 0 && (
-                <div className="mt-1 flex h-2 gap-[2px] overflow-hidden" style={{ width: `${Math.max(4, (t.tokens / max) * 100)}%` }}>
-                  {(['Sonnet', 'Opus', 'Haiku', 'Other'] as const).map((k, i) =>
-                    t.byModel[k] ? (
-                      <div
-                        key={k}
-                        title={`${k}: ${formatTokens(t.byModel[k])}`}
-                        className="h-full first:rounded-l last:rounded-r"
-                        style={{
-                          flex: t.byModel[k],
-                          background: COLOR[FAMILIES[i]],
-                        }}
-                      />
-                    ) : null,
-                  )}
-                </div>
-              )}
-            </div>
-          )
-        })}
-      </div>
-    </section>
   )
 }
 

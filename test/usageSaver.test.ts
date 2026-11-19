@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { classifyPrompt, compactThreshold, generatedKind, routeTurn, routeText, skipReason, type RouteInput } from '@shared/usageSaver'
 
-const later = { firstTurn: false, permissionMode: 'default' as const, hackforgeLean: true }
+const later = { firstTurn: false, permissionMode: 'default' as const }
 const first = { ...later, firstTurn: true }
 const kind = (p: string, o = later) => classifyPrompt(p, o).kind
 
@@ -59,17 +59,17 @@ describe('Usage saver: what a message asks for', () => {
     expect(kind('Use the same colors as the landing page for the cards and the footer')).toBe('keep')
   })
 
-  it('handles plan mode, commands and HackForge', () => {
+  it('handles plan mode, commands and ECC', () => {
     expect(classifyPrompt('add a button', { ...later, permissionMode: 'plan' }).kind).toBe('think')
     expect(classifyPrompt('/compact', later)).toMatchObject({ passthrough: true })
-    expect(classifyPrompt('/hackforge:run --auto', later).kind).toBe('build')
-    expect(classifyPrompt('/hackforge:run --auto', { ...later, hackforgeLean: false }).kind).toBe('think')
-    expect(classifyPrompt('/hackforge:status', { ...later, hackforgeLean: false }).kind).toBe('build')
+    expect(classifyPrompt('/ecc:orch-build-mvp .claude/prds/app.prd.md', later)).toMatchObject({ kind: 'think', reason: 'ECC’s orch-build-mvp' })
+    expect(classifyPrompt('/ecc:gan-build "faster" --max-iterations 5', later).kind).toBe('think')
+    expect(classifyPrompt('/ecc:save-session', later)).toMatchObject({ kind: 'build', reason: 'ECC bookkeeping' })
   })
 })
 
 describe('Usage saver: the model for the next turn', () => {
-  const base: RouteInput = { prompt: '', current: 'sonnet', firstTurn: false, permissionMode: 'default', contextTokens: 20_000, contextWindow: 200_000, opusAvailable: true, hackforgeLean: true }
+  const base: RouteInput = { prompt: '', current: 'sonnet', firstTurn: false, permissionMode: 'default', contextTokens: 20_000, contextWindow: 200_000, opusAvailable: true }
 
   it('moves up to Opus at any size, but down to Sonnet only while the conversation is short', () => {
     expect(routeTurn({ ...base, prompt: 'debug the crash', contextTokens: 180_000 })).toMatchObject({ model: 'opus' })

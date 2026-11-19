@@ -110,7 +110,7 @@ describe('Blender in sessions', () => {
       settings: () => ({ ...DEFAULT_DEV_TOOLS, browser: false, docs: false, partnerServers: false, blender: true, ...settings }),
       context7Key: () => undefined,
       partnerServers: () => [],
-      eventProject: () => undefined,
+      projectDir: () => undefined,
       push: () => {},
       claudeConfigPath: configPath,
       blender: b.svc,

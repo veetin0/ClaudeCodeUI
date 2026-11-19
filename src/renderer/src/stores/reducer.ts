@@ -37,7 +37,7 @@ export interface Subagent {
 }
 
 export type Item =
-  | { kind: 'user'; id: string; text: string; ts: number; images?: ImageAttachment[]; via?: 'crew' | 'run' }
+  | { kind: 'user'; id: string; text: string; ts: number; images?: ImageAttachment[]; via?: 'harness' }
   | { kind: 'text'; id: string; text: string }
   | { kind: 'thinking'; id: string; text: string }
   | { kind: 'tool'; id: string }
@@ -46,7 +46,7 @@ export type Item =
   | { kind: 'error'; id: string; message: string }
   /** The Usage saver switched models, compacted, skipped a file… `saving` (green), `power` (Opus) or `info`. */
   | { kind: 'saver'; id: string; tone: 'saving' | 'power' | 'info'; text: string }
-  | { kind: 'notice'; id: string; tone: 'info' | 'warn'; text: string; source: 'team' | 'harness' }
+  | { kind: 'notice'; id: string; tone: 'info' | 'warn'; text: string; source: 'harness' }
 
 /** What the Usage saver is doing in this session (from its `saver` events). */
 export interface SaverView {

@@ -42,3 +42,16 @@ export function parseEccSettings(raw: unknown): EccSettings {
     hookProfile: ECC_HOOK_PROFILES.includes(o.hookProfile as EccHookProfile) ? (o.hookProfile as EccHookProfile) : DEFAULT_ECC.hookProfile,
   }
 }
+
+const ACRONYMS = new Set(['gan', 'tdd', 'ui', 'ux', 'prd', 'mcp', 'api', 'e2e', 'pr', 'db', 'sql', 'cpp', 'ios'])
+
+/** A plugin's subagent (`ecc:gan-evaluator`) as a role name ("GAN Evaluator"); undefined for built-in agents. */
+export function pluginAgentRole(subagentType: string | undefined): string | undefined {
+  const m = /^[\w-]+:([\w-]+)$/.exec(subagentType ?? '')
+  if (!m) return undefined
+  return m[1]
+    .split('-')
+    .filter(Boolean)
+    .map((w) => (ACRONYMS.has(w) ? w.toUpperCase() : w[0].toUpperCase() + w.slice(1)))
+    .join(' ')
+}

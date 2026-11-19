@@ -4,23 +4,18 @@ import { fillTemplate, type QuickAction } from '@/lib/actions'
 import { findAction } from '@/lib/actionMenu'
 import { cn } from '@/lib/format'
 import { useApp } from '@/stores/app'
-import { useHackforge } from '@/stores/hackforge'
 import type { SessionState } from '@/stores/reducer'
 import { shortcut } from '@/lib/keys'
-import { NextStep } from './NextStep'
 
-/**
- * Above the prompt box: the open action's form (prefilled parameters and a live preview of the
- * exact prompt), or else the one suggested next step.
- */
+/** Above the prompt box: the open action's form (prefilled parameters and a live preview of the exact prompt). */
 export function ActionDock({ session }: { session: SessionState }) {
   const formId = useApp((s) => s.actionForm)
   const setForm = useApp((s) => s.setActionForm)
-  const hf = useHackforge(session.cwd)
-  const action = formId ? findAction(formId, hf) : null
+  const action = formId ? findAction(formId) : null
+  if (!action) return null
   return (
     <div className="mx-auto w-full max-w-3xl px-6">
-      {action ? <ActionForm key={action.id} action={action} cwd={session.cwd} onClose={() => setForm(null)} /> : <NextStep session={session} />}
+      <ActionForm key={action.id} action={action} cwd={session.cwd} onClose={() => setForm(null)} />
     </div>
   )
 }

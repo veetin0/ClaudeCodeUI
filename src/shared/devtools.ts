@@ -1,13 +1,13 @@
 /**
  * Developer tools Harness gives sessions (Settings › Tools):
  * - Browser (Playwright MCP, bundled with Harness): Claude opens the running app, clicks through the
- *   demo path, reads console errors and saves screenshots (HackForge's verifier keeps them as evidence).
+ *   main flow, reads console errors and saves screenshots (ECC's evaluator scores builds with it).
  * - Library docs (Context7, hosted): current, version-specific docs for any library or SDK, so Claude
- *   looks up an SDK it hasn't seen (a partner's, at a hackathon) instead of guessing its API.
- * - Partner servers: a partner's own MCP server, added to sessions in the event project once its key
- *   is set under Hackathon › Challenges → Partner APIs (or its MCP URL pasted there at the event).
+ *   looks up an SDK it hasn't seen instead of guessing its API.
+ * - Service servers: a service's own MCP server, added to sessions in the current project once its
+ *   key is set under Project › Keys (or its MCP URL pasted there).
  * - Reverse engineering (REA, installed on demand, off by default): Claude works out how existing
- *   software works (a partner's site or HAR capture → its API, an SDK shipped as a bundle, DLL or
+ *   software works (a service's site or HAR capture → its API, an SDK shipped as a bundle, DLL or
  *   APK, a binary, firmware, a packet capture) and cites the evidence. It runs on the user's own
  *   Node: Electron's is older than REA needs.
  * Claude Code defers MCP tool definitions until a tool is needed, so tools you don't use cost little context.
@@ -157,8 +157,8 @@ export interface DevToolsState {
   partners: PartnerServerInfo[]
   rea: ReaInfo
   blender: BlenderInfo
-  /** Partner servers only load in the event project (where the keys are). */
-  eventProject?: string
+  /** Service servers only load in the current project (where the keys are). */
+  project?: string
 }
 
 /** Appended to the system prompt: when to reach for each tool. */
@@ -167,27 +167,27 @@ export function devToolsGuide(on: { browser: boolean; docs: boolean; partners: {
   const lines = ['# Dev tools (Harness)']
   if (on.browser) {
     lines.push(
-      `- Browser (mcp__${BROWSER_SERVER}__*): check UI work in a real browser. Open the running app (the dev server's localhost URL or the Preview's URL), click through the main flow, read console errors, and take screenshots. Give screenshots meant as evidence or for the pitch an explicit filename under .hackforge/evidence/. Close the browser when you're done.`,
+      `- Browser (mcp__${BROWSER_SERVER}__*): check UI work in a real browser. Open the running app (the dev server's localhost URL or the Preview's URL), click through the main flow, read console errors, and take screenshots. Give screenshots you keep (for the README, the promo video or a review) an explicit filename under docs/screenshots/. Close the browser when you're done.`,
     )
   }
   if (on.docs) {
     lines.push(
-      `- Library docs (mcp__${DOCS_SERVER}__*): before writing code against a library or SDK you haven't used in this session, especially a partner's SDK or anything released recently, look up its current docs with Context7 instead of guessing the API.`,
+      `- Library docs (mcp__${DOCS_SERVER}__*): before writing code against a library or SDK you haven't used in this session, especially a service's SDK or anything released recently, look up its current docs with Context7 instead of guessing the API.`,
     )
   }
   if (on.partners.length) {
     lines.push(
-      `- Partner servers (${on.partners.map((p) => `mcp__${p.id}__* for ${p.name}`).join(', ')}): the partners' own tools. Use them for that partner's work; reading and searching is fine, but ask before anything that changes the partner account (deploys, deletes, DNS, billing).`,
+      `- Service servers (${on.partners.map((p) => `mcp__${p.id}__* for ${p.name}`).join(', ')}): the services' own tools. Use them for that service's work; reading and searching is fine, but ask before anything that changes the account (deploys, deletes, DNS, billing).`,
     )
   }
   if (on.rea) {
     lines.push(
-      `- Reverse engineering (mcp__${REA_SERVER}__*, REA): to learn how existing software works, with evidence. A partner's website or a saved HAR capture of it gives its real API (endpoints, payloads); an SDK shipped only as a bundle, DLL or APK shows how it's called; a reference app shows how a feature is built; a binary, firmware image or packet capture can be analysed. Use it only on software the project's rules and the owner allow (challenge files, partner-provided apps and sites, your own builds), never on files in private/. Start with static analysis; running the target asks first. Quote REA's evidence and its stated limits in what you write down.`,
+      `- Reverse engineering (mcp__${REA_SERVER}__*, REA): to learn how existing software works, with evidence. A service's website or a saved HAR capture of it gives its real API (endpoints, payloads); an SDK shipped only as a bundle, DLL or APK shows how it's called; a reference app shows how a feature is built; a binary, firmware image or packet capture can be analysed. Use it only on software the owner allows you to analyse (your own builds, apps and sites you have permission for), never on files in private/. Start with static analysis; running the target asks first. Quote REA's evidence and its stated limits in what you write down.`,
     )
   }
   if (on.blender) {
     lines.push(
-      `- Blender (mcp__${BLENDER_SERVER}__*, MCP for Blender): build and adjust 3D objects and scenes in the user's open Blender window, for the product, the pitch or a 3D clip. If the tools say Blender isn't connected, ask the user to open it (Harness: Settings › Tools › Blender › Open Blender). Check your work with look after each change. When a model is right, export it as .glb into assets/ (named top-level parts, real scale in metres, Y-up) and keep a script that rebuilds it, as the craft playbook says. Running code in Blender asks first; asset imports and AI model generation may need the user's API keys and also ask.`,
+      `- Blender (mcp__${BLENDER_SERVER}__*, MCP for Blender): build and adjust 3D objects and scenes in the user's open Blender window, for the product, the promo video or a 3D clip. If the tools say Blender isn't connected, ask the user to open it (Harness: Settings › Tools › Blender › Open Blender). Check your work with look after each change. When a model is right, export it as .glb into assets/ (named top-level parts, real scale in metres, Y-up) and keep a script that rebuilds it, as the craft playbook says. Running code in Blender asks first; asset imports and AI model generation may need the user's API keys and also ask.`,
     )
   }
   return lines.join('\n')

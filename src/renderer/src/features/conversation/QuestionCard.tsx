@@ -12,7 +12,7 @@ interface Question {
 }
 
 /**
- * Claude's AskUserQuestion tool (HackForge uses it at checkpoints): options as buttons, plus a
+ * Claude's AskUserQuestion tool (ECC's planners use it for what truly blocks them): options as buttons, plus a
  * free-text answer. Answers go back through the permission round-trip as `updatedInput.answers`.
  */
 export function QuestionCard({ req }: { req: PermissionRequest }) {

@@ -2,7 +2,7 @@ import { useEffect } from 'react'
 import { create } from 'zustand'
 import { partnerResearchPrompt, type PartnersState } from '@shared/partners'
 import { ipcErrorMessage } from '@/lib/time'
-import { useEvent } from './event'
+import { useProject } from './project'
 
 interface PartnersStore {
   state: PartnersState | null
@@ -61,7 +61,7 @@ export const usePartners = create<PartnersStore>((set, get) => ({
   async research(kitId) {
     const kit = get().state?.kits.find((k) => k.id === kitId)
     if (!kit) return
-    await useEvent.getState().askClaude(partnerResearchPrompt(kit), `Looking into ${kit.label ? `the ${kit.label} key` : 'the new API key'}`, { fresh: true })
+    await useProject.getState().askClaude(partnerResearchPrompt(kit), `Looking into ${kit.label ? `the ${kit.label} key` : 'the new API key'}`, { fresh: true })
   },
 }))
 

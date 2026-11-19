@@ -3,10 +3,10 @@ import {
   Activity,
   BarChart3,
   Bot,
-  Handshake,
+  Clapperboard,
   Hammer,
   Home,
-  Lightbulb,
+  KeyRound,
   MousePointerClick,
   FolderOpen,
   History,
@@ -18,9 +18,7 @@ import {
   PanelRight,
   Play,
   Plus,
-  Presentation,
   Settings,
-  Users,
   Square,
   SquareTerminal,
   type LucideIcon,
@@ -28,8 +26,8 @@ import {
 import type { CommandId } from '@shared/commands'
 import { actionMenuItems } from '@/lib/actionMenu'
 import { runCommand } from '@/lib/commands'
-import { useHackforge } from '@/stores/hackforge'
-import type { AgentsMode, HackathonTab, SettingsTab } from '@/stores/app'
+import type { AgentsMode, SettingsTab } from '@/stores/app'
+import { useProject, type ProjectTab } from '@/stores/project'
 import { basename } from '@/lib/format'
 import { relativeTime } from '@/lib/time'
 import { useApp } from '@/stores/app'
@@ -41,29 +39,34 @@ const COMMANDS: { id: CommandId; label: string; icon: LucideIcon; keys?: string 
   { id: 'view-chat', label: 'Go to Chat', icon: MessageSquare, keys: shortcut('⌘1') },
   { id: 'view-agents', label: 'Go to Agents', icon: Bot, keys: shortcut('⌘2') },
   { id: 'view-preview', label: 'Go to Preview', icon: MonitorPlay, keys: shortcut('⌘3') },
-  { id: 'hackathon', label: 'Go to the Hackathon', icon: Hammer, keys: shortcut('⌘4') },
+  { id: 'project', label: 'Go to the Project', icon: Hammer, keys: shortcut('⌘4') },
   { id: 'toggle-panel', label: 'Toggle the side panel: tasks, files, agents', icon: PanelRight, keys: shortcut('⌘I') },
   { id: 'toggle-terminal', label: 'Toggle terminal', icon: SquareTerminal, keys: shortcut('⌘J') },
   { id: 'new-claude-terminal', label: 'New Claude terminal', icon: SquareTerminal, keys: shortcut('⇧⌘T') },
   { id: 'replay', label: 'Replay this session', icon: Play, keys: shortcut('⇧⌘R') },
   { id: 'interrupt', label: 'Stop the agent', icon: Square, keys: shortcut('⌘.') },
   { id: 'focus-mode', label: 'Toggle focus mode', icon: PanelLeft, keys: shortcut('⌘\\') },
-  { id: 'handoff', label: 'Hand off this session to the team', icon: Handshake },
-  { id: 'usage', label: 'Usage history: tokens per day and model, plan usage, the team', icon: BarChart3, keys: shortcut('⌘5') },
+  { id: 'usage', label: 'Usage history: tokens per day and model, plan usage', icon: BarChart3, keys: shortcut('⌘5') },
   { id: 'pick-element', label: 'Click to change: pick an element in the preview', icon: MousePointerClick },
   { id: 'settings', label: 'Settings', icon: Settings, keys: shortcut('⌘,') },
 ]
 
-/** Places inside places: Hackathon tabs, Agents modes, Settings tabs. */
+/** Places inside places: Project tabs, Agents modes, Settings tabs. */
 const PLACES: { label: string; icon: LucideIcon; go: () => void }[] = [
   ...(
     [
-      ['build', 'Hackathon › Build: team run and HackForge score', Hammer],
-      ['challenges', 'Hackathon › Challenges and API keys', Lightbulb],
-      ['pitch', 'Hackathon › Pitch: script, narration, 3D clips', Presentation],
-    ] as [HackathonTab, string, LucideIcon][]
-  ).map(([tab, label, icon]) => ({ label, icon, go: () => useApp.getState().openHackathon(tab) })),
-  { label: 'Team board: teammates, handoffs, file conflicts', icon: Users, go: () => useApp.getState().setTeamOpen(true) },
+      ['build', 'Project › Build: stages, scores, make it better', Hammer],
+      ['promo', 'Project › Promo: video, narration, 3D clips, deck', Clapperboard],
+      ['keys', 'Project › Keys: API keys for the services it uses', KeyRound],
+    ] as [ProjectTab, string, LucideIcon][]
+  ).map(([tab, label, icon]) => ({
+    label,
+    icon,
+    go: () => {
+      useProject.getState().setTab(tab)
+      useApp.getState().openProject()
+    },
+  })),
   ...(
     [
       ['cards', 'Agents › Cards', LayoutGrid],
@@ -74,9 +77,8 @@ const PLACES: { label: string; icon: LucideIcon; go: () => void }[] = [
   ...(
     [
       ['general', 'Settings › General: API key, models, notifications, phone'],
-      ['team', 'Settings › Team: team server, terminal sessions'],
-      ['tools', 'Settings › Tools: browser, docs, REA, Blender, design, HackForge'],
-      ['advanced', 'Settings › Advanced: Usage saver, reset queue'],
+      ['tools', 'Settings › Tools: ECC, browser, docs, REA, Blender, design'],
+      ['advanced', 'Settings › Advanced: Usage saver, reset queue, terminal sessions'],
     ] as [SettingsTab, string][]
   ).map(([tab, label]) => ({ label, icon: Settings, go: () => useApp.getState().setSettingsOpen(true, tab) })),
 ]
@@ -85,8 +87,7 @@ const PLACES: { label: string; icon: LucideIcon; go: () => void }[] = [
 export function CommandPalette() {
   const { paletteOpen, setPaletteOpen, order, sessions, history, settings, activeId, startSession, setActionForm, setView } = useApp()
   const active = activeId ? sessions[activeId] : null
-  const hf = useHackforge(active?.cwd)
-  const actions = active ? actionMenuItems({ hf, mode: settings?.hackforgeMode ?? 'projects', slashCommands: active.slashCommands }) : []
+  const actions = active ? actionMenuItems({ ecc: settings?.ecc.enabled ?? true, slashCommands: active.slashCommands }) : []
   const openIds = new Set(order)
   const saved = history.filter((h) => h.title && !openIds.has(h.id)).slice(0, 30)
   const projects = settings?.recentProjects ?? []
@@ -130,7 +131,7 @@ export function CommandPalette() {
 
         {actions.length > 0 && (
           <Command.Group heading="Ask Claude">
-            {actions.flatMap((g) => g.actions.map((a) => ({ ...a, label: g.heading === 'HackForge' || g.heading === 'Suggested' ? `HackForge: ${a.label}` : a.label }))).map((a) => (
+            {actions.flatMap((g) => g.actions.map((a) => ({ ...a, label: g.heading === 'Build with ECC' ? `ECC: ${a.label}` : a.label }))).map((a) => (
               <Row
                 key={a.id}
                 value={`${a.label} ${a.description}`}

@@ -39,5 +39,5 @@ export function resolveClaudeExecutable(): string | undefined {
   }
 }
 
-// Shared with harness-crew, which runs without Electron.
+// Kept free of Electron so tests can load it.
 export { agentEnv } from './agentEnv'

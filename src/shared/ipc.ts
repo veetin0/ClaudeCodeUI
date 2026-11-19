@@ -1,20 +1,14 @@
 import type { HarnessEvent, PermissionMode } from './events'
-import type { HackforgeMode, HackforgeSnapshot } from './hackforge'
-import type { EventState } from './event'
-import type { ChallengePatch } from './challenges'
 import type { PitchChoice, PitchScript, PitchState, Voice } from './pitch'
 import type { Kit3dQuality, Kit3dState } from './kit3d'
 export type { PitchState, Voice, PitchJob } from './pitch'
-import type { MemberSession, TeamConfig, TeamState } from './team'
 import type { Composition, PreviewServer, PreviewState, ProjectInfo, RenderJob } from './preview'
 import type { UsageSaverSettings } from './usageSaver'
 import type { PhoneAlertSettings } from './alerts'
 import type { QueuedPrompt, ResetQueueState } from './resetQueue'
-import type { HandoffPlan } from './handoff'
 import type { PartnersState } from './partners'
 import type { DesignSkillsSettings, DesignState } from './design'
 import type { DevToolsSettings, DevToolsState } from './devtools'
-import type { TeamState as TeamStateT } from './team'
 
 export interface StartSessionOptions {
   cwd: string
@@ -87,14 +81,8 @@ export interface AppSettings {
   recentProjects: string[]
   /** macOS notifications when Claude needs approval or finishes while Harness is in the background. */
   notifications: boolean
-  /** Route work through the HackForge plugin: never, in projects that use it, or in every session. */
-  hackforgeMode: HackforgeMode
-  /** Folder of the project linked to event mode (shared with the team through git). */
-  eventProject: string | null
-  /** Team board membership (relay URL, team token, my name). */
-  team: TeamConfig | null
-  /** Stable id for this install on team boards. */
-  teamMemberId: string
+  /** The project Harness is building (the Project place, promo video, API keys). */
+  project: string | null
   /** An ElevenLabs key is stored (for pitch narration). */
   hasElevenLabsKey: boolean
   /** Auto model, compaction between tasks, skipping generated files, lean output. */
@@ -103,24 +91,17 @@ export interface AppSettings {
   phoneAlerts: PhoneAlertSettings
   /** Run queued messages when the usage limit resets. */
   resetQueue: { enabled: boolean; keepAwake: boolean }
-  /** Folders created for handoffs you took (they get the partner keys too). */
-  handoffDirs: string[]
   /** impeccable and UI/UX Pro Max, loaded into every session. */
   designSkills: DesignSkillsSettings
   /** Browser (Playwright), library docs (Context7) and partner MCP servers in sessions. */
   devTools: DevToolsSettings
   /** A Context7 key is stored (higher rate limits for library docs). */
   hasContext7Key: boolean
-  /** Crew reports and messages start a turn in the session that sent the mission. */
-  crewAutoReports: boolean
-  /** The team server teams start on (e.g. a Render URL); empty: host it on this laptop. */
-  teamServer: string
 }
 
 /** Settings the renderer may change directly (stored keys have their own setters). */
 export type SettingsPatch = Partial<Omit<AppSettings, 'hasApiKey' | 'hasElevenLabsKey' | 'hasContext7Key'>>
 
-export type EventProgressPatch = { done?: Record<string, boolean>; partner?: { name: string; keys?: boolean; kit?: boolean } }
 
 /** The API the preload script exposes on `window.harness`. */
 export interface HarnessApi {
@@ -178,32 +159,10 @@ export interface HarnessApi {
   onCommand(cb: (cmd: import('./commands').CommandMessage) => void): () => void
   /** Tells main which session is in front, so notifications skip it while the window is focused. */
   setActiveSession(sessionId: string | null): void
-  /** Current HackForge state of a project; keeps it live via onHackforge until unwatched. */
-  hackforgeWatch(cwd: string): Promise<HackforgeSnapshot>
-  hackforgeUnwatch(cwd: string): void
-  /** Creates .hackforge/STOP_LOOP: the improvement loop ends after its current iteration. */
-  hackforgeStopLoop(cwd: string): Promise<void>
-  /** Rewrites `profile:` in challenge/hackforge.yaml. */
-  hackforgeSetProfile(cwd: string, profile: string): Promise<void>
-  /** Opens .hackforge/views/<name>.html (HackForge's decision pages) in the default browser. */
-  hackforgeOpenView(cwd: string, name: string): Promise<string>
-  onHackforge(cb: (snapshot: HackforgeSnapshot) => void): () => void
-  /** Event mode: config, clock data and the team's shared checklist progress. */
-  eventState(): Promise<EventState>
-  /** Links (or with null unlinks) the event project folder. */
-  eventLink(dir: string | null): Promise<EventState>
-  /** Sets a folder up from the event preset (challenge/, event.yaml, HackForge settings) and links it. */
-  eventSetup(dir: string): Promise<EventState>
-  onEvent(cb: (state: EventState) => void): () => void
-  challengeAdd(c: { partner: string; title: string; description: string; link?: string }): Promise<EventState>
-  challengeUpdate(id: string, patch: ChallengePatch): Promise<EventState>
-  challengeDelete(id: string): Promise<EventState>
-  /** Marks it chosen, writes challenge/brief/00-chosen-challenge.md and names it in hackforge.yaml. */
-  challengeChoose(id: string): Promise<EventState>
   pitchState(): Promise<PitchState>
-  /** Creates pitch/ (Remotion template + a starter script.json) in the event project. */
+  /** Creates promo/ (Remotion template + a starter script.json) in the current project. */
   pitchScaffold(eventName: string): Promise<PitchState>
-  /** Saves what kind of video the team wants (null: ask again); slides and 3D set up pitch/. */
+  /** Saves what kind of video you want (null: ask again); slides and 3D set up promo/. */
   pitchChoose(choice: Omit<PitchChoice, 'at'> | null, eventName: string): Promise<PitchState>
   /** Downloads the cartoon short skill (once). */
   pitchInstallCartoon(): Promise<PitchState>
@@ -212,39 +171,17 @@ export interface HarnessApi {
   /** Generates ElevenLabs narration for scenes whose audio is missing or out of date. */
   pitchNarrate(): Promise<PitchState>
   pitchVoices(): Promise<Voice[]>
-  /** 3D clips (HackForge's 3D kit in the event project's video/kit3d). */
+  /** 3D clips (Harness's 3D kit in the current project's video/kit3d). */
   kit3dState(): Promise<Kit3dState>
   kit3dSetup(): Promise<Kit3dState>
   kit3dCapture(): Promise<Kit3dState>
   kit3dStills(clip: string): Promise<Kit3dState>
   kit3dRender(clip: string, quality: Kit3dQuality): Promise<Kit3dState>
   kit3dCancel(): Promise<Kit3dState>
-  /** Copies the rendered clip into pitch/public/3d/; returns its media path and length. */
+  /** Copies the rendered clip into promo/public/3d/; returns its media path and length. */
   kit3dAddToPitch(clip: string): Promise<{ media: string; seconds?: number }>
   onKit3d(cb: (state: Kit3dState) => void): () => void
   onPitch(cb: (state: PitchState) => void): () => void
-  teamState(): Promise<TeamState>
-  /** New team: host the relay on this computer, or use a relay server URL. */
-  teamCreate(opts: { name: string; host: boolean; relayUrl?: string }): Promise<TeamState>
-  teamJoin(code: string, name: string): Promise<TeamState>
-  teamLeave(): Promise<TeamState>
-  teamUpdate(patch: { name?: string; focus?: string }): Promise<TeamState>
-  /** This machine's open sessions, for the team board. */
-  teamSetLocal(local: { sessions: MemberSession[]; cwd?: string }): void
-  onTeam(cb: (state: TeamState) => void): () => void
-  /** What handing this session off would do (branch, files, remote). */
-  handoffPlan(sessionId: string): Promise<HandoffPlan & { member: string | null }>
-  /** Pushes a snapshot of the folder (when asked and possible) and puts the handoff on the team board. */
-  handoffOffer(opts: {
-    sessionId: string
-    title: string
-    note: string
-    reason: 'limit' | 'manual'
-    push: boolean
-  }): Promise<{ state: TeamStateT; pushError?: string }>
-  handoffWithdraw(id: string): Promise<TeamStateT>
-  /** Checks the work out next to the project and returns the folder and the first message. */
-  handoffTake(id: string): Promise<{ dir: string; prompt: string }>
   resetQueueState(): Promise<ResetQueueState>
   resetQueueAdd(item: { sessionId: string; cwd: string; title: string; text: string }): Promise<ResetQueueState>
   resetQueueRemove(id: string): Promise<ResetQueueState>
@@ -255,10 +192,9 @@ export interface HarnessApi {
   onResetQueueFire(cb: (items: QueuedPrompt[]) => void): () => void
   phoneTest(): Promise<void>
   partnersState(): Promise<PartnersState>
-  partnerSetKey(env: string, value: string | null, share?: boolean): Promise<PartnersState>
-  partnerSetShare(env: string, share: boolean): Promise<PartnersState>
+  partnerSetKey(env: string, value: string | null): Promise<PartnersState>
   partnerSetDocs(kitId: string, url: string): Promise<PartnersState>
-  /** An MCP server URL a partner gave out at the event (empty clears it). */
+  /** An MCP server URL a service gives out (empty clears it). */
   partnerSetMcp(kitId: string, url: string): Promise<PartnersState>
   /** Adds an API key; a known service gets its kit, anything else is left for Claude to research. */
   partnerAdd(opts: { key: string; name?: string }): Promise<{ state: PartnersState; kitId: string; known: boolean }>
@@ -278,6 +214,11 @@ export interface HarnessApi {
   onDesign(cb: (state: DesignState) => void): () => void
   /** Browser, library docs, partner servers and reverse engineering (REA) sessions get. */
   devToolsState(): Promise<DevToolsState>
+  /** Makes a folder the current project (null: none); returns the settings. */
+  projectSet(dir: string | null): Promise<AppSettings>
+  /** This laptop's Claude plan usage (5-hour and weekly windows). */
+  usageState(): Promise<import('./planUsage').PlanUsage>
+  onUsage(cb: (usage: import('./planUsage').PlanUsage) => void): () => void
   /** The ECC copy sessions get and what's in it. */
   eccInfo(): Promise<import('./ecc').EccInfo>
   /** Downloads Chromium for the browser tools when there's no Chrome or Edge. */
@@ -291,40 +232,6 @@ export interface HarnessApi {
   /** Asks for a .glb/.gltf file to open in the 3D viewer. */
   previewPickModel(): Promise<string | null>
   onDevTools(cb: (state: DevToolsState) => void): () => void
-  /** Crew mode: teammates' Claudes (harness-crew), their missions and questions. */
-  crewState(): Promise<import('./crew').CrewState>
-  /** Answers a crew Claude's permission question. */
-  crewAnswer(askId: string, allow: boolean, always?: boolean): Promise<void>
-  crewCancel(missionId: string): Promise<void>
-  onCrew(cb: (state: import('./crew').CrewState) => void): () => void
-  /** Team run: Team → Setup → Plan → Run → Done. */
-  runState(): Promise<import('./run').RunState>
-  onRun(cb: (state: import('./run').RunState) => void): () => void
-  /** Starts the team on the team server from Settings (or hosted here). */
-  runStartTeam(name: string): Promise<void>
-  runGoTo(stage: import('./run').RunStage): Promise<void>
-  runCreateProject(o: { name: string; parent: string; deadline?: string; plan: import('./run').ClaudePlan; lead?: import('./advisor').LeadSetup }): Promise<void>
-  runUseFolder(o: { dir: string; name: string; deadline?: string; plan: import('./run').ClaudePlan; lead?: import('./advisor').LeadSetup }): Promise<void>
-  runSetupInfo(): Promise<import('./run').SetupInfo | null>
-  runSetChallenge(text: string): Promise<import('./run').SetupInfo | null>
-  runAddFiles(kind: import('./run').FileKind, paths: string[]): Promise<import('./run').SetupInfo | null>
-  /** File picker for a drop zone; the chosen paths (empty when cancelled). */
-  runPickFiles(): Promise<string[]>
-  runGithub(): Promise<void>
-  /** The lead's session is started: HackForge plans in it. */
-  runPlan(sessionId: string): Promise<void>
-  runAccept(): Promise<void>
-  runRevise(change: string): Promise<void>
-  runAnswer(itemId: string, a: { allow?: boolean; always?: boolean; answers?: Record<string, string>; text?: string }): Promise<void>
-  /** Removes an inbox item without answering it (a waiting request is declined). */
-  runDismiss(itemId: string): Promise<void>
-  runPause(): Promise<void>
-  runResume(): Promise<void>
-  runStop(): Promise<void>
-  runReset(): Promise<void>
-  runReconnect(sessionId: string): Promise<void>
-  /** Checks a team server URL: reachable, and new enough for crew mode. */
-  teamTestServer(url: string): Promise<{ ok: boolean; files?: boolean; error?: string }>
   /** The path of a file dropped on the window. */
   pathForFile(file: File): string
   /** Tokens per day and model, top sessions, the saver's work and plan readings. */
@@ -376,27 +283,6 @@ export const IPC = {
   openExternal: 'shell:open-external',
   command: 'app:command',
   activeSession: 'app:active-session',
-  hackforgeWatch: 'hackforge:watch',
-  hackforgeUnwatch: 'hackforge:unwatch',
-  hackforgeStopLoop: 'hackforge:stop-loop',
-  hackforgeSetProfile: 'hackforge:set-profile',
-  hackforgeOpenView: 'hackforge:open-view',
-  hackforgeUpdate: 'hackforge:snapshot',
-  eventState: 'event:state',
-  eventLink: 'event:link',
-  eventSetup: 'event:setup',
-  eventPush: 'event:push',
-  challengeAdd: 'challenge:add',
-  challengeUpdate: 'challenge:update',
-  challengeDelete: 'challenge:delete',
-  challengeChoose: 'challenge:choose',
-  teamState: 'team:state',
-  teamCreate: 'team:create',
-  teamJoin: 'team:join',
-  teamLeave: 'team:leave',
-  teamUpdate: 'team:update',
-  teamSetLocal: 'team:set-local',
-  teamPush: 'team:push',
   setElevenLabsKey: 'settings:elevenlabs-key',
   setContext7Key: 'settings:context7-key',
   pitchState: 'pitch:state',
@@ -416,10 +302,6 @@ export const IPC = {
   kit3dCancel: 'kit3d:cancel',
   kit3dAddToPitch: 'kit3d:add-to-pitch',
   kit3dPush: 'kit3d:push',
-  handoffPlan: 'handoff:plan',
-  handoffOffer: 'handoff:offer',
-  handoffWithdraw: 'handoff:withdraw',
-  handoffTake: 'handoff:take',
   resetQueueState: 'reset-queue:state',
   resetQueueAdd: 'reset-queue:add',
   resetQueueRemove: 'reset-queue:remove',
@@ -429,7 +311,6 @@ export const IPC = {
   phoneTest: 'phone:test',
   partnersState: 'partners:state',
   partnerSetKey: 'partners:set-key',
-  partnerSetShare: 'partners:set-share',
   partnerSetDocs: 'partners:set-docs',
   partnerSetMcp: 'partners:set-mcp',
   partnerAdd: 'partners:add',
@@ -443,6 +324,9 @@ export const IPC = {
   designPrepare: 'design:prepare',
   designPush: 'design:push',
   devToolsState: 'devtools:state',
+  projectSet: 'project:set',
+  usageState: 'usage:state',
+  usagePush: 'usage:push',
   eccInfo: 'ecc:info',
   devToolsInstallBrowser: 'devtools:install-browser',
   devToolsInstallRea: 'devtools:install-rea',
@@ -450,31 +334,5 @@ export const IPC = {
   devToolsOpenBlender: 'devtools:open-blender',
   previewPickModel: 'preview:pick-model',
   devToolsPush: 'devtools:push',
-  crewState: 'crew:state',
-  crewAnswer: 'crew:answer',
-  crewCancel: 'crew:cancel',
-  crewPush: 'crew:push',
-  runState: 'run:state',
-  runPush: 'run:push',
-  runStartTeam: 'run:start-team',
-  runGoTo: 'run:go-to',
-  runCreateProject: 'run:create-project',
-  runUseFolder: 'run:use-folder',
-  runSetupInfo: 'run:setup-info',
-  runSetChallenge: 'run:set-challenge',
-  runAddFiles: 'run:add-files',
-  runPickFiles: 'run:pick-files',
-  runGithub: 'run:github',
-  runPlan: 'run:plan',
-  runAccept: 'run:accept',
-  runRevise: 'run:revise',
-  runAnswer: 'run:answer',
-  runDismiss: 'run:dismiss',
-  runPause: 'run:pause',
-  runResume: 'run:resume',
-  runStop: 'run:stop',
-  runReset: 'run:reset',
-  runReconnect: 'run:reconnect',
-  teamTestServer: 'team:test-server',
   events: 'events',
 } as const

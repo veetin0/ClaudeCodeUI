@@ -265,10 +265,10 @@ export default function ModelViewer({ path, session, version, blender }: { path:
     }
   }
   const useInClip = async () => {
-    const prompt = `Add a product clip to video/kit3d/story.py (HackForge's 3D pitch kit) that uses the model ${path}: it turns on the pedestal, explodes into its named parts${parts.length ? ` (${parts.map((p) => p.name).join(', ')})` : ''}, and labels the ones that matter. Check it with python3 story.py <name> in video/kit3d, then tell me its name: I'll render it from Hackathon › Pitch → 3D clips.`
+    const prompt = `Add a product clip to video/kit3d/story.py (Harness's 3D kit) that uses the model ${path}: it turns on the pedestal, explodes into its named parts${parts.length ? ` (${parts.map((p) => p.name).join(', ')})` : ''}, and labels the ones that matter. Check it with python3 story.py <name> in video/kit3d, then tell me its name: I'll render it from Project › Promo → 3D clips.`
     try {
       await useApp.getState().sendTo(session.id, prompt)
-      setNote('Asked Claude for a product clip with this model (Hackathon › Pitch → 3D clips renders it).')
+      setNote('Asked Claude for a product clip with this model (Project › Promo → 3D clips renders it).')
     } catch (err) {
       setNote(ipcErrorMessage(err))
     }

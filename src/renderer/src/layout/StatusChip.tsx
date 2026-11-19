@@ -5,12 +5,12 @@ import { cn, formatCost, formatTokens } from '@/lib/format'
 import { shortcut } from '@/lib/keys'
 import { useApp } from '@/stores/app'
 import type { SessionState } from '@/stores/reducer'
-import { useTeamState } from '@/stores/team'
+import { useMyUsage } from '@/stores/usage'
 import { Popover } from '@/ui/Popover'
 
 /** This laptop's Claude plan usage (5-hour window), once a reading exists. */
 export function usePlanUsage() {
-  const usage = useTeamState()?.myUsage
+  const usage = useMyUsage()
   const w = usage?.fiveHour
   if (!usage || usage.source !== 'plan' || (!w && !usage.status)) return null
   const pct = w && (!w.resetsAt || w.resetsAt > Date.now()) ? Math.round(w.pct) : w ? 0 : undefined

@@ -97,7 +97,7 @@ function defaultInstall(cwd: string, onLine: (l: string) => void): Promise<numbe
 }
 
 /**
- * Pitch studio backend: the pitch/ Remotion project inside the event project — scaffolding from the
+ * Promo studio backend: the promo/ Remotion project inside the current project — scaffolding from the
  * template, script.json, npm install, and ElevenLabs narration per scene (cached by content hash).
  */
 export class PitchService {
@@ -123,7 +123,7 @@ export class PitchService {
 
   private requireDir(): string {
     const d = this.pitchDir()
-    if (!d) throw new Error('Link an event project first.')
+    if (!d) throw new Error('Pick or create a project first.')
     return d
   }
 
@@ -165,16 +165,16 @@ export class PitchService {
   }
 
   /**
-   * Saves the team's answer to "Do you want a pitch or promo video?" (null: ask again; the files stay).
+   * Saves the answer to "What kind of promo video?" (null: ask again; the files stay).
    * Slides and 3D build on the slide video, so they set it up.
    */
-  async choose(choice: Omit<PitchChoice, 'at'> | null, eventName: string): Promise<PitchState> {
+  async choose(choice: Omit<PitchChoice, 'at'> | null, projectName: string): Promise<PitchState> {
     const dir = this.requireDir()
     await mkdir(dir, { recursive: true })
     await writeFile(join(dir, STYLE_FILE), JSON.stringify(choice ? { ...choice, at: Date.now() } : { style: null, at: Date.now() }, null, 2) + '\n')
-    if (choice?.style === 'slides' || choice?.style === '3d') return this.scaffold(eventName)
+    if (choice?.style === 'slides' || choice?.style === '3d') return this.scaffold(projectName)
     if (choice?.style === 'cartoon' || choice?.style === 'custom') {
-      // Rendered videos are big: keep them out of the team's repo.
+      // Rendered videos are big: keep them out of the repo.
       if (!existsSync(join(dir, '.gitignore'))) await writeFile(join(dir, '.gitignore'), 'node_modules/\nout/\n')
       await mkdir(join(dir, VIDEO_OUT_DIR), { recursive: true })
     }
@@ -185,18 +185,18 @@ export class PitchService {
     this.deps.push(await this.state())
   }
 
-  /** Something outside pitch/ changed what the tab shows (the cartoon skill download). */
+  /** Something outside promo/ changed what the tab shows (the cartoon skill download). */
   refresh() {
     void this.publish()
   }
 
-  async scaffold(eventName: string): Promise<PitchState> {
+  async scaffold(projectName: string): Promise<PitchState> {
     const dir = this.requireDir()
     await copyMissing(this.deps.templateDir, dir)
-    // Packaging can drop dotfiles from the template; this one keeps node_modules out of the team's repo.
+    // Packaging can drop dotfiles from the template; this one keeps node_modules out of the repo.
     if (!existsSync(join(dir, '.gitignore'))) await writeFile(join(dir, '.gitignore'), 'node_modules/\nout/\n')
     await mkdir(join(dir, 'public', 'audio'), { recursive: true })
-    if (!existsSync(join(dir, SCRIPT_FILE))) await this.serial(() => this.writeScript(dir, defaultScript(eventName)))
+    if (!existsSync(join(dir, SCRIPT_FILE))) await this.serial(() => this.writeScript(dir, defaultScript(projectName)))
     return this.state()
   }
 
@@ -353,12 +353,12 @@ export class PitchService {
     const root = this.deps.projectDir()
     if (!dir || !root) return
     try {
-      // Watch the project so pitch/ appearing later (or a git pull) is noticed.
+      // Watch the project so promo/ appearing later (or a git pull) is noticed.
       this.watcher = watch(root, { recursive: true }, (_e, file) => {
         const f = file ? relative(PITCH_DIR, String(file)).replace(/\\/g, '/') : ''
         if (!file || String(file).replace(/\\/g, '/').split('/')[0] !== PITCH_DIR) return
         if (f.startsWith('node_modules') || f.startsWith('.')) return
-        // pitch/out/: only finished videos matter (a cartoon short copied in), and a render writes for a
+        // promo/out/: only finished videos matter (a cartoon short copied in), and a render writes for a
         // while, so wait for it to settle; nothing else there changes the tab.
         const out = f.startsWith(`${VIDEO_OUT_DIR}/`)
         if (out && !VIDEO_RE.test(f)) return
@@ -382,7 +382,7 @@ export class PitchService {
   }
 }
 
-/** pitch/style.json; a project from before the chooser (it has the slide video) counts as slides. */
+/** promo/style.json; a project from before the chooser (it has the slide video) counts as slides. */
 async function readChoice(dir: string, slidesExist: boolean): Promise<PitchChoice | null> {
   const raw = await readFile(join(dir, STYLE_FILE), 'utf8').catch(() => undefined)
   if (raw === undefined) return slidesExist ? { style: 'slides', at: 0 } : null
@@ -393,7 +393,7 @@ async function readChoice(dir: string, slidesExist: boolean): Promise<PitchChoic
   }
 }
 
-/** pitch/deck.pdf, if it's there. */
+/** promo/deck.pdf, if it's there. */
 async function readDeck(path: string): Promise<PitchState['deck']> {
   const st = await stat(path).catch(() => null)
   return st?.isFile() ? { path, mtime: st.mtimeMs } : undefined

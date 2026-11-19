@@ -19,7 +19,7 @@ const app = () => useApp.getState()
 describe('three places', () => {
   beforeEach(async () => {
     for (const id of [...app().order]) await app().closeSession(id)
-    useApp.setState({ place: 'home', hackathonTab: 'build', view: 'chat', agentsMode: 'cards', panelOpen: false, usageOpen: false, settingsOpen: false })
+    useApp.setState({ place: 'home', view: 'chat', agentsMode: 'cards', panelOpen: false, usageOpen: false, settingsOpen: false })
   })
 
   it('starts at Home; views need a session', () => {
@@ -28,22 +28,22 @@ describe('three places', () => {
     expect(app().place).toBe('home')
   })
 
-  it('opens the Hackathon on a tab, remembers it, and goes back where you were', async () => {
-    app().openHackathon('pitch')
-    expect([app().place, app().hackathonTab]).toEqual(['hackathon', 'pitch'])
-    app().leaveHackathon()
+  it('opens the Project and goes back where you were', async () => {
+    app().openProject()
+    expect(app().place).toBe('project')
+    app().leaveProject()
     expect(app().place).toBe('home')
     await app().startSession('/p')
     expect(app().place).toBe('session')
-    app().openHackathon()
-    expect([app().place, app().hackathonTab]).toEqual(['hackathon', 'pitch'])
-    app().leaveHackathon()
+    app().openProject()
+    expect(app().place).toBe('project')
+    app().leaveProject()
     expect(app().place).toBe('session')
   })
 
   it('switches views and agents modes inside a session', async () => {
     await app().startSession('/p')
-    app().openHackathon()
+    app().openProject()
     app().setView('preview')
     expect([app().place, app().view]).toEqual(['session', 'preview'])
     app().setAgentsMode('graph')
@@ -58,9 +58,9 @@ describe('three places', () => {
 
   it('maps the menu and palette commands onto the places', async () => {
     await app().startSession('/p')
-    runCommand({ id: 'hackathon' })
-    expect(app().place).toBe('hackathon')
-    runCommand({ id: 'hackathon' })
+    runCommand({ id: 'project' })
+    expect(app().place).toBe('project')
+    runCommand({ id: 'project' })
     expect(app().place).toBe('session')
     runCommand({ id: 'view-agents' })
     expect(app().view).toBe('agents')

@@ -127,11 +127,10 @@ export function GeneralTab() {
   )
 }
 
-const PHONE_KINDS: { key: 'approvals' | 'finished' | 'limits' | 'team'; label: string }[] = [
+const PHONE_KINDS: { key: 'approvals' | 'finished' | 'limits'; label: string }[] = [
   { key: 'approvals', label: 'Claude needs approval' },
-  { key: 'finished', label: 'Long tasks and HackForge loops finish' },
+  { key: 'finished', label: 'Long tasks and builds finish' },
   { key: 'limits', label: 'Usage limit hit, queued messages ran' },
-  { key: 'team', label: 'Teammate handoffs and file conflicts' },
 ]
 
 /** Phone alerts through ntfy: scan, subscribe, done. */

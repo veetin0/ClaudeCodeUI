@@ -1,4 +1,4 @@
-import { hackforgeRole } from '@shared/hackforge'
+import { pluginAgentRole } from '@shared/ecc'
 import type { AgentId } from '@shared/events'
 import { basename } from '@/lib/format'
 import { toolKind } from '@/lib/tools'
@@ -50,7 +50,7 @@ export function agentViews(s: SessionState): AgentView[] {
       key: agentKey(sub.id),
       id: sub.id,
       name: sub.description,
-      role: hackforgeRole(sub.subagentType) ?? sub.subagentType ?? 'general-purpose',
+      role: pluginAgentRole(sub.subagentType) ?? sub.subagentType ?? 'general-purpose',
       // A subagent waiting on approval shows as waiting.
       state: s.permissions.some((p) => p.agentId === sub.id) ? 'waiting' : sub.status,
       background: sub.background,

@@ -10,7 +10,7 @@ export function runCommand(cmd: CommandMessage) {
       else void app.openSaved(cmd.sessionId)
       return
     case 'new-session':
-      return void app.openProject()
+      return void app.openFolder()
     case 'close-session':
       if (app.activeId) void app.closeSession(app.activeId)
       return
@@ -22,8 +22,8 @@ export function runCommand(cmd: CommandMessage) {
       return app.setView('agents')
     case 'view-preview':
       return app.setView('preview')
-    case 'hackathon':
-      return app.place === 'hackathon' ? app.leaveHackathon() : app.openHackathon()
+    case 'project':
+      return app.place === 'project' ? app.leaveProject() : app.openProject()
     case 'toggle-panel':
       return app.togglePanel()
     case 'toggle-terminal':
@@ -42,9 +42,6 @@ export function runCommand(cmd: CommandMessage) {
       return app.replay ? app.setReplay(null) : app.startReplay()
     case 'interrupt':
       return void app.interrupt()
-    case 'handoff':
-      if (app.activeId) app.openHandoff(app.activeId)
-      return
     case 'usage':
       return app.setUsageOpen(!app.usageOpen)
     case 'pick-element':

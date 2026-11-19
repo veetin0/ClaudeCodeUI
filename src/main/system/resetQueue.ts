@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto'
 import { existsSync, readFileSync, writeFileSync } from 'node:fs'
 import { nextRunAt, type QueuedPrompt, type ResetQueueState } from '@shared/resetQueue'
-import type { PlanUsage } from '@shared/team'
+import type { PlanUsage } from '@shared/planUsage'
 
 export interface ResetQueueDeps {
   /** Where the queue is saved, so it survives a restart. */

@@ -85,8 +85,6 @@ export interface RouteInput {
   contextTokens: number
   contextWindow: number
   opusAvailable: boolean
-  /** This project's HackForge settings pick Sonnet for the main session (Pro plan / lean profile). */
-  hackforgeLean: boolean
 }
 
 export interface RouteDecision {
@@ -104,8 +102,11 @@ export interface RouteDecision {
 
 type Classified = { kind: TurnKind | 'keep'; reason: string; escalation?: boolean; passthrough?: boolean }
 
-/** HackForge commands that only read or write its notes. */
-const HF_LIGHT = new Set(['help', 'init', 'status', 'views', 'team', 'rules', 'focus', 'retro'])
+/** ECC commands that only read or write session notes, or report: no big model needed. */
+const ECC_LIGHT = new Set([
+  'save-session', 'resume-session', 'sessions', 'checkpoint', 'context-budget', 'cost-report', 'token-card',
+  'skill-health', 'instinct-status', 'instinct-export', 'instinct-import', 'loop-status', 'projects', 'prune', 'ecc-guide', 'hookify-list', 'hookify-help',
+])
 
 const THINK: [RegExp, string][] = [
   [/\b(plan|plans|planning|roadmap|spec|specification)\b/i, 'planning'],
@@ -150,7 +151,7 @@ const SMALL_EDIT = new RegExp(
 )
 
 /** What kind of turn a message asks for, before considering the session's state. */
-export function classifyPrompt(text: string, o: { firstTurn: boolean; permissionMode: PermissionMode; hackforgeLean: boolean }): Classified {
+export function classifyPrompt(text: string, o: { firstTurn: boolean; permissionMode: PermissionMode }): Classified {
   // Click to change: judge what you asked for, not the element details Harness added around it.
   const picked = pickRequest(text.trim())
   if (picked !== undefined) {
@@ -159,13 +160,9 @@ export function classifyPrompt(text: string, o: { firstTurn: boolean; permission
   }
   // macOS turns ' into ’ as you type.
   const p = text.trim().replace(/[\u2018\u2019]/g, "'")
-  const hf = /^\/hackforge:([\w-]+)/i.exec(p)
-  if (hf) {
-    if (HF_LIGHT.has(hf[1].toLowerCase())) return { kind: 'build', reason: 'HackForge bookkeeping' }
-    return o.hackforgeLean
-      ? { kind: 'build', reason: 'HackForge runs it, choosing the model for each of its agents (Opus for architects and the advisor)' }
-      : { kind: 'think', reason: 'a HackForge run outside its Pro profile' }
-  }
+  // ECC's commands: its planners and orchestrators run on Opus (their agents pick their own models).
+  const ecc = /^\/ecc:([\w-]+)/i.exec(p)
+  if (ecc) return ECC_LIGHT.has(ecc[1].toLowerCase()) ? { kind: 'build', reason: 'ECC bookkeeping' } : { kind: 'think', reason: `ECC’s ${ecc[1].toLowerCase()}` }
   if (p.startsWith('/')) return { kind: 'keep', reason: 'a command', passthrough: true }
   if (o.permissionMode === 'plan') return { kind: 'think', reason: 'plan mode' }
   if (FAILURE.some((r) => r.test(p))) {

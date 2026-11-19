@@ -1,18 +1,12 @@
-import { ChevronRight, Flame, OctagonX, Rocket } from 'lucide-react'
+import { ChevronRight, Hammer } from 'lucide-react'
 import { useState } from 'react'
 import { FilesPanel } from '@/features/files/FilesPanel'
 import { AgentsPanel } from '@/features/agents/AgentsPanel'
 import { TasksPanel } from '@/features/tasks/TasksPanel'
-import { HACKFORGE_PHASES } from '@shared/hackforge'
-import { HACKFORGE_ACTIONS } from '@/lib/hackforgeActions'
-import { nextStep } from '@/lib/nextStep'
-import { cn } from '@/lib/format'
-import { ipcErrorMessage } from '@/lib/time'
+import { basename, cn } from '@/lib/format'
 import { useApp } from '@/stores/app'
-import { useEvent } from '@/stores/event'
-import { useHackforge } from '@/stores/hackforge'
+import { useProject } from '@/stores/project'
 import type { SessionState } from '@/stores/reducer'
-import { Sectors } from '@/ui/Sectors'
 
 /** The session's side panel: one scroll of what's happening, instead of four tabs. */
 export function SidePanel({ session }: { session: SessionState }) {
@@ -20,7 +14,7 @@ export function SidePanel({ session }: { session: SessionState }) {
   const running = Object.values(session.subagents).filter((s) => s.status === 'running').length
   return (
     <aside className="flex w-80 shrink-0 flex-col overflow-y-auto border-l border-line bg-surface-2/40 p-3" aria-label="Side panel">
-      <HackforgeSection session={session} />
+      <ProjectSection session={session} />
       <Section title="Tasks" count={tasks}>
         <TasksPanel todos={session.todos} />
       </Section>
@@ -53,78 +47,24 @@ function Section({ title, count, countLabel, children, defaultOpen = true }: { t
   )
 }
 
-/** HackForge at a glance for this project: phase, score, the loop, and what to do next. */
-function HackforgeSection({ session }: { session: SessionState }) {
-  const hf = useHackforge(session.cwd)
-  const mode = useApp((s) => s.settings?.hackforgeMode ?? 'projects')
-  const eventProject = useApp((s) => s.settings?.eventProject)
-  const [stopError, setStopError] = useState<string | null>(null)
-  if (mode === 'off' || !hf?.present) return null
-  const next = nextStep(hf, mode)
-  const action = next && HACKFORGE_ACTIONS.find((a) => a.id === next.actionId)
-  const done = hf.milestones.filter((m) => m.status === 'done').length
-  const phase = hf.state.phaseIndex
-  const isEvent = eventProject === session.cwd
+/** This session's folder as a project: open its Project page, or make it the current project. */
+function ProjectSection({ session }: { session: SessionState }) {
+  const current = useApp((s) => s.settings?.project) === session.cwd
+  if (session.observed) return null
+  const open = async () => {
+    if (!current) await useProject.getState().setProject(session.cwd)
+    useProject.getState().setTab('build')
+    useApp.getState().openProject()
+  }
   return (
-    <Section title="HackForge">
-      <div className="space-y-2 rounded-lg border border-line bg-surface p-3 text-[12px]">
-        <div className="flex items-center gap-2">
-          <Flame className="size-4 text-forge" />
-          <span className="font-medium">{hf.initialized ? (hf.state.phase ? `Phase: ${hf.state.phase}` : 'Kicked off') : 'Ready for kickoff'}</span>
-          {phase !== undefined && <span className="ml-auto num text-muted">{phase + 1} / {HACKFORGE_PHASES.length}</span>}
-        </div>
-        {phase !== undefined && (
-          <Sectors items={HACKFORGE_PHASES.map((p, i) => ({ tone: i < phase ? 'done' : i === phase ? 'live' : 'todo', title: p }))} label="HackForge phases" />
-        )}
-        {hf.initialized && (
-          <div className="flex gap-4 text-muted">
-            <span>
-              Score <b className="text-fg num">{(hf.verify?.mockScore ?? hf.state.latestMockScore)?.toFixed(1) ?? '—'}</b>
-            </span>
-            {hf.milestones.length > 0 && (
-              <span>
-                Milestones <b className="text-fg num">{done}/{hf.milestones.length}</b>
-              </span>
-            )}
-          </div>
-        )}
-        {hf.loop?.active && (
-          <div className="flex items-center gap-2 rounded-lg bg-forge/[0.08] px-2 py-1.5">
-            <span className="min-w-0 flex-1">
-              Loop #{hf.loop.iteration} of {hf.loop.maxIterations}
-              {hf.loop.bestScore !== undefined && <span className="text-muted"> · best {hf.loop.bestScore.toFixed(1)}</span>}
-            </span>
-            <button
-              disabled={hf.stopRequested}
-              onClick={() => window.harness.hackforgeStopLoop(hf.cwd).catch((err: unknown) => setStopError(`Couldn't stop the loop: ${ipcErrorMessage(err)}`))}
-              title="The loop finishes its iteration, writes a summary and stops"
-              className="flex items-center gap-1 rounded-md px-1.5 py-0.5 text-danger-ink hover:bg-danger/10 disabled:opacity-50"
-            >
-              <OctagonX className="size-3.5" /> {hf.stopRequested ? 'Stopping…' : 'Stop'}
-            </button>
-          </div>
-        )}
-        {stopError && <div className="selectable text-danger-ink">{stopError}</div>}
-        {action && (
-          <button
-            onClick={() => {
-              useApp.getState().setView('chat')
-              useApp.getState().setActionForm(action.id)
-            }}
-            title={next!.why}
-            className="flex w-full items-center gap-2 rounded-lg bg-accent px-2.5 py-1.5 font-medium text-white hover:brightness-110"
-          >
-            <action.icon className="size-3.5" /> Next: {action.label}
-          </button>
-        )}
-        <button
-          onClick={() => (isEvent ? useApp.getState().openHackathon('build') : void useEvent.getState().link(session.cwd).then(() => useApp.getState().openHackathon('build')))}
-          className="flex w-full items-center gap-1.5 text-[12px] text-muted hover:text-fg"
-          title={isEvent ? 'The full dashboard: rules, milestones, fix order, the loop' : 'Make this the hackathon project: team run, challenges and pitch work on it'}
-        >
-          <Rocket className="size-3.5" /> {isEvent ? 'Open in Hackathon' : 'Use for the hackathon'}
-        </button>
-      </div>
-    </Section>
+    <button
+      onClick={() => void open()}
+      className="mb-3 flex w-full items-center gap-2 rounded-lg border border-line bg-surface px-3 py-2 text-left text-[12px] hover:bg-surface-2"
+      title={current ? 'Its build, promo video and API keys (⌘4)' : 'Make this folder the current project: its build, promo video and API keys'}
+    >
+      <Hammer className="size-3.5 shrink-0 text-accent-ink" />
+      <span className="min-w-0 flex-1 truncate font-medium">{current ? `Project: ${basename(session.cwd)}` : 'Use this folder as the project'}</span>
+      <ChevronRight className="size-3.5 text-muted" />
+    </button>
   )
 }

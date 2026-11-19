@@ -14,7 +14,7 @@ const PARENT_SESSION_VARS = [
 
 /**
  * Claude Code stops in-process tool calls after 60 s unless MCP_TOOL_TIMEOUT says otherwise, which
- * would cut crew_wait (and the crew's wait for an answer) short. A little over their 30-minute cap.
+ * would cut long tool calls (a Blender render, a slow MCP server) short. About half an hour.
  */
 const TOOL_TIMEOUT_MS = '1900000'
 

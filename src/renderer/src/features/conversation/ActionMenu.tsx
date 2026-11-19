@@ -4,19 +4,17 @@ import type { QuickAction } from '@/lib/actions'
 import { actionMenuItems, filterActions } from '@/lib/actionMenu'
 import { cn } from '@/lib/format'
 import { useApp } from '@/stores/app'
-import { useHackforge } from '@/stores/hackforge'
 import type { SessionState } from '@/stores/reducer'
 
 /** The / menu's list for a session, filtered by what was typed. */
 export function useActionList(session: SessionState, query: string) {
-  const hf = useHackforge(session.cwd)
-  const mode = useApp((s) => s.settings?.hackforgeMode ?? 'projects')
-  return useMemo(() => filterActions(actionMenuItems({ hf, mode, slashCommands: session.slashCommands }), query), [hf, mode, session.slashCommands, query])
+  const ecc = useApp((s) => s.settings?.ecc.enabled ?? true)
+  return useMemo(() => filterActions(actionMenuItems({ ecc, slashCommands: session.slashCommands }), query), [ecc, session.slashCommands, query])
 }
 
 /**
- * Every action in one searchable list, opened by typing / or the + button: the suggested next
- * step, HackForge, quick actions and the project's commands. Picking one opens its form.
+ * Every action in one searchable list, opened by typing / or the + button: ECC's build flow and
+ * tools, quick actions and the project's commands. Picking one opens its form.
  */
 export function ActionMenu({
   groups,

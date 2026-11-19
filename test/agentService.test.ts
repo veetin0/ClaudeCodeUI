@@ -19,19 +19,19 @@ const tick = () => new Promise((r) => setTimeout(r, 10))
 const folder = (name: string) => mkdtempSync(join(tmpdir(), `agent-${name}-`))
 
 describe('AgentService', () => {
-  it('adds per-folder guidance (HackForge mode) to the system prompt', () => {
+  it('adds per-folder guidance (design system, dev tools) to the system prompt', () => {
     const seen: { append?: string }[] = []
     const factory = (({ options }: { options: { systemPrompt: { append?: string } } }) => {
       seen.push(options.systemPrompt)
       return Object.assign((async function* () {})(), { interrupt: async () => {} })
     }) as unknown as QueryFactory
     const bus = { emit: () => {} } as unknown as EventBus
-    const hack = folder('hack')
-    const svc = new AgentService({ bus, getEnv: () => ({}), queryFactory: factory, promptAppend: (cwd) => (cwd === hack ? 'USE HACKFORGE' : undefined) })
-    const a = svc.start({ cwd: hack })
+    const proj = folder('proj')
+    const svc = new AgentService({ bus, getEnv: () => ({}), queryFactory: factory, promptAppend: (cwd) => (cwd === proj ? 'USE THE DESIGN SYSTEM' : undefined) })
+    const a = svc.start({ cwd: proj })
     const b = svc.start({ cwd: folder('other') })
-    expect(seen[0].append).toMatch(/USE HACKFORGE$/)
-    expect(seen[1].append).not.toMatch(/HACKFORGE/)
+    expect(seen[0].append).toMatch(/USE THE DESIGN SYSTEM$/)
+    expect(seen[1].append).not.toMatch(/DESIGN SYSTEM/)
     svc.close(a.id)
     svc.close(b.id)
   })
