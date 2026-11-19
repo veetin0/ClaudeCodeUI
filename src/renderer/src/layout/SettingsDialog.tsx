@@ -5,6 +5,7 @@ import { Sheet } from '@/ui/Sheet'
 import { AdvancedTab } from './settings/Advanced'
 import { GeneralTab } from './settings/General'
 import { ToolsTab } from './settings/Tools'
+import { version } from '../../../../package.json'
 
 /** Settings in three tabs: General, Tools (one switch each), Advanced. */
 export function SettingsDialog() {
@@ -30,6 +31,7 @@ export function SettingsDialog() {
     >
       <div className="px-5 py-4">
         {settingsTab === 'general' ? <GeneralTab /> : settingsTab === 'tools' ? <ToolsTab /> : <AdvancedTab />}
+        <p className="num mt-4 text-center text-[11px] text-muted">Harness {version}</p>
       </div>
     </Sheet>
   )

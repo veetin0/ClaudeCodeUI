@@ -83,7 +83,7 @@ npm run dev
 
 Describe what you want to build and press **Build it**.
 
-**Build an app you can install:** `npm run build:mac` (a `.dmg`) or `npm run build:win` (an installer), both in `dist/`. Signing, notarizing and publishing a release are in [docs/RELEASING.md](docs/RELEASING.md). To update a source checkout later: `git pull && npm install`.
+**Build an app you can install:** `npm run build:mac` (a `.dmg`) or `npm run build:win` (an installer), both in `dist/`. Signing, notarizing and publishing a release are in [docs/RELEASING.md](docs/RELEASING.md). To update a source checkout later: `git pull && npm install`. Pull before you build, or the app you build is the old one; the version shows at the bottom of Settings.
 
 Harness loads your usual `~/.claude` settings, `CLAUDE.md` files, MCP servers and skills.
 

@@ -125,6 +125,9 @@ describe('Harness (real Electron app)', () => {
     const saved = await page.evaluate(() => window.harness.getSettings())
     expect(saved.usageSaver).toEqual({ enabled: true, autoModel: true, compact: true, skipGenerated: true, leanOutput: true })
     await page.getByText('Show sessions from your terminal').waitFor()
+    // The version shows at the bottom of Settings, so you can tell which build you're running.
+    const { version } = JSON.parse(readFileSync(join(ROOT, 'package.json'), 'utf8'))
+    await page.getByText(`Harness ${version}`, { exact: true }).waitFor()
     await shot('06-advanced-settings')
   })
 
