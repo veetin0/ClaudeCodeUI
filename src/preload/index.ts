@@ -5,7 +5,7 @@ import { IPC, type HarnessApi } from '../shared/ipc'
 const api: HarnessApi = {
   platform: process.platform,
   startSession: (opts) => ipcRenderer.invoke(IPC.startSession, opts),
-  sendMessage: (id, text, images) => ipcRenderer.invoke(IPC.sendMessage, id, text, images),
+  sendMessage: (id, text, images, via) => ipcRenderer.invoke(IPC.sendMessage, id, text, images, via),
   interrupt: (id) => ipcRenderer.invoke(IPC.interrupt, id),
   closeSession: (id) => ipcRenderer.invoke(IPC.closeSession, id),
   listHistory: () => ipcRenderer.invoke(IPC.listHistory),
@@ -50,6 +50,7 @@ const api: HarnessApi = {
   render: (cwd, composition) => ipcRenderer.invoke(IPC.render, cwd, composition),
   cancelRender: (id) => ipcRenderer.invoke(IPC.cancelRender, id),
   revealFile: (path) => ipcRenderer.invoke(IPC.revealFile, path),
+  openProjectFile: (path) => ipcRenderer.invoke(IPC.openProjectFile, path),
   openExternal: (url) => ipcRenderer.invoke(IPC.openExternal, url),
   onPreviewState: (cb) => {
     const l = (_: unknown, state: import('../shared/preview').PreviewState) => cb(state)
@@ -128,6 +129,17 @@ const api: HarnessApi = {
   },
   devToolsState: () => ipcRenderer.invoke(IPC.devToolsState),
   projectSet: (dir) => ipcRenderer.invoke(IPC.projectSet, dir),
+  projectCreate: (opts) => ipcRenderer.invoke(IPC.projectCreate, opts),
+  projectState: () => ipcRenderer.invoke(IPC.projectState),
+  onProjectState: (cb) => {
+    const l = (_: unknown, s: Parameters<typeof cb>[0]) => cb(s)
+    ipcRenderer.on(IPC.projectPush, l)
+    return () => ipcRenderer.removeListener(IPC.projectPush, l)
+  },
+  projectLink: (id) => ipcRenderer.invoke(IPC.projectLink, id),
+  projectCatalog: () => ipcRenderer.invoke(IPC.projectCatalog),
+  projectSetMcp: (id, on) => ipcRenderer.invoke(IPC.projectSetMcp, id, on),
+  projectDefaults: () => ipcRenderer.invoke(IPC.projectDefaults),
   usageState: () => ipcRenderer.invoke(IPC.usageState),
   onUsage: (cb) => {
     const l = (_: unknown, u: import('../shared/planUsage').PlanUsage) => cb(u)

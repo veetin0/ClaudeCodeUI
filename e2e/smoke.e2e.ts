@@ -1,13 +1,13 @@
 /**
  * End-to-end smoke test: launches the real Electron app (from out/, built by `npm run test:e2e`)
- * against throwaway folders, clicks through Home, the Project place (Promo and Keys) and Settings,
- * and saves a screenshot per step to test-results/.
+ * against throwaway folders, clicks through Home (Build it), the Project place (Build, Promo, Keys)
+ * and Settings, and saves a screenshot per step to test-results/.
  *
  * Isolation: HARNESS_USER_DATA and CLAUDE_CONFIG_DIR point into a temp folder (never the real
  * profile or ~/.claude), ports are random, and Claude is pointed at a dead endpoint with a fake key,
- * so even an accidental session couldn't reach the API. The test also checks that no session ran.
+ * so the build session Build it starts can't reach the API. The test checks that it is the only one.
  */
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { homedir, tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import electronPath from 'electron'
@@ -179,14 +179,74 @@ describe('Harness (real Electron app)', () => {
     await page.keyboard.press('Escape')
   })
 
+  it('Build it: turns an idea into a project and starts its build session', async () => {
+    const parent = join(tmp, 'projects')
+    mkdirSync(parent)
+    await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].webContents.send('app:command', { id: 'home' }))
+    await page.getByRole('heading', { name: 'What do you want to build?' }).waitFor()
+    const build = page.getByRole('button', { name: 'Build it', exact: true })
+    expect(await build.isDisabled()).toBe(true)
+    await page.getByLabel('Your idea').fill('A habit tracker that nudges you at the right moment, with streaks and a weekly review')
+    await build.click()
+    const setup = page.getByRole('region', { name: 'Build it' })
+    expect(await setup.getByRole('textbox').first().inputValue()).toBe('habit-tracker')
+    await app.evaluate(({ dialog }, dir) => {
+      dialog.showOpenDialog = (async () => ({ canceled: false, filePaths: [dir] })) as typeof dialog.showOpenDialog
+    }, parent)
+    await setup.getByRole('button', { name: /habit-tracker|…/ }).click()
+    await setup.getByText(`${parent}/habit-tracker`).waitFor()
+    await shot('11-build-setup')
+    await setup.getByRole('button', { name: 'Start building' }).click()
+    await page.getByText('Sent by Harness').waitFor()
+    const dir = join(parent, 'habit-tracker')
+    for (const f of ['.git', '.gitignore', '.harness/project.json', '.claude/rules/ecc/common/coding-style.md']) expect(existsSync(join(dir, f)), f).toBe(true)
+    const saved = await page.evaluate(() => window.harness.getSettings())
+    expect(saved).toMatchObject({ project: dir, projectsRoot: parent })
+    const record = JSON.parse(readFileSync(join(dir, '.harness', 'project.json'), 'utf8'))
+    expect(record).toMatchObject({ name: 'habit-tracker', setup: 'opus-fable', sessionId: expect.any(String) })
+    await shot('12-build-session')
+  })
+
+  it('shows the build on the Project page: stage, the evaluator’s scores and what ECC wrote', async () => {
+    const dir = join(tmp, 'projects', 'habit-tracker')
+    // What ECC writes as it goes (a real build needs a Claude login).
+    mkdirSync(join(dir, '.claude', 'prds'), { recursive: true })
+    writeFileSync(join(dir, '.claude', 'prds', 'habit-tracker.prd.md'), '# Habit tracker')
+    mkdirSync(join(dir, 'gan-harness', 'feedback'), { recursive: true })
+    writeFileSync(join(dir, 'gan-harness', 'spec.md'), '# Spec')
+    const round = (n: number, total: string) =>
+      `# Evaluation — Iteration ${n}\n\n| Criterion | Score | Weight | Weighted |\n|---|---|---|---|\n| Design Quality | 7/10 | 0.3 | 2.1 |\n| Originality | 6/10 | 0.2 | 1.2 |\n| Craft | 7/10 | 0.3 | 2.1 |\n| Functionality | 8/10 | 0.2 | 1.6 |\n| **TOTAL** | | | **${total}/10** |\n\n## Verdict: PASS (threshold: 7.0)\n`
+    writeFileSync(join(dir, 'gan-harness', 'feedback', 'feedback-001.md'), round(1, '5.8'))
+    writeFileSync(join(dir, 'gan-harness', 'feedback', 'feedback-002.md'), round(2, '7.0'))
+    await key('4')
+    await page.getByRole('tab', { name: 'Build' }).click()
+    await page.getByRole('heading', { name: 'habit-tracker' }).waitFor()
+    await page.getByRole('heading', { name: 'Evaluator score' }).waitFor({ timeout: 10_000 })
+    await page.getByText('/ 10 · round 2').waitFor()
+    const state = await page.evaluate(() => window.harness.projectState())
+    expect(state?.artifacts.feedback.map((f) => f.total)).toEqual([5.8, 7])
+    await page.getByRole('button', { name: 'habit-tracker.prd.md' }).waitFor()
+    expect(await page.locator('[aria-current="step"]').innerText()).toMatch(/build/i)
+    await shot('13-project-build')
+  })
+
+  it('adds a tool from ECC’s catalog, asking for its key', async () => {
+    await page.getByRole('tab', { name: 'Keys' }).click()
+    await page.getByRole('heading', { name: 'More tools for Claude' }).waitFor()
+    await page.getByRole('switch', { name: 'Add github' }).click()
+    await page.getByLabel('GITHUB_PERSONAL_ACCESS_TOKEN').waitFor()
+    const record = JSON.parse(readFileSync(join(tmp, 'projects', 'habit-tracker', '.harness', 'project.json'), 'utf8'))
+    expect(record.mcp).toEqual(['github'])
+    await shot('14-mcp-catalog')
+  })
+
   it('has nothing left of the hackathon mode', async () => {
-    await page.keyboard.press('Escape')
     const text = await page.locator('body').innerText()
     expect(text).not.toMatch(/hackathon|hackforge|team run|\bcrew\b/i)
   })
 
-  it('never started a Claude session', async () => {
+  it('started one Claude session: the build, in the new project', async () => {
     const history = await page.evaluate(() => window.harness.listHistory())
-    expect(history).toEqual([])
+    expect(history.map((h) => [h.cwd, h.title])).toEqual([[join(tmp, 'projects', 'habit-tracker'), 'Build habit-tracker']])
   })
 })

@@ -7,6 +7,7 @@ import { projectName, useProject, useProjectDir, type ProjectTab } from '@/store
 import { Menu, menuItems } from '@/ui/Menu'
 import { Segmented } from '@/ui/Segmented'
 import { PartnerKits } from './PartnerKits'
+import { McpCatalog } from './McpCatalog'
 import { PitchStudio } from './PitchStudio'
 import { BuildTab } from './BuildTab'
 
@@ -21,9 +22,19 @@ export function ProjectView() {
       <div className="mx-auto max-w-5xl space-y-4 px-6 py-5">
         {error && <div className="selectable rounded-lg border border-danger/40 bg-danger/5 px-3 py-2 text-[12px] text-danger-ink">{error}</div>}
         <Notice />
-        {tab === 'build' ? <BuildTab dir={dir} /> : tab === 'promo' ? <PitchStudio dir={dir} name={projectName(dir)} /> : <PartnerKits />}
+        {tab === 'build' ? <BuildTab dir={dir} /> : tab === 'promo' ? <PitchStudio dir={dir} name={projectName(dir)} /> : <KeysTab />}
       </div>
     </div>
+  )
+}
+
+/** API keys for the services the project uses, and more tools for Claude from ECC's catalog. */
+function KeysTab() {
+  return (
+    <>
+      <PartnerKits />
+      <McpCatalog />
+    </>
   )
 }
 

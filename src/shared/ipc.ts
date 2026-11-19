@@ -83,7 +83,9 @@ export interface AppSettings {
   notifications: boolean
   /** The project Harness is building (the Project place, promo video, API keys). */
   project: string | null
-  /** An ElevenLabs key is stored (for pitch narration). */
+  /** Where new projects go (the last place you picked); null: ~/Projects. */
+  projectsRoot: string | null
+  /** An ElevenLabs key is stored (for promo narration). */
   hasElevenLabsKey: boolean
   /** Auto model, compaction between tasks, skipping generated files, lean output. */
   usageSaver: UsageSaverSettings
@@ -107,7 +109,8 @@ export type SettingsPatch = Partial<Omit<AppSettings, 'hasApiKey' | 'hasElevenLa
 export interface HarnessApi {
   platform: string
   startSession(opts: StartSessionOptions): Promise<SessionSummary>
-  sendMessage(sessionId: string, text: string, images?: import('./events').ImageAttachment[]): Promise<void>
+  /** `via: 'harness'`: a message Harness sends for you (a project build's instructions), shown as such. */
+  sendMessage(sessionId: string, text: string, images?: import('./events').ImageAttachment[], via?: 'harness'): Promise<void>
   interrupt(sessionId: string): Promise<void>
   closeSession(sessionId: string): Promise<void>
   /** Saved sessions, most recently active first. */
@@ -153,6 +156,8 @@ export interface HarnessApi {
   cancelRender(id: string): Promise<void>
   /** Shows a file in Finder. */
   revealFile(path: string): Promise<void>
+  /** Opens a file in the current project with its default app (a PRD or plan in your editor). */
+  openProjectFile(path: string): Promise<void>
   openExternal(url: string): Promise<void>
   onPreviewState(cb: (state: PreviewState) => void): () => void
   /** Menu items, notifications and the menu-bar item send commands here. */
@@ -216,6 +221,18 @@ export interface HarnessApi {
   devToolsState(): Promise<DevToolsState>
   /** Makes a folder the current project (null: none); returns the settings. */
   projectSet(dir: string | null): Promise<AppSettings>
+  /** Creates a project folder from an idea (git, ECC's rules, Harness's record) and makes it the current project. */
+  projectCreate(opts: import('./project').CreateProject): Promise<{ dir: string; settings: AppSettings }>
+  /** Where the current project's build is (null without a project). */
+  projectState(): Promise<import('./project').ProjectState | null>
+  onProjectState(cb: (state: import('./project').ProjectState | null) => void): () => void
+  /** Records the session that builds the current project. */
+  projectLink(sessionId: string): Promise<void>
+  /** ECC's MCP catalog: servers the current project can add, and the keys each needs. */
+  projectCatalog(): Promise<import('./mcpCatalog').CatalogEntry[]>
+  projectSetMcp(id: string, on: boolean): Promise<import('./mcpCatalog').CatalogEntry[]>
+  /** Where a new project goes by default. */
+  projectDefaults(): Promise<{ parent: string }>
   /** This laptop's Claude plan usage (5-hour and weekly windows). */
   usageState(): Promise<import('./planUsage').PlanUsage>
   onUsage(cb: (usage: import('./planUsage').PlanUsage) => void): () => void
@@ -280,6 +297,7 @@ export const IPC = {
   render: 'preview:render',
   cancelRender: 'preview:cancel-render',
   revealFile: 'shell:reveal',
+  openProjectFile: 'shell:open-project-file',
   openExternal: 'shell:open-external',
   command: 'app:command',
   activeSession: 'app:active-session',
@@ -325,6 +343,13 @@ export const IPC = {
   designPush: 'design:push',
   devToolsState: 'devtools:state',
   projectSet: 'project:set',
+  projectCreate: 'project:create',
+  projectState: 'project:state',
+  projectPush: 'project:push',
+  projectLink: 'project:link',
+  projectCatalog: 'project:catalog',
+  projectSetMcp: 'project:set-mcp',
+  projectDefaults: 'project:defaults',
   usageState: 'usage:state',
   usagePush: 'usage:push',
   eccInfo: 'ecc:info',

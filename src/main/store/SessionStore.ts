@@ -2,6 +2,7 @@ import { DatabaseSync } from 'node:sqlite'
 import { EPHEMERAL_EVENTS, type HarnessEvent } from '@shared/events'
 import type { LoadedSession, SessionSummary } from '@shared/ipc'
 import { approxTokens } from '@shared/usageSaver'
+import { buildTitle } from '@shared/project'
 import { emptyFamilies, familyOf, freshTokens, localDay, sumFamilies, usageDelta, type ModelTokens, type UsageHistory } from '@shared/usageHistory'
 
 const FLUSH_MS = 250
@@ -153,6 +154,10 @@ export class SessionStore {
   list(): SessionSummary[] {
     const rows = this.db.prepare('SELECT * FROM sessions ORDER BY updated_at DESC').all() as unknown as SessionRow[]
     return rows.map(toSummary)
+  }
+
+  private cwdOf(id: string): string {
+    return (this.db.prepare('SELECT cwd FROM sessions WHERE id = ?').get(id) as { cwd: string } | undefined)?.cwd ?? ''
   }
 
   get(id: string): SessionSummary | null {
@@ -307,7 +312,7 @@ export class SessionStore {
       case 'user.message':
         this.db
           .prepare("UPDATE sessions SET title = ?, updated_at = ? WHERE id = ? AND title = ''")
-          .run(makeTitle(e.text), e.ts, e.sessionId)
+          .run(e.via === 'harness' ? buildTitle(this.cwdOf(e.sessionId)) : makeTitle(e.text), e.ts, e.sessionId)
         touch.run(e.ts, e.sessionId)
         break
       case 'cost':

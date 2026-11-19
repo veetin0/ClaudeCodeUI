@@ -1,6 +1,7 @@
 import { normPath } from '@shared/paths'
 import type { AgentId, EventOf, FileChange, HarnessEvent, ImageAttachment, PermissionMode, SessionStatus, TodoItem } from '@shared/events'
 import { HARNESS_TOOL_PREFIX, SUBAGENT_TOOLS } from '@shared/events'
+import { buildTitle } from '@shared/project'
 import type { ShowUpdate, VisualSource } from '@shared/visuals'
 import type { SessionSummary } from '@shared/ipc'
 import { approxTokens, type SaverTier, type TurnKind } from '@shared/usageSaver'
@@ -217,7 +218,7 @@ export function applyEvent(s: SessionState, e: HarnessEvent): void {
       break
 
     case 'user.message':
-      if (!s.title && !e.via) s.title = e.text.replace(/\s+/g, ' ').trim().slice(0, 80)
+      if (!s.title) s.title = e.via === 'harness' ? buildTitle(s.cwd) : e.text.replace(/\s+/g, ' ').trim().slice(0, 80)
       s.items.push({ kind: 'user', id: e.id, text: e.text, ts: e.ts, ...(e.images?.length ? { images: e.images } : {}), ...(e.via ? { via: e.via } : {}) })
       break
 

@@ -28,6 +28,7 @@ const DEFAULTS: StoredSettings = {
   observeTerminalSessions: true,
   notifications: true,
   project: null,
+  projectsRoot: null,
   usageSaver: DEFAULT_USAGE_SAVER,
   phoneAlerts: DEFAULT_PHONE_ALERTS,
   resetQueue: { enabled: true, keepAwake: true },

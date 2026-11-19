@@ -121,7 +121,9 @@ class AgentSession {
     private readonly extras: SessionExtras = {},
   ) {
     const now = Date.now()
-    this.summary = resume ? { ...resume.summary, updatedAt: now } : { id: randomUUID(), cwd: opts.cwd, title: '', createdAt: now, updatedAt: now, costUsd: 0 }
+    // The model asked for shows until Claude Code's init names the exact one.
+    const asked = opts.model && opts.model !== 'auto' ? { model: opts.model } : {}
+    this.summary = resume ? { ...resume.summary, updatedAt: now } : { id: randomUUID(), cwd: opts.cwd, title: '', createdAt: now, updatedAt: now, costUsd: 0, ...asked }
     const id = this.summary.id
     this.normalizer = new EventNormalizer(id, Date.now, this.summary.cwd)
     this.permissions = new PermissionBroker((e) => this.emit(e), id)

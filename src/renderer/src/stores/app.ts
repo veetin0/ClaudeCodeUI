@@ -86,8 +86,8 @@ interface AppState {
   select(id: string): void
   closeSession(id: string): Promise<void>
   send(text: string, images?: ImageAttachment[]): Promise<void>
-  /** Sends to a given session (resuming it if it's saved), e.g. a queued message at the reset. */
-  sendTo(id: string, text: string, images?: ImageAttachment[]): Promise<void>
+  /** Sends to a given session (resuming it if it's saved), e.g. a queued message at the reset. `via: 'harness'` marks a message Harness wrote for you. */
+  sendTo(id: string, text: string, images?: ImageAttachment[], via?: 'harness'): Promise<void>
   setUsageOpen(open: boolean): void
   goHome(): void
   /** The Project place (the current project's build, promo and keys). */
@@ -314,7 +314,7 @@ export const useApp = create<AppState>((set, get) => ({
     if (id) await get().sendTo(id, text, images)
   },
 
-  async sendTo(id, text, images) {
+  async sendTo(id, text, images, via) {
     if (!get().sessions[id]) await get().openSaved(id)
     const s = get().sessions[id]
     if (!s) throw new Error('That session no longer exists.')
@@ -331,7 +331,7 @@ export const useApp = create<AppState>((set, get) => ({
         return
       }
     }
-    await api().sendMessage(id, text, images)
+    await api().sendMessage(id, text, images, via)
   },
 
   setUsageOpen: (usageOpen) => set({ usageOpen, ...(usageOpen ? { settingsOpen: false } : {}) }),

@@ -1,5 +1,5 @@
 import { AlertTriangle, Archive, Info, Leaf, Route, Zap } from 'lucide-react'
-import { useEffect, useLayoutEffect, useRef } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { cn, formatCost, formatDuration } from '@/lib/format'
 import type { Item, SessionState } from '@/stores/reducer'
 import { Markdown } from './Markdown'
@@ -69,17 +69,33 @@ export function MessageList({ session }: { session: SessionState }) {
   )
 }
 
+/** A message Harness sent for you: its first line, with the full instructions one click away. */
+function HarnessMessage({ text }: { text: string }) {
+  const [open, setOpen] = useState(false)
+  const first = text.split('\n')[0]
+  const long = text.length > first.length + 1
+  return (
+    <div className="selectable flex gap-2 rounded-xl border border-accent-ink/25 bg-accent/[0.05] px-3 py-2 text-[13px] leading-relaxed">
+      <Route className="mt-0.5 size-4 shrink-0 text-accent-ink" />
+      <div className="min-w-0 flex-1">
+        <div className="text-[11px] font-medium uppercase tracking-wide text-accent-ink">Sent by Harness</div>
+        <div className="whitespace-pre-wrap">{open || !long ? text : first}</div>
+        {long && (
+          <button onClick={() => setOpen(!open)} className="mt-1 text-[12px] text-accent-ink hover:underline">
+            {open ? 'Show less' : 'Show the full instructions'}
+          </button>
+        )}
+      </div>
+    </div>
+  )
+}
+
 function BlockView({ block, session }: { block: Block; session: SessionState }) {
   switch (block.kind) {
     case 'user':
       if (block.via) {
         // Sent by Harness for you (a project build's instructions): not something you typed.
-        return (
-          <div className="selectable flex gap-2 rounded-xl border border-accent-ink/25 bg-accent/[0.05] px-3 py-2 text-[13px] leading-relaxed">
-            <Route className="mt-0.5 size-4 shrink-0 text-accent-ink" />
-            <div className="min-w-0 whitespace-pre-wrap">{block.text}</div>
-          </div>
-        )
+        return <HarnessMessage text={block.text} />
       }
       return (
         <div className="flex justify-end">

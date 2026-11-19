@@ -150,12 +150,17 @@ export function toolSummary(name: string, input: Record<string, unknown>): strin
       return str('skill') || str('command')
     case 'advisor':
       return 'asked for advice'
+    case 'mcp__harness__project_stage': {
+      const score = typeof input.score === 'number' ? ` · ${input.score.toFixed(1)}/10` : ''
+      return short(`${str('stage')}${score}${str('note') ? `: ${str('note')}` : ''}`, 64)
+    }
     default:
       return ''
   }
 }
 
 export function toolDisplayName(name: string): string {
+  if (name === 'mcp__harness__project_stage') return 'Project stage'
   if (name.startsWith('mcp__')) {
     const [, server, tool] = name.split('__')
     return `${server}·${tool}`

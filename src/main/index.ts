@@ -30,8 +30,10 @@ import { PhoneAlerts } from './system/phone'
 import { ResetQueue } from './system/resetQueue'
 import { PartnerService } from './keys/PartnerService'
 import { UsageMonitor } from './system/UsageMonitor'
+import { ProjectService } from './project/ProjectService'
 import { cancelPick, pickElement, type Rect } from './preview/pick'
-import { chooseEcc, eccInfo } from './ecc/plugin'
+import { builtinEcc, chooseEcc, eccInfo } from './ecc/plugin'
+import type { CreateProject } from '@shared/project'
 import { installedNamed } from './plugins/bundled'
 import { DesignService } from './design/DesignService'
 import { designGuide } from '@shared/design'
@@ -61,6 +63,7 @@ let store: SessionStore
 let agents: AgentService
 let presence: Presence
 let usage: UsageMonitor
+let projects: ProjectService
 let pitch: PitchService
 let cartoon: CartoonSkill
 let kit3d: Kit3dService
@@ -158,6 +161,7 @@ async function setProject(dir: string | null) {
   partners.changed()
   devTools.publish()
   pitch.refresh()
+  void projects.refresh(true)
   broadcast(IPC.kit3dPush, await kit3d.state(true))
   return settings.get()
 }
@@ -198,6 +202,12 @@ function registerIpc() {
   ipcMain.handle(IPC.render, (_e, cwd: string, composition: string) => preview.render(cwd, composition))
   ipcMain.handle(IPC.cancelRender, (_e, id: string) => preview.cancelRender(id))
   ipcMain.handle(IPC.revealFile, (_e, path: string) => shell.showItemInFolder(path))
+  ipcMain.handle(IPC.openProjectFile, async (_e, path: string) => {
+    // Only files inside the current project, and never something it would run.
+    if (!projects.inProject(path) || /\.(app|exe|bat|cmd|com|sh|command|ps1|scr|msi|dmg|pkg|jar|vbs)$/i.test(path)) throw new Error('Harness only opens documents in the current project.')
+    const err = await shell.openPath(path)
+    if (err) throw new Error(err)
+  })
   ipcMain.handle(IPC.openExternal, (_e, url: string) => {
     // Only local dev servers and web pages; never file:// or custom schemes.
     if (/^https?:\/\//.test(url)) return shell.openExternal(url)
@@ -249,7 +259,9 @@ function registerIpc() {
     settings.addRecentProject(summary.cwd)
     return resumed
   })
-  ipcMain.handle(IPC.sendMessage, (_e, id: string, text: string, images?: ImageAttachment[]) => agents.send(id, text, images))
+  ipcMain.handle(IPC.sendMessage, (_e, id: string, text: string, images?: ImageAttachment[], via?: 'harness') =>
+    agents.send(id, text, images, via === 'harness' ? 'harness' : undefined),
+  )
   ipcMain.handle(IPC.interrupt, (_e, id: string) => agents.interrupt(id))
   ipcMain.handle(IPC.closeSession, (_e, id: string) => agents.close(id))
   ipcMain.handle(IPC.setPermissionMode, (_e, id: string, mode: PermissionMode) => agents.setPermissionMode(id, mode))
@@ -301,6 +313,16 @@ function registerIpc() {
     return next
   })
   ipcMain.handle(IPC.projectSet, (_e, dir: string | null) => setProject(dir))
+  ipcMain.handle(IPC.projectCreate, async (_e, opts: CreateProject) => {
+    const dir = await projects.create(opts)
+    settings.update({ projectsRoot: opts.parent })
+    return { dir, settings: await setProject(dir) }
+  })
+  ipcMain.handle(IPC.projectState, () => projects.state())
+  ipcMain.handle(IPC.projectLink, (_e, id: string) => projects.link(id))
+  ipcMain.handle(IPC.projectCatalog, () => projects.catalog())
+  ipcMain.handle(IPC.projectSetMcp, (_e, id: string, on: boolean) => projects.setMcp(id, on))
+  ipcMain.handle(IPC.projectDefaults, () => ({ parent: settings.get().projectsRoot ?? join(homedir(), 'Projects') }))
   ipcMain.handle(IPC.usageState, () => usage.state())
   ipcMain.handle(IPC.designState, () => design.state())
   ipcMain.handle(IPC.designPrepare, () => design.prepare())
@@ -407,7 +429,9 @@ async function start() {
     usageSaver: () => settings.get().usageSaver,
     advisor: () => settings.get().advisor,
     extraEnv: (cwd) => ({ ...design.env(), ...eccEnv(settings.get().ecc), ...partners.envFor(cwd) }),
-    mcp: (cwd) => ({ servers: devTools.mcpServers(cwd), allow: devTools.allowedTools(cwd) }),
+    mcp: (cwd) => ({ servers: { ...devTools.mcpServers(cwd), ...projects?.mcpServers(cwd) }, allow: devTools.allowedTools(cwd) }),
+    // The current project's build reports its stages to Harness.
+    harnessTools: (session) => projects?.tools(session) ?? [],
     getEnv: () => {
       const key = settings.getApiKey()
       return agentEnv(key ? { ANTHROPIC_API_KEY: key } : {})
@@ -451,6 +475,20 @@ async function start() {
     },
   })
   usage.start()
+  projects = new ProjectService({
+    projectDir: () => settings.get().project,
+    eccRules: () => {
+      const builtin = builtinEcc(app.getAppPath())
+      return builtin ? join(builtin.path, 'rules') : undefined
+    },
+    eccCatalog: () => {
+      const builtin = builtinEcc(app.getAppPath())
+      return builtin ? join(builtin.path, 'mcp-configs', 'mcp-servers.json') : undefined
+    },
+    keyValues: () => partners.values(),
+    push: (state) => broadcast(IPC.projectPush, state),
+  })
+  projects.start()
   resetQueue = new ResetQueue({
     file: join(app.getPath('userData'), 'reset-queue.json'),
     settings: () => settings.get().resetQueue,
@@ -503,6 +541,7 @@ app.on('before-quit', () => {
   presence?.destroy()
   preview.stopAll()
   usage?.dispose()
+  projects?.dispose()
   pitch?.dispose()
   kit3d?.dispose()
   resetQueue?.dispose()
