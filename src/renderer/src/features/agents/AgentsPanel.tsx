@@ -1,6 +1,7 @@
 import type { SessionState } from '@/stores/reducer'
 import { AgentCard } from './AgentCard'
 import { agentViews, isActive } from './model'
+import { TeamStage } from '../team/TeamStage'
 
 /** Compact live cards for every agent; click one for its detail view. */
 export function AgentsPanel({ session }: { session: SessionState }) {
@@ -9,6 +10,7 @@ export function AgentsPanel({ session }: { session: SessionState }) {
   const ordered = [...subs.filter(isActive), ...subs.filter((a) => !isActive(a))]
   return (
     <div className="space-y-2">
+      <TeamStage session={session} scale={2} compact />
       <AgentCard agent={main} compact />
       {ordered.length > 0 && (
         <div className="ml-2 space-y-2 border-l-2 border-line pl-2">

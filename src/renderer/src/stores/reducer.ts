@@ -144,6 +144,8 @@ export interface SessionState {
   costOffset: number
   outputTokens: number
   turnStartedAt?: number
+  /** The main agent's last finished turn (the team's manager cheers after one). */
+  lastTurn?: { endedAt: number; isError: boolean }
   /** Absent for sessions from before the Usage saver, and for terminal sessions. */
   saver?: SaverView
 }
@@ -401,6 +403,7 @@ export function applyEvent(s: SessionState, e: HarnessEvent): void {
       s.outputTokens += e.outputTokens
       // Harness's own turn (the saver compacting before your message): your turn follows.
       if (e.internal) break
+      s.lastTurn = { endedAt: e.ts, isError: e.isError }
       s.items.push({
         kind: 'turn',
         id: `turn-${e.ts}-${s.items.length}`,

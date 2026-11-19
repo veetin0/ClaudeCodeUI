@@ -14,6 +14,7 @@ import { ShowView } from '../viz/ShowView'
 import { ActivityStrip } from './ActivityStrip'
 import { agentViews, currentActivity, filesTouched, isActive } from './model'
 import { NowWidget } from './NowWidget'
+import { AgentAvatar, useTeamMode } from '../team/Sprite'
 
 /** Everything one agent did: live now-panel, progress, charts, results, files and full timeline. */
 export function AgentDetail({ session }: { session: SessionState }) {
@@ -21,6 +22,7 @@ export function AgentDetail({ session }: { session: SessionState }) {
   const agent = agentViews(session).find((a) => a.key === detailAgent)
   const [selectedTool, setSelectedTool] = useState<string | null>(null)
   const live = useElapsed(agent && isActive(agent) ? agent.startedAt : undefined, 1000)
+  const team = useTeamMode() !== 'off'
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => e.key === 'Escape' && closeAgent()
@@ -44,7 +46,7 @@ export function AgentDetail({ session }: { session: SessionState }) {
         onClick={(e) => e.stopPropagation()}
       >
         <header className="flex items-center gap-3 border-b border-line px-5 py-3">
-          {agent.id === null ? <Sparkles className="size-5 text-accent-ink" /> : <Bot className="size-5 text-info-ink" />}
+          {team ? <AgentAvatar agent={agent} scale={2} className="-my-2" /> : agent.id === null ? <Sparkles className="size-5 text-accent-ink" /> : <Bot className="size-5 text-info-ink" />}
           <div className="min-w-0 flex-1">
             <div className="truncate font-display text-[18px] font-semibold">{agent.name}</div>
             <div className="truncate text-[12px] text-muted">

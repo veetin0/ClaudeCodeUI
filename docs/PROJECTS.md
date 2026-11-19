@@ -59,6 +59,7 @@ A few rules apply throughout:
 ### Build
 
 - **The stepper:** Idea → PRD → Plan → Build → Review → Polish → Done, with Claude's latest note. It follows what Claude reports and what ECC writes, so it's right even if a report is missed.
+- **The team:** the build's agents as pixel characters at work: the manager handing out work, builders hammering, scientists checking. Click one to open its agent. [More](FEATURES.md#the-team).
 - **Watch in chat** and **Agents** open the build session. When Claude is waiting for you, the button says **Claude needs you**.
 - **Evaluator score:** the weighted score per round as a chart, the latest round's four criteria, its verdict and a link to the feedback.
 - **Make it better:** say what should be better and send it:

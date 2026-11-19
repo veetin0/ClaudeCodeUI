@@ -81,6 +81,8 @@ export interface AppSettings {
   recentProjects: string[]
   /** macOS notifications when Claude needs approval or finishes while Harness is in the background. */
   notifications: boolean
+  /** The team: agents shown as pixel characters (animated, still, or off for plain icons). */
+  teamCharacters: 'animated' | 'still' | 'off'
   /** The project Harness is building (the Project place, promo video, API keys). */
   project: string | null
   /** Where new projects go (the last place you picked); null: ~/Projects. */

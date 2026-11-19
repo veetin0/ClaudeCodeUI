@@ -27,6 +27,7 @@ const DEFAULTS: StoredSettings = {
   recentProjects: [],
   observeTerminalSessions: true,
   notifications: true,
+  teamCharacters: 'animated',
   project: null,
   projectsRoot: null,
   usageSaver: DEFAULT_USAGE_SAVER,

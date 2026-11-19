@@ -1,4 +1,4 @@
-import { Bell, KeyRound, Smartphone } from 'lucide-react'
+import { Bell, KeyRound, Smartphone, Users } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import qrcode from 'qrcode-generator'
 import { ADVISOR_CHOICES, ADVISOR_LABEL, type AdvisorChoice } from '@shared/advisor'
@@ -7,6 +7,7 @@ import type { PermissionMode } from '@shared/events'
 import { ipcErrorMessage } from '@/lib/time'
 import { MODELS, PERMISSION_MODES } from '@/features/conversation/PromptBox'
 import { useApp } from '@/stores/app'
+import { CastPreview } from '@/features/team/CastPreview'
 import { Field, Row } from './parts'
 
 /** Settings › General: how Harness signs in, what new sessions start with, and how it tells you things. */
@@ -121,6 +122,26 @@ export function GeneralTab() {
         on={settings.notifications}
         onToggle={(notifications) => void updateSettings({ notifications })}
       />
+
+      <Row
+        icon={<Users className="size-3.5" />}
+        title="Team characters"
+        description="Agents appear as a pixel team: the manager runs things and points at each new teammate; builders hammer and run, and get knocked down when a step fails; scientists inspect. On the Agents board, in the side panel and on Project › Build."
+        control={
+          <select
+            value={settings.teamCharacters}
+            onChange={(e) => void updateSettings({ teamCharacters: e.target.value as 'animated' | 'still' | 'off' })}
+            className="rounded-md border border-line bg-surface-2 px-2 py-1 text-[12px]"
+            aria-label="Team characters"
+          >
+            <option value="animated">Animated</option>
+            <option value="still">Still</option>
+            <option value="off">Off</option>
+          </select>
+        }
+      >
+        {settings.teamCharacters !== 'off' && <CastPreview />}
+      </Row>
 
       <PhoneSection s={settings.phoneAlerts} onChange={(patch) => void updateSettings({ phoneAlerts: { ...settings.phoneAlerts, ...patch } })} />
     </div>

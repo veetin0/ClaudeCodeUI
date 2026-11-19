@@ -10,6 +10,7 @@ import { currentActivity, isActive, type AgentView, agentViews } from '../agents
 import { useElapsed } from '../meters/useElapsed'
 import { ProgressBar } from '../viz/ProgressBar'
 import { layoutTree } from './layout'
+import { AgentAvatar, useTeamMode } from '../team/Sprite'
 
 type AgentNodeData = { agent: AgentView }
 
@@ -26,13 +27,14 @@ function AgentNode({ data }: NodeProps<Node<AgentNodeData>>) {
   const duration = a.endedAt && a.startedAt ? a.endedAt - a.startedAt : live
   const progress = Object.values(a.visuals.progress).sort((x, y) => y.updatedAt - x.updatedAt)[0]
   const Icon = a.id === null ? Sparkles : Bot
+  const team = useTeamMode() !== 'off'
   const recent = a.tools.slice(-8)
 
   return (
     <div className={cn('w-[260px] rounded-lg border bg-surface p-3 text-[12px]', STATE_RING[a.state] ?? 'border-line')}>
       <Handle type="target" position={Position.Top} className="!size-1.5 !border-0 !bg-muted" />
       <div className="flex items-center gap-2">
-        <Icon className={cn('size-4 shrink-0', a.id === null ? 'text-accent-ink' : 'text-info-ink')} />
+        {team ? <AgentAvatar agent={a} className="-my-1.5" /> : <Icon className={cn('size-4 shrink-0', a.id === null ? 'text-accent-ink' : 'text-info-ink')} />}
         <span className="min-w-0 flex-1 truncate font-medium">{a.name}</span>
         {duration > 0 && <span className="shrink-0 text-[12px] num text-muted">{formatDuration(duration)}</span>}
       </div>

@@ -8,6 +8,7 @@ import { ShowView } from '../viz/ShowView'
 import { ActivityStrip } from './ActivityStrip'
 import { currentActivity, isActive, type AgentRunState, type AgentView } from './model'
 import { NowWidget } from './NowWidget'
+import { AgentAvatar, useTeamMode } from '../team/Sprite'
 
 const STATE_STYLE: Record<AgentRunState, { label: string; dot: string; border: string }> = {
   running: { label: 'Working', dot: 'bg-ok', border: 'border-ok/40' },
@@ -32,6 +33,7 @@ export function AgentCard({ agent, compact = false }: { agent: AgentView; compac
   const metrics = Object.entries(agent.visuals.metrics).filter(([, m]) => m.points.length > 0)
   const latestShow = agent.visuals.shows.at(-1)
   const Icon = agent.id === null ? Sparkles : Bot
+  const team = useTeamMode() !== 'off'
 
   return (
     <div
@@ -46,7 +48,7 @@ export function AgentCard({ agent, compact = false }: { agent: AgentView; compac
       )}
     >
       <div className="flex w-full items-center gap-2">
-        <Icon className={cn('size-4 shrink-0', agent.id === null ? 'text-accent-ink' : 'text-info-ink')} aria-hidden />
+        {team ? <AgentAvatar agent={agent} className="-my-1.5" /> : <Icon className={cn('size-4 shrink-0', agent.id === null ? 'text-accent-ink' : 'text-info-ink')} aria-hidden />}
         <div className="min-w-0 flex-1">
           <div className="truncate font-medium">{agent.name}</div>
           {!compact && (

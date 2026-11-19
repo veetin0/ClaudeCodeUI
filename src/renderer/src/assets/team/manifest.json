@@ -1,0 +1,100 @@
+{
+  "frame": 32,
+  "frames": 4,
+  "skins": 3,
+  "outfits": 3,
+  "characters": {
+    "manager": {
+      "anims": [
+        "idle",
+        "plan",
+        "point_l",
+        "point_r",
+        "watch",
+        "crossed",
+        "cheer",
+        "facepalm"
+      ],
+      "ms": {
+        "idle": 220,
+        "plan": 220,
+        "point_l": 220,
+        "point_r": 220,
+        "watch": 220,
+        "crossed": 220,
+        "cheer": 220,
+        "facepalm": 220
+      }
+    },
+    "builder": {
+      "anims": [
+        "idle",
+        "run",
+        "build",
+        "ponder",
+        "knocked",
+        "done"
+      ],
+      "ms": {
+        "idle": 220,
+        "run": 140,
+        "build": 220,
+        "ponder": 220,
+        "knocked": 220,
+        "done": 220
+      }
+    },
+    "scientist": {
+      "anims": [
+        "idle",
+        "walk",
+        "read",
+        "inspect",
+        "nervous",
+        "approve"
+      ],
+      "ms": {
+        "idle": 220,
+        "walk": 180,
+        "read": 220,
+        "inspect": 220,
+        "nervous": 220,
+        "approve": 220
+      }
+    },
+    "architect": {
+      "anims": [
+        "idle",
+        "walk",
+        "draft",
+        "ponder",
+        "present",
+        "knocked"
+      ],
+      "ms": {
+        "idle": 220,
+        "walk": 180,
+        "draft": 220,
+        "ponder": 220,
+        "present": 220,
+        "knocked": 220
+      }
+    },
+    "explorer": {
+      "anims": [
+        "idle",
+        "scout",
+        "look",
+        "found",
+        "knocked"
+      ],
+      "ms": {
+        "idle": 220,
+        "scout": 160,
+        "look": 220,
+        "found": 220,
+        "knocked": 220
+      }
+    }
+  }
+}

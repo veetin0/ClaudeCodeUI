@@ -1,7 +1,7 @@
 /**
  * End-to-end smoke test: launches the real Electron app (from out/, built by `npm run test:e2e`)
- * against throwaway folders, clicks through Home (Build it), the Project place (Build, Promo, Keys)
- * and Settings, and saves a screenshot per step to test-results/.
+ * against throwaway folders, clicks through Home (Build it), the Project place (Build, Promo, Keys),
+ * the team characters and Settings, and saves a screenshot per step to test-results/.
  *
  * Isolation: HARNESS_USER_DATA and CLAUDE_CONFIG_DIR point into a temp folder (never the real
  * profile or ~/.claude), ports are random, and Claude is pointed at a dead endpoint with a fake key,
@@ -243,6 +243,46 @@ describe('Harness (real Electron app)', () => {
   it('has nothing left of the hackathon mode', async () => {
     const text = await page.locator('body').innerText()
     expect(text).not.toMatch(/hackathon|hackforge|team run|\bcrew\b/i)
+  })
+
+  it('shows the team: the manager on the build’s stage, avatars, and the Team characters setting', async () => {
+    const settings = () => page.evaluate(() => window.harness.getSettings())
+    const animation = (l: ReturnType<Page['locator']>) => l.evaluate((el) => getComputedStyle(el).animationName)
+    await page.getByRole('tab', { name: 'Build' }).click()
+    const stage = page.getByRole('group', { name: /^The team: Manager · main agent/ })
+    await stage.waitFor()
+    expect(await animation(stage.locator('.sprite').first())).toBe('team-frames')
+    await shot('15-team-stage')
+
+    // The manager opens the main agent; its card on the Agents board has the avatar too.
+    await stage.getByRole('button', { name: /^Manager · main agent/ }).click()
+    const close = page.getByTitle('Close (Esc)')
+    await close.waitFor()
+    expect(await page.locator('header').filter({ has: close }).locator('.sprite').count()).toBe(1)
+    await page.keyboard.press('Escape')
+    await close.waitFor({ state: 'detached' })
+    await key('2')
+    await page.getByRole('group', { name: /^The team: Manager · main agent/ }).waitFor()
+    expect(await page.locator('.sprite').count()).toBeGreaterThanOrEqual(2)
+    await shot('16-team-agents')
+
+    await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].webContents.send('app:command', { id: 'settings' }))
+    await page.getByRole('tab', { name: 'General' }).click()
+    const mode = page.getByRole('combobox', { name: 'Team characters' })
+    await mode.scrollIntoViewIfNeeded()
+    expect(await mode.inputValue()).toBe('animated')
+    const cast = page.getByTestId('team-cast')
+    expect(await cast.locator('.sprite').count()).toBe(5)
+    await shot('17-team-setting')
+    await mode.selectOption('still')
+    await expect.poll(async () => (await settings()).teamCharacters).toBe('still')
+    expect(await animation(cast.locator('.sprite').first())).toBe('none')
+    await mode.selectOption('off')
+    await expect.poll(async () => (await settings()).teamCharacters).toBe('off')
+    await cast.waitFor({ state: 'detached' })
+    await page.keyboard.press('Escape')
+    await page.getByRole('combobox', { name: 'Team characters' }).waitFor({ state: 'detached' })
+    expect(await page.locator('.sprite').count()).toBe(0)
   })
 
   it('started one Claude session: the build, in the new project', async () => {

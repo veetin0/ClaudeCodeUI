@@ -55,6 +55,27 @@ Harness has three places, and every screen has one main button: the next thing t
 - **The latest result it showed:** an image, chart, table or note.
 - **A strip of its tool calls**, coloured by kind.
 
+### The team
+
+Above the cards, the agents work on a little stage as pixel characters, and each card and graph node has its agent's character as its avatar.
+
+| Character | Plays | Does |
+|---|---|---|
+| **Manager** | the main agent | plans on a clipboard, watches commands and the team, **points at each new teammate**, taps a foot with arms crossed when Claude needs you, facepalms at a failed step, cheers when a turn ends |
+| **Builder** | agents that write and fix code (`general-purpose`, `gan-generator`, the build resolvers, …) | hammers while it writes or edits, runs while a command runs, ponders while it reads or thinks, **gets knocked down when a step fails** (and stays down if the agent failed), gives a thumbs up when done |
+| **Scientist** | reviewers and evaluators (`code-reviewer`, `security-reviewer`, `gan-evaluator`, …) | reads, inspects with a magnifier, sweats over a failure, stamps its approval |
+| **Architect** | planners (`Plan`, `planner`, `architect`, …) | drafts on a blueprint, ponders, holds the plan up when done |
+| **Explorer** | `Explore` and researchers (`code-explorer`, `docs-lookup`, …) | looks through binoculars, scouts with a flashlight, shouts "!" when it finds it |
+
+- **New teammates run in** from the right while the manager points at them. Finished ones show a green ✓ and leave the stage after about 15 seconds.
+- **Bubbles** say what needs attention: a yellow **?** when the agent needs you, a red **!** when it failed.
+- **Click a character** to open its agent. When the stage is full, a **+N** chip opens the board; whoever needs you and the newest busy agents keep their places.
+- **Each agent looks a little different:** three outfit colours and three skin tones, picked from the agent's id, so it looks the same every time, replays included.
+- The stage is also in the side panel and on **Project › Build**.
+- **Settings › General › Team characters:** Animated, Still (first frames only) or Off (plain icons, no stage). Reduced motion in your system settings keeps them still.
+
+The sprites are 32×32 pixel art drawn by `scripts/team/anim.py` (`npm run team:sprites` redraws them; needs Python 3 and Pillow).
+
 Click a card for the full detail view: progress, one chart per metric, all results, the files it touched (click to see the diff), its whole timeline and its report.
 
 ![Agent detail](screenshots/agent-detail.png)

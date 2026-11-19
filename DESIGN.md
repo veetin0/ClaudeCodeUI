@@ -355,7 +355,7 @@ A graphite-and-ink neutral world with four timing colours. Each colour is a fill
 
 ### Secondary
 - **Running Green** (`ok` #12a15e, ink #0a7a45; dark #22b573 / #4ade96): running and done. Live sectors, finished sectors, running status squares, PASS verdicts, the target line in score charts, and done or chosen badges as a 15% green wash with green-ink text.
-- **Waiting Yellow** (`warn` #f2b300, ink #8a5800; dark #f5be1e / #f7c948): waiting for you. Permission prompts, the inbox count, a stuck milestone, notes that need action, and an amount nearing its limit. Text on a yellow fill is set in rail graphite (#15161d, 9.6:1), never in white.
+- **Waiting Yellow** (`warn` #f2b300, ink #8a5800; dark #f5be1e / #f7c948): waiting for you. Permission prompts, the inbox count, notes that need action, and an amount nearing its limit. Text on a yellow fill is set in rail graphite (#15161d, 9.6:1), never in white.
 - **Failed Red** (`danger` #d92626, ink #b91c1c; dark #ef4444 / #f87171): failed, over the limit, destructive. Failed sectors and tool calls, FAIL verdicts, an urgent race clock, Stop actions (outlined in red, never filled).
 
 ### Tertiary
@@ -381,7 +381,7 @@ A graphite-and-ink neutral world with four timing colours. Each colour is a fill
 
 **The Fill-and-Ink Rule.** Dots, sectors and bars use the base colour; text uses its `-ink` partner, which holds at least 5.4:1 on the surface in both modes. Never set text in a fill colour.
 
-**The Ink-for-Amounts Rule.** Plain amounts (context used, plan usage) fill in ink at 70%, not green. They turn yellow and then red near their limits: context past 65% and 85%, the 5-hour plan window past 70% and 90% (or when the plan warns or rejects). Usage left (a teammate's headroom) fills the same ink and turns yellow at 30% left and red at 10% left.
+**The Ink-for-Amounts Rule.** Plain amounts (context used, plan usage) fill in ink at 70%, not green. They turn yellow and then red near their limits: context past 65% and 85%, the 5-hour plan window past 70% and 90% (or when the plan warns or rejects).
 
 **The Graphite Rail Rule.** The rail is graphite in both modes and re-scopes every token inside it to its dark values, so menus opened from the rail are dark too. The same graphite material is reused as the command well that shows a running shell command inside an agent card. Any other always-dark surface takes the same re-scope, so its text uses the dark-mode `-ink` values, never raw palette colours.
 
@@ -395,7 +395,7 @@ A graphite-and-ink neutral world with four timing colours. Each colour is a fill
 
 ### Hierarchy
 - **Display** (600, 34px, 1.25): the Home question only ("What do you want to build?").
-- **Headline** (600, 24px, 1.25): the title of a place or step: the run board's current milestone, each team-run step, and the event name at 26px.
+- **Headline** (600, 24px, 1.25): the title of a place: the project's name on Project › Build and Home's question.
 - **Title Large** (600, 20px, 1.25): a view's heading inside a place: the Agents board, the project's name on Project › Build.
 - **Title** (600, 18px, 1.25): sheet and dialog titles (Settings, Usage, Hand off).
 - **Body** (400, 13px, 1.5): the app's base size, used for text, menu items and card titles (titles at 600, in the platform sans and not the display face). Chat prose sits in a 768px column.
@@ -417,7 +417,7 @@ A graphite-and-ink neutral world with four timing colours. Each colour is a fill
 
 A fixed two-column shell: the 240px graphite rail on the left, the work area on the right with a 48px top bar (session title and status, the Chat · Agents · Preview segmented control, and the status chip on the far right). The rail has three parts: where to go (Home, the current project, New session), the session list, and a footer with plan usage as 20 sectors and Settings. On macOS, the rail's first 48px are left free for the traffic lights.
 
-Content columns are centred and capped by purpose: Home at 672px, the conversation at 768px, sheets at 672px (wide sheets 1024px), and the run board at 1280px. The run board splits 3:2 from 1280px; tile rows go from two to four columns at 768px; teammate cards pair up at 768px; agent cards fill an auto grid of 320px minimum columns with 12px gaps. The window's minimum size is 960×600, and the top bar drops secondary labels (such as the side-panel summary) below 1180px.
+Content columns are centred and capped by purpose: Home at 672px, the conversation at 768px, sheets at 672px (wide sheets 1024px), the Project place at 1024px, and the Agents board at 1152px. Tile rows go from two to four columns at 768px; agent cards fill an auto grid of 320px minimum columns with 12px gaps. The window's minimum size is 960×600, and the top bar drops secondary labels (such as the side-panel summary) below 1180px.
 
 Spacing is a 4px rhythm with a 2px hairline step. Sector gaps are 2px; gaps inside a row are 6–8px; cards pad 12px; panels pad 12–16px; content gutters are 24px; the top bar pads 16px and the rail 8px. Controls are 28px high, segmented tabs 24px, rail navigation rows 32px, and two-line session rows sit at about 44px. Density is the point: a whole agent's state (status, current action, progress, metrics, tool rhythm, elapsed time) fits in one card.
 
@@ -486,13 +486,20 @@ Quiet, confident and few: one violet button per screen or card, everything else 
 Progress and history are drawn as a row of equal segments with 2px gaps and 1px corners, 3–6px tall, like a lap split into timed sectors. Done is green; the live sector is green with a white highlight sweeping across it; waiting is yellow; failed is red; best is violet; a plain amount is ink at 70%; still to come is slate at 30%. Variants: the meter (a value as N filled sectors: 20 for plan usage, 8 in the status chip, 24 for progress), steps (named stages with condensed uppercase labels under each sector, as in the project's stage stepper), and the activity strip (one 6px sector per tool call, coloured by tool kind, 4–14px wide). Every one carries an accessible label or meter role.
 
 ### Agent Card (signature)
-A live tile per agent: icon, name and role, a status square with its word (Working, Needs you, Done, Failed), the current action in 13px medium, a "now" widget (the tail of the file being written, with line numbers and a caret, or the running command in a graphite command well with a green $ and a ticking timer), progress as sector meters, up to four metric tiles with sparklines, then a footer readout of the activity strip, call count, tokens and elapsed time in semibold ink. Inactive agents drop to 85% opacity.
+A live tile per agent: its team character (an icon with team characters off), name and role, a status square with its word (Working, Needs you, Done, Failed), the current action in 13px medium, a "now" widget (the tail of the file being written, with line numbers and a caret, or the running command in a graphite command well with a green $ and a ticking timer), progress as sector meters, up to four metric tiles with sparklines, then a footer readout of the activity strip, call count, tokens and elapsed time in semibold ink. Inactive agents drop to 85% opacity.
+
+### Team Characters (signature)
+Agents appear as a small pixel team. The **Manager** (dark suit and tie) is the main agent. **Builders** (hard hat, hi-vis vest) write and fix code. **Scientists** (white lab coat) are the reviewers and evaluators. **Architects** (flat cap, blueprint) plan. **Explorers** (bush hat, binoculars) explore and look things up. Each is 32×32 pixel art with black outlines, drawn by `scripts/team/anim.py` from layered parts, with four frames per animation and three outfit accents × three skin tones picked from the agent's id. They are shown at whole multiples only, with pixelated scaling: 1× in agent cards and graph nodes, 2× in the agent detail and the side panel, 3× on the stage.
+
+The stage is a strip of sky over a plank floor (`--stage-sky`, `--stage-floor`, darker in dark mode so the outlines still read). The manager stands on the left and teammates take places to the right: they run in when spawned (the manager points at them), and leave about 15 seconds after they finish. Name tags are 11px condensed figures on a white tag at 85%. A bubble over a head says what needs attention, in a flag colour with a 2px graphite border: a yellow ? (needs you), a green ✓ (done) or a red ! (failed). The sprites never use the flag colours to say a state: the pose and the bubble do.
 
 ### Named Rules
 
 **The One Button Rule.** Each screen or card has exactly one primary (violet) button. Alternatives go behind its ▾; everything else goes behind ⋯, the / menu or ⌘K.
 
-**The One Sweep Rule.** The highlight crossing the live sector (1.6s, `cubic-bezier(0.16, 1, 0.3, 1)`, repeating) is the only ambient animation, and only the leading sector of a live meter carries it; the sectors behind it are plain done. No opacity pulses, breathing dots or shimmer. The only other motions are functional: the stepped caret while text streams, a spinner standing in for an icon while something runs (slate, info blue for an in-progress task, or the busy button's own label colour; never violet), and 150ms colour and shadow transitions on hover. The sweep, the caret and every spinner stop under reduced motion.
+**The One Sweep Rule.** The highlight crossing the live sector (1.6s, `cubic-bezier(0.16, 1, 0.3, 1)`, repeating) is the only ambient animation besides the team's stepped frames (the Pixel Team Exception), and only the leading sector of a live meter carries it; the sectors behind it are plain done. No opacity pulses, breathing dots or shimmer. The only other motions are functional: the stepped caret while text streams, a spinner standing in for an icon while something runs (slate, info blue for an in-progress task, or the busy button's own label colour; never violet), and 150ms colour and shadow transitions on hover. The sweep, the caret and every spinner stop under reduced motion.
+
+**The Pixel Team Exception.** The team characters are the one ambient motion besides the sweep: stepped frame animation (four frames at 140–220ms each, `steps(4)`), never tweened, faded or scaled. They stand still on their first frame under reduced motion or with Team characters set to Still, and are gone with it set to Off.
 
 ## Do's and Don'ts
 
@@ -511,7 +518,7 @@ A live tile per agent: icon, name and role, a status square with its word (Worki
 ### Don't:
 - **Don't** use a grey macOS sidebar, white panes with a single brand-orange accent, or smooth continuous progress bars; that is the category default Harness refuses.
 - **Don't** use violet to say something is running, waiting or new: no violet status dots, spinners, count badges or progress bars except for a best result.
-- **Don't** animate anything but the live sector's sweep: no opacity pulses, breathing dots or shimmer skeletons.
+- **Don't** animate anything but the live sector's sweep and the team's stepped frames: no opacity pulses, breathing dots or shimmer skeletons.
 - **Don't** use round status dots or pill-shaped badges; status is square and badges have 3px corners.
 - **Don't** round any corner past 10px.
 - **Don't** set a number in the platform sans, and don't set body copy in the condensed face.

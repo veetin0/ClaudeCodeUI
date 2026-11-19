@@ -16,6 +16,7 @@
     "test:e2e": "electron-vite build && vitest run -c vitest.e2e.config.ts",
     "design:sync": "node scripts/sync-design-skills.mjs",
     "ecc:sync": "node scripts/sync-ecc.mjs",
+    "team:sprites": "python3 scripts/team/anim.py",
     "build:mac": "electron-vite build && CSC_IDENTITY_AUTO_DISCOVERY=false electron-builder --mac",
     "release:mac": "electron-vite build && electron-builder --mac",
     "build:win": "electron-vite build && electron-builder --win",

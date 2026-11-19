@@ -12,6 +12,8 @@ export interface AgentView {
   id: AgentId
   name: string
   role: string
+  /** The subagent's type as Claude Code names it (e.g. "ecc:gan-evaluator", "Explore"). */
+  subagentType?: string
   state: AgentRunState
   background: boolean
   startedAt?: number
@@ -51,6 +53,7 @@ export function agentViews(s: SessionState): AgentView[] {
       id: sub.id,
       name: sub.description,
       role: pluginAgentRole(sub.subagentType) ?? sub.subagentType ?? 'general-purpose',
+      subagentType: sub.subagentType,
       // A subagent waiting on approval shows as waiting.
       state: s.permissions.some((p) => p.agentId === sub.id) ? 'waiting' : sub.status,
       background: sub.background,
