@@ -16,6 +16,7 @@ import { useResetQueueRunner } from './stores/resetQueue'
 import { UsageSheet } from './features/usage/UsageView'
 import { applyTheme } from './lib/theme'
 import { WorldStrip } from './features/world/WorldStrip'
+import { useWorldSounds } from './features/world/sound'
 
 const VIEW_KEYS: Record<string, CommandId> = { '1': 'view-chat', '2': 'view-agents', '3': 'view-preview', '4': 'project', '5': 'usage' }
 
@@ -26,6 +27,7 @@ export function App() {
   const panelOpen = useApp((s) => s.panelOpen)
   const usageOpen = useApp((s) => s.usageOpen)
   useResetQueueRunner()
+  useWorldSounds()
 
   useEffect(() => {
     void useApp.getState().init()

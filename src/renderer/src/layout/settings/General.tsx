@@ -1,4 +1,4 @@
-import { Bell, Building2, Gamepad2, KeyRound, Smartphone, Users } from 'lucide-react'
+import { Bell, Building2, Gamepad2, KeyRound, Smartphone, Users, Volume2 } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import qrcode from 'qrcode-generator'
 import { ADVISOR_CHOICES, ADVISOR_LABEL, type AdvisorChoice } from '@shared/advisor'
@@ -8,6 +8,7 @@ import { ipcErrorMessage } from '@/lib/time'
 import { MODELS, PERMISSION_MODES } from '@/features/conversation/PromptBox'
 import { useApp } from '@/stores/app'
 import { CastPreview } from '@/features/team/CastPreview'
+import { playSound } from '@/features/world/sound'
 import { Field, Row } from './parts'
 
 /** Settings › General: how Harness signs in, what new sessions start with, and how it tells you things. */
@@ -169,6 +170,19 @@ export function GeneralTab() {
           onToggle={(worldStrip) => void updateSettings({ worldStrip })}
         />
       )}
+
+      <Row
+        icon={<Volume2 className="size-3.5" />}
+        title="Sounds"
+        description="8-bit blips when an agent joins, finishes or fails, when Claude needs you, and when a turn is done. Quiet and short, made on the spot (no sound files)."
+        on={settings.sounds}
+        onToggle={(sounds) => void updateSettings({ sounds })}
+        status={
+          <button onClick={() => playSound('fanfare')} className="underline-offset-2 hover:text-fg hover:underline">
+            Play a sound
+          </button>
+        }
+      />
 
       <PhoneSection s={settings.phoneAlerts} onChange={(patch) => void updateSettings({ phoneAlerts: { ...settings.phoneAlerts, ...patch } })} />
     </div>

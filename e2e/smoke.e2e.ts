@@ -177,7 +177,7 @@ describe('Harness (real Electron app)', () => {
     await page.keyboard.press('Escape')
   })
 
-  it('switches between the 8-bit and Classic themes in Settings', async () => {
+  it('switches between the 8-bit and Classic themes in Settings; the team strip is on, sounds off', async () => {
     await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].webContents.send('app:command', { id: 'settings' }))
     await page.getByRole('tab', { name: 'General' }).click()
     const theme = page.getByRole('combobox', { name: 'Theme' })
@@ -187,6 +187,11 @@ describe('Harness (real Electron app)', () => {
     await theme.selectOption('pixel')
     await expect.poll(() => page.evaluate(() => document.documentElement.dataset.theme)).toBe('pixel')
     expect((await page.evaluate(() => window.harness.getSettings())).theme).toBe('pixel')
+    // The team's chiptune blips are off until you turn them on.
+    const sounds = page.getByRole('switch', { name: 'Sounds', exact: true })
+    await sounds.scrollIntoViewIfNeeded()
+    expect(await sounds.getAttribute('aria-checked')).toBe('false')
+    expect(await page.getByRole('switch', { name: 'Team strip', exact: true }).getAttribute('aria-checked')).toBe('true')
     await page.keyboard.press('Escape')
     await page.getByRole('combobox', { name: 'Theme' }).waitFor({ state: 'detached' })
   })
