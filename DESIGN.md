@@ -337,6 +337,8 @@ The system is dense and calm on purpose. Most controls are 28px high, most type 
 
 The world refuses the category default: a grey macOS sidebar, white panes, one brand-orange accent and smooth progress bars. A build you come back to after an hour should read as clearly as the moment you started it.
 
+**Two looks.** The default is **8-bit** (see *The 8-bit Theme* below): the same structure, timing colours and rules, dressed as a pixel game, with the team living in a workshop. **Classic** (Settings › General › Theme) is the clean timing tower this document's tokens describe.
+
 **Key Characteristics:**
 - A graphite rail (the timing tower) in both modes; anything inside it, menus included, switches to dark tokens.
 - Mini-sector strips wherever progress or history shows: project stages, evaluator scores, tool calls, meters.
@@ -489,9 +491,14 @@ Progress and history are drawn as a row of equal segments with 2px gaps and 1px 
 A live tile per agent: its team character (an icon with team characters off), name and role, a status square with its word (Working, Needs you, Done, Failed), the current action in 13px medium, a "now" widget (the tail of the file being written, with line numbers and a caret, or the running command in a graphite command well with a green $ and a ticking timer), progress as sector meters, up to four metric tiles with sparklines, then a footer readout of the activity strip, call count, tokens and elapsed time in semibold ink. Inactive agents drop to 85% opacity.
 
 ### Team Characters (signature)
-Agents appear as a small pixel team. The **Manager** (dark suit and tie) is the main agent. **Builders** (hard hat, hi-vis vest) write and fix code. **Scientists** (white lab coat) are the reviewers and evaluators. **Architects** (flat cap, blueprint) plan. **Explorers** (bush hat, binoculars) explore and look things up. Each is 32×32 pixel art with black outlines, drawn by `scripts/team/anim.py` from layered parts, with four frames per animation and three outfit accents × three skin tones picked from the agent's id. They are shown at whole multiples only, with pixelated scaling: 1× in agent cards and graph nodes, 2× in the agent detail and the side panel, 3× on the stage.
+Agents appear as a small pixel team. The **Manager** (dark suit and tie) is the main agent. **Builders** (hard hat, hi-vis vest) write and fix code. **Scientists** (white lab coat) are the reviewers and evaluators. **Architects** (flat cap, blueprint) plan. **Explorers** (bush hat, binoculars) explore and look things up. Each is 32×32 pixel art with black outlines, drawn by `scripts/team/anim.py` from layered parts, with four frames per animation and three outfit accents × three skin tones picked from the agent's id. They are shown at whole multiples only, with pixelated scaling: 1× in agent cards and graph nodes, 2× in the agent detail and the team strip, and the largest whole scale that fits in the workshop.
 
-The stage is a strip of sky over a plank floor (`--stage-sky`, `--stage-floor`, darker in dark mode so the outlines still read). The manager stands on the left and teammates take places to the right: they run in when spawned (the manager points at them), and leave about 15 seconds after they finish. Name tags are 11px condensed figures on a white tag at 85%. A bubble over a head says what needs attention, in a flag colour with a 2px graphite border: a yellow ? (needs you), a green ✓ (done) or a red ! (failed). The sprites never use the flag colours to say a state: the pose and the bubble do.
+A bubble over a head says what needs attention, in a flag colour with a 2px graphite border: a yellow ? (needs you), a green ✓ (done) or a red ! (failed). The sprites never use the flag colours to say a state: the pose and the bubble do.
+
+### The Workshop (signature)
+Agents › World is the team's room, drawn by `scripts/team/world.py` at 400×224 room pixels and scaled by whole multiples, framed by a graphite title bar with the session and a one-line summary ("3 agents working · 1 needs you"). It is the same warm room in both modes and both themes: cream striped wallpaper over wood wainscot, plank floor, graphite outlines. Its stations say what the work is: the manager's desk, two workbenches with PCs (writing), a drafting table (architects), a bookshelf (reading and searching), a whiteboard (thinking and planning), a telescope at the window (the web), a terminal and server rack (commands), a lab bench (scientists' tests), a coffee corner (done), and a door (arriving and leaving). Monitors, server lights, steam and bubbles loop in four frames. The windows follow the clock (day, dusk and dawn, night with stars); at night the room dims and the ceiling lamps throw stepped cones of light.
+
+The **team strip** is a 68px slice of the same world along the bottom of every screen: a corridor tile with windows, the team in a row at 2×, and on the right a cream panel with the session and its summary, **World**, and a fold button that leaves a small **Team** tab.
 
 ### Named Rules
 
@@ -499,7 +506,21 @@ The stage is a strip of sky over a plank floor (`--stage-sky`, `--stage-floor`, 
 
 **The One Sweep Rule.** The highlight crossing the live sector (1.6s, `cubic-bezier(0.16, 1, 0.3, 1)`, repeating) is the only ambient animation besides the team's stepped frames (the Pixel Team Exception), and only the leading sector of a live meter carries it; the sectors behind it are plain done. No opacity pulses, breathing dots or shimmer. The only other motions are functional: the stepped caret while text streams, a spinner standing in for an icon while something runs (slate, info blue for an in-progress task, or the busy button's own label colour; never violet), and 150ms colour and shadow transitions on hover. The sweep, the caret and every spinner stop under reduced motion.
 
-**The Pixel Team Exception.** The team characters are the one ambient motion besides the sweep: stepped frame animation (four frames at 140–220ms each, `steps(4)`), never tweened, faded or scaled. They stand still on their first frame under reduced motion or with Team characters set to Still, and are gone with it set to Off.
+**The Pixel Team Exception.** The team and its workshop are the one ambient motion besides the sweep: stepped frame animation (four frames at 140–260ms each, `steps(4)`), and walking that moves one room pixel per step (`steps(distance)`, about 48 room pixels a second), never tweened, faded or scaled. They stand still on their first frame and jump to their spots under reduced motion, in replays, or with Team characters set to Still, and are gone with it set to Off.
+
+## The 8-bit Theme
+
+The default look, on `<html data-theme="pixel">` (`src/renderer/src/pixel.css`). The layout, timing colours and rules above all hold; only the dress changes. Light and dark still follow the system.
+
+- **Palette.** Light: cream surfaces (`#f6f0e1`, `#ebe2cc`) with deep indigo ink and rail (`#211a35`), slate `#5d5571`. Dark: night indigo (`#1d1832`, `#272043`) with cream ink (`#f2ecdc`) and a near-black rail (`#0e0b19`). The four timing colours turn saturated and retro (green `#38a14a`, yellow `#f2b11a`, red `#d33f49`, violet `#6b3fd4`) with darker or lighter inks for text, and `--px-ink` draws outlines.
+- **Type.** Pixelify Sans for headings and the UI's own words (buttons, tabs, labels, rows, the top bar and sidebar), VT323 for every readout (sized up with `font-size-adjust`). Claude's replies, text fields, hints, code, diffs and the terminal stay in the readable faces: pixel type is for chrome, not for reading.
+- **Shapes.** No rounded corners anywhere outside the code editor and the terminal. Lines are 2px. Cards, dialogs and menus get an ink outline; the larger ones cast a hard block shadow (`3px 3px 0`, dialogs `4px 4px 0`), never a blur.
+- **Controls.** The primary button is a bevelled block (light inset top-left, dark bottom-right) that presses down 1px. Tabs are one chunky strip with the chosen tab inked in. Switches have a square knob. Text fields are inset wells. Scrollbars are square. Icons keep their shapes with thicker, square-capped strokes.
+- **Motion.** Nothing fades: colour changes are instant, spinners rotate in eight steps, the live sector's sweep ticks in six. Keyboard focus is a dashed ring on controls; text fields show focus with their outline.
+
+### Named Rules
+
+**The Chrome-Not-Copy Rule.** Pixel type dresses the interface, never the reading. If someone reads it for longer than a glance (a reply, a hint, a diff), it is in a readable face.
 
 ## Do's and Don'ts
 

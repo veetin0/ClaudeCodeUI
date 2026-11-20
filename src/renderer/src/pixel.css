@@ -115,6 +115,10 @@
 [data-theme='pixel'] :is(textarea, input, .prose, .selectable.whitespace-pre-wrap, .ui-read) {
   font-family: var(--ff-sans);
 }
+/* A label's own words are chrome; the hint under a field is for reading. */
+[data-theme='pixel'] label :is(.text-muted, p):not(button) {
+  font-family: var(--ff-sans);
+}
 /* VT323 has a small x-height: size readouts up so 11–13px stays legible. */
 [data-theme='pixel'] .num {
   font-size-adjust: ex-height 0.5;

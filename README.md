@@ -30,7 +30,7 @@ You see all of it as it happens: every agent, tool call, file change and token. 
 - **Build it.** One idea becomes a project: a folder with git and ECC's rules, then a session that goes from PRD to plan to MVP to review to polish, asking you only what truly decides the product. [How it works](docs/PROJECTS.md).
 - **The Project place.** The build's stage, the evaluator's score per round, the PRD, plan and commits, and **Make it better**. Its **Promo** tab makes a promo video and a presentation deck; **Keys** holds the project's API keys and adds tools like GitHub, Supabase or Vercel from ECC's catalog.
 - **ECC built in.** 72 agents, 327 skills and 98 commands in every session, with hooks that stop risky commands, all one **/** away.
-- **The team.** Agents as animated pixel characters: the manager (the main agent) hands out work and points at each new teammate, builders hammer and run and get knocked down when a step fails, scientists check the work, architects draw the plan and explorers scout.
+- **8-bit, with a team that lives in it.** The agents are pixel characters in a workshop (Agents › World): the manager (the main agent) hands out work from the office desk and points at each new teammate, builders hammer at the workbenches and get knocked down when a step fails, scientists test at the lab bench, architects draft, explorers read at the shelf. New ones come in the door; finished ones have a coffee and leave. A strip of the workshop runs along the bottom of every screen, the windows follow your clock, and optional chiptune blips tell you what happened. Prefer it plain? Settings › General › Theme › Classic.
 - **Live agent cards.** Every agent and subagent as a card: the file it's writing, the command it's running, progress bars with an ETA, metric charts and the results it shows.
 - **Graph and timeline.** Who spawned whom, and a lane per agent with every tool call on it.
 - **Files and diffs.** Every changed file with a side-by-side diff, plus **Revert** and **Accept**.
@@ -41,12 +41,12 @@ You see all of it as it happens: every agent, tool call, file change and token. 
 
 <table>
   <tr>
+    <td width="50%"><img src="docs/screenshots/world.png" alt="Agents › World: the team at work in its pixel workshop"></td>
     <td width="50%"><img src="docs/screenshots/board.png" alt="Agents working in parallel as live cards"></td>
-    <td width="50%"><img src="docs/screenshots/agent-detail.png" alt="An agent's detail view with progress, metrics and its timeline"></td>
   </tr>
   <tr>
     <td width="50%"><img src="docs/screenshots/mission.png" alt="The agent graph over a timeline of tool calls"></td>
-    <td width="50%"><img src="docs/screenshots/results.png" alt="Charts and tables shown inline in the conversation"></td>
+    <td width="50%"><img src="docs/screenshots/agent-detail.png" alt="An agent's detail view with what it's doing, its files and its timeline"></td>
   </tr>
 </table>
 
@@ -122,7 +122,7 @@ Harness is a local app. There is no account, no telemetry, no analytics and no a
 | | |
 |---|---|
 | [Projects](docs/PROJECTS.md) | Build it, ECC's pipeline, the Project place (Build, Promo, Keys), ECC in every session |
-| [Features](docs/FEATURES.md) | The three places, shortcuts, agents and the team, graph and timeline, files and diffs, terminal, Preview, the / menu, history |
+| [Features](docs/FEATURES.md) | The three places, shortcuts, agents and their workshop, the 8-bit look, graph and timeline, files and diffs, terminal, Preview, the / menu, history |
 | [Usage saver](docs/USAGE.md) | How Harness stretches your Claude plan, the advisor, and the usage history |
 | [Design skills and dev tools](docs/TOOLS.md) | impeccable, UI/UX Pro Max, the browser, library docs, reverse engineering, Blender |
 | [Windows](docs/WINDOWS.md) · [Releasing](docs/RELEASING.md) | Setup on Windows; building, signing and notarizing |
