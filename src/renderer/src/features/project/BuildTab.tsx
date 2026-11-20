@@ -22,7 +22,6 @@ import { projectName, useProject, useProjectState } from '@/stores/project'
 import { StatusDot, STATUS_LABEL } from '@/layout/StatusDot'
 import { LineChart } from '@/features/viz/LineChart'
 import { SectorMeter, SectorSteps } from '@/ui/Sectors'
-import { TeamStage } from '@/features/team/TeamStage'
 import { Segmented } from '@/ui/Segmented'
 
 const field = 'selectable w-full rounded-md border border-line bg-surface-2 px-2.5 py-1.5 text-[13px] outline-none focus:border-accent-ink/60'
@@ -96,7 +95,6 @@ function Overview({ state }: { state: ProjectState }) {
           </div>
         </div>
       </div>
-      {session && <TeamStage session={session} className="mt-4" />}
       <SectorSteps className="mt-4" steps={PROJECT_STAGES} current={state.stage} labels={STAGE_LABEL} waiting={waiting} label={`Build stage: ${STAGE_LABEL[state.stage]}`} />
       <p className="mt-2 text-[13px]">
         <span className="font-medium">{STAGE_LABEL[state.stage]}</span>

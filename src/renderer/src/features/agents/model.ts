@@ -89,14 +89,18 @@ const VERB: Record<string, ActivityKind> = {
   plan: 'planning',
 }
 
+/** The kind of work a tool call is (writing, running, reading…), whatever its state. */
+export function toolActivityKind(t: ToolCall): ActivityKind {
+  if (t.name === 'Edit' || t.name === 'MultiEdit') return 'editing'
+  return VERB[toolKind(t.name)] ?? 'running'
+}
+
 /** What the agent is doing right now, derived from its newest running tool call. */
 export function currentActivity(a: AgentView): Activity {
   if (a.state === 'waiting') return { kind: 'waiting', title: 'Waiting for your approval' }
   const running = [...a.tools].reverse().find((t) => t.status === 'running')
   if (running) {
-    const k = toolKind(running.name)
-    let kind = VERB[k] ?? 'running'
-    if (running.name === 'Edit' || running.name === 'MultiEdit') kind = 'editing'
+    const kind = toolActivityKind(running)
     return { kind, title: activityTitle(kind, running), tool: running }
   }
   if (a.state === 'running') return { kind: 'thinking', title: a.visuals.status ?? 'Thinking…' }

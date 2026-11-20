@@ -74,8 +74,11 @@ describe('Harness (real Electron app)', () => {
     expect(paths.userData.startsWith(join(homedir(), 'Library', 'Application Support'))).toBe(false)
   })
 
-  it('opens on Home: What do you want to build?', async () => {
+  it('opens on Home: What do you want to build?, in the 8-bit theme, with the team strip', async () => {
     await page.getByRole('heading', { name: 'What do you want to build?' }).waitFor()
+    expect(await page.evaluate(() => document.documentElement.dataset.theme)).toBe('pixel')
+    // No one is at work yet: the strip shows the empty corridor.
+    await page.getByTestId('world-strip').getByText(/No one is at work/).waitFor()
     await shot('01-home')
   })
 
@@ -174,6 +177,20 @@ describe('Harness (real Electron app)', () => {
     await page.keyboard.press('Escape')
   })
 
+  it('switches between the 8-bit and Classic themes in Settings', async () => {
+    await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].webContents.send('app:command', { id: 'settings' }))
+    await page.getByRole('tab', { name: 'General' }).click()
+    const theme = page.getByRole('combobox', { name: 'Theme' })
+    expect(await theme.inputValue()).toBe('pixel')
+    await theme.selectOption('classic')
+    await expect.poll(() => page.evaluate(() => document.documentElement.dataset.theme)).toBe('classic')
+    await theme.selectOption('pixel')
+    await expect.poll(() => page.evaluate(() => document.documentElement.dataset.theme)).toBe('pixel')
+    expect((await page.evaluate(() => window.harness.getSettings())).theme).toBe('pixel')
+    await page.keyboard.press('Escape')
+    await page.getByRole('combobox', { name: 'Theme' }).waitFor({ state: 'detached' })
+  })
+
   it('opens usage history with ⌘5 / Ctrl+5', async () => {
     await page.getByText('Spends your Claude plan where it buys quality').waitFor({ state: 'detached' })
     await key('5')
@@ -248,7 +265,7 @@ describe('Harness (real Electron app)', () => {
     expect(text).not.toMatch(/hackathon|hackforge|team run|\bcrew\b/i)
   })
 
-  it('shows the team: the manager on the build’s stage, avatars, and the Team characters setting', async () => {
+  it('shows the team: the strip on the build, the workshop, avatars, and the Team characters setting', async () => {
     const settings = () => page.evaluate(() => window.harness.getSettings())
     const animation = (l: ReturnType<Page['locator']>) => l.evaluate((el) => getComputedStyle(el).animationName)
     await page.getByRole('tab', { name: 'Build' }).click()
@@ -264,10 +281,18 @@ describe('Harness (real Electron app)', () => {
     expect(await page.locator('header').filter({ has: close }).locator('.sprite').count()).toBe(1)
     await page.keyboard.press('Escape')
     await close.waitFor({ state: 'detached' })
+    // ⌘2 opens Agents on the workshop, with the manager at the office desk.
     await key('2')
+    const room = page.getByTestId('world-room')
+    await room.waitFor()
+    await room.getByRole('button', { name: /^Manager · main agent/ }).waitFor()
     await page.getByRole('group', { name: /^The team: Manager · main agent/ }).waitFor()
     expect(await page.locator('.sprite').count()).toBeGreaterThanOrEqual(2)
-    await shot('16-team-agents')
+    await shot('16-team-world')
+    await page.getByRole('tab', { name: 'Cards' }).click()
+    await page.getByText('Main agent', { exact: true }).waitFor()
+    await shot('16b-team-cards')
+    await page.getByRole('tab', { name: 'World' }).click()
 
     await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].webContents.send('app:command', { id: 'settings' }))
     await page.getByRole('tab', { name: 'General' }).click()

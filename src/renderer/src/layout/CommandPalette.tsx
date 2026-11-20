@@ -1,28 +1,5 @@
 import { Command } from 'cmdk'
-import {
-  Activity,
-  BarChart3,
-  Bot,
-  Clapperboard,
-  Hammer,
-  Home,
-  KeyRound,
-  MousePointerClick,
-  FolderOpen,
-  History,
-  LayoutGrid,
-  MessageSquare,
-  MonitorPlay,
-  Network,
-  PanelLeft,
-  PanelRight,
-  Play,
-  Plus,
-  Settings,
-  Square,
-  SquareTerminal,
-  type LucideIcon,
-} from 'lucide-react'
+import { Activity, BarChart3, Bot, Building2, Clapperboard, FolderOpen, Hammer, History, Home, KeyRound, LayoutGrid, MessageSquare, MonitorPlay, MousePointerClick, Network, PanelLeft, PanelRight, Play, Plus, Settings, Square, SquareTerminal, type LucideIcon } from 'lucide-react'
 import type { CommandId } from '@shared/commands'
 import { actionMenuItems } from '@/lib/actionMenu'
 import { runCommand } from '@/lib/commands'
@@ -69,6 +46,7 @@ const PLACES: { label: string; icon: LucideIcon; go: () => void }[] = [
   })),
   ...(
     [
+      ['world', 'Agents › World: the team in its workshop', Building2],
       ['cards', 'Agents › Cards', LayoutGrid],
       ['graph', 'Agents › Graph and timeline (mission control)', Network],
       ['activity', 'Agents › Activity: every tool call', Activity],

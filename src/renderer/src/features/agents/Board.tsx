@@ -2,7 +2,6 @@ import { LayoutGrid } from 'lucide-react'
 import type { SessionState } from '@/stores/reducer'
 import { AgentCard } from './AgentCard'
 import { agentViews, isActive } from './model'
-import { TeamStage } from '../team/TeamStage'
 
 /** Every agent in the session as a live tile. Active agents first, then finished ones. */
 export function Board({ session }: { session: SessionState }) {
@@ -19,7 +18,6 @@ export function Board({ session }: { session: SessionState }) {
             {active.length} working · {agents.length - 1} subagent{agents.length === 2 ? '' : 's'} this session
           </span>
         </div>
-        <TeamStage session={session} className="mb-4" />
         <div className="grid grid-cols-[repeat(auto-fill,minmax(320px,1fr))] items-start gap-3">
           {[...active, ...rest].map((a) => (
             <AgentCard key={a.key} agent={a} />

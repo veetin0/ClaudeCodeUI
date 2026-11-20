@@ -28,13 +28,13 @@ export interface TerminalTab {
 /** Harness's three places: start or continue work, a session, the project you're building. */
 export type Place = 'home' | 'session' | 'project'
 export type MainView = 'chat' | 'agents' | 'preview'
-export type AgentsMode = 'cards' | 'graph' | 'activity'
+export type AgentsMode = 'world' | 'cards' | 'graph' | 'activity'
 export type SettingsTab = 'general' | 'tools' | 'advanced'
 
 /** What the Preview view is showing for a project. */
 export type PreviewTarget = { kind: 'server'; id: string } | { kind: 'url'; url: string } | { kind: 'model'; path: string }
 
-interface AppState {
+export interface AppState {
   /** Sessions open in the sidebar (live, or saved ones opened from history). */
   sessions: Record<string, SessionState>
   /** All saved sessions, most recent first. */
@@ -146,7 +146,7 @@ export const useApp = create<AppState>((set, get) => ({
   settings: null,
   place: 'home',
   view: 'chat',
-  agentsMode: 'cards',
+  agentsMode: 'world',
   panelOpen: false,
   detailAgent: null,
   detailTool: null,

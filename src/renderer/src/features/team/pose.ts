@@ -26,8 +26,10 @@ export const CHEER_MS = 3000
 export const ENTER_MS = 700
 export const LEAVE_MS = 15_000
 export const LEAVE_FAILED_MS = 30_000
+/** In the world, a finished agent heads for the door this long before it leaves. */
+export const EXIT_MS = 4000
 
-const LOCOMOTION: Record<Character, string> = { manager: 'idle', builder: 'run', scientist: 'walk', architect: 'walk', explorer: 'scout' }
+export const LOCOMOTION: Record<Character, string> = { manager: 'idle', builder: 'run', scientist: 'walk', architect: 'walk', explorer: 'scout' }
 const DONE: Record<Character, string> = { manager: 'cheer', builder: 'done', scientist: 'approve', architect: 'present', explorer: 'found' }
 const ERROR: Record<Character, string> = { manager: 'facepalm', builder: 'knocked', scientist: 'nervous', architect: 'knocked', explorer: 'knocked' }
 
@@ -49,13 +51,14 @@ export interface PoseContext {
   teamBusy?: boolean
 }
 
-/** A failed step in the last few seconds that nothing has followed yet. */
-function recentError(a: AgentView, now: number): boolean {
+/** A step that failed in the last few seconds and that nothing has followed yet. */
+export function failedStep(a: AgentView, now: number): AgentView['tools'][number] | undefined {
   let last: AgentView['tools'][number] | undefined
   for (const t of a.tools) if (t.status !== 'running' && t.endedAt !== undefined && (!last || t.endedAt > (last.endedAt ?? 0))) last = t
-  if (!last || last.status !== 'error' || now - last.endedAt! >= ERROR_MS) return false
-  return !a.tools.some((t) => t.status === 'running' && t.startedAt > last!.endedAt!)
+  if (!last || last.status !== 'error' || now - last.endedAt! >= ERROR_MS) return undefined
+  return a.tools.some((t) => t.status === 'running' && t.startedAt > last!.endedAt!) ? undefined : last
 }
+const recentError = (a: AgentView, now: number) => failedStep(a, now) !== undefined
 
 export function poseFor(a: AgentView, c: Character, ctx: PoseContext): Pose {
   const { now } = ctx
@@ -142,6 +145,7 @@ export function nextChange(s: SessionState, now: number): number | undefined {
     if (x.endedAt !== undefined) {
       add(x.endedAt + DONE_MS)
       add(x.endedAt + (x.status === 'failed' ? LEAVE_FAILED_MS : LEAVE_MS))
+      add(x.endedAt + (x.status === 'failed' ? LEAVE_FAILED_MS : LEAVE_MS) - EXIT_MS)
     }
   }
   for (const t of Object.values(s.tools)) if (t.status === 'error' && t.endedAt !== undefined) add(t.endedAt + ERROR_MS)

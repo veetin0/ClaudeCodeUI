@@ -1,4 +1,4 @@
-import { Bell, Gamepad2, KeyRound, Smartphone, Users } from 'lucide-react'
+import { Bell, Building2, Gamepad2, KeyRound, Smartphone, Users } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import qrcode from 'qrcode-generator'
 import { ADVISOR_CHOICES, ADVISOR_LABEL, type AdvisorChoice } from '@shared/advisor'
@@ -143,7 +143,7 @@ export function GeneralTab() {
       <Row
         icon={<Users className="size-3.5" />}
         title="Team characters"
-        description="Agents appear as a pixel team: the manager runs things and points at each new teammate; builders hammer and run, and get knocked down when a step fails; scientists inspect. On the Agents board, in the side panel and on Project › Build."
+        description="Agents appear as a pixel team: the manager runs things and points at each new teammate; builders hammer and run, and get knocked down when a step fails; scientists inspect. They live in a workshop (Agents › World), along the strip at the bottom, and as avatars on agent cards."
         control={
           <select
             value={settings.teamCharacters}
@@ -159,6 +159,16 @@ export function GeneralTab() {
       >
         {settings.teamCharacters !== 'off' && <CastPreview />}
       </Row>
+
+      {settings.teamCharacters !== 'off' && (
+        <Row
+          icon={<Building2 className="size-3.5" />}
+          title="Team strip"
+          description="A strip of the workshop along the bottom of every screen: the team you're working with, at work. Its ⌄ button folds it away to a small tab."
+          on={settings.worldStrip}
+          onToggle={(worldStrip) => void updateSettings({ worldStrip })}
+        />
+      )}
 
       <PhoneSection s={settings.phoneAlerts} onChange={(patch) => void updateSettings({ phoneAlerts: { ...settings.phoneAlerts, ...patch } })} />
     </div>

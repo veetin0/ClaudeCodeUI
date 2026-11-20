@@ -15,6 +15,7 @@ import { CommandPalette } from './layout/CommandPalette'
 import { useResetQueueRunner } from './stores/resetQueue'
 import { UsageSheet } from './features/usage/UsageView'
 import { applyTheme } from './lib/theme'
+import { WorldStrip } from './features/world/WorldStrip'
 
 const VIEW_KEYS: Record<string, CommandId> = { '1': 'view-chat', '2': 'view-agents', '3': 'view-preview', '4': 'project', '5': 'usage' }
 
@@ -84,12 +85,13 @@ export function App() {
   return (
     <div className="flex h-full">
       {!focusMode && <Sidebar />}
-      <main className="flex min-w-0 flex-1 flex-col bg-surface shadow-[-1px_0_0_var(--line)]">
+      <main className="relative flex min-w-0 flex-1 flex-col bg-surface shadow-[-1px_0_0_var(--line)]">
         <TopBar />
         <div className="flex min-h-0 flex-1">
           <div className="flex min-w-0 flex-1 flex-col">{place === 'project' ? <ProjectView /> : inSession ? <Conversation session={session} /> : <Home />}</div>
           {inSession && panelOpen && !focusMode && <SidePanel session={session} />}
         </div>
+        <WorldStrip />
         <TerminalPanel />
       </main>
       {usageOpen && <UsageSheet />}

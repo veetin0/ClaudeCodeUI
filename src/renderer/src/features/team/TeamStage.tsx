@@ -13,7 +13,7 @@ const BUBBLE = {
 } as const
 
 /** Re-renders at the next time-based change (a one-shot ending, someone leaving); events re-render the rest. */
-function useStageClock(s: SessionState, frozen: boolean) {
+export function useStageClock(s: SessionState, frozen: boolean) {
   const [, tick] = useState(0)
   useEffect(() => {
     if (frozen) return
@@ -33,12 +33,17 @@ export function TeamStage({
   session,
   scale = 3,
   compact = false,
+  bare = false,
+  height,
   className,
 }: {
   session: SessionState
   scale?: 2 | 3
-  /** Narrow places (the side panel): characters stand closer and go without name tags. */
+  /** Narrow places (the strip): characters stand closer and go without name tags. */
   compact?: boolean
+  /** No stage of its own (the world strip draws the corridor behind it). */
+  bare?: boolean
+  height?: number
   className?: string
 }) {
   const mode = useTeamMode()
@@ -84,8 +89,8 @@ export function TeamStage({
       ref={ref}
       role="group"
       aria-label={`The team: ${team.map((m) => m.label).join(', ')}`}
-      className={cn('team-stage relative flex items-end overflow-hidden rounded-lg border border-line px-2', className)}
-      style={{ '--floor': `${floor}px`, height: compact ? size + 4 + floor / 2 : size + 18 + 4 * scale, gap } as CSSProperties}
+      className={cn('relative flex items-end overflow-hidden px-2', !bare && 'team-stage rounded-lg border border-line', className)}
+      style={{ '--floor': `${floor}px`, height: height ?? (compact ? size + 4 + floor / 2 : size + 18 + 4 * scale), gap } as CSSProperties}
     >
       {shown.map((m) => (
         <Member
