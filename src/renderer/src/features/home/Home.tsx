@@ -29,6 +29,15 @@ export function Home() {
   const ref = useRef<HTMLTextAreaElement>(null)
   const folder: string | null = dir ?? recents[0] ?? null
   useEffect(() => ref.current?.focus(), [])
+  // A harness://open link: take its folder and prompt once, leave the prompt for you to read and send.
+  const prefill = useApp((s) => s.homePrefill)
+  useEffect(() => {
+    if (!prefill) return
+    setDir(prefill.dir)
+    setText(prefill.prompt)
+    useApp.getState().clearHomePrefill()
+    ref.current?.focus()
+  }, [prefill])
 
   /** The secondary path: a session in a folder, with the text as its first message. */
   const chat = async () => {

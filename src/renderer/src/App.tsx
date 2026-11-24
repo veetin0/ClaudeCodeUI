@@ -27,6 +27,7 @@ export function App() {
   const panelOpen = useApp((s) => s.panelOpen)
   const usageOpen = useApp((s) => s.usageOpen)
   useResetQueueRunner()
+  useEffect(() => window.harness.onOpenRequest((req) => useApp.getState().prefillHome(req)), [])
   useWorldSounds()
 
   useEffect(() => {

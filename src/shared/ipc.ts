@@ -203,6 +203,8 @@ export interface HarnessApi {
   onResetQueue(cb: (state: ResetQueueState) => void): () => void
   /** Queued messages are due: send them. */
   onResetQueueFire(cb: (items: QueuedPrompt[]) => void): () => void
+  /** A `harness://open` link: show Home with this folder and prompt filled in (never sent). */
+  onOpenRequest(cb: (req: import('./openRequest').OpenRequest) => void): () => void
   phoneTest(): Promise<void>
   partnersState(): Promise<PartnersState>
   partnerSetKey(env: string, value: string | null): Promise<PartnersState>
@@ -334,6 +336,7 @@ export const IPC = {
   resetQueueDone: 'reset-queue:done',
   resetQueuePush: 'reset-queue:push',
   resetQueueFire: 'reset-queue:fire',
+  openRequest: 'open:request',
   phoneTest: 'phone:test',
   partnersState: 'partners:state',
   partnerSetKey: 'partners:set-key',

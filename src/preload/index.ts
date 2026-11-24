@@ -104,6 +104,11 @@ const api: HarnessApi = {
     ipcRenderer.on(IPC.resetQueueFire, l)
     return () => ipcRenderer.removeListener(IPC.resetQueueFire, l)
   },
+  onOpenRequest: (cb) => {
+    const l = (_: unknown, req: import('../shared/openRequest').OpenRequest) => cb(req)
+    ipcRenderer.on(IPC.openRequest, l)
+    return () => ipcRenderer.removeListener(IPC.openRequest, l)
+  },
   phoneTest: () => ipcRenderer.invoke(IPC.phoneTest),
   partnersState: () => ipcRenderer.invoke(IPC.partnersState),
   partnerSetKey: (env, value) => ipcRenderer.invoke(IPC.partnerSetKey, env, value),
