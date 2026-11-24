@@ -43,6 +43,8 @@ export interface AppState {
   activeId: string | null
   settings: AppSettings | null
   place: Place
+  /** A `harness://open` link: Home fills in this folder and prompt, once. */
+  homePrefill: { dir: string; prompt: string } | null
   view: MainView
   agentsMode: AgentsMode
   /** The session's side panel (tasks, changed files, running agents). */
@@ -90,6 +92,9 @@ export interface AppState {
   sendTo(id: string, text: string, images?: ImageAttachment[], via?: 'harness'): Promise<void>
   setUsageOpen(open: boolean): void
   goHome(): void
+  /** Shows Home with a folder and prompt filled in (nothing is started or sent). */
+  prefillHome(req: { dir: string; prompt: string }): void
+  clearHomePrefill(): void
   /** The Project place (the current project's build, promo and keys). */
   openProject(): void
   /** Back from the Project place: to the session you were in, or Home. */
@@ -145,6 +150,7 @@ export const useApp = create<AppState>((set, get) => ({
   activeId: null,
   settings: null,
   place: 'home',
+  homePrefill: null,
   view: 'chat',
   agentsMode: 'world',
   panelOpen: false,
@@ -336,6 +342,8 @@ export const useApp = create<AppState>((set, get) => ({
 
   setUsageOpen: (usageOpen) => set({ usageOpen, ...(usageOpen ? { settingsOpen: false } : {}) }),
   goHome: () => set({ place: 'home', replay: null }),
+  prefillHome: (req) => set({ place: 'home', replay: null, homePrefill: req }),
+  clearHomePrefill: () => set({ homePrefill: null }),
   openProject: () => set({ place: 'project', replay: null }),
   leaveProject: () => set((st) => ({ place: st.activeId ? 'session' : 'home' })),
 

@@ -24,6 +24,9 @@ asarUnpack:
   - resources/ecc/**
 # node-pty ships N-API prebuilds for macOS and Windows; no recompiling (no Xcode / Visual Studio) needed.
 npmRebuild: false
+protocols:
+  - name: Harness
+    schemes: [harness]
 mac:
   category: public.app-category.developer-tools
   icon: build/icon.png

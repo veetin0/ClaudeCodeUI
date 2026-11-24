@@ -1,8 +1,10 @@
 import { app, BrowserWindow, dialog, ipcMain, nativeTheme, powerMonitor, powerSaveBlocker, safeStorage, shell } from 'electron'
+import { existsSync, realpathSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { join } from 'node:path'
 import { isAdvisorChoice, type AdvisorChoice } from '@shared/advisor'
 import { eccEnv } from '@shared/ecc'
+import { isInside, parseOpenUrl, type OpenRequest } from '@shared/openRequest'
 import { IPC, type ObserveStatus, type PermissionDecision, type PtyOptions, type StartSessionOptions } from '@shared/ipc'
 import type { ImageAttachment, PermissionMode, TodoItem } from '@shared/events'
 import { AgentService } from './agent/AgentService'
@@ -47,6 +49,39 @@ const envPort = (name: string) => Number(process.env[name]) || undefined
 
 loadLoginShellPath()
 registerFileScheme()
+
+// harness://open?dir=…&prompt=… (Meli and other launchers): shows Home with that folder and prompt
+// filled in. Nothing is started or sent; you read the prompt and press Build yourself.
+// Only folders inside ~/Projects are accepted, after resolving symlinks.
+if (!app.isDefaultProtocolClient('harness')) app.setAsDefaultProtocolClient('harness')
+const openRoots = [join(homedir(), 'Projects')]
+let pendingOpen: OpenRequest | null = null
+function realRoots(): string[] {
+  return openRoots.map((r) => (existsSync(r) ? realpathSync(r) : r))
+}
+function deliverOpen() {
+  const win = BrowserWindow.getAllWindows()[0]
+  if (!pendingOpen || !win) return
+  if (win.webContents.isLoading()) {
+    win.webContents.once('did-finish-load', () => setTimeout(deliverOpen, 300))
+    return
+  }
+  const req = pendingOpen
+  pendingOpen = null
+  if (win.isMinimized()) win.restore()
+  win.show()
+  win.focus()
+  win.webContents.send(IPC.openRequest, req)
+}
+app.on('open-url', (e, url) => {
+  e.preventDefault()
+  const req = parseOpenUrl(url, openRoots)
+  if (!req) return
+  // The folder may not exist yet (Meli creates it first); if it does, it must not be a symlink out of ~/Projects.
+  if (existsSync(req.dir) && !isInside(realpathSync(req.dir), realRoots())) return
+  pendingOpen = req
+  if (app.isReady()) deliverOpen()
+})
 
 const bus = new EventBus()
 const telemetry = new TelemetryServer()
@@ -527,6 +562,7 @@ async function start() {
   })
   registerIpc()
   createWindow()
+  deliverOpen()
   // impeccable's detector engine: fetched once per computer, in the background.
   if (settings.get().designSkills.impeccable) setTimeout(() => void design.prepare(), 8000)
 
